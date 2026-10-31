@@ -1,0 +1,5 @@
+[
+  {"dir":"/repo/.git","content":"[remote \"origin\"]\n url = ssh://example/repo\n"},
+  {"dir":"/missing/.git","error":"ENOENT"},
+  {"dir":"/unicode/.git","content":"[RÉMOTE \"origin\"]\n URL = oui\n","section":"rémote"}
+]

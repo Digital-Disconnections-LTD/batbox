@@ -1,0 +1,530 @@
+[
+  {
+    "name": "read pair and results",
+    "tools": [
+      {
+        "name": "Read",
+        "renderGroupedToolUse": true,
+        "result": {
+          "isSearch": false,
+          "isRead": true
+        }
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "a",
+        "timestamp": 1,
+        "message": {
+          "id": "api",
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "r1",
+              "name": "Read",
+              "input": {
+                "file_path": "a.txt"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "assistant",
+        "uuid": "b",
+        "timestamp": 1,
+        "message": {
+          "id": "api",
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "r2",
+              "name": "Read",
+              "input": {
+                "file_path": "b.txt"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "user",
+        "uuid": "u1",
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "r1"
+            }
+          ]
+        }
+      },
+      {
+        "type": "user",
+        "uuid": "u2",
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "r2"
+            }
+          ]
+        }
+      },
+      {
+        "type": "assistant",
+        "uuid": "text",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "done"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "defer skip and break",
+    "tools": [
+      {
+        "name": "Grep",
+        "result": {
+          "isSearch": true,
+          "isRead": false
+        }
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "search",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "g",
+              "name": "Grep",
+              "input": {
+                "pattern": "needle"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "attachment",
+        "uuid": "att",
+        "attachment": {
+          "type": "notice"
+        }
+      },
+      {
+        "type": "assistant",
+        "uuid": "thinking",
+        "message": {
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "why"
+            }
+          ]
+        }
+      },
+      {
+        "type": "user",
+        "uuid": "result",
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "g"
+            }
+          ]
+        }
+      },
+      {
+        "type": "assistant",
+        "uuid": "text",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "answer"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "memory and relevant",
+    "tools": [
+      {
+        "name": "Read",
+        "result": {
+          "isSearch": false,
+          "isRead": true
+        }
+      },
+      {
+        "name": "Write",
+        "result": null
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "read",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "r",
+              "name": "Read",
+              "input": {
+                "file_path": "MEMORY.md"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "attachment",
+        "uuid": "mem",
+        "attachment": {
+          "type": "relevant_memories",
+          "memories": [
+            {
+              "path": "MEMORY.md",
+              "content": "x",
+              "mtimeMs": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "assistant",
+        "uuid": "write",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "w",
+              "name": "Write",
+              "input": {
+                "file_path": "MEMORY.md"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "fullscreen bash",
+    "fullscreen": true,
+    "tools": [
+      {
+        "name": "Bash",
+        "result": {
+          "isSearch": false,
+          "isRead": false
+        }
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "bash",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "b",
+              "name": "Bash",
+              "input": {
+                "command": "echo   hi  \n\n  pwd"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "user",
+        "uuid": "result",
+        "toolUseResult": {
+          "stdout": "hi",
+          "stderr": ""
+        },
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "b"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "inline bash breaks",
+    "tools": [
+      {
+        "name": "Read",
+        "result": {
+          "isSearch": false,
+          "isRead": true
+        }
+      },
+      {
+        "name": "Bash",
+        "result": {
+          "isSearch": false,
+          "isRead": false
+        }
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "read",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "r",
+              "name": "Read",
+              "input": {
+                "file_path": "x"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "assistant",
+        "uuid": "bash",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "b",
+              "name": "Bash",
+              "input": {
+                "command": "echo hi"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "team memory search",
+    "features": {
+      "TEAMMEM": true
+    },
+    "tools": [
+      {
+        "name": "Grep",
+        "result": {
+          "isSearch": true,
+          "isRead": false
+        }
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "g",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "g",
+              "name": "Grep",
+              "input": {
+                "path": "TEAMMEM.md",
+                "pattern": "note"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "hook and nested memory order",
+    "tools": [
+      {
+        "name": "Read",
+        "result": {
+          "isSearch": false,
+          "isRead": true
+        }
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "r",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "r",
+              "name": "Read",
+              "input": {
+                "file_path": "x"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "system",
+        "uuid": "hook",
+        "subtype": "stop_hook_summary",
+        "hookLabel": "PreToolUse",
+        "hookCount": 2,
+        "hookInfos": [
+          {
+            "durationMs": 10
+          },
+          {
+            "durationMs": 5
+          }
+        ]
+      },
+      {
+        "type": "attachment",
+        "uuid": "nested",
+        "attachment": {
+          "type": "nested_memory"
+        }
+      },
+      {
+        "type": "user",
+        "uuid": "result",
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "r"
+            }
+          ]
+        }
+      },
+      {
+        "type": "assistant",
+        "uuid": "text",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "done"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "git bash result",
+    "fullscreen": true,
+    "tools": [
+      {
+        "name": "Bash",
+        "result": {
+          "isSearch": false,
+          "isRead": false
+        }
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "bash",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "b",
+              "name": "Bash",
+              "input": {
+                "command": "git commit -m note"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "user",
+        "uuid": "result",
+        "toolUseResult": {
+          "stdout": "[main abc] note",
+          "stderr": ""
+        },
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "b"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "fullscreen bash hint UTF16 cap",
+    "fullscreen": true,
+    "tools": [
+      {
+        "name": "Bash",
+        "result": {
+          "isSearch": false,
+          "isRead": false
+        }
+      }
+    ],
+    "messages": [
+      {
+        "type": "assistant",
+        "uuid": "bash",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "b",
+              "name": "Bash",
+              "input": {
+                "command": "🙂xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "user",
+        "uuid": "result",
+        "toolUseResult": {
+          "stdout": "hi",
+          "stderr": ""
+        },
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "b"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {"name":"blocked-exit","kind":"parse","event":"Elicitation","result":{"command":"a","output":"","blocked":true,"succeeded":false}},
+  {"name":"empty","kind":"parse","event":"Elicitation","result":{"command":"a","output":"   ","blocked":false,"succeeded":true}},
+  {"name":"plain","kind":"parse","event":"Elicitation","result":{"command":"a","output":"plain","blocked":false,"succeeded":true}},
+  {"name":"accept","kind":"parse","event":"Elicitation","result":{"command":"a","output":"{\"hookSpecificOutput\":{\"hookEventName\":\"Elicitation\",\"action\":\"accept\",\"content\":{\"x\":1}}}","blocked":false,"succeeded":true}},
+  {"name":"decline-default","kind":"parse","event":"Elicitation","result":{"command":"b","output":"{\"hookSpecificOutput\":{\"hookEventName\":\"Elicitation\",\"action\":\"decline\"}}","blocked":false,"succeeded":true}},
+  {"name":"decline-result","kind":"parse","event":"ElicitationResult","result":{"command":"b","output":"{\"reason\":\"denied\",\"hookSpecificOutput\":{\"hookEventName\":\"ElicitationResult\",\"action\":\"decline\"}}","blocked":false,"succeeded":true}},
+  {"name":"block-decision","kind":"parse","event":"Elicitation","result":{"command":"a","output":"{\"decision\":\"block\"}","blocked":false,"succeeded":true}},
+  {"name":"async","kind":"parse","event":"Elicitation","result":{"command":"a","output":"{\"async\":true}","blocked":false,"succeeded":true}},
+  {"name":"wrong-event","kind":"parse","event":"Elicitation","result":{"command":"a","output":"{\"hookSpecificOutput\":{\"hookEventName\":\"ElicitationResult\",\"action\":\"accept\"}}","blocked":false,"succeeded":true}},
+  {"name":"invalid-json","kind":"parse","event":"Elicitation","result":{"command":"a","output":"{broken","blocked":false,"succeeded":true}},
+  {"name":"wrapper-request","kind":"request","serverName":"mcp-one","message":"Question?","mode":"form","requestedSchema":{"type":"object"},"results":[{"command":"a","output":"{\"hookSpecificOutput\":{\"hookEventName\":\"Elicitation\",\"action\":\"decline\"}}","blocked":false,"succeeded":true},{"command":"b","output":"{\"hookSpecificOutput\":{\"hookEventName\":\"Elicitation\",\"action\":\"accept\",\"content\":{\"ok\":true}}}","blocked":false,"succeeded":true}]},
+  {"name":"wrapper-result","kind":"result","serverName":"mcp-two","action":"accept","content":{"ok":true},"timeout":0,"results":[{"command":"a","output":"{\"hookSpecificOutput\":{\"hookEventName\":\"ElicitationResult\",\"action\":\"decline\"}}","blocked":false,"succeeded":true}]},
+  {"name":"wrapper-empty","kind":"result","serverName":"mcp-three","action":"cancel","results":[]},
+  {"name":"wrapper-reject","kind":"request","serverName":"mcp-four","message":"Q","executionError":"hook failed","results":[]}
+]

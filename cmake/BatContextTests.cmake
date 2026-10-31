@@ -1,0 +1,5 @@
+foreach(section IN ITEMS bat_context partner_identity partner_missions)
+  batbox_phase4_probe(${section} batbox_bat_context)
+endforeach()
+batbox_indigenous(phase4-bat-context-indigenous tests/phase4/bat_context_indigenous_probe.cpp batbox_bat_context)
+batbox_indigenous(phase4-partner-identity-indigenous tests/phase4/partner_identity_indigenous_probe.cpp batbox_bat_context)

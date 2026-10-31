@@ -1,0 +1,10 @@
+[
+  {"name":"regular","start":"/regular/sub","root":"/regular","files":{},"realpaths":{},"expected":"/regular"},
+  {"name":"worktree","start":"/work/sub","root":"/work","files":{"/work/.git":"gitdir: /repo/.git/worktrees/work\n","/repo/.git/worktrees/work/commondir":"../..\n","/repo/.git/worktrees/work/gitdir":"/work/.git\n"},"realpaths":{"/work/.git":"/work/.git","/work":"/work"},"expected":"/repo"},
+  {"name":"bare","start":"/work/sub","root":"/work","files":{"/work/.git":"gitdir: /repo.git/worktrees/work\n","/repo.git/worktrees/work/commondir":"../..\n","/repo.git/worktrees/work/gitdir":"/work/.git\n"},"realpaths":{"/work/.git":"/work/.git","/work":"/work"},"expected":"/repo.git"},
+  {"name":"spoof-parent","start":"/work","root":"/work","files":{"/work/.git":"gitdir: /attack/worktrees/work\n","/attack/worktrees/work/commondir":"/trusted/.git\n","/attack/worktrees/work/gitdir":"/work/.git\n"},"realpaths":{"/work/.git":"/work/.git","/work":"/work"},"expected":"/work"},
+  {"name":"spoof-backlink","start":"/work","root":"/work","files":{"/work/.git":"gitdir: /repo/.git/worktrees/work\n","/repo/.git/worktrees/work/commondir":"../..\n","/repo/.git/worktrees/work/gitdir":"/other/.git\n"},"realpaths":{"/other/.git":"/other/.git","/work":"/work"},"expected":"/work"},
+  {"name":"submodule","start":"/sub","root":"/sub","files":{"/sub/.git":"gitdir: /repo/.git/modules/sub\n"},"realpaths":{},"expected":"/sub"},
+  {"name":"symlinked-worktree","start":"/link","root":"/link","files":{"/link/.git":"gitdir: /repo/.git/worktrees/link\n","/repo/.git/worktrees/link/commondir":"../..\n","/repo/.git/worktrees/link/gitdir":"/real/work/.git\n"},"realpaths":{"/real/work/.git":"/real/work/.git","/link":"/real/work"},"expected":"/repo"},
+  {"name":"no-repo","start":"/none","root":null,"files":{},"realpaths":{},"expected":null}
+]

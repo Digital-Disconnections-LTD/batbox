@@ -1,0 +1,15 @@
+[
+  {"name":"status-disabled","kind":"status","disabled":true},
+  {"name":"status-trust","kind":"status","trust":true},
+  {"name":"status-unconfigured","kind":"status"},
+  {"name":"status-success","kind":"status","settings":{"statusLine":{"type":"command","command":"printf lines"}},"result":{"status":0,"stdout":"  one  \n\n two \n  ","aborted":false},"logResult":true},
+  {"name":"status-failed","kind":"status","managed":true,"policy":{"statusLine":{"type":"command","command":"exit 2"}},"result":{"status":2,"stdout":"bad","aborted":false},"logResult":true},
+  {"name":"status-aborted","kind":"status","settings":{"statusLine":{"type":"command","command":"slow"}},"result":{"status":0,"stdout":"ignored","aborted":true}},
+  {"name":"status-exception","kind":"status","settings":{"statusLine":{"type":"command","command":"throw"}},"executionError":"boom"},
+  {"name":"file-disabled","kind":"file","disabled":true},
+  {"name":"file-trust","kind":"file","trust":true},
+  {"name":"file-unconfigured","kind":"file"},
+  {"name":"file-success","kind":"file","settings":{"fileSuggestion":{"type":"command","command":"find ."}},"result":{"status":0,"stdout":"  a.ts \n\n b.cc  \n","aborted":false}},
+  {"name":"file-failed","kind":"file","managed":true,"policy":{"fileSuggestion":{"type":"command","command":"exit 2"}},"result":{"status":2,"stdout":"bad","aborted":false}},
+  {"name":"file-exception","kind":"file","settings":{"fileSuggestion":{"type":"command","command":"throw"}},"executionError":"oops"}
+]

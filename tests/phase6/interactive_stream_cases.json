@@ -1,0 +1,17 @@
+[
+  {"name":"ordinary message", "events":[{"type":"user","uuid":"u1","message":{"content":"hello"}}]},
+  {"name":"completed thinking before final", "now":1234,"events":[{"type":"assistant","uuid":"a1","message":{"content":[{"type":"text","text":"done"},{"type":"thinking","thinking":"reason"}]}}]},
+  {"name":"tool summary ignored", "events":[{"type":"tool_use_summary","summary":"hidden"}]},
+  {"name":"tombstone", "events":[{"type":"tombstone","message":{"type":"assistant","uuid":"a1"}}]},
+  {"name":"request start", "events":[{"type":"stream_request_start"}]},
+  {"name":"message start metrics", "events":[{"type":"stream_event","ttftMs":17,"event":{"type":"message_start"}}]},
+  {"name":"message start null metrics", "events":[{"type":"stream_event","ttftMs":null,"event":{"type":"message_start"}}]},
+  {"name":"message stop", "events":[{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"t","name":"Bash","input":{}}}},{"type":"stream_event","event":{"type":"message_stop"}}]},
+  {"name":"thinking and text blocks", "events":[{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}},{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}}]},
+  {"name":"connector text", "connectorTextEnabled":true,"events":[{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","isConnectorText":true}}}]},
+  {"name":"tool input order", "events":[{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"a","name":"Read","input":{}}}},{"type":"stream_event","event":{"type":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"b","name":"Bash","input":{}}}},{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"x\":"}}},{"type":"stream_event","event":{"type":"content_block_delta","index":9,"delta":{"type":"input_json_delta","partial_json":"missing"}}}]},
+  {"name":"text stream final atomic", "events":[{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}},{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"A"}}},{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"界"}}},{"type":"assistant","uuid":"a2","message":{"content":[{"type":"text","text":"A界"}]}}]},
+  {"name":"thinking signature stop", "events":[{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"abc"}}},{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"secret"}}},{"type":"stream_event","event":{"type":"content_block_stop","index":0}}]},
+  {"name":"server tool mode", "events":[{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"server_tool_use"}}},{"type":"stream_event","event":{"type":"message_delta","delta":{}}}]},
+  {"name":"unknown start and event", "events":[{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"future_block"}}},{"type":"stream_event","event":{"type":"future_event"}}]}
+]

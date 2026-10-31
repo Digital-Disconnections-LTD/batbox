@@ -1,0 +1,11 @@
+[
+  {"name":"dated-logs-and-mcp","files":{
+    "/errors":[{"name":"2025-01-02T03-04-05-006Z.log","file":true},{"name":"2026-10-27T03-04-05-006Z.log","file":true},{"name":"invalid.log","file":true}],
+    "/logs":[{"name":"mcp-logs-a","directory":true},{"name":"mcp-logs-b","directory":true},{"name":"other","directory":true}],
+    "/logs/mcp-logs-a":[{"name":"2024-01-02T03-04-05-006Z.txt","file":true},{"name":"2026-10-28T00-00-00-000Z.txt","file":true}],
+    "/logs/mcp-logs-b":[{"name":"2024-02-02T03-04-05-006Z.txt","file":true}]},
+    "unlinkError":["/logs/mcp-logs-b/2024-02-02T03-04-05-006Z.txt"],"rmdirError":["/logs/mcp-logs-a"]},
+  {"name":"missing-error-directory","files":{"/logs":[{"name":"mcp-logs-old","directory":true}],"/logs/mcp-logs-old":[{"name":"2020-01-01T00-00-00-000Z.txt","file":true}]}},
+  {"name":"missing-base-directory","files":{"/errors":[{"name":"2020-01-01T00-00-00-000Z.log","file":true}]}},
+  {"name":"readdir-failure-logged","files":{"/logs":[]},"readdirError":{"/errors":"EACCES"}}
+]

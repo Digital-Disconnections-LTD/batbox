@@ -1,0 +1,38 @@
+[
+  {
+    "name": "plain",
+    "stderr": "error"
+  },
+  {
+    "name": "one sandbox block",
+    "stderr": "before <sandbox_violations>one</sandbox_violations> after"
+  },
+  {
+    "name": "two sandbox blocks",
+    "stderr": "<sandbox_violations>one</sandbox_violations>  e  <sandbox_violations>two</sandbox_violations>"
+  },
+  {
+    "name": "cwd warning only",
+    "stderr": "Shell cwd was reset to /tmp"
+  },
+  {
+    "name": "cwd warning after error",
+    "stderr": "error\nShell cwd was reset to /tmp"
+  },
+  {
+    "name": "cwd warning final newline",
+    "stderr": "error\nShell cwd was reset to /tmp\n"
+  },
+  {
+    "name": "cwd warning before other line",
+    "stderr": "Shell cwd was reset to /tmp\nerror"
+  },
+  {
+    "name": "sandbox then cwd",
+    "stderr": "<sandbox_violations>x</sandbox_violations>\nShell cwd was reset to /tmp"
+  },
+  {
+    "name": "cwd warning CRLF",
+    "stderr": "error\r\nShell cwd was reset to /tmp\r\n"
+  }
+]

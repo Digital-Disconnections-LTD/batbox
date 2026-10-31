@@ -1,0 +1,19 @@
+[
+  {"name":"teammate pair","action":"team","messages":[
+    {"type":"attachment","uuid":"a","timestamp":1,"attachment":{"type":"task_status","taskType":"in_process_teammate","status":"completed"}},
+    {"type":"attachment","uuid":"b","timestamp":2,"attachment":{"type":"task_status","taskType":"in_process_teammate","status":"completed"}},
+    {"type":"attachment","uuid":"c","timestamp":3,"attachment":{"type":"task_status","taskType":"in_process_teammate","status":"failed"}}
+  ]},
+  {"name":"single team retained","action":"team","messages":[
+    {"type":"attachment","uuid":"a","timestamp":1,"attachment":{"type":"task_status","taskType":"in_process_teammate","status":"completed"}}
+  ]},
+  {"name":"hook label pair","action":"hook","messages":[
+    {"type":"system","uuid":"a","subtype":"stop_hook_summary","hookLabel":"PostToolUse","hookCount":2,"hookInfos":[{"id":"x"}],"hookErrors":[],"preventedContinuation":false,"hasOutput":false,"totalDurationMs":40},
+    {"type":"system","uuid":"b","subtype":"stop_hook_summary","hookLabel":"PostToolUse","hookCount":1,"hookInfos":[{"id":"y"}],"hookErrors":[{"id":"e"}],"preventedContinuation":true,"hasOutput":true,"totalDurationMs":25},
+    {"type":"system","uuid":"c","subtype":"stop_hook_summary","hookLabel":"Stop","hookCount":1,"hookInfos":[],"hookErrors":[],"preventedContinuation":false,"hasOutput":false}
+  ]},
+  {"name":"unlabeled retained","action":"hook","messages":[
+    {"type":"system","uuid":"a","subtype":"stop_hook_summary","hookCount":1,"hookInfos":[],"hookErrors":[]},
+    {"type":"system","uuid":"b","subtype":"api_error"}
+  ]}
+]

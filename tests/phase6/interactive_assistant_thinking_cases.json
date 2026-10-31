@@ -1,0 +1,10 @@
+[
+  {"name":"empty","text":"","margin":false,"transcript":false,"verbose":false,"hide":false},
+  {"name":"hidden-in-transcript","text":"private","margin":true,"transcript":true,"verbose":true,"hide":true},
+  {"name":"collapsed","text":"reasoning","margin":false,"transcript":false,"verbose":false,"hide":false},
+  {"name":"collapsed-margin","text":"reasoning","margin":true,"transcript":false,"verbose":false,"hide":false},
+  {"name":"verbose","text":"reasoning","margin":false,"transcript":false,"verbose":true,"hide":false},
+  {"name":"transcript","text":"reasoning","margin":true,"transcript":true,"verbose":false,"hide":false},
+  {"name":"redacted","redacted":true,"margin":false},
+  {"name":"redacted-margin","redacted":true,"margin":true}
+]

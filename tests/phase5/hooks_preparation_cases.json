@@ -1,0 +1,7 @@
+[
+  {"name":"plain","command":"printf ok","hookEvent":"InstructionsLoaded"},
+  {"name":"plugin","command":"printf '${ROOT} ${DATA} ${user_config.COLOR}'","hookEvent":"InstructionsLoaded","pluginRoot":"/plugins/one","pluginId":"p1"},
+  {"name":"plugin-missing","command":"printf ok","hookEvent":"InstructionsLoaded","pluginRoot":"/plugins/missing","pluginId":"p1","pluginExists":false},
+  {"name":"session-env-cwd-fallback","command":"printf ok","hookEvent":"SessionStart","hookIndex":2,"cwdExists":false,"timeout":7},
+  {"name":"skill-overrides-plugin","command":"printf '${ROOT}'","hookEvent":"SessionStart","hookIndex":0,"pluginRoot":"/plugins/one","pluginId":"p1","skillRoot":"/skills/one"}
+]

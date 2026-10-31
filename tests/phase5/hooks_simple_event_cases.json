@@ -1,0 +1,7 @@
+[
+  {"name":"post-tool","kind":"post","toolName":"Read","toolUseID":"t-1","toolInput":{"file":"a"},"toolResponse":{"ok":true},"permissionMode":"plan","agentId":"agent-1","agentType":"worker"},
+  {"name":"post-tool-default","kind":"post","toolName":"Bash","toolUseID":"t-2","toolInput":{},"toolResponse":"ok"},
+  {"name":"teammate-idle","kind":"idle","teammateName":"ada","teamName":"eng","permissionMode":"default"},
+  {"name":"task-created","kind":"created","taskId":"1","taskSubject":"subject","taskDescription":"detail","teammateName":"ada","teamName":"eng","agentId":"agent-2"},
+  {"name":"task-completed","kind":"completed","taskId":"2","taskSubject":"done"}
+]

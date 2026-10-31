@@ -1,0 +1,10 @@
+[
+  {"name":"snapshot-wins","snapshot":[{"hooks":[]}],"registered":[{}],"options":{}},
+  {"name":"registered-after-empty-snapshot","snapshot":[],"registered":[{}],"options":{}},
+  {"name":"no-hook","snapshot":[],"registered":[],"options":{}},
+  {"name":"missing-configs","snapshot":null,"registered":null,"options":{}},
+  {"name":"all-options","snapshot":[],"registered":[{}],"options":{"globs":["*.md","docs/**"],"triggerFilePath":"/work/a.ts","parentFilePath":"/work/RULES.md","timeoutMs":25}},
+  {"name":"empty-globs","snapshot":[],"registered":[],"options":{"globs":[]}},
+  {"name":"reject-executor","snapshot":[],"registered":[],"options":{"timeoutMs":0},"reject":true},
+  {"name":"base-fields-overwritten","snapshot":[],"registered":[],"base":{"trigger_file_path":"stale","globs":["stale"],"parent_file_path":"stale","hook_event_name":"Old","session_id":"local"},"options":{}}
+]

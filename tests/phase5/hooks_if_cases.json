@@ -1,0 +1,7 @@
+[
+  {"name":"non-tool","event":"InstructionsLoaded","toolName":"Bash","conditions":["Bash","Bash(git *)"]},
+  {"name":"no-tool","event":"PreToolUse","toolName":"Bash","conditions":["Bash","Bash(git *)","Read"]},
+  {"name":"tool-pattern","event":"PreToolUse","toolName":"Bash","hasTool":true,"valid":true,"pattern":true,"conditions":["Bash","Bash(git *)","Bash(rm *)","Read"]},
+  {"name":"invalid-input","event":"PreToolUse","toolName":"Bash","hasTool":true,"valid":false,"pattern":true,"conditions":["Bash","Bash(git *)"]},
+  {"name":"no-pattern-provider","event":"PostToolUse","toolName":"Bash","hasTool":true,"valid":true,"conditions":["Bash","Bash(git *)"]}
+]

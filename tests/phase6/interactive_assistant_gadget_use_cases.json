@@ -1,0 +1,14 @@
+[
+  {"name":"missing-tool","hasTool":false,"active":true},
+  {"name":"invalid-input","hasTool":true,"valid":false,"active":true},
+  {"name":"empty-name","hasTool":true,"valid":true,"displayName":"","active":true},
+  {"name":"active","hasTool":true,"valid":true,"displayName":"Bash","active":true,"tag":true,"progress":true},
+  {"name":"queued","hasTool":true,"valid":true,"displayName":"Bash","active":false,"queued":true},
+  {"name":"resolved","hasTool":true,"valid":true,"displayName":"Bash","active":false,"resolved":true},
+  {"name":"waiting","hasTool":true,"valid":true,"displayName":"Bash","active":true,"waiting":true,"progress":true},
+  {"name":"transparent-active","hasTool":true,"valid":true,"displayName":"Agent","active":true,"transparent":true,"progress":true},
+  {"name":"transparent-queued","hasTool":true,"valid":true,"displayName":"Agent","active":false,"transparent":true},
+  {"name":"render-null","hasTool":true,"valid":true,"displayName":"Bash","active":true,"renderNull":true},
+  {"name":"render-empty","hasTool":true,"valid":true,"displayName":"Bash","active":true,"renderEmpty":true},
+  {"name":"progress-hook-filter","hasTool":true,"valid":true,"displayName":"Bash","active":true,"progress":true,"transcript":true}
+]

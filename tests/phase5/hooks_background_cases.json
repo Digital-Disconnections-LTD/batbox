@@ -1,0 +1,8 @@
+[
+  {"name":"registered","asyncRewake":false,"accepted":true,"code":0,"stdout":"later","stderr":""},
+  {"name":"not-backgrounded","asyncRewake":false,"accepted":false,"code":0,"stdout":"","stderr":""},
+  {"name":"rewake-success","asyncRewake":true,"accepted":false,"code":0,"stdout":"ok","stderr":""},
+  {"name":"rewake-error","asyncRewake":true,"accepted":false,"code":1,"stdout":"failure","stderr":""},
+  {"name":"rewake-block-stderr","asyncRewake":true,"accepted":false,"code":2,"stdout":"details","stderr":"blocked"},
+  {"name":"rewake-block-stdout","asyncRewake":true,"accepted":false,"code":2,"stdout":"details","stderr":""}
+]

@@ -1,0 +1,13 @@
+batbox_phase4_probe(bootstrap_identity batbox_bootstrap_identity)
+batbox_phase4_probe(bootstrap_signal batbox_bootstrap_identity)
+batbox_phase4_probe(bootstrap_plan_flight batbox_bootstrap_identity)
+foreach(section IN ITEMS costs interaction model_state core_flags request_state flight_cron
+    transitions poetry_state channel_state invoked_skills slow_operations hook_roster)
+  batbox_phase4_probe(bootstrap_${section} batbox_bootstrap_state)
+endforeach()
+batbox_indigenous(phase4-bootstrap-interaction-indigenous tests/phase4/bootstrap_interaction_indigenous_probe.cpp batbox_bootstrap_state)
+batbox_phase4_probe(bootstrap_initial batbox_bootstrap_state)
+batbox_indigenous(phase4-bootstrap-initial-indigenous tests/phase4/bootstrap_initial_indigenous_probe.cpp batbox_bootstrap_state)
+batbox_indigenous(phase4-bootstrap-bindings-indigenous tests/phase4/bootstrap_bindings_indigenous_probe.cpp batbox_bootstrap_bindings)
+batbox_probe(flight_restore batbox_flight_restore phase4)
+batbox_indigenous(phase4-flight-restore-worktree-indigenous tests/phase4/flight_restore_worktree_indigenous.cpp batbox_flight_restore)

@@ -1,0 +1,20 @@
+[
+  {"name":"package-recent","op":"package","markerMtime":999999000},
+  {"name":"package-lock-held","op":"package","lockHeld":true},
+  {"name":"package-prune","op":"package","entries":[
+    {"key":"@batbox/batbox-core@v1","time":999999000},
+    {"key":"@batbox/batbox-core@v2","time":999998000},
+    {"key":"@batbox/batbox-core@v3","time":999997000},
+    {"key":"@batbox/batbox-core@v4","time":999996000},
+    {"key":"@batbox/batbox-core@v5","time":999995000},
+    {"key":"@batbox/batbox-core@v6","time":999994000},
+    {"key":"@batbox/batbox-core@v7","time":800000000},
+    {"key":"other-package@v1","time":1},
+    {"key":"@batbox/batbox-tool@v1","time":800000000}]},
+  {"name":"package-remove-error","op":"package","entries":[
+    {"key":"@batbox/batbox-core@v1","time":800000000}],"removeError":true},
+  {"name":"version-recent","op":"version","markerMtime":999999000},
+  {"name":"version-lock-held","op":"version","lockHeld":true},
+  {"name":"version-success","op":"version"},
+  {"name":"version-failure","op":"version","versionError":true}
+]

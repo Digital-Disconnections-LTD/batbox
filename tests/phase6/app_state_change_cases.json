@@ -1,0 +1,11 @@
+[
+  {"name":"same","kind":"change"},
+  {"name":"mode-external-same","kind":"change","mode":"bubble"},
+  {"name":"mode-plan","kind":"change","mode":"plan","ultraplan":true},
+  {"name":"all-fields","kind":"change","mode":"plan","model":"local","expandedView":"teammates","verbose":true,"privileged":true,"visible":true,"settingsNew":true,"envNew":true},
+  {"name":"model-clear","kind":"change","oldModel":"local","model":null},
+  {"name":"settings-reuse-env","kind":"change","settingsNew":true},
+  {"name":"cache-throw","kind":"change","settingsNew":true,"envNew":true,"throwCache":true},
+  {"name":"metadata-both","kind":"metadata","permission_mode":"plan","is_ultraplan_mode":true},
+  {"name":"metadata-wrong-types","kind":"metadata","permission_mode":3,"is_ultraplan_mode":"yes"}
+]

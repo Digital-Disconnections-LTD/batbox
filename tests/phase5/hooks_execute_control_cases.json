@@ -1,0 +1,11 @@
+[
+  {"name":"return-before","kind":"return-before"},
+  {"name":"throw-before","kind":"throw-before"},
+  {"name":"return-progress","kind":"return-progress"},
+  {"name":"throw-progress","kind":"throw-progress"},
+  {"name":"return-result","kind":"return-result"},
+  {"name":"queued-return","kind":"queued-return"},
+  {"name":"queued-throw","kind":"queued-throw"},
+  {"name":"pending-command-return","kind":"pending-command-return"},
+  {"name":"return-with-pending-child","kind":"return-with-pending-child"}
+]

@@ -1,0 +1,25 @@
+{
+  "format": [
+    {"name":"plain","text":"A simple sentence."},
+    {"name":"heading","text":"# Heading"},
+    {"name":"inline","text":"A **bold** and *soft* `code` word."},
+    {"name":"code","text":"```js\nconst x = 1;\n```"},
+    {"name":"bullet","text":"- alpha\n- beta"},
+    {"name":"ordered","text":"1. first\n2. second"},
+    {"name":"quote","text":"> quoted text"},
+    {"name":"link","text":"[Home](https://example.org)"},
+    {"name":"image","text":"![alt](https://example.org/a.png)"},
+    {"name":"rule","text":"before\n\n---\n\nafter"},
+    {"name":"xml","text":"<context>hidden</context>\nVisible"},
+    {"name":"table","text":"| Name | Value |\n| :--- | ---: |\n| A | 2 |"},
+    {"name":"nested-list","text":"- first\n  - child\n- second"},
+    {"name":"setext","text":"Title\n====="},
+    {"name":"bare-url","text":"Visit https://example.org now."},
+    {"name":"mail-link","text":"[user](mailto:user@example.org)"},
+    {"name":"strikethrough-disabled","text":"~about~ and ~~word~~"},
+    {"name":"multiple-blocks","text":"First paragraph.\n\nSecond paragraph."},
+    {"name":"line-break","text":"First  \nSecond"},
+    {"name":"issue-ref","text":"See owner/repo#42 for details."}
+  ],
+  "stream": ["One paragraph", "One paragraph\n\nSecond", "One paragraph\n\nSecond\n\n```js\nx", "Replaced"]
+}

@@ -1,0 +1,6 @@
+[
+  {"name":"default-title-absent","message":"Hello","notificationType":"permission_prompt"},
+  {"name":"empty-title-owned","message":"Hello","title":"","notificationType":"idle_prompt","timeout":0},
+  {"name":"title-and-timeout","message":"Done","title":"Work","notificationType":"success","timeout":7000},
+  {"name":"executor-rejects","message":"Failure","notificationType":"error","executionError":"hook failed"}
+]

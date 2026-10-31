@@ -1,0 +1,38 @@
+[
+  {
+    "name": "plain",
+    "text": "hello"
+  },
+  {
+    "name": "selected pointer",
+    "text": "hello",
+    "selected": true
+  },
+  {
+    "name": "rainbow word",
+    "text": "try ULTRATHINK now",
+    "ultrathink": true
+  },
+  {
+    "name": "word boundary",
+    "text": "xultrathink ultrathink_ ultrathink!",
+    "ultrathink": true
+  },
+  {
+    "name": "brief queued timestamp",
+    "text": "hello",
+    "brief": true,
+    "queued": true,
+    "timestamp": "now"
+  },
+  {
+    "name": "brief normal",
+    "text": "hello",
+    "brief": true
+  },
+  {
+    "name": "emoji UTF16 offset",
+    "text": "🙂 ultrathink",
+    "ultrathink": true
+  }
+]

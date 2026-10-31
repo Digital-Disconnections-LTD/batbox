@@ -1,0 +1,7 @@
+[
+  {"name":"failure-lines","reason":"logout","results":[{"command":"a","output":"bad","succeeded":false,"blocked":false},{"command":"b","output":"  ","succeeded":false,"blocked":false},{"command":"c","output":"ok","succeeded":true,"blocked":false},{"command":"d","output":"","succeeded":false,"blocked":false}]},
+  {"name":"clear-session","reason":"logout","setAppState":true,"results":[]},
+  {"name":"options","reason":"other","timeout":0,"signal":true,"getAppState":true,"setAppState":true,"results":[{"command":"a","output":"bad","succeeded":false,"blocked":true}]},
+  {"name":"executor-rejects","reason":"logout","setAppState":true,"executionError":"execute broke","results":[]},
+  {"name":"stderr-rejects","reason":"logout","setAppState":true,"writeError":"pipe closed","results":[{"command":"a","output":"bad","succeeded":false,"blocked":false}]}
+]

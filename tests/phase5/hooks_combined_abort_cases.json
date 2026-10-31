@@ -1,0 +1,11 @@
+[
+  {"name":"none"},
+  {"name":"parent-a-pre","preA":true,"timeout":10},
+  {"name":"parent-b-pre","preB":true,"timeout":10},
+  {"name":"parent-a-later","laterA":true,"timeout":10},
+  {"name":"parent-b-later","laterB":true,"timeout":10},
+  {"name":"timeout","fireTimer":true,"timeout":1},
+  {"name":"cleanup-timer","cleanupFirst":true,"fireTimer":true,"timeout":1},
+  {"name":"cleanup-parent","cleanupFirst":true,"laterA":true,"timeout":10},
+  {"name":"both-parents","laterB":true,"timeout":10}
+]

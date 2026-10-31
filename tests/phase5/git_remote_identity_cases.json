@@ -1,0 +1,11 @@
+[
+  {"name":"ssh","url":"git@GitHub.com:Owner/Repo.git"},
+  {"name":"https","url":" https://GitHub.com/Owner/Repo.git "},
+  {"name":"ssh-url","url":"ssh://git@GitHub.com/Owner/Repo"},
+  {"name":"proxy-legacy","url":"http://token@127.0.0.1:16583/git/Owner/Repo"},
+  {"name":"proxy-ghe","url":"http://token@localhost:8000/git/ghe.example/Owner/Repo.git"},
+  {"name":"unicode","url":"https://example.org/Ä/Ö.git"},
+  {"name":"invalid","url":"HTTPS://example.org/Owner/Repo"},
+  {"name":"empty","url":"   "},
+  {"name":"remote-null","url":null}
+]

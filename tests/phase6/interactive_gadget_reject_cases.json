@@ -1,0 +1,8 @@
+[
+  {"name":"missing-tool","hasTool":false,"hasRenderer":true},
+  {"name":"missing-renderer","hasTool":true,"hasRenderer":false},
+  {"name":"invalid-input","hasTool":true,"hasRenderer":true,"schemaValid":false},
+  {"name":"valid-input","hasTool":true,"hasRenderer":true,"schemaValid":true},
+  {"name":"renderer-null","hasTool":true,"hasRenderer":true,"schemaValid":true,"renderNull":true},
+  {"name":"transcript-condensed","hasTool":true,"hasRenderer":true,"schemaValid":true,"transcript":true,"verbose":true,"style":"condensed"}
+]

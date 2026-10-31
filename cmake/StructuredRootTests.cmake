@@ -1,0 +1,12 @@
+foreach(section IN ITEMS structured_control structured_control_compat structured_process_line structured_stream structured_send_request structured_input_reader structured_adapters structured_write)
+  add_executable(batbox-${section}-probe tests/phase5/${section}_probe.cpp)
+  target_link_libraries(batbox-${section}-probe PRIVATE batbox_structured_io)
+
+endforeach()
+batbox_indigenous(phase5-structured-process-line-indigenous tests/phase5/structured_process_line_indigenous.cpp batbox_structured_io)
+batbox_indigenous(phase5-structured-send-request-indigenous tests/phase5/structured_send_request_indigenous.cpp batbox_structured_io)
+foreach(section IN ITEMS terminal_instances terminal_measure terminal_hyperlinks terminal_root)
+  batbox_probe(${section} batbox_terminal_leaves phase6)
+endforeach()
+batbox_probe(query_engine_state batbox_query_engine_state phase5)
+batbox_probe(indigenous_search_highlight batbox_terminal_runtime phase5)

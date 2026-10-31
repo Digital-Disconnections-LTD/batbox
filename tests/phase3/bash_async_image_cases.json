@@ -1,0 +1,22 @@
+[
+  {
+    "input": {"command": "printf 'data:image/png;base64,YWJj'"},
+    "result": {"stdout": "data:image/png;base64,YWJj", "stderr": "", "code": 0, "interrupted": false},
+    "resizeResult": "data:image/jpeg;base64,cmVzaXplZA==", "traceImage": true
+  },
+  {
+    "input": {"command": "printf 'data:image/png;base64,YWJj'"},
+    "result": {"stdout": "data:image/png;base64,YWJj", "stderr": "", "code": 0, "interrupted": false},
+    "resizeResult": null, "traceImage": true
+  },
+  {
+    "input": {"command": "printf 'data:image/png;base64,YWJj'"},
+    "result": {"stdout": "data:image/png;base64,YWJj", "stderr": "", "code": 0, "interrupted": false},
+    "resizeResult": "", "traceImage": true
+  },
+  {
+    "input": {"command": "printf 'data:image/png;base64,YWJj'"},
+    "result": {"stdout": "data:image/png;base64,YWJj", "stderr": "", "code": 0, "interrupted": false},
+    "resizeError": "image resize failed", "traceImage": true
+  }
+]

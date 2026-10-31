@@ -1,0 +1,5 @@
+[
+  {"name":"regular","teammate":false,"planRequired":true},
+  {"name":"teammate-default","teammate":true,"planRequired":false},
+  {"name":"teammate-plan","teammate":true,"planRequired":true}
+]

@@ -1,0 +1,3 @@
+batbox_probe(interactive_message_view batbox_interactive phase6)
+batbox_indigenous(phase6-interactive-message-view-indigenous
+  tests/phase6/interactive_message_view_indigenous.cpp batbox_terminal_ftxui)

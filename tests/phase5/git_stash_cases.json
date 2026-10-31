@@ -1,0 +1,8 @@
+[
+  {"name":"clean","message":"save","untracked":[],"addCode":0,"stashCode":0},
+  {"name":"untracked","message":"save","untracked":["new one","new two"],"addCode":0,"stashCode":0},
+  {"name":"add-failed","message":"save","untracked":["new"],"addCode":128,"stashCode":0},
+  {"name":"stash-failed","message":"save","untracked":[],"addCode":0,"stashCode":1},
+  {"name":"status-reject","message":"save","untracked":[],"addCode":0,"stashCode":0,"statusReject":true},
+  {"name":"default","message":"","untracked":[],"addCode":0,"stashCode":0}
+]

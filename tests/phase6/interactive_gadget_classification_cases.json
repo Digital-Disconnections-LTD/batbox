@@ -1,0 +1,10 @@
+[
+  {"name":"wrapper","toolName":"REPL","input":{},"tools":[]},
+  {"name":"memory write","toolName":"Write","input":{"file_path":"MEMORY.md"},"tools":[]},
+  {"name":"snip","toolName":"Snip","input":{},"features":{"HISTORY_SNIP":true},"tools":[]},
+  {"name":"read primitive fallback","toolName":"Read","input":{"file_path":"x"},"tools":[],"primitive":[{"name":"Read","result":{"isSearch":false,"isRead":true}}]},
+  {"name":"mcp search","toolName":"mcp_search","input":{"pattern":"x"},"tools":[{"name":"mcp_search","result":{"isSearch":true,"isRead":false},"isMcp":true,"mcpInfo":{"serverName":"work"}}]},
+  {"name":"bash fullscreen","toolName":"Bash","input":{"command":"echo hello"},"fullscreen":true,"tools":[{"name":"Bash","result":{"isSearch":false,"isRead":false}}]},
+  {"name":"bash inline","toolName":"Bash","input":{"command":"echo hello"},"fullscreen":false,"tools":[{"name":"Bash","result":{"isSearch":false,"isRead":false}}]},
+  {"name":"tool missing","toolName":"Other","input":{},"tools":[]}
+]

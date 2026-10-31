@@ -1,0 +1,11 @@
+[
+  {"name":"prompt-success","type":"prompt","context":true,"result":{"message":{"type":"attachment","attachment":{"type":"hook_success","content":"ok"}},"outcome":"success"}},
+  {"name":"prompt-nonblocking","type":"prompt","context":true,"result":{"message":{"type":"attachment","attachment":{"type":"hook_non_blocking_error","stderr":"bad"}},"outcome":"non_blocking_error"}},
+  {"name":"prompt-no-attachment","type":"prompt","context":true,"result":{"outcome":"success"}},
+  {"name":"prompt-no-context","type":"prompt"},
+  {"name":"agent-no-context","type":"agent","messages":true},
+  {"name":"agent-no-messages","type":"agent","context":true},
+  {"name":"agent-success","type":"agent","context":true,"messages":true,"agentType":"worker","result":{"outcome":"success","message":{"type":"attachment","attachment":{"type":"hook_success"}}}},
+  {"name":"prompt-throw","type":"prompt","context":true,"throws":"model unavailable"},
+  {"name":"prompt-prepare","type":"prompt","context":true,"prepareError":true}
+]

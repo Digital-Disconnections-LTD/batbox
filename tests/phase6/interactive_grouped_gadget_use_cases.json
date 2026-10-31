@@ -1,0 +1,9 @@
+[
+  {"name":"missing-tool","toolPresent":false,"render":true,"animate":true,"inProgress":[],"progress":[],"results":[]},
+  {"name":"missing-renderer","toolPresent":true,"render":false,"animate":true,"inProgress":[],"progress":[],"results":[]},
+  {"name":"empty","toolPresent":true,"render":true,"animate":true,"inProgress":[],"progress":[],"results":[]},
+  {"name":"one-active","toolPresent":true,"render":true,"animate":true,"inProgress":["a"],"progress":[{"data":{"type":"hook_progress"}},{"data":{"type":"tool_progress"},"value":4}],"results":[]},
+  {"name":"two-results-last-wins","toolPresent":true,"render":true,"animate":true,"inProgress":["b"],"progress":[],"results":[{"id":"a","output":"old"},{"id":"a","output":"new"},{"id":"b","output":"done"}]},
+  {"name":"animation-off","toolPresent":true,"render":true,"animate":false,"inProgress":["a"],"progress":[],"results":[]},
+  {"name":"undefined-output","toolPresent":true,"render":true,"animate":false,"inProgress":[],"progress":[],"results":[{"id":"a"}]}
+]

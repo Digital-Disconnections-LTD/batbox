@@ -1,0 +1,5 @@
+SDK algorithm adaptations from https://github.com/anthropics/anthropic-sdk-typescript
+Revision cb5fba419808e3844fa6407e59577ab7ba346b79.
+Copyright 2023 Anthropic, PBC.
+C++ adaptations, decomposition and integration changes by Batbox.
+Apache License 2.0 applies to these adaptations.

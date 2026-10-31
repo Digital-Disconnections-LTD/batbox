@@ -1,0 +1,15 @@
+[
+  {"name":"array","result":[{"type":"text","text":"oops"}]},
+  {"name":"plain","result":"oops"},
+  {"name":"prefixed","result":"Error: already"},
+  {"name":"cancelled","result":"Cancelled: action"},
+  {"name":"tool-tag","result":"before<tool_use_error>inner</tool_use_error>after"},
+  {"name":"error-tags","result":"<error>failed</error>"},
+  {"name":"sandbox","result":"oops<sandbox_violations>private</sandbox_violations>"},
+  {"name":"validation","result":"InputValidationError: invalid"},
+  {"name":"validation-verbose","result":"InputValidationError: invalid","verbose":true},
+  {"name":"ten-lines","lines":10},
+  {"name":"eleven-lines","lines":11},
+  {"name":"twelve-lines-verbose","lines":12,"verbose":true},
+  {"name":"underline","result":"\u001b[4munderlined\u001b[0m"}
+]

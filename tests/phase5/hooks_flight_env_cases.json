@@ -1,0 +1,10 @@
+[
+  {"name":"path","actions":["path"],"event":"SessionStart","index":2,"listing":[],"files":{}},
+  {"name":"empty-cache","actions":["load","load","invalidate","load"],"listing":[],"files":{}},
+  {"name":"priority-parent","actions":["load","load"],"parent":"/external/env.sh","listing":["filechanged-hook-1.sh","setup-hook-2.sh","sessionstart-hook-10.sh","setup-hook-1.sh","notes.txt"],"files":{"/external/env.sh":" PARENT \n","/config/session-env/s1/filechanged-hook-1.sh":" CWD ","/config/session-env/s1/setup-hook-2.sh":" TWO ","/config/session-env/s1/sessionstart-hook-10.sh":" START ","/config/session-env/s1/setup-hook-1.sh":" ONE "}},
+  {"name":"clear-cwd","actions":["clear"],"listing":["filechanged-hook-1.sh","cwdchanged-hook-2.sh","setup-hook-3.sh","cwdchanged-hook-x.sh"],"files":{}},
+  {"name":"windows","actions":["load","load"],"platform":"windows","listing":[],"files":{}},
+  {"name":"missing-parent","actions":["load"],"parent":"/external/missing.sh","listing":["setup-hook-1.sh"],"files":{"/config/session-env/s1/setup-hook-1.sh":"export X=1"}},
+  {"name":"read-failure","actions":["load"],"listing":["setup-hook-1.sh","setup-hook-2.sh"],"files":{"/config/session-env/s1/setup-hook-1.sh":{"error":"EACCES","message":"denied"},"/config/session-env/s1/setup-hook-2.sh":"export Y=2"}},
+  {"name":"missing-directory","actions":["load"],"readdirError":"ENOENT","listing":[],"files":{}}
+]

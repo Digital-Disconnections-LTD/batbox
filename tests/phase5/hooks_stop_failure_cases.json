@@ -1,0 +1,9 @@
+[
+  {"name":"no-hook","content":[{"type":"text","text":"failed"}]},
+  {"name":"snapshot","snapshot":true,"content":[{"type":"text","text":" first "},{"type":"tool_use","id":"x"},{"type":"text","text":" second "}],"error":"server_error","errorDetails":{"status":503},"timeout":0},
+  {"name":"registered-context","registered":true,"context":true,"content":[{"type":"text","text":"Oops"}],"error":"rate_limit"},
+  {"name":"session-empty-array","session":true,"context":true,"content":[{"type":"text","text":"  "}]},
+  {"name":"null-state","session":true,"context":true,"nullState":true,"content":[]},
+  {"name":"executor-rejects","snapshot":true,"content":[],"executionError":"hook failed"},
+  {"name":"getter-rejects","context":true,"getterError":"state failed","content":[]}
+]

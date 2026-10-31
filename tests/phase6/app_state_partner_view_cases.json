@@ -1,0 +1,12 @@
+[
+  {"name":"enter-local","action":"enter","taskId":"a","viewSelectionMode":"none","tasks":{"a":{"type":"local_agent","status":"running","retain":false,"evictAfter":23}}},
+  {"name":"enter-noop","action":"enter","taskId":"a","viewingAgentTaskId":"a","viewSelectionMode":"viewing-agent","tasks":{"a":{"type":"local_agent","status":"running","retain":true}}},
+  {"name":"switch-agent","action":"enter","taskId":"b","viewingAgentTaskId":"a","viewSelectionMode":"viewing-agent","tasks":{"a":{"type":"local_agent","status":"completed","retain":true,"messages":[1]},"b":{"type":"local_agent","status":"running","retain":false}}},
+  {"name":"exit-noop","action":"exit","viewSelectionMode":"none","tasks":{}},
+  {"name":"exit-cleared","action":"exit","viewSelectionMode":"viewing-agent","tasks":{}},
+  {"name":"exit-terminal","action":"exit","viewingAgentTaskId":"a","viewSelectionMode":"viewing-agent","tasks":{"a":{"type":"local_agent","status":"failed","retain":true,"messages":[1]}}},
+  {"name":"stop-running","action":"stop","taskId":"a","hasAbort":true,"viewSelectionMode":"none","tasks":{"a":{"type":"local_agent","status":"running","retain":true,"abortController":{}}}},
+  {"name":"dismiss-viewed","action":"stop","taskId":"a","viewingAgentTaskId":"a","viewSelectionMode":"viewing-agent","tasks":{"a":{"type":"local_agent","status":"killed","retain":true,"messages":[1]}}},
+  {"name":"dismiss-noop","action":"stop","taskId":"a","viewSelectionMode":"none","tasks":{"a":{"type":"local_agent","status":"completed","evictAfter":0}}},
+  {"name":"nonlocal-noop","action":"stop","taskId":"a","viewSelectionMode":"none","tasks":{"a":{"type":"local_bash","status":"running"}}}
+]

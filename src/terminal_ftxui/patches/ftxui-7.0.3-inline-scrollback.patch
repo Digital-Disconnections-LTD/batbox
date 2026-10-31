@@ -1,0 +1,61 @@
+diff --git a/include/ftxui/component/app.hpp b/include/ftxui/component/app.hpp
+--- a/include/ftxui/component/app.hpp
++++ b/include/ftxui/component/app.hpp
+@@ -93,6 +93,10 @@
+   // Invoked synchronously on the loop owner thread before input normalization.
+   void SetRawInputCallback(std::function<void(std::string_view)> callback);
+ 
++  // Commit complete rows above a TerminalOutput frame to terminal scrollback.
++  // Call on the loop owner thread between RunOnce calls. Rows include CRLF.
++  void CommitScrollback(std::string_view rows);
++
+   /// @brief Return the currently active app, nullptr if none.
+   static App* Active();
+ 
+diff --git a/src/ftxui/component/app.cpp b/src/ftxui/component/app.cpp
+--- a/src/ftxui/component/app.cpp
++++ b/src/ftxui/component/app.cpp
+@@ -254,6 +254,7 @@
+   void HandleTask(Component component, Task& task);
+   bool HandleSelection(bool handled, Event event);
+   void Draw(Component component);
++  void CommitScrollback(std::string_view rows);
+   std::string ResetCursorPosition();
+   void RequestCursorPosition(bool force = false);
+   void TerminalSend(std::string_view);
+@@ -1099,6 +1100,24 @@
+   public_->Clear();
+   frame_valid_ = true;
+   frame_count_++;
++}
++
++void App::Internal::CommitScrollback(std::string_view rows) {
++  if (dimension_ != AppDimension::TerminalOutput || rows.empty()) {
++    return;
++  }
++  if (frame_count_ != 0) {
++    TerminalSend(ResetCursorPosition());
++    public_->ResetPosition(output_buffer, /*clear=*/true);
++  }
++  TerminalSend(rows);
++  TerminalFlush();
++  public_->dimx_ = 0;
++  public_->dimy_ = 0;
++  frame_count_ = 0;
++  frame_valid_ = false;
++  set_cursor_position_.clear();
++  reset_cursor_position_.clear();
+ }
+ 
+ std::string App::Internal::ResetCursorPosition() {
+@@ -1511,6 +1530,10 @@
+   internal_->raw_input_callback_ = std::move(callback);
+ }
+ 
++void App::CommitScrollback(std::string_view rows) {
++  internal_->CommitScrollback(rows);
++}
++
+ // static
+ App* App::Active() {
+   return g_active_screen;

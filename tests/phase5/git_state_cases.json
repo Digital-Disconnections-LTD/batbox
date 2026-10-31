@@ -1,0 +1,6 @@
+[
+  {"name":"success","fail":null,"throw":null},
+  {"name":"branch-reject","fail":"branch","throw":null},
+  {"name":"head-throw","fail":null,"throw":"head"},
+  {"name":"remote-reject","fail":"remote","throw":null}
+]

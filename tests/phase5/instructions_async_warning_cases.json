@@ -1,0 +1,8 @@
+[
+  {"name":"approved","approved":true,"warningShown":false,"files":[]},
+  {"name":"already-shown","approved":false,"warningShown":true,"files":[]},
+  {"name":"no-external","approved":false,"warningShown":false,"files":[{"path":"/project/child.md","type":"Project","parent":"/project/BATBOX.md"}]},
+  {"name":"external","approved":false,"warningShown":false,"files":[{"path":"/outside/child.md","type":"Project","parent":"/project/BATBOX.md"}]},
+  {"name":"user-external","approved":false,"warningShown":false,"files":[{"path":"/outside/child.md","type":"User","parent":"/project/BATBOX.md"}]},
+  {"name":"rejection","approved":false,"warningShown":false,"files":[],"reject":true}
+]

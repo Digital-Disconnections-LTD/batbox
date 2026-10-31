@@ -1,0 +1,5 @@
+batbox_probe(terminal_geometry batbox_terminal_screen phase6)
+batbox_probe(terminal_pools batbox_terminal_screen phase6)
+foreach(section IN ITEMS core write region leaves diff)
+  batbox_probe(terminal_screen_${section} batbox_terminal_screen phase6)
+endforeach()

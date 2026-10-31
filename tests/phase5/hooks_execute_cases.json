@@ -1,0 +1,7 @@
+[
+  {"name":"one-success","hooks":[{"display":"echo one","status":0,"stdout":"one"}]},
+  {"name":"two-success","hooks":[{"display":"echo one","status":0,"stdout":"one"},{"display":"echo two","status":0,"stdout":"two"}]},
+  {"name":"blocking","hooks":[{"display":"blocked command","status":2,"stderr":"denied"}]},
+  {"name":"callback-then-command","hooks":[{"type":"callback","display":"internal callback"},{"display":"echo one","status":0,"stdout":"one"}]},
+  {"name":"command-then-callback","hooks":[{"display":"echo one","status":0,"stdout":"one"},{"type":"callback","display":"internal callback"}]}
+]

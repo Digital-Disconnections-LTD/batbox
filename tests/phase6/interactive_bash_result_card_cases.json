@@ -1,0 +1,10 @@
+[
+  {"name":"image","content":{"stdout":"unused","isImage":true},"verbose":false},
+  {"name":"ordinary output","content":{"stdout":"hello","stderr":"warning"},"verbose":false},
+  {"name":"sandbox and cwd","content":{"stdout":"ok","stderr":"<sandbox_violations>x</sandbox_violations>\nShell cwd was reset to /tmp"},"verbose":true},
+  {"name":"no output","content":{},"verbose":false},
+  {"name":"expected no output","content":{"noOutputExpected":true},"verbose":false},
+  {"name":"interpretation","content":{"returnCodeInterpretation":"Exit 7"},"verbose":false},
+  {"name":"background","content":{"backgroundTaskId":"task-1"},"verbose":false},
+  {"name":"timeout","content":{"stdout":"ok"},"verbose":false,"timeoutMs":5000}
+]

@@ -1,0 +1,7 @@
+[
+  {"name":"cwd-empty","kind":"cwd","results":[]},
+  {"name":"cwd-one","kind":"cwd","timeout":0,"results":[{"command":"one","output":"ok","succeeded":true,"blocked":false,"watchPaths":["/a","/b"],"systemMessage":"ready"}]},
+  {"name":"file-multi","kind":"file","event":"add","results":[{"command":"one","output":"a","succeeded":true,"blocked":false,"watchPaths":["/a"],"systemMessage":""},{"command":"two","output":"b","succeeded":false,"blocked":true,"watchPaths":["/b","/a"],"systemMessage":"alert"}]},
+  {"name":"file-no-optional","kind":"file","event":"unlink","results":[{"command":"one","output":"","succeeded":false,"blocked":false}]},
+  {"name":"invalidate-throws","kind":"cwd","results":[{"command":"one","output":"","succeeded":true,"blocked":false}],"invalidateError":"broken cache"}
+]

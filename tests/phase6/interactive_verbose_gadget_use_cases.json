@@ -1,0 +1,10 @@
+[
+  {"name":"missing","hasTool":false,"primitive":false},
+  {"name":"primitive","hasTool":false,"primitive":true,"valid":true},
+  {"name":"active","hasTool":true,"valid":true,"tag":true,"active":true},
+  {"name":"invalid-input","hasTool":true,"valid":false},
+  {"name":"resolved-result","hasTool":true,"valid":true,"resolved":true,"hasOutput":true,"outputValid":true,"result":true},
+  {"name":"errored-result","hasTool":true,"valid":true,"resolved":true,"error":true,"hasOutput":true,"outputValid":true,"result":true},
+  {"name":"invalid-output","hasTool":true,"valid":true,"resolved":true,"hasOutput":true,"outputValid":false,"result":true},
+  {"name":"null-output","hasTool":true,"valid":true,"resolved":true,"hasOutput":true,"outputValid":true,"result":true,"nullOutput":true}
+]

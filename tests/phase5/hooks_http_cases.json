@@ -1,0 +1,13 @@
+[
+  {"name":"basic","url":"https://hooks.example.test/a","status":204,"responseBody":""},
+  {"name":"response-body","url":"https://hooks.example.test/a","status":200,"responseBody":"雪😀"},
+  {"name":"http-403","url":"https://hooks.example.test/a","status":403,"responseBody":"blocked"},
+  {"name":"blocked-url","url":"https://other.test/a","allowedUrls":["https://hooks.example.test/*"]},
+  {"name":"empty-allowlist","url":"https://hooks.example.test/a","allowedUrls":[]},
+  {"name":"header-interpolation","url":"https://hooks.example.test/a","status":200,"responseBody":"ok","headers":{"Authorization":"Bearer $SECRET\r\nInjected: yes","X-Skip":"${OTHER}"},"hookAllowedEnvVars":["SECRET","OTHER"],"policyAllowedEnvVars":["SECRET"]},
+  {"name":"sandbox-proxy","url":"https://hooks.example.test/a","status":200,"sandboxProxy":{"host":"127.0.0.1","port":8888,"protocol":"http"}},
+  {"name":"env-proxy","url":"https://hooks.example.test/a","status":200,"proxyUrl":"http://proxy.test:8080"},
+  {"name":"proxy-bypass","url":"https://hooks.example.test/a","status":200,"proxyUrl":"http://proxy.test:8080","bypassProxy":true},
+  {"name":"network-error","url":"https://hooks.example.test/a","postError":"connection refused"},
+  {"name":"aborted-error","url":"https://hooks.example.test/a","postError":"cancelled","aborted":true}
+]

@@ -1,0 +1,14 @@
+[
+  {"name":"create-first-success","kind":"create","nameArg":"feature","results":[{"command":"a","succeeded":false,"output":"bad"},{"command":"b","succeeded":true,"output":" /tmp/tree \n"},{"command":"c","succeeded":true,"output":"/later"}]},
+  {"name":"create-failed","kind":"create","nameArg":"bad","results":[{"command":"a","succeeded":false,"output":" "},{"command":"b","succeeded":true,"output":"  "},{"command":"c","succeeded":false,"output":" denied "}]},
+  {"name":"create-no-result","kind":"create","nameArg":"empty","results":[]},
+  {"name":"create-reject","kind":"create","nameArg":"fail","executionError":"executor failed","results":[]},
+  {"name":"remove-unconfigured","kind":"remove","path":"/tmp/t","results":[]},
+  {"name":"remove-empty","kind":"remove","path":"/tmp/t","snapshotRemove":true,"results":[]},
+  {"name":"remove-failures","kind":"remove","path":"/tmp/t","registeredRemove":true,"results":[{"command":"a","succeeded":false,"output":" bad \n"},{"command":"b","succeeded":true,"output":"ok"}]},
+  {"name":"remove-reject","kind":"remove","path":"/tmp/t","snapshotRemove":true,"executionError":"executor failed","results":[]},
+  {"name":"presence-snapshot","kind":"presence","snapshotCreate":true},
+  {"name":"presence-plugin-managed","kind":"presence","registeredCreate":[{"pluginRoot":"/plugin"}],"managed":true},
+  {"name":"presence-registered","kind":"presence","registeredCreate":[{"pluginRoot":"/plugin"},{"matcher":"x"}],"managed":true},
+  {"name":"presence-unmanaged","kind":"presence","registeredCreate":[{"pluginRoot":"/plugin"}]}
+]

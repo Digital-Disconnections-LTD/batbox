@@ -1,0 +1,13 @@
+[
+  {"name":"zero","reset":true,"active":false,"fullscreen":false,"message":{}},
+  {"name":"search-read-active","reset":true,"active":true,"fullscreen":false,"message":{"searchCount":2,"readCount":1,"listCount":1,"latestDisplayHint":"src/main.cpp"}},
+  {"name":"max-dip","reset":false,"active":true,"fullscreen":false,"message":{"searchCount":1,"readCount":0,"listCount":0}},
+  {"name":"memory-only","reset":true,"active":false,"fullscreen":false,"message":{"memoryReadCount":2,"memorySearchCount":1,"memoryWriteCount":1}},
+  {"name":"team-memory","reset":true,"active":false,"fullscreen":false,"team":true,"message":{"teamMemoryReadCount":1,"teamMemorySearchCount":1,"teamMemoryWriteCount":2}},
+  {"name":"mcp-repl","reset":true,"active":false,"fullscreen":false,"message":{"mcpCallCount":2,"mcpServerNames":["claude.ai Search","Other"],"replCount":1}},
+  {"name":"git-bash","reset":true,"active":false,"fullscreen":true,"message":{"bashCount":3,"gitOpBashCount":1,"commits":[{"kind":"committed","sha":"abc"}],"pushes":[{"branch":"main"},{"branch":"main"}],"branches":[{"action":"merged","ref":"feature"}]}},
+  {"name":"slow-shell","reset":true,"active":true,"fullscreen":true,"activeID":true,"progress":{"type":"bash_progress","elapsedTimeSeconds":3,"totalLines":4},"message":{"bashCount":1,"latestDisplayHint":"npm test","hookTotalMs":1234,"hookCount":2}},
+  {"name":"repl-hint","reset":true,"active":true,"fullscreen":false,"activeID":true,"progress":{"type":"repl_tool_call","phase":"start","toolInput":{"pattern":"hello"},"toolName":"Grep"},"message":{"searchCount":1,"searchArgs":["old"]}},
+  {"name":"read-hint","reset":true,"active":true,"fullscreen":false,"message":{"readCount":1,"readFilePaths":["/tmp/file"]}},
+  {"name":"pr-link","reset":true,"active":false,"fullscreen":true,"message":{"gitOpBashCount":1,"prs":[{"action":"created","number":42,"url":"https://example.test/pr/42"}]}}
+]

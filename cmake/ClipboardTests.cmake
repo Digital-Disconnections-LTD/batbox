@@ -1,0 +1,2 @@
+batbox_probe(clipboard batbox_clipboard phase5)
+batbox_indigenous(phase5-clipboard-indigenous tests/phase5/clipboard_indigenous.cpp batbox_clipboard)

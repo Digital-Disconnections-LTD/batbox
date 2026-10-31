@@ -1,0 +1,29 @@
+[
+  {"name":"sessions","op":"cleanupOldSessionFiles","dirs":{
+    "/projects":[{"name":"p1","directory":true},{"name":"skip","file":true},{"name":"p2","directory":true}],
+    "/projects/p1":[{"name":"old.jsonl","file":true},{"name":"fresh.cast","file":true},{"name":"ignore.md","file":true},{"name":"s1","directory":true},{"name":"empty","directory":true}],
+    "/projects/p1/s1/tool-results":[{"name":"direct","file":true},{"name":"nested","directory":true}],
+    "/projects/p1/s1/tool-results/nested":[{"name":"old","file":true},{"name":"fresh","file":true},{"name":"skipdir","directory":true}]},
+    "mtime":{"/projects/p1/old.jsonl":"2020-01-01","/projects/p1/fresh.cast":"2026-10-27",
+      "/projects/p1/s1/tool-results/direct":"2020-01-01",
+      "/projects/p1/s1/tool-results/nested/old":"2020-01-01",
+      "/projects/p1/s1/tool-results/nested/fresh":"2026-10-27"},
+    "unlinkError":["/projects/p1/s1/tool-results/nested/old"]},
+  {"name":"plans","op":"cleanupOldPlanFiles","dirs":{"/config/plans":[
+    {"name":"old.md","file":true},{"name":"fresh.md","file":true},{"name":"ignore.txt","file":true}]},
+    "mtime":{"/config/plans/old.md":"2020-01-01","/config/plans/fresh.md":"2026-10-27"}},
+  {"name":"history-parallel","op":"cleanupOldFileHistoryBackups","dirs":{"/config/file-history":[
+    {"name":"a","directory":true},{"name":"b","directory":true},{"name":"skip","file":true}]},
+    "mtime":{"/config/file-history/a":"2020-01-01","/config/file-history/b":"2026-10-27"}},
+  {"name":"env-sequential","op":"cleanupOldSessionEnvDirs","dirs":{"/config/session-env":[
+    {"name":"a","directory":true},{"name":"b","directory":true}]},
+    "mtime":{"/config/session-env/a":"2020-01-01","/config/session-env/b":"2026-10-27"}},
+  {"name":"debug","op":"cleanupOldDebugLogs","dirs":{"/config/debug":[
+    {"name":"old.txt","file":true},{"name":"fresh.txt","file":true},
+    {"name":"latest","file":false},{"name":"ignore.log","file":true}]},
+    "mtime":{"/config/debug/old.txt":"2020-01-01","/config/debug/fresh.txt":"2026-10-27"}},
+  {"name":"missing-sessions","op":"cleanupOldSessionFiles","dirs":{}},
+  {"name":"history-config-error","op":"cleanupOldFileHistoryBackups","configError":true},
+  {"name":"debug-config-error","op":"cleanupOldDebugLogs","configError":true},
+  {"name":"session-cutoff-error","op":"cleanupOldSessionFiles","cutoffError":true}
+]

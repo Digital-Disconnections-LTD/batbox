@@ -1,0 +1,10 @@
+[
+  {"name":"plain","chunks":["hello\nworld\n"],"responses":{}},
+  {"name":"one-prompt","chunks":["{\"prompt\":\"p1\",\"message\":\"Choose\",\"options\":[{\"key\":\"yes\",\"label\":\"Yes\"}]}\noutput\n"],"responses":{"p1":{"prompt_response":"p1","selected":"yes"}}},
+  {"name":"chunked-prompt","chunks":["{\"prompt\":\"p1\",\"mess","age\":\"Choose\",\"options\":[]}\n"],"responses":{"p1":{"prompt_response":"p1","selected":"x"}}},
+  {"name":"serial-two","chunks":["{\"prompt\":\"p1\",\"message\":\"One\",\"options\":[]}\n{\"prompt\":\"p2\",\"message\":\"Two\",\"options\":[]}\n"],"responses":{"p1":{"prompt_response":"p1","selected":"a"},"p2":{"prompt_response":"p2","selected":"b"}},"delayFirst":true},
+  {"name":"reject-then-continue","chunks":["{\"prompt\":\"p1\",\"message\":\"One\",\"options\":[]}\n{\"prompt\":\"p2\",\"message\":\"Two\",\"options\":[]}\n"],"responses":{"p2":{"prompt_response":"p2","selected":"b"}},"reject":"p1"},
+  {"name":"invalid-schema","chunks":["{\"prompt\":\"p1\",\"message\":1,\"options\":[]}\n"],"responses":{}},
+  {"name":"strip-extra","chunks":["{\"prompt\":\"p1\",\"message\":\"M\",\"options\":[{\"key\":\"x\",\"label\":\"X\",\"extra\":3}],\"extra\":9}\n"],"responses":{"p1":{"prompt_response":"p1","selected":"x"}}},
+  {"name":"duplicate-line","chunks":["{\"prompt\":\"p1\",\"message\":\"M\",\"options\":[]}\n{\"prompt\":\"p1\",\"message\":\"M\",\"options\":[]}\n"],"responses":{"p1":{"prompt_response":"p1","selected":"x"}}}
+]

@@ -1,0 +1,24 @@
+name: A new Mission
+description: Suggest an improvement for Batbox.
+title: "[Idea] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would this help you do?
+      description: Describe the situation and the result you want.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Your idea
+      description: A sketch, example, or small proposal is welcome.
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Want to help explore it?
+      options:
+        - I can share feedback or examples
+        - I would like to work on it
+        - I am just sharing an idea

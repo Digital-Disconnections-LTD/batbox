@@ -1,0 +1,3 @@
+add_library(batbox_keyboard_dispatch src/keyboard_input/Dispatch.cpp)
+target_link_libraries(batbox_keyboard_dispatch PUBLIC batbox_keyboard_input batbox_terminal_events batbox_termio)
+target_compile_options(batbox_keyboard_dispatch PRIVATE -Wall -Wextra -Wpedantic)

@@ -1,0 +1,5 @@
+batbox_probe(synthetic_output batbox_synthetic_output phase5)
+batbox_probe(synthetic_output_factory batbox_synthetic_output phase5)
+batbox_probe(synthetic_output_indigenous_schema batbox_synthetic_output phase5)
+batbox_indigenous(phase5-synthetic-output-indigenous-schema-binding tests/phase5/synthetic_output_indigenous_schema_binding.cpp batbox_synthetic_output)
+batbox_indigenous(phase5-hooks-bat-gadget-binding-indigenous tests/phase5/hooks_bat_gadget_binding_indigenous.cpp batbox_instruction_async)

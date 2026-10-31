@@ -1,0 +1,2 @@
+batbox_phase4_probe(cron_truncate batbox_truncate)
+batbox_phase4_probe(truncate_extra batbox_truncate)

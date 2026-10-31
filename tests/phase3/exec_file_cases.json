@@ -1,0 +1,14 @@
+[
+  {"name":"wrapper_omitted","function":"wrapper","result":{"failed":false,"stdout":"ok","stderr":""}},
+  {"name":"wrapper_empty","function":"wrapper","options":{},"result":{"failed":false,"stdout":"ok","stderr":""}},
+  {"name":"cwd_omitted","function":"cwd","result":{"failed":false,"stdout":"","stderr":""}},
+  {"name":"cwd_empty","function":"cwd","options":{},"result":{"failed":false,"stdout":"","stderr":""}},
+  {"name":"forward_options","function":"wrapper","options":{"useCwd":true,"timeout":50,"preserveOutputOnError":false,"stdin":"pipe","input":"hey","env":{"X":"Y"}},"result":{"failed":true,"exitCode":2,"stdout":"part","stderr":"bad"}},
+  {"name":"short_message","function":"cwd","options":{},"result":{"failed":true,"exitCode":2,"stdout":"part","stderr":"bad","shortMessage":"custom failure","signal":"SIGTERM"}},
+  {"name":"signal_fallback","function":"cwd","options":{},"result":{"failed":true,"exitCode":3,"stdout":"part","stderr":"bad","shortMessage":"","signal":"SIGTERM"}},
+  {"name":"code_fallback","function":"cwd","options":{},"result":{"failed":true,"stdout":"part","stderr":"bad"}},
+  {"name":"preserve_false","function":"cwd","options":{"preserveOutputOnError":false},"result":{"failed":true,"exitCode":7,"stdout":"part","stderr":"bad"}},
+  {"name":"rejected_execa","function":"cwd","options":{},"execaReject":true},
+  {"name":"sync_throw_execa","function":"cwd","options":{},"execaThrow":true},
+  {"name":"sync_throw_cwd","function":"wrapper","options":{"useCwd":true},"getCwdThrow":true}
+]

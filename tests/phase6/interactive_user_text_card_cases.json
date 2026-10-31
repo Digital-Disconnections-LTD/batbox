@@ -1,0 +1,111 @@
+[
+  {
+    "name": "ordinary prompt",
+    "text": "hello"
+  },
+  {
+    "name": "empty marker before plan",
+    "text": "  __NO_CONTENT__  ",
+    "planContent": "plan"
+  },
+  {
+    "name": "plan before bash",
+    "text": "<bash-input>x</bash-input>",
+    "planContent": "plan"
+  },
+  {
+    "name": "tick suppress",
+    "text": "<tick>one</tick>"
+  },
+  {
+    "name": "caveat suppress",
+    "text": "a<local-command-caveat>b"
+  },
+  {
+    "name": "bash stdout",
+    "text": "<bash-stdout>ok</bash-stdout>"
+  },
+  {
+    "name": "bash stderr",
+    "text": "<bash-stderr>bad</bash-stderr>"
+  },
+  {
+    "name": "local stdout",
+    "text": "<local-command-stdout>ok</local-command-stdout>"
+  },
+  {
+    "name": "interrupt",
+    "text": "__INTERRUPT__"
+  },
+  {
+    "name": "webhook gate",
+    "text": "<github-webhook-activity>one",
+    "features": [
+      "KAIROS_GITHUB_WEBHOOKS"
+    ]
+  },
+  {
+    "name": "bash input",
+    "text": "a<bash-input>x</bash-input>"
+  },
+  {
+    "name": "command",
+    "text": "<command-message>test</command-message>"
+  },
+  {
+    "name": "memory",
+    "text": "<user-memory-input>x</user-memory-input>"
+  },
+  {
+    "name": "teammate gate",
+    "text": "<teammate-message>x",
+    "features": [
+      "AGENT_SWARMS"
+    ]
+  },
+  {
+    "name": "task notification",
+    "text": "<task-notification>x</task-notification>"
+  },
+  {
+    "name": "resource",
+    "text": "<mcp-polling-update>x"
+  },
+  {
+    "name": "fork gate",
+    "text": "<fork-boilerplate>x",
+    "features": [
+      "FORK_SUBAGENT"
+    ]
+  },
+  {
+    "name": "inbox gate",
+    "text": "<cross-session-message>x",
+    "features": [
+      "UDS_INBOX"
+    ]
+  },
+  {
+    "name": "channel gate",
+    "text": "<channel source=\"x\">x",
+    "features": [
+      "KAIROS_CHANNELS"
+    ]
+  },
+  {
+    "name": "bash before command",
+    "text": "<command-message>x</command-message><bash-input>y</bash-input>"
+  },
+  {
+    "name": "webhook disabled falls to prompt",
+    "text": "<github-webhook-activity>x"
+  },
+  {
+    "name": "channel disabled falls to prompt",
+    "text": "<channel source=\"x\">x"
+  },
+  {
+    "name": "interrupt tool",
+    "text": "__INTERRUPT_TOOL__"
+  }
+]

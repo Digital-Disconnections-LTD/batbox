@@ -1,0 +1,8 @@
+[
+  {"name":"valid-override","override":"/custom/bash","preferred":"/custom/zsh","access":["/custom/bash"],"whichZsh":"/bin/zsh","whichBash":"/bin/bash"},
+  {"name":"invalid-override-bash-first","override":"/bad/zsh","preferred":"/preferred/bash","access":["/preferred/bash","/discovered/bash","/bin/zsh"],"whichZsh":"/discovered/zsh","whichBash":"/discovered/bash"},
+  {"name":"zsh-path-first","preferred":"/preferred/zsh","access":["/bin/zsh","/discovered/bash"],"whichZsh":"/discovered/zsh","whichBash":"/discovered/bash"},
+  {"name":"exec-fallback","preferred":"/fallback/bash","access":[],"fallback":["/fallback/bash"],"whichZsh":null,"whichBash":null},
+  {"name":"none","access":[],"whichZsh":null,"whichBash":null},
+  {"name":"which-rejection","access":[],"whichError":"lookup failed"}
+]

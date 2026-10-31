@@ -1,0 +1,14 @@
+[
+  {"name":"background","status":0,"backgrounded":true},
+  {"name":"aborted","status":1,"aborted":true,"stdout":"partial"},
+  {"name":"validation","status":0,"stdout":"bad-json","validationError":"invalid"},
+  {"name":"async-json","status":0,"stdout":"{async}","asyncJson":true},
+  {"name":"json-empty","status":0,"stdout":"{}","json":{}},
+  {"name":"json-block","status":0,"stdout":"{block}","json":{"decision":"block","reason":"no"}},
+  {"name":"json-plain","status":0,"stdout":"{} extra","json":{},"plainText":"extra"},
+  {"name":"success","status":0,"stdout":"  done  "},
+  {"name":"blocking","status":2,"stderr":"blocked"},
+  {"name":"nonblocking","status":3,"stderr":" err "},
+  {"name":"throw","throws":"spawn failed"},
+  {"name":"prepare","prepareError":true}
+]

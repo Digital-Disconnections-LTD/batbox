@@ -1,0 +1,6 @@
+[
+  {"name":"clean","headCode":0,"listCode":0,"listText":"0\n","statusText":"","statusCode":0},
+  {"name":"changed","headCode":0,"listCode":0,"listText":"12\n","statusText":" M tracked name.txt\n?? new file.txt\nA  staged.txt\n","statusCode":0},
+  {"name":"failed-process","headCode":128,"listCode":128,"listText":"99\n","statusText":"","statusCode":128},
+  {"name":"odd-status","headCode":0,"listCode":0,"listText":"n/a","statusText":"?? untracked\n M one\nA  two\n R old -> new\n","statusCode":0}
+]

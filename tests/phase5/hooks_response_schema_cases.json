@@ -1,0 +1,14 @@
+[
+  {"name":"allow","value":{"ok":true}},
+  {"name":"block","value":{"ok":false,"reason":"unfinished"}},
+  {"name":"strip-extra","value":{"ok":true,"extra":2}},
+  {"name":"missing-ok","value":{"reason":"why"}},
+  {"name":"wrong-ok","value":{"ok":1}},
+  {"name":"wrong-reason","value":{"ok":true,"reason":null}},
+  {"name":"two-issues","value":{"ok":1,"reason":2}},
+  {"name":"null","value":null},
+  {"name":"array","value":[]},
+  {"name":"string","value":"no"},
+  {"name":"false","value":false},
+  {"name":"zero","value":0}
+]

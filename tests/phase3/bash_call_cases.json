@@ -1,0 +1,12 @@
+[
+  {"input":{"command":"printf 'hello\\n'"},"result":{"stdout":"hello\n","stderr":"","code":0,"interrupted":false}},
+  {"input":{"command":"printf ''"},"result":{"stdout":"","stderr":"","code":0,"interrupted":false}},
+  {"input":{"command":"grep absent /dev/null"},"result":{"stdout":"","stderr":"","code":1,"interrupted":false}},
+  {"input":{"command":"exit 7"},"result":{"stdout":"","stderr":"","code":7,"interrupted":false}},
+  {"input":{"command":"printf 'before\\n<batbox-hint v=1 type=plugin value=foo@bar />\\nafter\\n'"},"result":{"stdout":"before\n<batbox-hint v=1 type=plugin value=foo@bar />\nafter\n","stderr":"","code":0,"interrupted":false}},
+  {"input":{"command":"sleep 2.2; printf 'done\\n'"},"result":{"stdout":"done\n","stderr":"","code":0,"interrupted":false},"progress":[{"type":"progress","output":"","fullOutput":"","elapsedTimeSeconds":2,"totalLines":1,"totalBytes":0,"taskId":"task1"}]},
+  {"input":{"command":"echo harmless","_simulatedSedEdit":{"filePath":"/tmp/preview","newContent":"approved"}},"sedResult":{"stdout":"approved","stderr":"","interrupted":false}},
+  {"input":{"command":"printf 'data:image/png;base64,abc'"},"result":{"stdout":"data:image/png;base64,abc","stderr":"","code":0,"interrupted":false}},
+  {"input":{"command":"printf 'sandbox flag\\n'","dangerouslyDisableSandbox":true},"result":{"stdout":"sandbox flag\n","stderr":"","code":0,"interrupted":false}},
+  {"input":{"command":"sleep 0.1; echo done","run_in_background":true},"result":{"stdout":"","stderr":"","code":0,"interrupted":false,"backgroundTaskId":"task1"}}
+]

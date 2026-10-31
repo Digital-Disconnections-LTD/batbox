@@ -1,0 +1,6 @@
+[
+  {"name":"pre-no-hook","kind":"pre","present":false,"toolName":"Bash","toolUseID":"t-1","toolInput":{}},
+  {"name":"pre-with-prompt","kind":"pre","present":true,"toolName":"Read","toolUseID":"t-2","toolInput":{"file":"a"},"permissionMode":"plan","agentId":"agent-1","agentType":"worker","summary":"read a","requestPrompt":true},
+  {"name":"permission-with-suggestions","kind":"permission","toolName":"Write","toolUseID":"t-3","toolInput":{"file":"b"},"permissionSuggestions":[{"type":"addRules"}],"summary":"write b","requestPrompt":true},
+  {"name":"permission-default","kind":"permission","toolName":"Edit","toolUseID":"t-4","toolInput":{}}
+]

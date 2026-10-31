@@ -1,0 +1,11 @@
+[
+  {"name":"command-plain","kind":"command","body":"ready\n"},
+  {"name":"command-json","kind":"command","body":" {\"decision\":\"block\",\"systemMessage\":\"warn\"} \n"},
+  {"name":"command-schema-error","kind":"command","body":"{\"bad\":true}"},
+  {"name":"command-parse-error","kind":"command","body":"{broken}"},
+  {"name":"http-empty","kind":"http","body":" \n "},
+  {"name":"http-json","kind":"http","body":"{\"continue\":true}"},
+  {"name":"http-schema-error","kind":"http","body":"{\"bad\":true}"},
+  {"name":"http-plain","kind":"http","body":"not json"},
+  {"name":"http-parse-error","kind":"http","body":"{broken}"}
+]

@@ -1,0 +1,8 @@
+[
+  {"name":"session-start-default","kind":"session","source":"startup"},
+  {"name":"session-start-options","kind":"session","source":"resume","sessionId":"other","agentType":"worker","model":"local","timeoutMs":17,"forceSyncExecution":true},
+  {"name":"session-start-early-return","kind":"session","source":"clear","earlyReturn":true},
+  {"name":"setup-init","kind":"setup","trigger":"init"},
+  {"name":"setup-maintenance","kind":"setup","trigger":"maintenance","timeoutMs":23,"forceSyncExecution":true},
+  {"name":"subagent-start","kind":"subagent","agentId":"a-1","agentType":"worker","timeoutMs":31}
+]

@@ -1,0 +1,12 @@
+foreach(section IN ITEMS indigenous_yoga indigenous_yoga_layout indigenous_yoga_module)
+  if(section STREQUAL "indigenous_yoga_module")
+    set(probe_source tests/phase5/indigenous_yoga_module.cpp)
+  else()
+    set(probe_source tests/phase5/${section}_probe.cpp)
+  endif()
+  add_executable(batbox-${section}-probe ${probe_source})
+  target_link_libraries(batbox-${section}-probe PRIVATE batbox_terminal_dom)
+
+endforeach()
+batbox_probe(terminal_dom batbox_terminal_dom phase5)
+batbox_indigenous(phase5-terminal-dom-indigenous-text tests/phase5/terminal_dom_indigenous_text.cpp batbox_terminal_dom)

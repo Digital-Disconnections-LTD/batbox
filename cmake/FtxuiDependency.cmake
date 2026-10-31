@@ -1,0 +1,21 @@
+include_guard(GLOBAL)
+include(FetchContent)
+
+# An immutable release archive keeps builds reproducible. An offline checkout
+# can be supplied with FETCHCONTENT_SOURCE_DIR_BATBOX_FTXUI_UPSTREAM.
+set(FTXUI_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(FTXUI_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(FTXUI_BUILD_MODULES OFF CACHE BOOL "" FORCE)
+set(FTXUI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(FTXUI_BUILD_TESTS_FUZZER OFF CACHE BOOL "" FORCE)
+set(FTXUI_CLANG_TIDY OFF CACHE BOOL "" FORCE)
+set(FTXUI_DEV_WARNINGS OFF CACHE BOOL "" FORCE)
+set(FTXUI_ENABLE_COVERAGE OFF CACHE BOOL "" FORCE)
+set(FTXUI_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+set(FTXUI_QUIET ON CACHE BOOL "" FORCE)
+FetchContent_Declare(batbox_ftxui_upstream
+  URL https://codeload.github.com/ArthurSonzogni/FTXUI/tar.gz/f921fad208912747c17d129a8ef75ec7624b6eec
+  URL_HASH SHA256=00e1426f5b13d7748af44925768cca3bc4f64aa3b02e4c82567fd85716911a5b
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(batbox_ftxui_upstream)
+include("${CMAKE_CURRENT_LIST_DIR}/FtxuiPatch.cmake")

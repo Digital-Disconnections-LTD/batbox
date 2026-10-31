@@ -1,0 +1,8 @@
+[
+  {"name":"stop-no-hook","kind":"stop","present":false},
+  {"name":"stop-empty","kind":"stop","present":true,"permissionMode":"plan"},
+  {"name":"stop-last-message","kind":"stop","present":true,"stopHookActive":true,"messages":[{"type":"assistant","message":{"content":[{"type":"text","text":"  final  "}]}}],"requestPrompt":true},
+  {"name":"subagent-stop","kind":"stop","present":true,"subagentId":"agent-1","agentType":"worker","agentId":"context-1","messages":[]},
+  {"name":"prompt-no-hook","kind":"prompt","present":false,"prompt":"hello","permissionMode":"default"},
+  {"name":"prompt-present","kind":"prompt","present":true,"prompt":"hello","permissionMode":"plan","agentId":"agent-2","agentType":"worker","requestPrompt":true}
+]

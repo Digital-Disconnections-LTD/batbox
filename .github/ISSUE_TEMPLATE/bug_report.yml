@@ -1,0 +1,33 @@
+name: Something spooky happened
+description: Help us reproduce and fix a bug.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for helping the Roost. Remove credentials and private project data from logs."
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Include what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: A small example, exact command, or numbered steps helps enormously.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Platform and version
+      placeholder: "macOS arm64, Batbox commit, terminal, backend model"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Share the smallest relevant excerpt after removing private information.

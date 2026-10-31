@@ -1,0 +1,10 @@
+[
+  {"name":"chunked-async","chunks":["{\"as","ync\":true}\nnext"],"accepted":true,"forceSync":false},
+  {"name":"background-refused","chunks":["{\"async\":true}\n"],"accepted":false,"forceSync":false},
+  {"name":"forced-sync","chunks":["{\"async\":true}\n"],"accepted":true,"forceSync":true},
+  {"name":"nonasync","chunks":["{\"decision\":\"allow\"}\n"],"accepted":true,"forceSync":false},
+  {"name":"invalid-json","chunks":["{bad}\n"],"accepted":true,"forceSync":false},
+  {"name":"second-line-ignored","chunks":["plain\n{\"async\":true}\n"],"accepted":true,"forceSync":false},
+  {"name":"extra-data-same-chunk","chunks":["{\"async\":true}\nbody\n"],"accepted":true,"forceSync":false},
+  {"name":"async-false","chunks":["{\"async\":false}\n"],"accepted":true,"forceSync":false}
+]

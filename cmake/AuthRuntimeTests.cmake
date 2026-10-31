@@ -1,0 +1,27 @@
+foreach(section IN ITEMS auth_refresh auth_profile_http auth_recovery auth_check
+    auth_invalidate auth_save auth_storage auth_keychain_helpers auth_keychain
+    auth_keychain_lock auth_prefetch auth_api_key_save)
+  batbox_phase4_probe(${section} batbox_auth)
+endforeach()
+foreach(section IN ITEMS auth_refresh auth_check auth_invalidate auth_storage
+    auth_prefetch auth_api_key_save)
+  batbox_indigenous(phase4-${section}-real tests/phase4/${section}_real_probe.cpp batbox_auth)
+endforeach()
+batbox_indigenous(phase4-auth-keychain-indigenous tests/phase4/auth_keychain_indigenous_probe.cpp batbox_auth)
+batbox_phase4_probe(locking_upstream batbox_locking)
+batbox_indigenous(phase4-locking-real tests/phase4/locking_real_probe.cpp batbox_locking)
+batbox_phase4_probe(gadget_schema_stash batbox_core)
+batbox_phase4_probe(betas batbox_betas)
+add_executable(batbox-betas-wire-probe tests/phase4/betas_wire_probe.cpp)
+target_link_libraries(batbox-betas-wire-probe PRIVATE batbox_betas)
+
+foreach(section IN ITEMS oauth_client_url oauth_client_exchange oauth_client_account)
+  batbox_phase4_probe(${section} batbox_auth)
+endforeach()
+batbox_indigenous(phase4-oauth-client-indigenous tests/phase4/oauth_client_indigenous_probe.cpp batbox_auth)
+batbox_indigenous(phase4-oauth-client-account-indigenous tests/phase4/oauth_client_account_indigenous_probe.cpp batbox_auth)
+foreach(section IN ITEMS oauth_client_profile oauth_profile_scope)
+  batbox_phase4_probe(${section} batbox_auth)
+endforeach()
+batbox_phase4_probe(oauth_listener batbox_auth)
+batbox_indigenous(phase4-oauth-listener-indigenous tests/phase4/oauth_listener_indigenous_probe.cpp batbox_auth)

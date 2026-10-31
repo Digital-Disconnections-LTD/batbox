@@ -1,0 +1,12 @@
+[
+  {"name":"abort","aborted":true},
+  {"name":"http-error","status":503,"error":"unavailable"},
+  {"name":"http-undefined-status","ok":false},
+  {"name":"validation","ok":true,"status":200,"body":"invalid","validationError":"schema"},
+  {"name":"async-json","ok":true,"status":202,"body":"async","asyncJson":true},
+  {"name":"json-empty","ok":true,"status":200,"body":"{}","json":{}},
+  {"name":"json-block","ok":true,"status":200,"body":"{block}","json":{"decision":"block","reason":"stop"}},
+  {"name":"empty-json","ok":true,"status":200,"body":"empty"},
+  {"name":"throw","throws":"network down"},
+  {"name":"prepare","prepareError":true}
+]

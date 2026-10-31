@@ -1,0 +1,7 @@
+[
+  {"name":"callback-default","type":"callback"},
+  {"name":"callback-timeout","type":"callback","timeout":2},
+  {"name":"function-no-messages","type":"function"},
+  {"name":"function-pass","type":"function","messages":true,"passed":true},
+  {"name":"function-block","type":"function","messages":true,"passed":false}
+]

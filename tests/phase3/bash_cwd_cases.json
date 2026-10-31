@@ -1,0 +1,10 @@
+[
+  {"cwd":"/project","original":"/project","maintain":false,"allowed":true,"stderr":""},
+  {"cwd":"/project","original":"/project","maintain":false,"allowed":false,"stderr":" error \n"},
+  {"cwd":"/elsewhere","original":"/project","maintain":false,"allowed":true,"stderr":"warn"},
+  {"cwd":"/elsewhere","original":"/project","maintain":false,"allowed":false,"stderr":" \n bad \t"},
+  {"cwd":"/project","original":"/project","maintain":true,"allowed":false,"stderr":""},
+  {"cwd":"/elsewhere","original":"/project","maintain":true,"allowed":true,"stderr":""},
+  {"cwd":"/é","original":"/项目","maintain":false,"allowed":false,"stderr":"é\u2003"},
+  {"cwd":"/é","original":"/项目","maintain":true,"allowed":false,"stderr":"line\n"}
+]

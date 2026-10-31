@@ -1,0 +1,5 @@
+[
+  {"name":"ordinary","hookName":"PreToolUse:Bash","error":"denied"},
+  {"name":"empty","hookName":"","error":""},
+  {"name":"unicode-and-newline","hookName":"編集","error":"first\nsecond 🐈"}
+]

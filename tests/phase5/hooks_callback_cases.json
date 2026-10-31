@@ -1,0 +1,9 @@
+[
+  {"name":"async-shortcut","json":{"async":true,"asyncTimeout":1000}},
+  {"name":"sync-empty","json":{}},
+  {"name":"sync-block","json":{"decision":"block","reason":"denied"}},
+  {"name":"sync-pretool","json":{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","updatedInput":{"x":1}}}},
+  {"name":"wrong-event","json":{"hookSpecificOutput":{"hookEventName":"Setup"}}},
+  {"name":"promise-json","json":{"systemMessage":"notice"},"promise":true,"context":true,"hookIndex":3},
+  {"name":"callback-reject","executionError":"callback broke","json":{}}
+]

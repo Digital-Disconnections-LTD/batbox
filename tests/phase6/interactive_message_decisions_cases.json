@@ -1,0 +1,15 @@
+[
+  {"name":"thinking skipped","action":"after","messages":[{"type":"assistant","message":{"content":[{"type":"text","text":"first"}]}},{"type":"assistant","message":{"content":[{"type":"thinking"}]}}],"index":0},
+  {"name":"read skipped","action":"after","messages":[{"type":"user","message":{"content":[{"type":"text"}]}},{"type":"assistant","message":{"content":[{"type":"tool_use","id":"r","name":"Read","input":{}}]}}],"index":0},
+  {"name":"streaming bash skipped","action":"after","messages":[{"type":"user","message":{"content":[{"type":"text"}]}},{"type":"assistant","message":{"content":[{"type":"tool_use","id":"b","name":"Bash","input":{}}]}}],"index":0,"streaming":["b"]},
+  {"name":"other bash follows","action":"after","messages":[{"type":"user","message":{"content":[{"type":"text"}]}},{"type":"assistant","message":{"content":[{"type":"tool_use","id":"b","name":"Bash","input":{}}]}}],"index":0},
+  {"name":"group streaming","action":"streaming","message":{"type":"grouped_tool_use","messages":[{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a"}]}},{"type":"assistant","message":{"content":[{"type":"tool_use","id":"b"}]}}]},"streaming":["b"]},
+  {"name":"collapsed unresolved","action":"resolved","message":{"type":"collapsed_read_search","messages":[{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a"}]}},{"type":"grouped_tool_use","messages":[{"type":"assistant","message":{"content":[{"type":"tool_use","id":"b"}]}}]}]},"resolved":["a"]},
+  {"name":"server tool resolved","action":"resolved","message":{"type":"assistant","message":{"content":[{"type":"server_tool_use","id":"s"}]}},"resolved":["s"]},
+  {"name":"transcript static","action":"static","message":{"type":"system","subtype":"api_error"},"screen":"transcript"},
+  {"name":"error dynamic","action":"static","message":{"type":"system","subtype":"api_error"},"screen":"prompt"},
+  {"name":"hook unresolved","action":"static","message":{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a"}]}},"screen":"prompt","hooks":{"a":{"PostToolUse":2}},"resolvedHooks":{"a":{"PostToolUse":1}},"resolved":["a"]},
+  {"name":"sibling unresolved","action":"static","message":{"type":"assistant","message":{"content":[{"type":"tool_use","id":"a"}]}},"screen":"prompt","siblings":["a","b"],"resolved":["a"]},
+  {"name":"collapsed prompt dynamic","action":"static","message":{"type":"collapsed_read_search","messages":[]},"screen":"prompt"},
+  {"name":"expand result","action":"expand","message":{"type":"user","uuid":"fallback","message":{"content":[{"type":"tool_result","tool_use_id":"a"}]}}}
+]

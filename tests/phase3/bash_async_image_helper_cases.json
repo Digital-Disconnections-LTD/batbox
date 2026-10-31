@@ -1,0 +1,11 @@
+[
+  {"name":"inline","stdout":"data:image/png;base64,YWJj"},
+  {"name":"inline_invalid","stdout":"not a data uri"},
+  {"name":"inline_forgiving_base64","stdout":"data:image/png;base64,YWJj!!"},
+  {"name":"file_known","stdout":"ignored","path":"/tmp/image","size":3,"file":"data:image/png;base64,YWJj"},
+  {"name":"file_stat","stdout":"ignored","path":"/tmp/image","file":"data:image/png;base64,YWJj"},
+  {"name":"file_too_large","stdout":"ignored","path":"/tmp/image","size":20971521,"file":"data:image/png;base64,YWJj"},
+  {"name":"stat_error","stdout":"ignored","path":"/tmp/image","error":"stat"},
+  {"name":"read_error","stdout":"ignored","path":"/tmp/image","size":3,"error":"read"},
+  {"name":"resize_error","stdout":"data:image/png;base64,YWJj","error":"resize"}
+]

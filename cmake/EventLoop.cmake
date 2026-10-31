@@ -1,0 +1,5 @@
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBUV REQUIRED IMPORTED_TARGET libuv)
+add_library(batbox_event_loop src/event_loop/Loop.cpp src/event_loop/TimerScheduler.cpp)
+target_link_libraries(batbox_event_loop PUBLIC batbox_core PkgConfig::LIBUV)
+target_compile_options(batbox_event_loop PRIVATE -Wall -Wextra -Wpedantic)

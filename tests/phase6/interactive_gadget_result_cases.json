@@ -1,0 +1,14 @@
+[
+  {"name":"missing-lookup","lookupPresent":false,"toolPresent":true,"content":"plain","isError":false},
+  {"name":"missing-tool","lookupPresent":true,"toolPresent":false,"content":"plain","isError":false},
+  {"name":"success-string","toolPresent":true,"content":"plain","isError":false},
+  {"name":"success-array","toolPresent":true,"content":[{"type":"text","text":"done"}],"isError":false},
+  {"name":"error-string","toolPresent":true,"content":"failed","isError":true},
+  {"name":"error-array","toolPresent":true,"content":[{"type":"text","text":"failed"}],"isError":true},
+  {"name":"cancel","toolPresent":true,"marker":"cancel","isError":true},
+  {"name":"cancel-suffix","toolPresent":true,"marker":"cancel","suffix":" extra","isError":false},
+  {"name":"reject","toolPresent":true,"marker":"reject","isError":true},
+  {"name":"reject-suffix","toolPresent":true,"marker":"reject","suffix":" extra","isError":false},
+  {"name":"interrupt","toolPresent":true,"marker":"interrupt","isError":true},
+  {"name":"plain-truthy-error","toolPresent":true,"content":"failed","isError":"yes"}
+]

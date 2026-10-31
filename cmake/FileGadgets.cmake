@@ -1,0 +1,54 @@
+if(WIN32)
+  set(BATBOX_RIPGREP_PROCESS_SOURCE src/filesystem/RipgrepProcessWin.cpp)
+else()
+  set(BATBOX_RIPGREP_PROCESS_SOURCE src/filesystem/RipgrepProcess.cpp)
+endif()
+target_sources(batbox_core PRIVATE
+  src/file_state_stash/FileStateStash.cpp
+  src/file_state_stash/Path.cpp
+  src/file_state_stash/Helpers.cpp
+  src/file_state_stash/FileGadgetBindings.cpp
+  src/file_state_stash/QueryBindings.cpp
+  src/file_state_stash/ExecutionBindings.cpp
+  src/filesystem/FileOps.cpp
+  src/filesystem/Paths.cpp
+  src/filesystem/Range.cpp
+  src/filesystem/RangeFast.cpp
+  src/filesystem/RangeStream.cpp
+  ${BATBOX_RIPGREP_PROCESS_SOURCE}
+  src/gadgets/files/BinaryExtensions.cpp
+  src/gadgets/files/EditInput.cpp
+  src/gadgets/files/EditMatch.cpp
+  src/gadgets/files/EditPatch.cpp
+  src/gadgets/files/EditUnicode.cpp
+  src/gadgets/files/FileEditCall.cpp
+  src/gadgets/files/FileEditResult.cpp
+  src/gadgets/files/FileEditSearchGadgets.cpp
+  src/gadgets/files/FileEditValidation.cpp
+  src/gadgets/files/FileInputParse.cpp
+  src/gadgets/files/FileInputSchema.cpp
+  src/gadgets/files/FileOutputSchema.cpp
+  src/gadgets/files/FilePoetryEntries.cpp
+  src/gadgets/files/FileReadCall.cpp
+  src/gadgets/files/FileReadImage.cpp
+  src/gadgets/files/FileReadInner.cpp
+  src/gadgets/files/FileReadPDF.cpp
+  src/gadgets/files/FileReadResult.cpp
+  src/gadgets/files/FileReadUtils.cpp
+  src/gadgets/files/FileReadValidation.cpp
+  src/gadgets/files/FileReadWriteGadgets.cpp
+  src/gadgets/files/FileGadgetsBase.cpp
+  src/gadgets/files/FileWriteCall.cpp
+  src/gadgets/files/FileWriteResult.cpp
+  src/gadgets/files/FileWriteValidation.cpp
+  src/gadgets/files/GlobCore.cpp
+  src/gadgets/files/GlobGadget.cpp
+  src/gadgets/files/GrepCall.cpp
+  src/gadgets/files/GrepFiles.cpp
+  src/gadgets/files/GrepHelpers.cpp
+  src/gadgets/files/GrepModes.cpp
+  src/gadgets/files/GrepResult.cpp
+  src/gadgets/files/GrepValidation.cpp
+  src/gadgets/files/NotebookRead.cpp
+  src/gadgets/files/NotebookResult.cpp
+)

@@ -1,0 +1,10 @@
+[
+  {"name":"none","cwd":"/w","stats":{},"expected":false},
+  {"name":"normal","cwd":"/w","stats":{"/w/.git":"directory","/w/.git/HEAD":"file","/w/HEAD":"file"},"expected":false},
+  {"name":"worktree","cwd":"/w","stats":{"/w/.git":"file","/w/HEAD":"file"},"expected":false},
+  {"name":"missing-head","cwd":"/w","stats":{"/w/.git":"directory","/w/objects":"directory"},"expected":true},
+  {"name":"head-directory","cwd":"/w","stats":{"/w/.git":"directory","/w/.git/HEAD":"directory","/w/refs":"directory"},"expected":true},
+  {"name":"bare-head","cwd":"/w","stats":{"/w/HEAD":"file"},"expected":true},
+  {"name":"bare-refs","cwd":"/w","stats":{"/w/refs":"directory"},"expected":true},
+  {"name":"wrong-types","cwd":"/w","stats":{"/w/HEAD":"directory","/w/objects":"file","/w/refs":"file"},"expected":false}
+]

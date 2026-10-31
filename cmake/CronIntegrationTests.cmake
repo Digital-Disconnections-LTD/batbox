@@ -1,0 +1,8 @@
+foreach(section IN ITEMS cron_locale use_scheduled cron_fire_time print_cron)
+  batbox_phase4_probe(${section} batbox_cron)
+endforeach()
+foreach(section IN ITEMS cron_poetry cron_gadgets)
+  batbox_phase4_probe(${section} batbox_cron_gadgets)
+endforeach()
+batbox_indigenous(phase4-cron-gadgets-indigenous tests/phase4/cron_gadgets_indigenous_probe.cpp batbox_cron_gadgets)
+batbox_indigenous(phase4-cron-gadgets-context-indigenous tests/phase4/cron_gadgets_context_probe.cpp batbox_cron_gadgets)

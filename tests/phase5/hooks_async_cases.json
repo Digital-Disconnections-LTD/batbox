@@ -1,0 +1,12 @@
+[
+  {"name":"empty","phase":"poll","hooks":[]},
+  {"name":"registered","phase":"pending","hooks":[{"id":"a","status":"running","stdout":""},{"id":"b","status":"running","stdout":""}]},
+  {"name":"running-skip","phase":"poll","hooks":[{"id":"a","status":"backgrounded","stdout":"waiting"}]},
+  {"name":"completed-plain","phase":"poll","hooks":[{"id":"a","status":"completed","stdout":"ready\n","stderr":"","code":0}]},
+  {"name":"completed-json","phase":"poll","hooks":[{"id":"a","status":"completed","stdout":"{\"async\":true}\n{\"decision\":\"block\"}\n","stderr":"warn","code":2,"event":"SessionStart"}]},
+  {"name":"killed","phase":"poll","hooks":[{"id":"a","status":"killed","stdout":"partial","stderr":""}]},
+  {"name":"empty-stdout","phase":"poll","hooks":[{"id":"a","status":"completed","stdout":" \n ","stderr":"err","code":1}]},
+  {"name":"ordered-categories","phase":"poll","hooks":[{"id":"a","status":"completed","stdout":"a","code":0},{"id":"b","status":"running","stdout":"b"},{"id":"c","status":"completed","stdout":"c","code":1}]},
+  {"name":"finalize-running","phase":"finalize","hooks":[{"id":"a","status":"running","stdout":"partial","stderr":"warn"}]},
+  {"name":"finalize-completed","phase":"finalize","hooks":[{"id":"a","status":"completed","stdout":"done","stderr":"","code":0}]}
+]

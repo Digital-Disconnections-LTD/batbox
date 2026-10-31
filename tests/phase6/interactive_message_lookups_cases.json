@@ -1,0 +1,30 @@
+[
+  {"name":"siblings results hooks","shown":[
+    {"type":"assistant","uuid":"a","message":{"id":"api","content":[{"type":"tool_use","id":"x","name":"Read"}]}},
+    {"type":"assistant","uuid":"b","message":{"id":"api","content":[{"type":"tool_use","id":"y","name":"Read"}]}}
+  ],"normalized":[
+    {"type":"assistant","uuid":"a","message":{"id":"api","content":[{"type":"tool_use","id":"x","name":"Read"}]}},
+    {"type":"assistant","uuid":"b","message":{"id":"api","content":[{"type":"tool_use","id":"y","name":"Read"}]}},
+    {"type":"progress","uuid":"p","parentToolUseID":"x","data":{"type":"hook_progress","hookEvent":"PostToolUse"}},
+    {"type":"attachment","uuid":"h1","attachment":{"type":"hook_success","toolUseID":"x","hookEvent":"PostToolUse","hookName":"one"}},
+    {"type":"attachment","uuid":"h2","attachment":{"type":"hook_additional_context","toolUseID":"x","hookEvent":"PostToolUse","hookName":"one"}},
+    {"type":"user","uuid":"r","message":{"content":[{"type":"tool_result","tool_use_id":"x","is_error":true}]}}
+  ]},
+  {"name":"orphan server tool","shown":[
+    {"type":"user","uuid":"u","message":{"content":[{"type":"text","text":"go"}]}}
+  ],"normalized":[
+    {"type":"assistant","uuid":"a","message":{"id":"old","content":[{"type":"server_tool_use","id":"s"},{"type":"mcp_tool_use","id":"m"}]}},
+    {"type":"user","uuid":"u","message":{"content":[{"type":"text","text":"go"}]}}
+  ]},
+  {"name":"last assistant remains pending","shown":[
+    {"type":"assistant","uuid":"a","message":{"id":"latest","content":[{"type":"server_tool_use","id":"s"}]}}
+  ],"normalized":[
+    {"type":"assistant","uuid":"a","message":{"id":"latest","content":[{"type":"server_tool_use","id":"s"}]}}
+  ]},
+  {"name":"server result resolves","shown":[
+    {"type":"assistant","uuid":"a","message":{"id":"old","content":[{"type":"server_tool_use","id":"s"}]}}
+  ],"normalized":[
+    {"type":"assistant","uuid":"a","message":{"id":"old","content":[{"type":"server_tool_use","id":"s"}]}},
+    {"type":"assistant","uuid":"b","message":{"id":"new","content":[{"type":"web_search_tool_result","tool_use_id":"s"}]}}
+  ]}
+]

@@ -1,0 +1,50 @@
+{
+  "brief": [
+    {"name":"strict brief", "names":["Brief"], "messages":[
+      {"id":"system","type":"system","subtype":"notice"},
+      {"id":"metric","type":"system","subtype":"api_metrics"},
+      {"id":"text","type":"assistant","message":{"content":[{"type":"text","text":"working"}]}},
+      {"id":"error","type":"assistant","isApiErrorMessage":true,"message":{"content":[{"type":"text","text":"failed"}]}},
+      {"id":"brief","type":"assistant","message":{"content":[{"type":"tool_use","id":"b1","name":"Brief"}]}},
+      {"id":"result","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"b1"}]}},
+      {"id":"other-result","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"x"}]}},
+      {"id":"human","type":"user","message":{"content":[{"type":"text","text":"hello"}]}},
+      {"id":"meta","type":"user","isMeta":true,"message":{"content":[{"type":"text","text":"hidden"}]}},
+      {"id":"queued","type":"attachment","attachment":{"type":"queued_command","commandMode":"prompt"}},
+      {"id":"notification","type":"attachment","attachment":{"type":"queued_command","commandMode":"task-notification"}},
+      {"id":"origin","type":"attachment","attachment":{"type":"queued_command","commandMode":"prompt","origin":null}}
+    ]}
+  ],
+  "drop": [
+    {"name":"brief turn only", "names":["Brief"], "messages":[
+      {"id":"u1","type":"user","message":{"content":[{"type":"text","text":"first"}]}},
+      {"id":"t1","type":"assistant","message":{"content":[{"type":"text","text":"draft"}]}},
+      {"id":"b1","type":"assistant","message":{"content":[{"type":"tool_use","name":"Brief"}]}},
+      {"id":"u2","type":"user","message":{"content":[{"type":"text","text":"second"}]}},
+      {"id":"t2","type":"assistant","message":{"content":[{"type":"text","text":"keep"}]}}
+    ]},
+    {"name":"no brief preserves array", "names":["Brief"], "messages":[
+      {"id":"u1","type":"user","message":{"content":[{"type":"text","text":"first"}]}},
+      {"id":"t1","type":"assistant","message":{"content":[{"type":"text","text":"keep"}]}}
+    ]}
+  ],
+  "slice": [
+    {"name":"under cap", "uuids":["a","b","c"],"cap":3,"step":2,"anchor":null},
+    {"name":"advance to last cap", "uuids":["a","b","c","d","e","f"],"cap":3,"step":2,"anchor":null},
+    {"name":"stable uuid anchor", "uuids":["a","b","c","d","e"],"cap":3,"step":2,"anchor":{"uuid":"c","idx":1}},
+    {"name":"lost uuid index fallback", "uuids":["x","b","c","d","e"],"cap":3,"step":2,"anchor":{"uuid":"gone","idx":2}},
+    {"name":"empty heals stale", "uuids":[],"cap":3,"step":2,"anchor":{"uuid":"gone","idx":2}}
+  ],
+  "leaves": [
+    {"name":"empty string", "message":{"type":"user","message":{"content":"   "}}},
+    {"name":"text block", "message":{"type":"assistant","message":{"content":[{"type":"text","text":"hello"}]}}},
+    {"name":"no-content sentinel", "message":{"type":"assistant","message":{"content":[{"type":"text","text":"__NO_CONTENT__"}]}}},
+    {"name":"multi-block keep", "message":{"type":"assistant","message":{"content":[{"type":"text","text":""},{"type":"text","text":""}]}}},
+    {"name":"hidden attachment", "message":{"type":"attachment","attachment":{"type":"hook_success"}}},
+    {"name":"visible attachment", "message":{"type":"attachment","attachment":{"type":"queued_command"}}},
+    {"name":"meta channel visible", "features":{"KAIROS_CHANNELS":true},"message":{"type":"user","isMeta":true,"origin":{"kind":"channel"},"message":{"content":"hello"}}},
+    {"name":"meta channel gate off", "message":{"type":"user","isMeta":true,"origin":{"kind":"channel"},"message":{"content":"hello"}}},
+    {"name":"transcript only prompt hidden", "message":{"type":"user","isVisibleInTranscriptOnly":true,"message":{"content":"hello"}}},
+    {"name":"transcript only transcript visible", "transcript":true,"message":{"type":"user","isVisibleInTranscriptOnly":true,"message":{"content":"hello"}}}
+  ]
+}

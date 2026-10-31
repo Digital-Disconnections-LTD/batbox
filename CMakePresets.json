@@ -1,0 +1,23 @@
+{
+  "version": 5,
+  "cmakeMinimumRequired": {"major": 3, "minor": 24, "patch": 0},
+  "configurePresets": [
+    {
+      "name": "indigenous",
+      "displayName": "Indigenous terminal application",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/indigenous",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "BUILD_TESTING": false}
+    },
+    {
+      "name": "indigenous-checks",
+      "inherits": "indigenous",
+      "displayName": "Indigenous application with developer checks",
+      "binaryDir": "${sourceDir}/build/indigenous-checks",
+      "cacheVariables": {"BUILD_TESTING": true}
+    }
+  ],
+  "buildPresets": [
+    {"name": "indigenous", "configurePreset": "indigenous", "targets": ["batbox"]}
+  ]
+}

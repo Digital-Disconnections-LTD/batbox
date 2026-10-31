@@ -1,0 +1,12 @@
+[
+  {"name":"immediate-true","behavior":"true"},
+  {"name":"immediate-false","behavior":"false"},
+  {"name":"resolved-false","behavior":"resolved-false"},
+  {"name":"rejected-error","behavior":"reject-error"},
+  {"name":"rejected-abort-name","behavior":"reject-abort"},
+  {"name":"rejected-cancel-message","behavior":"reject-cancel"},
+  {"name":"primitive-throw","behavior":"throw-primitive"},
+  {"name":"pre-aborted","behavior":"true","preAbort":true},
+  {"name":"later-abort","behavior":"pending","laterAbort":true},
+  {"name":"hook-timeout","behavior":"pending","hookTimeout":1}
+]

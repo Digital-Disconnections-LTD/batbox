@@ -1,0 +1,103 @@
+name: Indigenous platform builds
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  posix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ git ripgrep pkg-config nlohmann-json3-dev libcurl4-openssl-dev libssl-dev libicu-dev libuv1-dev libvips-dev libyaml-cpp-dev libpcre2-dev libwebsockets-dev libcmark-gfm-dev libcmark-gfm-extensions-dev
+      - name: macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja pkgconf nlohmann-json curl openssl@3 icu4c libuv vips yaml-cpp pcre2 libwebsockets cmark-gfm git ripgrep
+      - name: Linux build
+        if: runner.os == 'Linux'
+        run: |
+          cmake --preset indigenous -DBUILD_TESTING=ON
+          cmake --build build/indigenous --target batbox batbox-scrapling-fixture --parallel 3
+      - name: macOS build
+        if: runner.os == 'macOS'
+        env:
+          BATBOX_BUILD_JOBS: 2
+        run: |
+          bash gadgets/build-macos.sh --configure-only
+          cmake --preset indigenous -DBUILD_TESTING=ON
+          cmake --build build/indigenous --target batbox batbox-scrapling-fixture --parallel 2
+      - name: Streaming and file gadgets
+        run: |
+          python3 checks/indigenous_posix_install.py
+          python3 checks/indigenous_platform_smoke.py build/indigenous/batbox --scrapling-fixture build/indigenous/batbox-scrapling-fixture --skill-shell
+          python3 checks/indigenous_platform_smoke.py build/indigenous/batbox --scrapling-fixture build/indigenous/batbox-scrapling-fixture --mission-board
+          python3 checks/indigenous_permissions_smoke.py build/indigenous/batbox
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        run: python3 gadgets/package_indigenous.py --binary build/indigenous/batbox --output dist/batbox-${{ matrix.os }}.tar.gz --commit "$GITHUB_SHA" --label preview
+      - name: Package macOS
+        if: runner.os == 'macOS'
+        run: python3 gadgets/package_macos.py --binary build/indigenous/batbox --output dist/batbox-${{ matrix.os }}.tar.gz --commit "$GITHUB_SHA" --label preview
+      - uses: actions/upload-artifact@v4
+        with:
+          name: batbox-${{ matrix.os }}
+          path: dist/*
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-nlohmann-json
+            mingw-w64-ucrt-x86_64-curl
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-icu
+            mingw-w64-ucrt-x86_64-libuv
+            mingw-w64-ucrt-x86_64-libvips
+            mingw-w64-ucrt-x86_64-yaml-cpp
+            mingw-w64-ucrt-x86_64-pcre2
+            mingw-w64-ucrt-x86_64-libwebsockets
+            mingw-w64-ucrt-x86_64-python
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          cmake --preset indigenous -DBUILD_TESTING=ON
+          cmake --build build/indigenous --target batbox batbox-scrapling-fixture --parallel 3
+      - name: Streaming and file gadgets
+        shell: msys2 {0}
+        run: |
+          python checks/indigenous_platform_smoke.py build/indigenous/batbox.exe --scrapling-fixture build/indigenous/batbox-scrapling-fixture.exe --skill-shell
+          python checks/indigenous_platform_smoke.py build/indigenous/batbox.exe --scrapling-fixture build/indigenous/batbox-scrapling-fixture.exe --mission-board
+          python checks/indigenous_permissions_smoke.py build/indigenous/batbox.exe
+      - name: Windows installer checks
+        shell: pwsh
+        run: ./checks/indigenous_windows_installer.ps1
+      - name: Package DLL closure
+        shell: msys2 {0}
+        run: |
+          python checks/indigenous_windows_package.py
+          python gadgets/package_indigenous.py --binary build/indigenous/batbox.exe --runtime-root /ucrt64 --output dist/batbox-windows-x86_64.zip --commit "$GITHUB_SHA" --label preview
+      - uses: actions/upload-artifact@v4
+        with:
+          name: batbox-windows-x86_64
+          path: dist/*

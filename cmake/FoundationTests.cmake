@@ -1,0 +1,76 @@
+function(batbox_phase4_probe section library)
+  add_executable(batbox-phase4-${section}-probe tests/phase4/${section}_probe.cpp)
+  target_link_libraries(batbox-phase4-${section}-probe PRIVATE ${library})
+
+endfunction()
+foreach(section IN ITEMS project_tokens project_content project_discovery project_hierarchy project_context)
+  batbox_phase4_probe(${section} batbox_instructions)
+endforeach()
+batbox_phase4_probe(context batbox_context)
+batbox_phase4_probe(context_async batbox_context)
+batbox_indigenous(phase4-context-async-indigenous tests/phase4/context_async_indigenous.cpp "batbox_context;batbox_process")
+foreach(section IN ITEMS poetry_sections poetry_blocks poetry_env system_poetry poetry_guidance poetry_static bat_poetry)
+  batbox_phase4_probe(${section} batbox_poetryEntries)
+endforeach()
+batbox_phase4_probe(poetry_async_sections batbox_poetryEntries)
+add_executable(batbox-system-poetry-async-probe tests/phase4/system_poetry_async_probe.cpp)
+target_link_libraries(batbox-system-poetry-async-probe PRIVATE batbox_poetryEntries)
+
+batbox_phase4_probe(system_poetry_async_trace batbox_poetryEntries)
+batbox_probe(exec_file batbox_process phase3)
+batbox_indigenous(phase3-exec-file-indigenous tests/phase3/exec_file_indigenous.cpp batbox_process)
+foreach(section IN ITEMS git_fs git_fs_safety git_fs_path git_config git_config_async git_root)
+  batbox_probe(${section} batbox_git phase3)
+endforeach()
+batbox_indigenous(phase3-git-fs-indigenous tests/phase3/git_fs_indigenous.cpp batbox_git)
+foreach(section IN ITEMS bash_async_persistence bash_async_sed bash_async_image_helper)
+  batbox_probe(${section} batbox_shell phase3)
+endforeach()
+add_executable(batbox-bash-async-image-probe tests/phase3/bash_async_call_probe.cpp)
+target_link_libraries(batbox-bash-async-image-probe PRIVATE batbox_shell)
+
+batbox_indigenous(phase3-bash-async-persistence-indigenous tests/phase3/bash_async_persistence_indigenous.cpp batbox_shell)
+batbox_indigenous(phase3-bash-async-image-indigenous tests/phase3/bash_async_image_indigenous.cpp batbox_shell_media)
+batbox_indigenous(phase3-bash-async-fixture-indigenous tests/phase3/bash_async_fixture_indigenous.cpp batbox_shell)
+foreach(section IN ITEMS query_async_completion query_async_gadget_turn query_async_full query_async_close query_async_entry)
+  batbox_probe(${section} batbox_query phase4)
+endforeach()
+target_link_libraries(batbox-query_async_full-probe PRIVATE batbox_gadget_results)
+target_link_libraries(batbox-query_async_close-probe PRIVATE batbox_gadget_results)
+batbox_probe(query_owner_preflight batbox_query phase4)
+batbox_probe(query_owner_gadget_search batbox_query phase4)
+batbox_probe(query_owner_stashed_schema batbox_query phase4)
+batbox_probe(query_owner_completion batbox_query phase4)
+batbox_probe(query_owner_retry batbox_query phase4)
+batbox_indigenous(phase4-query-owner-retry-stage tests/phase4/query_owner_retry_stage_indigenous.cpp batbox_query)
+batbox_indigenous(phase4-query-owner-attempt-stage tests/phase4/query_owner_attempt_stage_indigenous.cpp batbox_query)
+
+batbox_probe(streaming_phased batbox_core phase2)
+batbox_indigenous(phase4-query-owner-promise-all tests/phase4/query_owner_promise_all_indigenous.cpp batbox_query)
+batbox_indigenous(phase4-query-owner-stream-close tests/phase4/query_owner_stream_close_indigenous.cpp batbox_query)
+
+batbox_indigenous(phase4-query-owner-model-segments tests/phase4/query_owner_model_segments_indigenous.cpp batbox_query)
+foreach(section IN ITEMS query_async_model_lifetime query_indigenous_model_cursor query_indigenous_gadget_cursor
+    query_indigenous_blocked_producer query_async_operation_queue query_closeable_indigenous_cursor)
+  batbox_indigenous(phase4-${section} tests/phase4/${section}_indigenous.cpp batbox_query)
+endforeach()
+
+foreach(section IN ITEMS query_indigenous_blocked_http query_indigenous_close_http)
+  add_executable(batbox-${section}-probe tests/phase4/${section}_probe.cpp)
+  target_link_libraries(batbox-${section}-probe PRIVATE batbox_query)
+  add_test(NAME phase4-${section} COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/tests/phase4/${section}.py --probe $<TARGET_FILE:batbox-${section}-probe>)
+endforeach()
+add_executable(batbox-query-async-e2e tests/phase4/query_async_e2e_probe.cpp
+  tests/phase4/query_async_e2e_model_fixture.cpp)
+target_link_libraries(batbox-query-async-e2e PRIVATE batbox_query batbox_gadget_results batbox_shell)
+foreach(gadget IN ITEMS Read Bash)
+  add_test(NAME phase4-query-async-e2e-${gadget} COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/tests/phase4/query_async_e2e_http.py
+    --probe $<TARGET_FILE:batbox-query-async-e2e> --gadget ${gadget})
+endforeach()
+
+target_sources(batbox-query_indigenous_blocked_http-probe PRIVATE
+  tests/phase4/query_async_e2e_model_fixture.cpp)
+target_sources(batbox-query_indigenous_close_http-probe PRIVATE
+  tests/phase4/query_async_e2e_model_fixture.cpp)

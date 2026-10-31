@@ -1,0 +1,8 @@
+[
+  {"name":"tracking","tracking":{"code":0,"stdout":" origin/feature \n"},"remote":{"code":1,"stdout":""},"candidates":{}},
+  {"name":"remote-head","tracking":{"code":128,"stdout":""},"remote":{"code":0,"stdout":"* remote origin\n  HEAD branch: trunk\n"},"candidates":{}},
+  {"name":"main","tracking":{"code":128,"stdout":""},"remote":{"code":128,"stdout":""},"candidates":{"origin/main":0}},
+  {"name":"staging","tracking":{"code":128,"stdout":""},"remote":{"code":0,"stdout":"no branch"},"candidates":{"origin/main":128,"origin/staging":0}},
+  {"name":"master","tracking":{"code":128,"stdout":""},"remote":{"code":1,"stdout":""},"candidates":{"origin/main":1,"origin/staging":1,"origin/master":0}},
+  {"name":"none","tracking":{"code":0,"stdout":" "},"remote":{"code":0,"stdout":"HEAD branch: "},"candidates":{"origin/main":1,"origin/staging":1,"origin/master":1}}
+]

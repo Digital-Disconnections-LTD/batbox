@@ -1,0 +1,9 @@
+[
+  {"name":"no-view","tasks":{}},
+  {"name":"missing","viewingAgentTaskId":"x","tasks":{}},
+  {"name":"teammate","viewingAgentTaskId":"x","tasks":{"x":{"type":"in_process_teammate","status":"running"}}},
+  {"name":"named-agent","viewingAgentTaskId":"x","tasks":{"x":{"type":"local_agent","status":"running"}}},
+  {"name":"other","viewingAgentTaskId":"x","tasks":{"x":{"type":"shell","status":"running"}}},
+  {"name":"empty-id","viewingAgentTaskId":"","tasks":{"":{"type":"in_process_teammate"}}},
+  {"name":"null-task","viewingAgentTaskId":"x","tasks":{"x":null}}
+]

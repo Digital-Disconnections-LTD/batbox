@@ -1,0 +1,2 @@
+batbox_probe(flight_events batbox_sdk_events phase5)
+batbox_indigenous(phase5-flight-events-indigenous tests/phase5/flight_events_indigenous.cpp batbox_sdk_events)

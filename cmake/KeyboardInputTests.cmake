@@ -1,0 +1,2 @@
+batbox_probe(keyboard_input batbox_keyboard_input phase5)
+batbox_probe(glob_regex_anchor batbox_glob phase5)

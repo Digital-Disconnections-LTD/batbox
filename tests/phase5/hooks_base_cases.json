@@ -1,0 +1,8 @@
+[
+  {"name":"defaults"},
+  {"name":"explicit-session","sessionId":"custom"},
+  {"name":"permission","permissionMode":"bypassPermissions"},
+  {"name":"agent","agentInfo":{"agentId":"child-1","agentType":"reviewer"}},
+  {"name":"agent-id-only","agentInfo":{"agentId":"child-1"}},
+  {"name":"no-main-agent","mainAgentType":null}
+]

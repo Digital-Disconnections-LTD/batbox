@@ -1,0 +1,13 @@
+[
+  {"name":"missing-result","hasResult":false,"hasTool":true,"hasRenderer":true,"displayName":"Tool"},
+  {"name":"missing-tool","hasResult":true,"hasTool":false,"hasRenderer":true,"displayName":"Tool"},
+  {"name":"schema-invalid","hasResult":true,"hasTool":true,"hasSchema":true,"schemaValid":false,"hasRenderer":true,"displayName":"Tool"},
+  {"name":"schema-valid","hasResult":true,"hasTool":true,"hasSchema":true,"schemaValid":true,"hasRenderer":true,"displayName":"Tool"},
+  {"name":"missing-renderer","hasResult":true,"hasTool":true,"hasRenderer":false,"displayName":"Tool"},
+  {"name":"renderer-null","hasResult":true,"hasTool":true,"hasRenderer":true,"renderNull":true,"displayName":"Tool"},
+  {"name":"ordinary","hasResult":true,"hasTool":true,"hasRenderer":true,"displayName":"Tool"},
+  {"name":"assistant-text","hasResult":true,"hasTool":true,"hasRenderer":true,"displayName":""},
+  {"name":"brief-approval","hasResult":true,"hasTool":true,"hasRenderer":true,"displayName":"Tool","briefFeature":true,"briefOnly":true,"classifierApprovalFeature":true,"classifierRule":"allow pwd"},
+  {"name":"auto-approval","hasResult":true,"hasTool":true,"hasRenderer":true,"displayName":"Tool","classifierDenialFeature":true,"yoloReason":"known"},
+  {"name":"zero-result","hasResult":true,"toolResult":0,"hasTool":true,"hasRenderer":true,"displayName":"Tool"}
+]

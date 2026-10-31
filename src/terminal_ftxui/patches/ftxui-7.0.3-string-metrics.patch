@@ -1,0 +1,71 @@
+--- a/include/ftxui/screen/string.hpp
++++ b/include/ftxui/screen/string.hpp
+@@ -4,6 +4,7 @@
+ #ifndef FTXUI_SCREEN_STRING_HPP
+ #define FTXUI_SCREEN_STRING_HPP
+ 
++#include <functional>
+ #include <string>       // for string, wstring, to_string
+ #include <string_view>  // for string_view
+ #include <vector>       // for vector
+@@ -11,6 +12,13 @@
+ #include "ftxui/util/export.hpp"
+ 
+ namespace ftxui {
++// Optional host measurement for terminals with grapheme-aware cell widths.
++// An empty callback restores the upstream width and glyph logic.
++struct StringMetrics {
++  std::function<int(std::string_view)> width;
++  std::function<std::vector<std::string>(std::string_view)> glyphs;
++};
++FTXUI_EXPORT(SCREEN) void SetStringMetrics(StringMetrics metrics);
+ FTXUI_EXPORT(SCREEN) std::string to_string(std::wstring_view s);
+ FTXUI_EXPORT(SCREEN) std::wstring to_wstring(std::string_view s);
+ 
+--- a/src/ftxui/screen/string.cpp
++++ b/src/ftxui/screen/string.cpp
+@@ -12,6 +12,8 @@
+ #include "ftxui/screen/string.hpp"
+ 
+ #include <array>        // for array
++#include <atomic>
++#include <memory>
+ #include <cstddef>      // for size_t
+ #include <cstdint>      // for uint32_t, uint8_t, uint16_t, int32_t
+ #include <string>       // for string, basic_string, wstring
+@@ -1167,6 +1169,15 @@
+ }  // namespace
+ 
+ namespace ftxui {
++namespace {
++std::shared_ptr<const StringMetrics> g_string_metrics;
++}
++
++void SetStringMetrics(StringMetrics metrics) {
++  std::atomic_store_explicit(&g_string_metrics,
++                             std::make_shared<const StringMetrics>(std::move(metrics)),
++                             std::memory_order_release);
++}
+ 
+ // From UTF8 encoded string |input|, eat in between 1 and 4 byte representing
+ // one codepoint. Put the codepoint into |ucs|. Start at |start| and update
+@@ -1335,6 +1346,9 @@
+ // characters are taking two cells and all the other characters are taking one
+ // cell.
+ int string_width(std::string_view input) {
++  const auto metrics = std::atomic_load_explicit(&g_string_metrics,
++                                                 std::memory_order_acquire);
++  if (metrics && metrics->width) return metrics->width(input);
+   // 1-byte optimization: This function is often called on a single ASCII
+   // character, so we can optimize this case by skipping the UTF8 decoding.
+   if (input.size() == 1) {
+@@ -1385,6 +1399,9 @@
+ }
+ 
+ std::vector<std::string> Utf8ToGlyphs(std::string_view input) {
++  const auto metrics = std::atomic_load_explicit(&g_string_metrics,
++                                                 std::memory_order_acquire);
++  if (metrics && metrics->glyphs) return metrics->glyphs(input);
+   std::vector<std::string> out;
+   out.reserve(input.size());
+   size_t start = 0;

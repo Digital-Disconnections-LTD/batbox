@@ -1,0 +1,14 @@
+[
+  {"maxSize":4,"actions":[{"append":"ab"},{"append":"cd"},{"append":"ef"},{"append":"gh"},{"clear":true},{"append":"x"}]},
+  {"maxSize":1,"actions":[{"append":"😀"},{"append":"z"}]},
+  {"maxSize":3,"actions":[{"append":"a😀b"},{"append":"é"}]},
+  {"maxSize":0,"actions":[{"append":"abc"},{"append":"def"},{"clear":true}]},
+  {"maxSize":2,"actions":[{"appendBuffer":[226,130,172]},{"appendBuffer":[255,65]}]},
+  {"maxSize":5,"actions":[{"append":"hello"},{"append":""},{"append":"!"}]},
+  {"maxSize":3,"actions":[{"append":"a\r\nb"},{"append":"c"}]},
+  {"maxSize":2.5,"actions":[{"append":"abc"},{"append":"d"}]},
+  {"maxSize":-1,"actions":[{"append":"abc"},{"append":"d"}]},
+  {"maxSize":"Infinity","actions":[{"append":"abc"},{"append":"d"}]},
+  {"maxSize":"-Infinity","actions":[{"append":"abc"},{"append":"d"}]},
+  {"maxSize":"NaN","actions":[{"append":"abc"},{"append":"d"}]}
+]

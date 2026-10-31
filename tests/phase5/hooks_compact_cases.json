@@ -1,0 +1,8 @@
+[
+  {"name":"pre-empty","kind":"pre","trigger":"manual","customInstructions":null,"results":[]},
+  {"name":"pre-mixed","kind":"pre","trigger":"auto","customInstructions":"old","results":[{"command":"a","output":"  new A  ","succeeded":true,"blocked":false},{"command":"b","output":"\nnew B\n","succeeded":true,"blocked":false},{"command":"c","output":"  issue  ","succeeded":false,"blocked":false},{"command":"d","output":"  ","succeeded":true,"blocked":false}]},
+  {"name":"pre-failed-only","kind":"pre","trigger":"manual","customInstructions":null,"results":[{"command":"a","output":"","succeeded":false,"blocked":false}]},
+  {"name":"post-mixed","kind":"post","trigger":"auto","summary":"summary","results":[{"command":"a","output":" done ","succeeded":true,"blocked":false},{"command":"b","output":"","succeeded":false,"blocked":false}]},
+  {"name":"post-empty","kind":"post","trigger":"manual","summary":"summary","results":[]},
+  {"name":"timeout-zero","kind":"post","trigger":"manual","summary":"summary","timeout":0,"signal":true,"results":[{"command":"a","output":"  okay  ","succeeded":true,"blocked":false}]}
+]

@@ -1,0 +1,7 @@
+[
+  {"name":"stdout-newline","command":"printf 'hello\\n'","input":"{}","cwd":"/tmp"},
+  {"name":"stdin-line","command":"IFS= read -r line; printf '%s\\n' \"$line\"","input":"{\"word\":\"雪\"}","cwd":"/tmp"},
+  {"name":"stderr-exit2","command":"printf 'blocked\\n' >&2; exit 2","input":"{}","cwd":"/tmp"},
+  {"name":"unicode","command":"printf '雪 😀\\n'","input":"{}","cwd":"/tmp"},
+  {"name":"cwd-fallback","command":"pwd","input":"{}","cwd":"/tmp/batbox-no-such-hook-cwd","originalCwd":"/tmp"}
+]

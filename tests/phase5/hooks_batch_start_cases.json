@@ -1,0 +1,10 @@
+[
+  {"name":"disabled","disabled":true,"matches":[{"type":"command","display":"one"}]},
+  {"name":"simple","simple":true,"matches":[{"type":"command","display":"one"}]},
+  {"name":"untrusted","trust":true,"matches":[{"type":"command","display":"one"}]},
+  {"name":"empty","matches":[]},
+  {"name":"aborted","aborted":true,"matches":[{"type":"command","display":"one"}]},
+  {"name":"internal","context":true,"agentId":"agent-1","matches":[{"type":"callback","display":"internal one","internal":true},{"type":"callback","display":"internal two","internal":true}]},
+  {"name":"progress","matchQuery":"Bash","matches":[{"type":"command","display":"first","statusMessage":"working"},{"type":"prompt","display":"second","prompt":"ask"}]},
+  {"name":"prompt-absent","context":true,"matches":[{"type":"prompt","display":"prompt","statusMessage":null}]}
+]

@@ -1,0 +1,10 @@
+[
+  {"name":"allow","stream":[{"type":"stream_event"},{"type":"assistant"},{"type":"attachment","attachment":{"type":"structured_output","data":{"ok":true}}}]},
+  {"name":"block","stream":[{"type":"attachment","attachment":{"type":"structured_output","data":{"ok":false,"reason":"not ready"}}}]},
+  {"name":"no-result","stream":[{"type":"assistant"}]},
+  {"name":"invalid-result","stream":[{"type":"attachment","attachment":{"type":"structured_output","data":{"reason":"missing ok"}}}]},
+  {"name":"max-turns","maxTurns":true},
+  {"name":"query-error","queryError":"query failed"},
+  {"name":"register-error","registerError":"cannot register"},
+  {"name":"generated-id","toolUseID":"","agentId":"parent-agent","model":"custom-model","stream":[{"type":"attachment","attachment":{"type":"structured_output","data":{"ok":true}}}]}
+]

@@ -1,0 +1,12 @@
+[
+  {"name":"none","event":"PreToolUse","inProgress":0,"resolved":0,"transcript":true},
+  {"name":"pre-hidden","event":"PreToolUse","inProgress":1,"resolved":0,"transcript":false},
+  {"name":"pre-summary","event":"PreToolUse","inProgress":1,"resolved":1,"transcript":true},
+  {"name":"pre-plural","event":"PreToolUse","inProgress":3,"resolved":0,"transcript":true},
+  {"name":"post-summary","event":"PostToolUse","inProgress":2,"resolved":2,"transcript":true},
+  {"name":"post-hidden","event":"PostToolUse","inProgress":2,"resolved":1,"transcript":false},
+  {"name":"other-running-one","event":"SessionStart","inProgress":1,"resolved":0,"transcript":false},
+  {"name":"other-running-plural","event":"PreCompact","inProgress":4,"resolved":2,"transcript":true},
+  {"name":"other-resolved","event":"SessionEnd","inProgress":2,"resolved":2,"transcript":true},
+  {"name":"other-overresolved","event":"Stop","inProgress":1,"resolved":2,"transcript":false}
+]

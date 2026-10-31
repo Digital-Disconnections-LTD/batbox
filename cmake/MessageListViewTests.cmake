@@ -1,0 +1,6 @@
+batbox_probe(interactive_transcript_search batbox_interactive phase6)
+batbox_probe(interactive_message_surface batbox_interactive phase6)
+batbox_indigenous(phase6-message-actions-indigenous tests/phase6/message_actions_indigenous.cpp batbox_interactive)
+batbox_indigenous(phase6-transcript-navigation-indigenous
+  tests/phase6/transcript_navigation_indigenous.cpp batbox_terminal_ftxui)
+batbox_probe(interactive_markdown batbox_terminal_ftxui phase6)

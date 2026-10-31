@@ -1,0 +1,10 @@
+[
+  {"name":"bash input","kind":"input","text":"prefix<bash-input>echo hi</bash-input>","margin":true},
+  {"name":"empty bash input","kind":"input","text":"<bash-input></bash-input>","margin":false},
+  {"name":"bash output persisted","kind":"output","text":"<bash-stdout><persisted-output>full</persisted-output></bash-stdout><bash-stderr>warning</bash-stderr>","verbose":true},
+  {"name":"bash output raw","kind":"output","text":"<bash-stdout>raw</bash-stdout>"},
+  {"name":"command args","kind":"command","text":"<command-message>test</command-message><command-args>  a b </command-args>","margin":true},
+  {"name":"command skill","kind":"command","text":"<command-message>foo</command-message><skill-format>true</skill-format>"},
+  {"name":"empty command","kind":"command","text":"<command-message></command-message>"},
+  {"name":"command no args","kind":"command","text":"<command-message>inspect</command-message><command-args></command-args>"}
+]

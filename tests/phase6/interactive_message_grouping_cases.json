@@ -1,0 +1,21 @@
+[
+  {"name":"two same response","tools":[{"name":"Read","renderGroupedToolUse":true}],"messages":[
+    {"type":"assistant","uuid":"a","timestamp":1,"message":{"id":"api1","content":[{"type":"tool_use","id":"r1","name":"Read"}]}},
+    {"type":"user","uuid":"u1","message":{"content":[{"type":"tool_result","tool_use_id":"r1"}]}},
+    {"type":"assistant","uuid":"b","timestamp":2,"message":{"id":"api1","content":[{"type":"tool_use","id":"r2","name":"Read"}]}},
+    {"type":"user","uuid":"u2","message":{"content":[{"type":"tool_result","tool_use_id":"r2"}]}}
+  ]},
+  {"name":"single remains","tools":[{"name":"Read","renderGroupedToolUse":true}],"messages":[
+    {"type":"assistant","uuid":"a","message":{"id":"api1","content":[{"type":"tool_use","id":"r1","name":"Read"}]}},
+    {"type":"user","uuid":"u1","message":{"content":[{"type":"tool_result","tool_use_id":"r1"}]}}
+  ]},
+  {"name":"mixed result stays","tools":[{"name":"Read","renderGroupedToolUse":true}],"messages":[
+    {"type":"assistant","uuid":"a","message":{"id":"api1","content":[{"type":"tool_use","id":"r1","name":"Read"}]}},
+    {"type":"assistant","uuid":"b","message":{"id":"api1","content":[{"type":"tool_use","id":"r2","name":"Read"}]}},
+    {"type":"user","uuid":"u1","message":{"content":[{"type":"tool_result","tool_use_id":"r1"},{"type":"tool_result","tool_use_id":"other"}]}}
+  ]},
+  {"name":"verbose pass-through","verbose":true,"tools":[{"name":"Read","renderGroupedToolUse":true}],"messages":[
+    {"type":"assistant","uuid":"a","message":{"id":"api1","content":[{"type":"tool_use","id":"r1","name":"Read"}]}},
+    {"type":"assistant","uuid":"b","message":{"id":"api1","content":[{"type":"tool_use","id":"r2","name":"Read"}]}}
+  ]}
+]

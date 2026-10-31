@@ -1,0 +1,11 @@
+[
+  {"name":"hidden-zero","attempt":0,"retryMs":5000,"max":10,"error":"bad","ticks":1},
+  {"name":"hidden-three","attempt":3,"retryMs":1000,"max":10,"error":"bad","ticks":2},
+  {"name":"visible-zero-delay","attempt":4,"retryMs":0,"max":10,"error":"bad","ticks":1},
+  {"name":"visible-one-second","attempt":4,"retryMs":1000,"max":10,"error":"bad","ticks":2},
+  {"name":"visible-rounded","attempt":5,"retryMs":1499,"max":12,"error":"bad","ticks":3},
+  {"name":"visible-rounded-up","attempt":6,"retryMs":1500,"max":12,"error":"bad","ticks":3},
+  {"name":"timeout-environment","attempt":4,"retryMs":3500,"max":8,"error":"network","timeout":"123","ticks":5},
+  {"name":"truncated","attempt":4,"retryMs":2400,"max":8,"errorPrefix":"Oops:","repeat":"x","count":1001,"ticks":1},
+  {"name":"verbose-long","attempt":4,"retryMs":1000,"max":8,"errorPrefix":"Oops:","repeat":"x","count":1001,"verbose":true,"ticks":1}
+]

@@ -1,0 +1,7 @@
+[
+  {"name":"failure-no-hook","kind":"failure","present":false,"toolName":"Bash","toolUseID":"t-1","toolInput":{},"error":"failed"},
+  {"name":"failure-agent-interrupt","kind":"failure","present":true,"toolName":"Read","toolUseID":"t-2","toolInput":{"file":"a"},"error":"stopped","agentId":"agent-1","agentType":"worker","isInterrupt":true,"permissionMode":"plan"},
+  {"name":"failure-false-interrupt","kind":"failure","present":true,"toolName":"Edit","toolUseID":"t-3","toolInput":{"file":"b"},"error":"denied","isInterrupt":false},
+  {"name":"denied-no-hook","kind":"denied","present":false,"toolName":"Write","toolUseID":"t-4","toolInput":{},"reason":"policy"},
+  {"name":"denied-agent","kind":"denied","present":true,"toolName":"Write","toolUseID":"t-5","toolInput":{"file":"c"},"reason":"policy","agentId":"agent-2","agentType":"worker"}
+]

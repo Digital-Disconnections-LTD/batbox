@@ -1,0 +1,8 @@
+[
+  {"name":"snapshot-only","snapshot":[{"matcher":"a","hooks":[{"type":"command","command":"a"}]}],"registered":[],"session":[],"functions":[]},
+  {"name":"registered-order","snapshot":[{"matcher":"a","hooks":[{"type":"command","command":"a"}]}],"registered":[{"matcher":"b","hooks":[{"type":"command","command":"b"}]}],"session":[],"functions":[]},
+  {"name":"managed-filters-plugin","managed":true,"snapshot":[],"registered":[{"pluginRoot":"/plugin","hooks":[{"type":"command","command":"plugin"}]},{"hooks":[{"type":"callback","id":"sdk"}]}],"session":[],"functions":[]},
+  {"name":"session-order","appState":true,"snapshot":[{"hooks":[{"type":"command","command":"snapshot"}]}],"registered":[{"hooks":[{"type":"command","command":"registered"}]}],"session":[{"hooks":[{"type":"command","command":"session"}]}],"functions":[{"hooks":[{"type":"function","id":"fn"}]}]},
+  {"name":"no-app-skips-session","snapshot":[],"registered":[],"session":[{"hooks":[{"type":"command","command":"session"}]}],"functions":[]},
+  {"name":"managed-skips-session","appState":true,"managed":true,"snapshot":[],"registered":[],"session":[{"hooks":[{"type":"command","command":"session"}]}],"functions":[]}
+]

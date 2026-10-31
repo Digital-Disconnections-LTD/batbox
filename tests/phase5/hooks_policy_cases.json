@@ -1,0 +1,8 @@
+[
+  {"name":"missing","raw":null,"nonInteractive":true,"trusted":false},
+  {"name":"zero","raw":"0","nonInteractive":false,"trusted":false},
+  {"name":"decimal-prefix","raw":" 2750ms","nonInteractive":false,"trusted":true},
+  {"name":"negative","raw":"-9","nonInteractive":true,"trusted":true},
+  {"name":"hex-with-radix10","raw":"0x10","nonInteractive":false,"trusted":false},
+  {"name":"fraction","raw":"3.8","nonInteractive":false,"trusted":true}
+]

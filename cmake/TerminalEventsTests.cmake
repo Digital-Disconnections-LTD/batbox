@@ -1,0 +1,5 @@
+batbox_probe(terminal_events batbox_terminal_events phase6)
+batbox_probe(terminal_dispatch batbox_terminal_events phase6)
+batbox_indigenous(phase6-terminal-indigenous-clock tests/phase6/terminal_indigenous_clock.cpp batbox_terminal_events)
+batbox_probe(terminal_emitter batbox_terminal_events phase6)
+batbox_probe(terminal_input batbox_terminal_events phase6)

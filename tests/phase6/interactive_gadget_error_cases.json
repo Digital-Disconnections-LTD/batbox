@@ -1,0 +1,12 @@
+[
+  {"name":"plain-string","content":"failed","classifierFeature":false},
+  {"name":"array","content":[{"type":"text","text":"failed"}],"classifierFeature":false},
+  {"name":"interrupt-exact","marker":"interrupt","classifierFeature":false},
+  {"name":"interrupt-embedded","contentPrefix":"before ","marker":"interrupt","classifierFeature":false},
+  {"name":"plan","marker":"plan","suffix":"do not edit","classifierFeature":false},
+  {"name":"reject-reason","marker":"rejectReason","suffix":"no","classifierFeature":false},
+  {"name":"classifier-enabled","marker":"classifier","suffix":"denied","classifierFeature":true},
+  {"name":"classifier-disabled","marker":"classifier","suffix":"denied","classifierFeature":false},
+  {"name":"plan-before-classifier","marker":"plan","suffix":"denied","classifierFeature":true},
+  {"name":"interruption-before-plan","marker":"plan","suffix":" [Request interrupted by user for tool use]","classifierFeature":true}
+]

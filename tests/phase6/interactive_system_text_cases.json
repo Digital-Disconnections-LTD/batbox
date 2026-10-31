@@ -1,0 +1,20 @@
+[
+  {"name":"turn-duration","subtype":"turn_duration","level":"info","margin":true},
+  {"name":"memory-saved","subtype":"memory_saved","level":"info","margin":false},
+  {"name":"away-summary","subtype":"away_summary","level":"info","content":"Away work","margin":true},
+  {"name":"agents-killed","subtype":"agents_killed","level":"info","margin":false},
+  {"name":"thinking-hidden","subtype":"thinking","level":"error","content":"not shown","margin":true},
+  {"name":"bridge-status","subtype":"bridge_status","level":"info","margin":true},
+  {"name":"scheduled-task","subtype":"scheduled_task_fire","level":"info","content":"Scheduled run","margin":true},
+  {"name":"permission-retry","subtype":"permission_retry","level":"info","commands":["git status","pwd"],"margin":true},
+  {"name":"permission-empty-command","subtype":"permission_retry","level":"info","commands":["","pwd"],"margin":false},
+  {"name":"quiet-info","subtype":"other","level":"info","content":"quiet","margin":true},
+  {"name":"visible-info","subtype":"other","level":"info","content":"visible","verbose":true,"margin":false},
+  {"name":"warning","subtype":"other","level":"warning","content":"careful","margin":true},
+  {"name":"error","subtype":"other","level":"error","content":"failed","margin":false},
+  {"name":"api-hidden-info","subtype":"api_error","level":"info","content":"ignored","margin":true},
+  {"name":"api-visible-error","subtype":"api_error","level":"error","margin":true},
+  {"name":"stop-summary-info","subtype":"stop_hook_summary","level":"info","margin":true,"transcript":true},
+  {"name":"non-string","subtype":"other","level":"warning","content":7,"margin":true},
+  {"name":"generic-missing-level","subtype":"other","content":"text","margin":true}
+]

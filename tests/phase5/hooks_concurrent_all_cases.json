@@ -1,0 +1,16 @@
+[
+  {"name":"empty","generators":[]},
+  {"name":"cap-zero","cap":0,"generators":[["a"]]},
+  {"name":"one","generators":[["a","b"]]},
+  {"name":"two","generators":[["a1","a2"],["b1","b2"]]},
+  {"name":"delayed-first","generators":[[{"delay":1,"value":"slow"}], ["fast"]]},
+  {"name":"delayed-second","generators":[["fast"],[{"delay":1,"value":"slow"}]]},
+  {"name":"cap-one","cap":1,"generators":[["a1","a2"],["b1","b2"]]},
+  {"name":"undefined-and-null","generators":[[{"undefined":true},null,"x"],["y"]]},
+  {"name":"failure","generators":[["a",{"error":"boom"}],["b"]]},
+  {"name":"return-before-start","kind":"return-before","generators":[["a"]]},
+  {"name":"return-after-yield","kind":"return-after","generators":[["a","b"]]},
+  {"name":"throw-after-yield","kind":"throw-after","generators":[["a","b"]]},
+  {"name":"queued-return","kind":"queued-return","generators":[["a","b"]]},
+  {"name":"queued-throw","kind":"queued-throw","generators":[["a","b"]]}
+]

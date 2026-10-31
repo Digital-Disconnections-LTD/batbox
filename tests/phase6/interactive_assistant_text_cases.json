@@ -1,0 +1,19 @@
+[
+  {"name":"empty","text":"","kind":"hidden"},
+  {"name":"analysis only","text":"<context>secret</context>","kind":"hidden"},
+  {"name":"no content marker","text":" __NO_CONTENT__ ","kind":"hidden"},
+  {"name":"rate limit","text":"You've hit your limit","kind":"rate_limit"},
+  {"name":"no response requested","text":"__NO_RESPONSE__","kind":"hidden"},
+  {"name":"context limit","text":"Prompt is too long","kind":"context_limit"},
+  {"name":"credit low","text":"__CREDIT__","kind":"credit_balance"},
+  {"name":"invalid key","text":"__INVALID__","kind":"invalid_key"},
+  {"name":"external key","text":"__EXTERNAL__","kind":"external_invalid_key"},
+  {"name":"organization disabled","text":"__ORG__","kind":"organization_disabled"},
+  {"name":"token revoked","text":"__REVOKED__","kind":"token_revoked"},
+  {"name":"API timeout","text":"__TIMEOUT__","kind":"timeout","timeoutEnvironment":"123"},
+  {"name":"user abort","text":"__ABORT__","kind":"interrupted"},
+  {"name":"bare API error","text":"API Error","kind":"api_error"},
+  {"name":"long API error","textPrefix":"API Error: ","repeat":"x","count":1002,"kind":"api_error"},
+  {"name":"ordinary markdown","text":"hello **world**","kind":"markdown"},
+  {"name":"model off switch","text":"__MODEL_OFF__","kind":"model_unavailable"}
+]

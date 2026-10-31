@@ -1,0 +1,6 @@
+[
+  {"name":"sync-success","hook":{"type":"command","command":"printf 'hi\\n'; printf 'err\\n' >&2"},"stdoutChunks":["hi\n"],"stderr":"err\n","exitCode":0},
+  {"name":"sync-error","hook":{"type":"command","command":"printf 'bad\\n' >&2; exit 2"},"stdoutChunks":[],"stderr":"bad\n","exitCode":2},
+  {"name":"configured-async","hook":{"type":"command","command":"sleep 0.03; printf 'later\\n'","async":true},"stdoutChunks":["later\n"],"stderr":"","exitCode":0},
+  {"name":"detected-async","hook":{"type":"command","command":"printf '{\"async\":true}\\n'; sleep 0.03; printf 'body\\n'"},"stdoutChunks":["{\"async\":true}\n","body\n"],"stderr":"","exitCode":0}
+]

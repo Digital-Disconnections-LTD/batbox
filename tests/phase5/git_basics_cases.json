@@ -1,0 +1,10 @@
+[
+  {"name":"worktree-symlink","cwd":"/repo/link","root":"/repo","resolvedCwd":"/canonical","resolvedRoot":"/canonical","which":"/usr/bin/git"},
+  {"name":"no-repo","cwd":"/outside","root":null,"which":null},
+  {"name":"realpath-fallback","cwd":"/repo","root":"/repo","realpathError":true,"which":"/opt/git"},
+  {"name":"cwd-error","cwd":"/repo","root":"/repo","cwdError":true,"which":"/usr/bin/git"},
+  {"name":"realpath-sync-error","cwd":"/repo","root":"/repo","realpathThrow":true,"which":"/usr/bin/git"},
+  {"name":"diagnostic-start-error","cwd":"/repo","root":"/repo","resolvedCwd":"/repo","resolvedRoot":"/repo","which":"/usr/bin/git","diagStartThrow":true},
+  {"name":"diagnostic-complete-error","cwd":"/repo","root":"/repo","resolvedCwd":"/repo","resolvedRoot":"/repo","which":"/usr/bin/git","diagCompleteThrow":true},
+  {"name":"diagnostic-duration","cwd":"/repo","root":null,"which":"/usr/bin/git","startMs":1080,"endMs":1111}
+]

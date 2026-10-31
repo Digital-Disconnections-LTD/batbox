@@ -1,0 +1,12 @@
+foreach(section IN ITEMS process_output permission_poetry_decision permission_poetry_helpers)
+  add_executable(batbox-${section}-probe tests/phase5/${section}_probe.cpp)
+  if(section STREQUAL "process_output")
+    target_link_libraries(batbox-${section}-probe PRIVATE batbox_process_output)
+  else()
+    target_link_libraries(batbox-${section}-probe PRIVATE batbox_permission_poetry)
+  endif()
+
+endforeach()
+batbox_indigenous(phase5-process-output-async-indigenous tests/phase5/process_output_async_indigenous.cpp batbox_process_output)
+batbox_probe(terminal_hooks batbox_terminal_hooks phase6)
+batbox_probe(system_init batbox_query_engine_state phase5)

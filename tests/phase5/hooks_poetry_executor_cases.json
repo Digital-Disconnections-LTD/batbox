@@ -1,0 +1,8 @@
+[
+  {"name":"allow","response":" {\"ok\":true} "},
+  {"name":"block","response":"{\"ok\":false,\"reason\":\"not ready\"}","messages":true},
+  {"name":"invalid-json","response":"not JSON"},
+  {"name":"invalid-schema","response":"{\"reason\":\"missing ok\"}"},
+  {"name":"query-error","throws":"provider failed"},
+  {"name":"generated-id","response":"{\"ok\":true}","toolUseID":"","model":"custom-model"}
+]

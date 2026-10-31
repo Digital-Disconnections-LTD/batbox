@@ -1,0 +1,20 @@
+{
+  "tags":[
+    {"name":"simple","html":"<status>completed</status>","tag":"status"},
+    {"name":"attributes","html":"<status value=\"x\">failed</status>","tag":"status"},
+    {"name":"multiline","html":"<summary>one\ntwo</summary>","tag":"summary"},
+    {"name":"empty","html":"<status></status>","tag":"status"},
+    {"name":"nested same","html":"<status>outer<status>inner</status>end</status>","tag":"status"},
+    {"name":"no tag","html":"abc","tag":"status"},
+    {"name":"regex literal","html":"<a.b>ok</a.b>","tag":"a.b"}
+  ],
+  "collapse":[
+    {"name":"pair completed","fullscreen":true,"messages":[
+      {"type":"user","uuid":"a","message":{"content":[{"type":"text","text":"<task-notification><status>completed</status><summary>Background command A completed</summary></task-notification>"}]}},
+      {"type":"user","uuid":"b","message":{"content":[{"type":"text","text":"<task-notification><status>completed</status><summary>Background command B completed</summary></task-notification>"}]}},
+      {"type":"user","uuid":"c","message":{"content":[{"type":"text","text":"<task-notification><status>failed</status><summary>Background command C failed</summary></task-notification>"}]}}
+    ]},
+    {"name":"normal screen identity","fullscreen":false,"messages":[{"type":"user","uuid":"a","message":{"content":[{"type":"text","text":"hello"}]}}]},
+    {"name":"verbose identity","fullscreen":true,"verbose":true,"messages":[{"type":"user","uuid":"a","message":{"content":[{"type":"text","text":"hello"}]}}]}
+  ]
+}

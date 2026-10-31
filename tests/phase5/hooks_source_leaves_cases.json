@@ -1,0 +1,7 @@
+[
+  {"name":"internal-callback","hook":{"type":"callback","internal":true},"results":[]},
+  {"name":"external-callback","hook":{"type":"callback","internal":false},"results":[{"blocked":false}]},
+  {"name":"truthy-internal","hook":{"type":"callback","internal":1},"results":[{"blocked":false},{"blocked":true}]},
+  {"name":"command","hook":{"type":"command","internal":true},"results":[{"blocked":true}]},
+  {"name":"missing-internal","hook":{"type":"callback"},"results":[]}
+]

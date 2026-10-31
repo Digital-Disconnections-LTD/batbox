@@ -1,0 +1,7 @@
+[
+  {"name":"plain","text":"hello","margin":true},
+  {"name":"empty","text":""},
+  {"name":"brief timestamp","text":"one","features":["KAIROS_BRIEF"],"briefOnly":true,"optIn":true,"briefEnvironment":true,"timestamp":"12:45"},
+  {"name":"brief suppressed by agent","text":"one","features":["KAIROS"],"briefOnly":true,"active":true,"viewingAgentTask":true,"selected":true},
+  {"name":"long UTF16 and lines","prefix":"🙂","length":10002,"lineInterval":101,"tail":"last question"}
+]

@@ -1,0 +1,6 @@
+[
+  {"name":"user-blocked","source":"user_settings","filePath":"/settings.json","results":[{"command":"hook","output":"blocked","succeeded":false,"blocked":true}]},
+  {"name":"policy-unblocked","source":"policy_settings","results":[{"command":"hook","output":"blocked","succeeded":false,"blocked":true}]},
+  {"name":"project-empty","source":"project_settings","timeout":0,"results":[]},
+  {"name":"skills-multiple","source":"skills","filePath":"/skills/a","results":[{"command":"first","output":"","succeeded":false,"blocked":true},{"command":"second","output":"ok","succeeded":true,"blocked":false}]}
+]

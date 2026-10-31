@@ -1,0 +1,60 @@
+[
+  {
+    "name": "json object",
+    "content": "{\"a\":1}"
+  },
+  {
+    "name": "large integer precision",
+    "content": "{\"n\":9007199254740993}",
+    "verbose": true
+  },
+  {
+    "name": "short lines",
+    "content": "one\ntwo\nthree\nfour"
+  },
+  {
+    "name": "many lines",
+    "content": "one\ntwo\nthree\nfour\nfive"
+  },
+  {
+    "name": "virtual list",
+    "content": "one\ntwo\nthree\nfour\nfive",
+    "virtual": true
+  },
+  {
+    "name": "full underline",
+    "content": "\u001b[4munder\u001b[0m",
+    "verbose": true
+  },
+  {
+    "name": "linkify",
+    "content": "visit https://example.org/a",
+    "linkify": true,
+    "verbose": true
+  },
+  {
+    "name": "error color",
+    "content": "error",
+    "error": true,
+    "warning": true
+  },
+  {
+    "name": "empty",
+    "content": "   "
+  },
+  {
+    "name": "escaped slash JSON",
+    "content": "{\"url\":\"https:\\/\\/example.org\"}",
+    "verbose": true
+  },
+  {
+    "name": "warning color",
+    "content": "careful",
+    "warning": true
+  },
+  {
+    "name": "expand full",
+    "content": "one\ntwo\nthree\nfour\nfive",
+    "expand": true
+  }
+]

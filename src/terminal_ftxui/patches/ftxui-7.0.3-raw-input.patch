@@ -1,0 +1,75 @@
+--- a/include/ftxui/component/app.hpp
++++ b/include/ftxui/component/app.hpp
+@@ -9,4 +9,5 @@
+ #include <functional>  // for function
+ #include <memory>      // for shared_ptr, unique_ptr
+ #include <string>      // for string, basic_string, allocator
++#include <string_view> // for string_view
+ #include <vector>      // for vector
+@@ -90,6 +90,9 @@
+   /// @note This feature is only available on POSIX systems (Linux/macOS).
+   void HandlePipedInput(bool enable = true);
+ 
++  // Invoked synchronously on the loop owner thread before input normalization.
++  void SetRawInputCallback(std::function<void(std::string_view)> callback);
++
+   /// @brief Return the currently active app, nullptr if none.
+   static App* Active();
+ 
+--- a/src/ftxui/component/app.cpp
++++ b/src/ftxui/component/app.cpp
+@@ -169,6 +169,7 @@
+ 
+   // Pre-existing in Internal:
+   TerminalInputParser terminal_input_parser;
++  std::function<void(std::string_view)> raw_input_callback_;
+   task::TaskRunner task_runner;
+   std::chrono::time_point<std::chrono::steady_clock> last_char_time =
+       std::chrono::steady_clock::now();
+@@ -1347,7 +1348,11 @@
+           // Wait for the Low Surrogate to arrive in the next record.
+           continue;
+         }
+-        for (auto it : to_string(wstring)) {
++        const auto encoded = to_string(wstring);
++        if (raw_input_callback_) {
++          raw_input_callback_(encoded);
++        }
++        for (auto it : encoded) {
+           terminal_input_parser.Add(it);
+         }
+         wstring.clear();
+@@ -1377,6 +1382,10 @@
+   }
+   last_char_time = std::chrono::steady_clock::now();
+ 
++  // Preserve the bytes and ordering before parser normalization.
++  if (raw_input_callback_) {
++    raw_input_callback_(std::string_view(out.data(), static_cast<size_t>(l)));
++  }
+   // Convert the chars to events.
+   for (ssize_t i = 0; i < l; ++i) {
+     terminal_input_parser.Add(out.at(static_cast<size_t>(i)));
+@@ -1401,6 +1410,10 @@
+     return 0;
+   }
+ 
++  // Preserve the bytes and ordering before parser normalization.
++  if (raw_input_callback_) {
++    raw_input_callback_(std::string_view(out.data(), static_cast<size_t>(l)));
++  }
+   // Convert the chars to events.
+   for (ssize_t i = 0; i < l; ++i) {
+     terminal_input_parser.Add(out.at(static_cast<size_t>(i)));
+@@ -1493,6 +1506,11 @@
+   internal_->handle_piped_input_ = enable;
+ }
+ 
++void App::SetRawInputCallback(
++    std::function<void(std::string_view)> callback) {
++  internal_->raw_input_callback_ = std::move(callback);
++}
++
+ // static
+ App* App::Active() {
+   return g_active_screen;
