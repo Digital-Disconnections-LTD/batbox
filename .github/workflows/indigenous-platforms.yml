@@ -33,7 +33,23 @@ jobs:
         if: runner.os == 'macOS'
         env:
           BATBOX_BUILD_JOBS: 2
+          DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
         run: |
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          xcodebuild -version
+          cat > "$RUNNER_TEMP/batbox-cxx20-threads.cpp" <<'CPP'
+          #include <stop_token>
+          #include <thread>
+          int main() {
+            bool stoppable = false;
+            std::jthread worker([&](std::stop_token token) { stoppable = token.stop_possible(); });
+            worker.request_stop();
+            worker.join();
+            return stoppable && worker.get_stop_token().stop_requested() ? 0 : 1;
+          }
+          CPP
+          "${CXX:-c++}" -std=c++20 -isysroot "$SDKROOT" "$RUNNER_TEMP/batbox-cxx20-threads.cpp" -o "$RUNNER_TEMP/batbox-cxx20-threads"
+          "$RUNNER_TEMP/batbox-cxx20-threads"
           bash gadgets/build-macos.sh --configure-only
           cmake --preset indigenous -DBUILD_TESTING=ON
           cmake --build build/indigenous --target batbox batbox-scrapling-fixture --parallel 2
@@ -78,6 +94,9 @@ jobs:
             mingw-w64-ucrt-x86_64-pcre2
             mingw-w64-ucrt-x86_64-libwebsockets
             mingw-w64-ucrt-x86_64-python
+      - name: Dependency patch checkout checks
+        shell: msys2 {0}
+        run: python checks/indigenous_patch_checkout.py
       - name: Build
         shell: msys2 {0}
         run: |
