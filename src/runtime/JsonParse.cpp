@@ -1,9 +1,8 @@
 #include "runtime/JsonValue.hpp"
+#include "runtime/Decimal.hpp"
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <limits>
-#include <locale.h>
 
 namespace batbox::value {
 namespace {
@@ -67,18 +66,7 @@ struct Parser {
       while(position<input.size()&&input[position]>='0'&&input[position]<='9')++position;
       if(position==digits)fail();
     }
-#if defined(_WIN32)
-    static _locale_t numericLocale=::_create_locale(LC_NUMERIC,"C");
-#else
-    static locale_t numericLocale=::newlocale(LC_NUMERIC_MASK,"C",nullptr);
-#endif
-    if(!numericLocale)throw std::bad_alloc();
-    const auto text=std::string(input.substr(begin,position-begin));
-#if defined(_WIN32)
-    const double value=::_strtod_l(text.c_str(),nullptr,numericLocale);
-#else
-    const double value=::strtod_l(text.c_str(),nullptr,numericLocale);
-#endif
+    const double value=detail::decimalNumber(input.substr(begin,position-begin));
     if(std::isfinite(value)&&!(value==0&&std::signbit(value))&&std::trunc(value)==value&&value>=-9223372036854775808.0&&value<9223372036854775808.0)
       return static_cast<std::int64_t>(value);
     return value;

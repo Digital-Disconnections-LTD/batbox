@@ -28,7 +28,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           cmake --preset indigenous -DBUILD_TESTING=ON
-          cmake --build build/indigenous --target batbox batbox-scrapling-fixture --parallel 3
+          cmake --build build/indigenous --target batbox batbox-scrapling-fixture batbox-phase3-number-parsing --parallel 3
       - name: macOS build
         if: runner.os == 'macOS'
         env:
@@ -52,9 +52,10 @@ jobs:
           "$RUNNER_TEMP/batbox-cxx20-threads"
           bash gadgets/build-macos.sh --configure-only
           cmake --preset indigenous -DBUILD_TESTING=ON
-          cmake --build build/indigenous --target batbox batbox-scrapling-fixture --parallel 2
+          cmake --build build/indigenous --target batbox batbox-scrapling-fixture batbox-phase3-number-parsing --parallel 2
       - name: Streaming and file gadgets
         run: |
+          ctest --test-dir build/indigenous --output-on-failure -R '^phase3-number-parsing$'
           python3 checks/indigenous_posix_install.py
           python3 checks/indigenous_platform_smoke.py build/indigenous/batbox --scrapling-fixture build/indigenous/batbox-scrapling-fixture --skill-shell
           python3 checks/indigenous_platform_smoke.py build/indigenous/batbox --scrapling-fixture build/indigenous/batbox-scrapling-fixture --mission-board
@@ -97,14 +98,18 @@ jobs:
       - name: Dependency patch checkout checks
         shell: msys2 {0}
         run: python checks/indigenous_patch_checkout.py
+      - name: Native dependency paths
+        shell: msys2 {0}
+        run: cmake -P checks/indigenous_windows_dependencies.cmake
       - name: Build
         shell: msys2 {0}
         run: |
           cmake --preset indigenous -DBUILD_TESTING=ON
-          cmake --build build/indigenous --target batbox batbox-scrapling-fixture --parallel 3
+          cmake --build build/indigenous --target batbox batbox-scrapling-fixture batbox-phase3-number-parsing --parallel 3
       - name: Streaming and file gadgets
         shell: msys2 {0}
         run: |
+          ctest --test-dir build/indigenous --output-on-failure -R '^phase3-number-parsing$'
           python checks/indigenous_platform_smoke.py build/indigenous/batbox.exe --scrapling-fixture build/indigenous/batbox-scrapling-fixture.exe --skill-shell
           python checks/indigenous_platform_smoke.py build/indigenous/batbox.exe --scrapling-fixture build/indigenous/batbox-scrapling-fixture.exe --mission-board
           python checks/indigenous_permissions_smoke.py build/indigenous/batbox.exe

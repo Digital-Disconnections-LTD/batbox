@@ -1,6 +1,6 @@
 #include "gadgets/bash/Hints.hpp"
+#include "runtime/Decimal.hpp"
 #include <algorithm>
-#include <charconv>
 #include <cmath>
 #include <regex>
 #include <stdexcept>
@@ -75,12 +75,7 @@ bool versionOne(const std::unordered_map<std::string,std::string>& attrs){
   }
   static const std::regex decimal(R"(^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$)");
   if(!std::regex_match(value,decimal))return false;
-  std::string_view number=value;
-  if(!number.empty()&&number.front()=='+')number.remove_prefix(1);
-  double parsed=0;
-  const auto result=std::from_chars(number.data(),number.data()+number.size(),parsed,
-    std::chars_format::general);
-  return result.ec==std::errc{}&&result.ptr==number.data()+number.size()&&parsed==1;
+  return value::detail::decimalNumber(value)==1;
 }
 std::string firstCommandToken(const std::string& command){
   const auto trimmed=value::trim(command);
