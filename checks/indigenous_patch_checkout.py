@@ -53,7 +53,9 @@ def check_checkout(source, archive, root, autocrlf, env):
          "-c", "core.eol=" + ("crlf" if autocrlf == "true" else "lf"),
          "checkout-index", "--all", "--force"], checkout, env)
     endings = {path.name: (checkout / path).read_bytes().count(b"\r\n") for path in patches}
-    extracted = root / "upstream"
+    # FetchContent sources live inside the application's Git checkout in CI.
+    # Git-style patch headers can silently skip files in this nested context.
+    extracted = checkout / "build" / "_deps" / "upstream"
     with tarfile.open(archive) as package:
         package.extractall(extracted, filter="data")
     upstream = [path for path in extracted.iterdir() if path.is_dir()]
@@ -68,12 +70,18 @@ def check_checkout(source, archive, root, autocrlf, env):
         (root / "apply.log").write_text(str(error), encoding="utf-8")
         raise RuntimeError(f"autocrlf={autocrlf}; patch CRLF counts={endings}\n{error}") from error
     (root / "apply.log").write_text(first + second, encoding="utf-8")
+    header = (upstream[0] / "include/ftxui/component/app.hpp").read_text(encoding="utf-8")
+    implementation = (upstream[0] / "src/ftxui/component/app.cpp").read_text(encoding="utf-8")
+    if ("void CommitScrollback(std::string_view rows);" not in header
+            or "void App::CommitScrollback(std::string_view rows)" not in implementation):
+        raise RuntimeError("Scrollback patch was skipped inside the Git checkout")
     if any(endings.values()):
         raise RuntimeError("Patch checkout changed LF bytes: " + json.dumps(endings))
     for relative in patches:
         if (checkout / relative).read_bytes() != (source / relative).read_bytes():
             raise RuntimeError("Patch content changed during checkout: " + str(relative))
     return {"autocrlf": autocrlf, "patches": len(patches), "crlfCounts": endings,
+            "nestedGitCheckout": True, "scrollbackApiPresent": True,
             "freshApply": True, "repeatApply": True}
 
 

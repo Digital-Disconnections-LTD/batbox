@@ -44,6 +44,7 @@ foreach(section IN ITEMS bash_helpers bash_result bash_shellquote bash_split bas
   batbox_probe(${section} batbox_shell phase3)
 endforeach()
 batbox_indigenous(phase3-bash-shell tests/phase3/bash_shell.cpp batbox_shell)
+batbox_indigenous(phase3-number-parsing tests/phase3/number_parsing.cpp batbox_shell)
 batbox_indigenous(phase3-bash-snapshot-indigenous tests/phase3/bash_snapshot_indigenous.cpp batbox_shell)
 batbox_indigenous(phase3-bash-provider-indigenous tests/phase3/bash_provider_indigenous.cpp batbox_shell)
 batbox_indigenous(phase3-bash-gadget tests/phase3/bash_gadget.cpp batbox_shell)

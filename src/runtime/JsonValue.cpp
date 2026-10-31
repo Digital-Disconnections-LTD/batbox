@@ -1,4 +1,5 @@
 #include "runtime/JsonValue.hpp"
+#include "runtime/Decimal.hpp"
 #include <algorithm>
 #include <charconv>
 #include <cmath>
@@ -114,10 +115,7 @@ double parseInt10(std::string_view text) {
   if (i == start) return std::numeric_limits<double>::quiet_NaN();
   // Convert the entire integer once. Repeated multiply/add rounds each digit
   // instead of producing a single correctly rounded conversion.
-  double n = 0;
-  const auto converted=std::from_chars(stripped.data()+start,stripped.data()+i,n,std::chars_format::fixed);
-  if (converted.ec==std::errc::result_out_of_range) n=std::numeric_limits<double>::infinity();
-  else if (converted.ec!=std::errc{}) throw std::runtime_error("Integer conversion failed");
+  const double n = detail::decimalNumber(std::string_view(stripped).substr(start,i-start));
   return negative ? -n : n;
 }
 double parseFloat(std::string_view text) {
