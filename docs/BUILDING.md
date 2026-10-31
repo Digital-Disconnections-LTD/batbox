@@ -34,6 +34,12 @@ private settings and credentials are supplied separately from the build.
 
 ## macOS
 
+Use Xcode 26.2 or newer, including its macOS SDK: the C++ library must provide
+`std::stop_token` and `std::jthread`. CI selects Xcode 26.2 on both architectures
+and checks those features before building. If several Xcode versions are installed,
+select one for your shell with `export DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer`
+and `export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"`.
+
 The indigenous build helper configures the current Intel or Apple Silicon machine,
 including Homebrew library prefixes and the AppKit clipboard adapter:
 

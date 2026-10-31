@@ -4,5 +4,5 @@ third_party/licenses/** -whitespace
 third_party/ftxui/LICENSE -whitespace
 src/compaction/poetryEntries/*.cpp whitespace=-blank-at-eol
 src/poetryEntries/Static*.cpp whitespace=-blank-at-eol
-# Patch context includes required one-space blank lines.
-src/terminal_ftxui/patches/*.patch -whitespace
+# Keep patches LF to match release archives; context includes one-space blank lines.
+src/terminal_ftxui/patches/*.patch text eol=lf -whitespace
