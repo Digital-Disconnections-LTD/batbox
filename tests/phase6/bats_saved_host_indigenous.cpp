@@ -191,6 +191,10 @@ struct HostSavedBatsProbe {
     check(section("/bats")=="Bats and Missions"&&section("/missions")=="Bats and Missions",
       "/bats and /missions must be listed under Bats and Missions, got '"+
         section("/bats")+"' and '"+section("/missions")+"'");
+    for(std::size_t i=0;i<shown->choices.size();++i)if(shown->choices[i]=="/rename")
+      check(i<shown->choiceInfo.size()&&shown->choiceInfo[i].detail=="Name this Flight"&&
+        shown->choiceInfo[i].section=="Flight","/rename must read \"Name this Flight\"");
+    check(section("/rename")=="Flight","/help must list /rename under Flight");
     check(section("/agents")=="missing"&&section("/tasks")=="missing",
       "/help lists commands by their Batbox names, not their aliases");
     std::string text=shown->title+"\n"+shown->body;

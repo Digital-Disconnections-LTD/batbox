@@ -90,7 +90,7 @@ user_input::CommandEntry makeRenameCommand(
   if(!router||!services)
     throw std::invalid_argument("Rename router and services required");
   Json descriptor={{"type","local-jsx"},{"name","rename"},
-    {"description","Rename the current conversation"},
+    {"description","Name this Flight"},
     {"immediate",true},{"argumentHint","[name]"}};
   return user_input::bindUiCommand(std::move(descriptor),router,
     [services](const std::string& args){
