@@ -126,15 +126,20 @@ std::string homePath(const std::string& path,const std::string& home){
   return "~"+path.substr(home.size());
 }
 // The final directories carry the meaning; the root of a long path does not.
-std::string tailPath(const std::string& path,int width){
+// With keep set, the last keep components stay whole even past the width.
+std::string tailPath(const std::string& path,int width,int keep=0){
   if(displayWidth(path)<=width)return path;
-  auto rest=path;
-  while(true){
-    const auto slash=rest.find_first_of("/\\",1);
-    if(slash==std::string::npos)break;
-    rest=rest.substr(slash);
-    if(displayWidth("…"+rest)<=width)return "…"+rest;
+  std::vector<std::size_t> slashes;
+  for(std::size_t at=path.find_first_of("/\\",1);at!=std::string::npos;
+      at=path.find_first_of("/\\",at+1))
+    if(at+1<path.size())slashes.push_back(at);
+  for(std::size_t i=0;i<slashes.size();++i){
+    const auto candidate="…"+path.substr(slashes[i]);
+    const auto left=static_cast<int>(slashes.size()-i);
+    if(displayWidth(candidate)<=width)return candidate;
+    if(keep>0&&left<=keep)return candidate;
   }
+  if(keep>0)return slashes.empty()?path:"…"+path.substr(slashes.back());
   return truncateColumns(path,width);
 }
 struct Badge {std::string text;ftxui::Color color;bool strong=false;};
@@ -635,22 +640,30 @@ std::vector<ftxui::Element> welcomeCard(const ChromeServices& imports,
   const auto badge=modeBadge(imports.permissionMode(),roles);
   std::vector<Segment> facts;
   if(!model.empty())facts.push_back({model,roles.cream,true});
-  if(!directory.empty())facts.push_back({tailPath(directory,std::max(8,width/2)),roles.muted,false,true});
-  if(!branch.empty())facts.push_back({"⎇ "+truncateColumns(branch,16),roles.muted,false,true});
-  facts.push_back({badge.text,badge.color,badge.strong,!badge.strong});
-  while(facts.size()>1&&segmentsWidth(facts,3)>width){
-    // The Roost path shortens before any fact is dropped.
-    bool shortened=false;
-    for(auto& fact:facts)if(!directory.empty()&&fact.text.find('/')!=std::string::npos&&
-        displayWidth(fact.text)>12){
-      fact.text=tailPath(fact.text,std::max(12,displayWidth(fact.text)-
-        (segmentsWidth(facts,3)-width)));
-      shortened=true;break;
-    }
-    if(shortened&&segmentsWidth(facts,3)<=width)break;
-    if(!shortened)facts.erase(facts.end()-2);
-    else if(segmentsWidth(facts,3)>width)facts.erase(facts.end()-2);
+  // The Roost keeps its last two directories whole (…/BATBOX/batbox).
+  std::optional<std::size_t> roostFact;
+  if(!directory.empty()){
+    roostFact=facts.size();
+    facts.push_back({tailPath(directory,std::max(8,width/2),2),roles.muted,false,true});
   }
+  std::optional<std::size_t> branchFact;
+  if(!branch.empty()){
+    branchFact=facts.size();
+    facts.push_back({"⎇ "+truncateColumns(branch,16),roles.muted,false,true});
+  }
+  facts.push_back({badge.text,badge.color,badge.strong,!badge.strong});
+  if(roostFact&&segmentsWidth(facts,3)>width){
+    // The Roost path shortens before any fact is dropped.
+    auto& fact=facts[*roostFact];
+    fact.text=tailPath(directory,std::max(8,displayWidth(fact.text)-
+      (segmentsWidth(facts,3)-width)),2);
+  }
+  // Then the branch goes, then the Roost, keeping the model and mode.
+  if(branchFact&&segmentsWidth(facts,3)>width)
+    facts.erase(facts.begin()+static_cast<std::ptrdiff_t>(*branchFact));
+  if(roostFact&&facts.size()>1&&segmentsWidth(facts,3)>width)
+    facts.erase(facts.begin()+static_cast<std::ptrdiff_t>(*roostFact));
+  while(facts.size()>1&&segmentsWidth(facts,3)>width)facts.erase(facts.end()-2);
   std::vector<ftxui::Element> rows;
   rows.push_back(joinSegments(facts,roles," · ")|ftxui::hcenter);
   if(!tips)return rows;

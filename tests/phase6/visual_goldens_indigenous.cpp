@@ -62,7 +62,8 @@ struct Fixture {
   gadgets::Gadget read,edit,bash;
   gadgets::Gadgets active;
   std::shared_ptr<ap::Bundle> bundle;
-  explicit Fixture(const std::string& name):
+  explicit Fixture(const std::string& name,std::string cwd="/home/bat/roost",
+      std::string model="night-owl-7b"):
       shell(loop,state,(options.interactive=false,options)),
       theme({[name]{return name;},[](const std::string&){},
         []{return std::string("dark");},[]{}},name){
@@ -95,8 +96,8 @@ struct Fixture {
     inputs.theme=&theme;inputs.messageServices=&messages;
     inputs.shortcuts.loadBindings=[]{return std::vector<ip::Binding>{};};
     inputs.gadgets=[this]{return active;};inputs.commands=[]{return Json::array();};
-    inputs.modelLabel=[]{return std::string("night-owl-7b");};
-    inputs.workingDirectory=[]{return std::string("/home/bat/roost");};
+    inputs.modelLabel=[model]{return model;};
+    inputs.workingDirectory=[cwd]{return cwd;};
     inputs.homeDirectory=[]{return std::string("/home/bat");};
     inputs.permissionMode=[]{return std::string("plan");};
     inputs.statusText=[]{return std::string{};};
@@ -300,6 +301,17 @@ int main(int argc,char** argv){
           {"welcome",welcome},{"transcript",transcript},{"gadgets",gadgets},
           {"permission",permission},{"input",input}})
         passed=golden::compare(directory,scene+"-"+theme,frame)&&passed;
+    }
+    {
+      // A long Roost outside home keeps its last two directories whole.
+      Fixture deep("batbox-dark","/Volumes/Night/projects/2026/BATBOX/batbox",
+        "anthropic::claude-haiku-5-5");
+      const auto welcome=welcomeScene(deep);
+      check(contains(welcome,"…/BATBOX/batbox"),
+        "welcome card must keep the Roost's last two directories");
+      check(welcome.text.find("…/BATBO…")==std::string::npos&&
+        welcome.text.find("…/batbox ")==std::string::npos,
+        "welcome card must not cut the Roost path mid-name:\n"+welcome.text);
     }
     if(!passed)return 1;
     std::cout<<"Batbox visual goldens match across four themes\n";
