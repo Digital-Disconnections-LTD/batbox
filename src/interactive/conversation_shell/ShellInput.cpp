@@ -185,6 +185,12 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
     if(changed)requestRedraw();
     return;
   }
+  if(!transcript_&&named(key,"t")&&key->ctrl&&
+      !(historyNavigator_&&historyNavigator_->searching())){
+    if(!imports_.openControlCommand||!imports_.openControlCommand("bats",""))
+      transcriptStatus("The Bats list is unavailable while a dialog is open");
+    return;
+  }
   if(!batConversation_&&historyNavigator_&&!transcript_&&named(key,"r")&&key->ctrl){
     suggestions_.clear();++completionGeneration_;
     if(!batConversation_&&historyNavigator_->searching())historyNavigator_->nextSearchMatch();

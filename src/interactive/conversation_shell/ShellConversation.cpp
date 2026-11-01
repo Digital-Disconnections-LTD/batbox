@@ -154,15 +154,17 @@ bool Shell::submitBatPoetry(const std::string& value){
     const auto command=trimmed.substr(0,end);
     for(const auto* local:{"/bats","/agents","/memory","/missions","/tasks","/bashes","/help","/exit","/quit"})
       if(command==local){
-        const auto name=command=="/bashes"?"tasks":command=="/quit"?"exit":command.substr(1);
+        const auto name=command=="/quit"?std::string("exit"):command.substr(1);
         const auto args=end==std::string::npos?std::string{}:value::trim(trimmed.substr(end));
         if(imports_.openControlCommand&&imports_.openControlCommand(name,args)){
           presentation().input.text.clear();presentation().input.caretUtf16=0;
           suggestions_.clear();++completionGeneration_;requestRedraw();
-        }
+        }else transcriptStatus("Could not open "+command+" right now; close any open dialog and try again");
         return true;
       }
-    transcriptStatus("Use /leader before running "+command);return true;
+    transcriptStatus(command+" runs in the leader conversation; use /leader first "
+      "(here: /bats, /missions, /memory, /help)");
+    return true;
   }
   if(trimmed.empty())return true;
   if(!imports_.submitBatMessage){transcriptStatus("Bat follow-ups are unavailable");return true;}

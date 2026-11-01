@@ -500,10 +500,10 @@ private:
 user_input::CommandEntry makeMissionsCommand(
     const std::shared_ptr<user_input::UiCommandRouter>& router,Inputs input){
   if(!router||!input.store||!input.shellMissions||!input.managedShell)
-    throw std::invalid_argument("Tasks command requires router, state and shell owners");
-  Json descriptor={{"type","local-jsx"},{"name","tasks"},
-    {"aliases",Json::array({"bashes"})},
-    {"description","List background jobs and persistent task board"}};
+    throw std::invalid_argument("Missions command requires router, state and shell owners");
+  Json descriptor={{"type","local-jsx"},{"name","missions"},
+    {"aliases",Json::array({"tasks","bashes"})},
+    {"description","View running Bats, background shells and the Mission board"}};
   return user_input::bindUiCommand(std::move(descriptor),router,
     [input=std::move(input)](const std::string& args){
       return [input,args](auto done,auto ready,auto error){
@@ -516,12 +516,13 @@ user_input::CommandEntry makeMissionsCommand(
 user_input::CommandEntry makeBatsCommand(
     const std::shared_ptr<user_input::UiCommandRouter>& router,Inputs input){
   if(!router||!input.store||!input.shellMissions||!input.openBatConversation)
-    throw std::invalid_argument("Agents command requires live conversation providers");
+    throw std::invalid_argument("Bats command requires live conversation providers");
   input.batsOnly=true;input.includeCompletedBats=true;
-  Json descriptor={{"type","local-jsx"},{"name","agents"},
+  Json descriptor={{"type","local-jsx"},{"name","bats"},
+    {"aliases",Json::array({"agents"})},
     {"immediate",true},
-    {"description","Open agent conversations and inspect configurations"},
-    {"argumentHint","[agent-id]"}};
+    {"description","Watch your Bats, open their conversations and message them"},
+    {"argumentHint","[bat-name-or-id]"}};
   return user_input::bindUiCommand(std::move(descriptor),router,
     [input=std::move(input)](const std::string& args){
       return [input,args](auto done,auto ready,auto error){

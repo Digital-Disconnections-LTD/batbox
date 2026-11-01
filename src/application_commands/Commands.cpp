@@ -566,11 +566,18 @@ bool Bundle::backgroundForegroundMissions(){
   return changed;
 }
 void Bundle::openMissions(const std::string& id){
-  (void)openUiCommand("tasks",id);
+  (void)openUiCommand("missions",id);
 }
-bool Bundle::openUiCommand(const std::string& name,const std::string& args){
+bool Bundle::openUiCommand(const std::string& requested,const std::string& args){
   if(router_->ui()->busy()||router_->ui()->hasActionableUi())return false;
-  for(const auto& entry:entries_)if(value::property(entry.descriptor,"name")==name){
+  const auto name=requested.starts_with('/')?requested.substr(1):requested;
+  const auto matches=[&name](const Json& descriptor){
+    if(value::property(descriptor,"name")==name)return true;
+    const auto& aliases=value::property(descriptor,"aliases");
+    if(aliases.is_array())for(const auto& alias:aliases)if(alias==name)return true;
+    return false;
+  };
+  for(const auto& entry:entries_)if(matches(entry.descriptor)){
     if(!entry.invokeUi)return false;
     entry.invokeUi(args).then([report=inputs_.onError](
         const user_input::UiCompletion*,const std::exception_ptr& error){

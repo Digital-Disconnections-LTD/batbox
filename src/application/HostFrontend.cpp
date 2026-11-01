@@ -90,7 +90,7 @@ std::shared_ptr<application_commands::Bundle> Host::Impl::makeCommands(){
     if(!shell)return;
     try{
       const auto resolved=bats->resolveMissionId(value);
-      if(!resolved){statusText="No agent found: "+value;++view.revision;shell->requestRedraw();return;}
+      if(!resolved){statusText="No Bat found: "+value;++view.revision;shell->requestRedraw();return;}
       shell->openBatConversation(*resolved);
     }catch(const std::exception& error){
       statusText=error.what();++view.revision;shell->requestRedraw();
