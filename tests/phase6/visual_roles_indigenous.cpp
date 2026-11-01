@@ -14,8 +14,8 @@
 #include <ftxui/screen/terminal.hpp>
 #include <filesystem>
 #include <iostream>
+#include <random>
 #include <stdexcept>
-#include <unistd.h>
 
 using namespace batbox;
 namespace ip=batbox::interactive::presentation_providers;
@@ -165,15 +165,19 @@ void viewModel(){
     "Roost-relative path");
   check(gv::displayPath("/home/b/other/x","/home/b/roost","/home/b")=="~/other/x",
     "home-relative path");
-  char pattern[]="/tmp/batbox-visual-path-XXXXXX";
-  check(::mkdtemp(pattern)!=nullptr,"temporary directory");
-  const std::filesystem::path base=pattern;
+#ifndef _WIN32
+  // Directory symlinks need extra privileges on Windows; the lexical cases
+  // above cover that platform.
+  const auto base=std::filesystem::temp_directory_path()/
+    ("batbox-visual-path-"+std::to_string(std::random_device{}()));
   std::filesystem::create_directories(base/"real"/"src");
   std::filesystem::create_directory_symlink(base/"real",base/"link");
   const auto canonical=std::filesystem::canonical(base/"real").string();
-  check(gv::displayPath((base/"link"/"src"/"a.cpp").string(),canonical,"")=="src/a.cpp",
-    "paths through a symlinked Roost stay relative");
+  const bool relative=gv::displayPath((base/"link"/"src"/"a.cpp").string(),canonical,"")==
+    "src/a.cpp";
   std::filesystem::remove_all(base);
+  check(relative,"paths through a symlinked Roost stay relative");
+#endif
 
   gv::GadgetViewStyle style;
   const auto rendered=draw(gv::projectGadgetResult(shell,style,60),60,16);

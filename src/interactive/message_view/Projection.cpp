@@ -95,7 +95,10 @@ std::optional<ftxui::Element> projectMessage(const MessagePlan& plan,
       plan.options.shouldAnimate,services.groupedGadgetUse);
     if(card.is_null()||card.is_discarded())return {};
     need(services.gadgetUseProjection.renderGadgetMessage,"grouped Gadget renderer");
-    return services.gadgetUseProjection.renderGadgetMessage(card);
+    auto element=services.gadgetUseProjection.renderGadgetMessage(card);
+    // Every card in the list shares one blank row of separation.
+    if(plan.options.addMargin)element=ftxui::vbox({ftxui::text(""),std::move(element)});
+    return element;
   }
   if(plan.kind==MessageKind::CollapsedReadSearch){
     need(services.lookups,"lookups");need(services.collapsed,"collapsed read/search");
