@@ -203,6 +203,13 @@ int main(){
   shell->openBatConversation("bat-1");loop.runReady();paint();
   check(shell->activeBatId()=="bat-1"&&shell->presentation().messages.size()==1,
     "Opening a Bat shows its conversation");
+  {
+    const auto frame=screen.ToString();
+    std::size_t brands=0;
+    for(auto at=frame.find("Batbox");at!=std::string::npos;at=frame.find("Batbox",at+1))++brands;
+    check(brands==1&&frame.find("WELCOME_BAT")==std::string::npos,
+      "A Bat view shows the brand once, in its header:\n"+frame);
+  }
   shell->onRawInput("\x14");loop.runReady();
   check(controls.size()==2&&controls.back().first=="bats",
     "Ctrl+T inside a Bat must open the Bats list to switch Bats");

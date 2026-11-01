@@ -188,8 +188,7 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
       i<static_cast<std::size_t>(std::max(0,missionRows-1));++i)
     footerMissionIds_.push_back(view.backgroundMissions[i].at("id").get<std::string>());
   view.bodyRows=bodyRows;view.bodyScreenRow=headerRows+stickyRows;
-  welcomeVisible_=plan.showLogo&&imports_.chrome.renderWelcome&&
-    !transcript_&&!batConversation_;
+  welcomeVisible_=plan.showLogo&&imports_.chrome.renderWelcome&&!transcript_;
   welcomeRendered_=true;
   if(welcomeVisible_)renderer.renderLogo=[this,view]{
     return imports_.chrome.renderWelcome(view);
@@ -257,6 +256,8 @@ ftxui::Element Shell::render(){
   options.conversationId=presentation().conversationId;
   options.columns=presentation().viewport.columns;
   options.virtualScroll=true;
+  // The header already carries the brand and the Bat's name.
+  if(batConversation_)options.hideLogo=true;
   options.isLoading=presentation().loading;
   options.streamingText=presentation().showStreamingText?
     presentation().streamingText:std::nullopt;
