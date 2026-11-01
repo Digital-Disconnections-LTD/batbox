@@ -8,6 +8,7 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/string.hpp>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <stdexcept>
 #include <utility>

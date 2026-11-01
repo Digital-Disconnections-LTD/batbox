@@ -10,6 +10,7 @@
 #include "interactive/text_input/MeasuredText.hpp"
 #include "npm_wrap_ansi/Wrap.hpp"
 #include "runtime/Encoding.hpp"
+#include "runtime/IndigenousTime.hpp"
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -69,11 +70,8 @@ std::string localClock(const std::string& iso){
   const auto epoch=static_cast<std::time_t>(*seconds);
   std::tm local{},now{};
   const auto current=std::time(nullptr);
-#ifdef _WIN32
-  if(localtime_s(&local,&epoch)||localtime_s(&now,&current))return iso;
-#else
-  if(!localtime_r(&epoch,&local)||!localtime_r(&current,&now))return iso;
-#endif
+  if(!runtime::localtimeIndigenous(epoch,local)||
+     !runtime::localtimeIndigenous(current,now))return iso;
   char text[32]={};
   const bool today=local.tm_year==now.tm_year&&local.tm_yday==now.tm_yday;
   if(!std::strftime(text,sizeof text,today?"%H:%M":"%b %d %H:%M",&local))return iso;
