@@ -13,3 +13,12 @@ batbox_indigenous(phase6-transcript-rows-incremental-indigenous
   tests/phase6/transcript_rows_incremental_indigenous.cpp batbox_terminal_ftxui)
 batbox_indigenous(phase5-flights-load-memory-indigenous
   tests/phase5/flights_load_memory_indigenous.cpp batbox_flights)
+batbox_indigenous(phase5-pump-schedule-indigenous
+  tests/phase5/pump_schedule_indigenous.cpp batbox_terminal_ftxui)
+if(UNIX)
+  batbox_indigenous(phase5-ftxui-pump-backoff-pty
+    tests/phase5/ftxui_pump_backoff_pty.cpp batbox_terminal_ftxui)
+  if(NOT APPLE)
+    target_link_libraries(batbox-phase5-ftxui-pump-backoff-pty PRIVATE util)
+  endif()
+endif()
