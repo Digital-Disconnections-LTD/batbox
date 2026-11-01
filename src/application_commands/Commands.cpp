@@ -3,6 +3,7 @@
 #include "application_commands/MemoryPanel.hpp"
 #include "application_commands/ProjectCommand.hpp"
 #include "application_commands/EffortCommand.hpp"
+#include "application_commands/FlightTitles.hpp"
 #include "application_commands/PermissionCommand.hpp"
 #include "application_usage/UsageCommand.hpp"
 #include "application_config/ConfigPanel.hpp"
@@ -17,6 +18,7 @@
 #include "messages/Context.hpp"
 #include "poetryEntries/EffectiveSystemPoetry.hpp"
 #include "flights/MetadataOperations.hpp"
+#include "flights/Title.hpp"
 #include "runtime/JsonValue.hpp"
 #include <cstdlib>
 #include <filesystem>
@@ -535,7 +537,62 @@ void Bundle::initialize(){
   if(inputs_.clear)entries_.push_back(commands_indigenous::makeClearCommand(inputs_.clear));
   if(!inputs_.compact)inputs_.compact=makeCompact(inputs_);
   if(inputs_.compact)entries_.push_back(commands_indigenous::makeCompactCommand(inputs_.compact));
-  if(inputs_.resume)entries_.push_back(commands_indigenous::makeResumeCommand(router_,inputs_.resume));
+  if(inputs_.flight&&inputs_.model&&inputs_.store){
+    auto rename=std::make_shared<commands_indigenous::RenameServices>(inputs_.owner);
+    rename->isPartner=[]{return false;};
+    rename->getMessages=[weak]{
+      Json values=Json::array();
+      auto self=weak.lock();
+      if(!self)return values;
+      const auto runtime=self->inputs_.getRuntime?self->inputs_.getRuntime():nullptr;
+      if(!runtime)return values;
+      if(const auto& current=runtime->messages().messages())
+        for(const auto& message:*current)if(message)values.push_back(*message);
+      return values;
+    };
+    rename->afterCompactBoundary=[](const Json& values){
+      if(!values.is_array())return Json::array();
+      std::size_t start=0;
+      for(std::size_t index=0;index<values.size();++index)
+        if(messages::isCompactBoundaryMessage(values[index]))start=index+1;
+      Json tail=Json::array();
+      for(std::size_t index=start;index<values.size();++index)tail.push_back(values[index]);
+      return tail;
+    };
+    auto generate=makeFlightTitleGenerator(inputs_.owner,inputs_.model,[weak]{
+        auto self=weak.lock();
+        if(!self)throw std::runtime_error("Command bundle has retired");
+        return selected(self->inputs_);
+      },inputs_.config.print,inputs_.log);
+    rename->generateFlightName=[generate](const Json& values){
+      return generate(flights::extractConversationText(values));};
+    rename->flightId=[flight=inputs_.flight]{return flight->id();};
+    rename->transcriptPath=[flight=inputs_.flight]{
+      return flight->paths()->getTranscriptPath();};
+    rename->saveCustomTitle=[flight=inputs_.flight](const std::string&,
+        const std::string& name,const std::string&){
+      return saveFlightMetadataTitle(*flight,"custom-title",name);};
+    rename->saveBatName=[flight=inputs_.flight](const std::string&,
+        const std::string& name,const std::string&){
+      return saveFlightMetadataTitle(*flight,"agent-name",name);};
+    rename->bridgeFlightId=[]()->std::optional<std::string>{return std::nullopt;};
+    rename->scheduleBridgeTitleUpdate=[](const std::string&,const std::string&){};
+    rename->setStandaloneBatName=[store=inputs_.store](const std::string& name){
+      store->setState([name](const app_state::AppStateRef& previous){
+        auto next=std::make_shared<app_state::AppState>(previous->shallowCopy());
+        Json context=value::property(previous->snapshot(),"standaloneAgentContext");
+        if(!context.is_object())context=Json::object();
+        context["name"]=name;
+        next->fields->set("standaloneAgentContext",std::move(context));
+        return next;});
+    };
+    entries_.push_back(commands_indigenous::makeRenameCommand(router_,std::move(rename)));
+  }
+  if(inputs_.resume){
+    entries_.push_back(commands_indigenous::makeResumeCommand(router_,inputs_.resume));
+    if(inputs_.resume->latestLog)
+      entries_.push_back(commands_indigenous::makeContinueCommand(router_,inputs_.resume));
+  }
   if(inputs_.openRewind){
     auto rewind=std::make_shared<commands_indigenous::RewindServices>(inputs_.owner);
     rewind->openMessageSelector=inputs_.openRewind;

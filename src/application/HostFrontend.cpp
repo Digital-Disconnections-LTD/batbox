@@ -1,4 +1,5 @@
 #include "application/HostInternal.hpp"
+#include "application_commands/FlightTitles.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
 #include "interactive/text_input/TextEditorIndigenous.hpp"
 #include "runtime/MessageSnapshot.hpp"
@@ -335,6 +336,13 @@ void Host::Impl::bindFrontend(){
   restoreInputs.writeOutput=[this](const std::string& value){
     statusText=value;++view.revision;if(shell)shell->requestRedraw();};
   restoreInputs.logError=[this](std::exception_ptr error){report(error);};
+  restoreInputs.transitionPermissionMode=[this](
+      const std::string& from,const std::string& to){
+    if(!flightTransitions)return;
+    bootstrap::handlePlanModeTransition(*flightTransitions,from,to);
+    bootstrap::handleAutoModeTransition(*flightTransitions,from,to);
+    if(from=="plan"&&to!="plan")bootstrap::setHasExitedPlanMode(*flightTransitions,true);
+  };
   restore=application_flights::Restore::create(std::move(restoreInputs));
   commands=makeCommands();
   if(mcpElicitation)mcpElicitation->attachUi(commands->router()->ui());
@@ -384,6 +392,42 @@ void Host::Impl::bindFrontend(){
     return runtime?runtime->activeAbort():std::shared_ptr<interactive::TurnAbort>{};};
   frontendInputs.hasInterruptibleGadgetInProgress=[this]{
     return inProgressGadgetUseIds&&inProgressGadgetUseIds->size()>0;};
+  auto titleFailures=std::make_shared<std::pair<std::string,int>>();
+  if(config.autoTitle&&!config.print)frontendInputs.generateFlightTitle=
+      [this,titleFailures](const std::string& text){
+    event_loop::Deferred<std::optional<std::string>> output(owner);
+    try{
+      const auto id=flight?flight->id():std::string();
+      const bool titled=flight&&(flight->project()->state().currentFlightTitle||
+        flight->project()->state().currentFlightAiTitle);
+      // Two failed attempts for the same Flight stop further side queries.
+      const bool exhausted=titleFailures->first==id&&titleFailures->second>=2;
+      if(!model||id.empty()||titled||exhausted){
+        output.resolve(std::nullopt);return output;}
+      auto generate=application_commands::makeFlightTitleGenerator(owner,model,[this]{
+          const auto chosen=value::property(appState(),"mainLoopModel");
+          return chosen.is_string()&&!chosen.get<std::string>().empty()?
+            chosen.get<std::string>():config.model;
+        },false,[this](const std::string& value){log(value);});
+      generate(text).then([this,output,id,titleFailures](
+          const std::optional<std::string>* title,const std::exception_ptr& error){
+        if(error||!title||!*title){
+          if(titleFailures->first!=id)*titleFailures={id,0};
+          ++titleFailures->second;
+          output.resolve(std::nullopt);return;
+        }
+        try{
+          // The Flight may have been cleared or resumed while the query ran.
+          if(flight&&flight->id()==id&&!flight->project()->state().currentFlightTitle)
+            application_commands::saveFlightMetadataTitle(*flight,"ai-title",**title).then(
+              [this](const event_loop::Unit*,const std::exception_ptr& saveError){
+                if(saveError)log("Flight title could not be saved");});
+        }catch(...){log("Flight title could not be saved");}
+        output.resolve(*title);
+      });
+    }catch(...){log("Flight title generation unavailable");output.resolve(std::nullopt);}
+    return output;
+  };
   frontendInputs.onQueryContextCreated=[this](
       const interactive::InteractiveQueryContext& created){
     currentBat=created.batContext;};

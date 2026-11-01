@@ -17,7 +17,7 @@ struct FlightState {
   std::optional<std::string> flightFile;
   std::vector<PendingEntry> pendingEntries;
   std::unordered_map<std::string,std::string> existingFlightFiles;
-  std::optional<std::string> currentFlightTag,currentFlightTitle;
+  std::optional<std::string> currentFlightTag,currentFlightTitle,currentFlightAiTitle;
   std::optional<std::string> currentFlightBatName,currentFlightBatColor;
   std::optional<std::string> currentFlightLastPoetry,currentFlightBatSetting,currentFlightMode;
   std::optional<Json> currentFlightWorktree,currentFlightPrNumber;
