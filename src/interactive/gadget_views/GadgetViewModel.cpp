@@ -461,7 +461,8 @@ bool quoted(const std::string& summary,const std::string& prefix,std::string& na
   if(!summary.starts_with(prefix+" \""))return false;
   const auto from=prefix.size()+2;
   std::string::size_type end=std::string::npos;
-  for(const char* tail:{"\" completed","\" failed","\" was stopped","\" stopped"}){
+  for(const char* tail:{"\" completed","\" failed","\" was stopped","\" stopped",
+      "\" has queued input"}){
     const auto at=summary.find(tail,from);
     if(at!=std::string::npos&&(end==std::string::npos||at<end))end=at;
   }
@@ -476,11 +477,12 @@ MissionNotice notice(std::string_view block){
   const auto status=value::trim(tagText(block,"status").value_or(""));
   result.outcome=status=="completed"?"finished":status=="failed"?"failed":
     status=="killed"||status=="stopped"?"stopped":
+    status=="awaiting_resume"?"waiting":
     status.empty()?"finished":status;
   const auto summary=firstLine(unescapeXml(tagText(block,"summary").value_or("")));
   std::vector<std::string> parts;
   std::string name,rest;
-  if(quoted(summary,"Agent",name,rest))result.kind="Bat";
+  if(quoted(summary,"Agent",name,rest)||quoted(summary,"Bat",name,rest))result.kind="Bat";
   else if(quoted(summary,"Background command",name,rest))result.kind="Shell";
   else if(quoted(summary,"Background session",name,rest))result.kind="Background Flight";
   else result.kind="Mission";
@@ -498,7 +500,17 @@ MissionNotice notice(std::string_view block){
     }
   }
   std::string reason;
+  // Collapsed runs of finished shells: "3 background commands completed".
+  if(result.kind=="Mission"&&summary.ends_with(" background commands completed")){
+    result.kind=summary.substr(0,summary.size()-30)+" background shells";
+    return result;
+  }
   if(result.kind=="Mission")reason=summary;
+  else if(rest.starts_with("has queued input")){
+    const auto colon=rest.find(": ");
+    reason="queued input awaiting resume"+
+      (colon==std::string::npos?std::string{}:" · "+rest.substr(colon+2));
+  }
   else if(result.outcome=="failed"&&rest.starts_with("failed:"))
     reason=value::trim(rest.substr(7));
   const auto line=firstLine(unescapeXml(tagText(block,"result",true).value_or("")));

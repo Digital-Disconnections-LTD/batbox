@@ -60,14 +60,17 @@ void IndigenousBatApplication::schedulePendingContinuation(const std::string& id
     continuation.then([self,id](const event_loop::Unit*,const std::exception_ptr& error){
       self->pendingContinuationScheduled_.erase(id);
       if(!error)return;
-      std::string message="Unable to continue queued agent input";
+      std::string message="Unable to continue queued Bat input";
       try{std::rethrow_exception(error);}catch(const std::exception& failure){message=failure.what();}catch(...){}
       self->setAppState([id,message](const Json& state){
         if(!bats::isPanelBatMission(value::property(field(state,"tasks"),id)))return state;
         Json next=state;next["tasks"][id]["inputResumeError"]=message;return next;
       });
-      self->inputs_.enqueuePendingNotification(Json{{"value","Agent "+id+
-        " has durable queued input awaiting resume: "+message},{"mode","task-notification"}});
+      const auto mission=value::property(field(self->appState(),"tasks"),id);
+      auto label=string(field(mission,"name"));
+      if(label.empty())label=string(field(mission,"description"));
+      self->inputs_.enqueuePendingNotification(Json{{"value",
+        bats::batQueuedInputNotification(id,label,message)},{"mode","task-notification"}});
     });
   });
 }

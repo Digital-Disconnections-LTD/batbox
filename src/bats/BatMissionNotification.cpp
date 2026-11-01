@@ -75,4 +75,13 @@ void enqueueBatNotification(const Json& args,
   services.enqueuePendingNotification(Json{{"value",message},
     {"mode","task-notification"}});
 }
+std::string batQueuedInputNotification(const std::string& missionId,
+    const std::string& label,const std::string& reason){
+  if(missionId.empty())throw std::invalid_argument("Missing notification taskId");
+  return "<task-notification>\n"+tag("task-id",missionId)+"\n"+
+    tag("status","awaiting_resume")+"\n"+
+    tag("summary","Bat \""+(label.empty()?missionId:label)+
+      "\" has queued input awaiting resume: "+reason)+
+    "\n</task-notification>";
+}
 } // namespace batbox::bats

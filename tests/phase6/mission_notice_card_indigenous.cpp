@@ -122,6 +122,22 @@ void parser(){
   check(notices.size()==2&&gv::missionNoticeText(notices[0])=="Shell make & test failed · exit 2",
     "Shell text: "+(notices.empty()?std::string{}:gv::missionNoticeText(notices[0])));
   check(gv::parseMissionNotifications("plain poetry").empty(),"Plain text has no notices");
+
+  // A Bat whose queued input could not be continued uses the same card.
+  const auto waiting=bats::batQueuedInputNotification("a1b2c3","reviewer",
+    "Model request failed: overloaded");
+  check(waiting.find("<task-id>a1b2c3</task-id>")!=std::string::npos&&
+    waiting.find("Agent")==std::string::npos,"The queued-input block names the Bat: "+waiting);
+  notices=gv::parseMissionNotifications(waiting);
+  check(notices.size()==1&&gv::missionNoticeText(notices[0])==
+    "Bat reviewer waiting · queued input awaiting resume · Model request failed: overloaded",
+    "Queued-input text: "+(notices.empty()?std::string{}:gv::missionNoticeText(notices[0])));
+
+  // Runs of finished shells collapse into one summary block.
+  notices=gv::parseMissionNotifications("<task-notification><status>completed</status>"
+    "<summary>3 background commands completed</summary></task-notification>");
+  check(notices.size()==1&&gv::missionNoticeText(notices[0])=="3 background shells finished",
+    "Collapsed shells text: "+(notices.empty()?std::string{}:gv::missionNoticeText(notices[0])));
 }
 
 void transcript(const std::string& theme){
@@ -156,6 +172,15 @@ void transcript(const std::string& theme){
   if(!roles.monochrome)
     check(idle.styles.find("fg="+roles.gadgetOk.Print(false))!=std::string::npos,
       theme+": the finished mark must use the success role");
+
+  // The queued-input notice renders as a card too.
+  auto stuck=std::make_shared<Json>(Json{{"type","user"},{"uuid","n4"},
+    {"origin",{{"kind","task-notification"}}},
+    {"message",{{"role","user"},{"content",Json::array({{{"type","text"},
+      {"text",bats::batQueuedInputNotification("a1","reviewer","overloaded")}}})}}}});
+  const auto waiting=fixture.render({stuck});
+  check(has(waiting,"■ Bat reviewer waiting · queued input awaiting resume · overloaded")&&
+    !has(waiting,"<task-notification>"),theme+": queued-input notice must be a card:\n"+waiting.text);
 
   // A plain queued poetry line is still shown as written.
   auto plain=std::make_shared<Json>(Json{{"type","attachment"},{"uuid","n3"},
