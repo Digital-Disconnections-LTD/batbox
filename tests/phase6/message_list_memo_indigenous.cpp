@@ -192,9 +192,16 @@ int main() {
       {"id", "live"}, {"name", "Bash"}, {"input", Json::object()}}, "{\"comm"});
   auto live = memo.prepare(messages, streaming, anchor);
   assert(fingerprint(*live) == expected(messages, streaming));
+  // Input fragments do not change what the list shows for a streaming use.
   streaming.streamingGadgetUses.back().unparsedGadgetInput += "and\":\"ls\"}";
   auto live2 = memo.prepare(messages, streaming, anchor);
-  assert(live2 != live);
+  assert(live2 == live);
+  assert(fingerprint(*live2) == expected(messages, streaming));
+  streaming.streamingGadgetUses.push_back({Json(1), Json{{"type", "tool_use"},
+      {"id", "live-2"}, {"name", "Read"}, {"input", Json::object()}}, ""});
+  auto live3 = memo.prepare(messages, streaming, anchor);
+  assert(live3 != live2);
+  assert(fingerprint(*live3) == expected(messages, streaming));
   auto transcript = settings(services);
   transcript.transcriptMode = true;
   auto shown = memo.prepare(messages, transcript, anchor);

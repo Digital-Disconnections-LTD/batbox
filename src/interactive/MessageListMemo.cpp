@@ -14,12 +14,13 @@ bool sameProtocol(const BackgroundNotificationProtocol& left,
       left.summaryTag == right.summaryTag &&
       left.bashSummaryPrefix == right.bashSummaryPrefix;
 }
+// The list shows a streaming Gadget use from its content block alone, so
+// input fragments arriving for it do not change the prepared list.
 bool sameStreamingUses(const std::vector<StreamingGadgetUse>& left,
                        const std::vector<StreamingGadgetUse>& right) {
   if (left.size() != right.size()) return false;
   for (std::size_t i = 0; i < left.size(); ++i) {
-    if (left[i].unparsedGadgetInput != right[i].unparsedGadgetInput ||
-        left[i].index != right[i].index ||
+    if (left[i].index != right[i].index ||
         left[i].contentBlock != right[i].contentBlock) return false;
   }
   return true;
@@ -54,7 +55,8 @@ MessageListMemo::Key MessageListMemo::keyFor(const MessageListSettings& settings
   key.noContentMessage = settings.visibility.noContentMessage;
   key.interruptMessageForGadgetUse = settings.visibility.interruptMessageForGadgetUse;
   key.backgroundProtocol = settings.backgroundProtocol;
-  key.streamingGadgetUses = settings.streamingGadgetUses;
+  for (const auto& use : settings.streamingGadgetUses)
+    key.streamingGadgetUses.push_back({use.index, use.contentBlock, {}});
   key.inProgressGadgetUseIDs = settings.inProgressGadgetUseIDs;
   key.messageServices = settings.messageServices;
   return key;
