@@ -94,5 +94,15 @@ int main(){
     false,false,true,attachmentServices);
   (void)projectAttachment(attachment,projection);
   assert(sawTranscriptMode);
-  std::cout<<"8 native remaining-card composition cases pass\n";
+  attachment=classifyAttachment(Json{{"type","task_status"},{"taskId","t1"},
+    {"taskType","local"},{"status","completed"},{"description","build"}},
+    false,false,false,attachmentServices);
+  assert(attachment.kind==AttachmentCard::Kind::Lines);
+  {
+    std::string text;
+    for(const auto& line:attachment.lines)for(const auto& span:line.spans)text+=span.text;
+    assert(text=="● Mission \"build\" completed in background");
+    assert(render(*projectAttachment(attachment,projection)).find("Mission")!=std::string::npos);
+  }
+  std::cout<<"9 native remaining-card composition cases pass\n";
 }

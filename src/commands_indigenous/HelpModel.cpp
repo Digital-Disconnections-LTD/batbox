@@ -131,9 +131,9 @@ std::string helpSection(const std::string& name){
     {"model","Model and settings"},{"effort","Model and settings"},
     {"config","Model and settings"},{"theme","Model and settings"},
     {"permissions","Model and settings"},{"fast","Model and settings"},
-    {"bats","Crew and Missions"},{"agents","Crew and Missions"},
-    {"leader","Crew and Missions"},{"missions","Crew and Missions"},
-    {"tasks","Crew and Missions"},{"bashes","Crew and Missions"},
+    {"bats","Bats and Missions"},{"agents","Bats and Missions"},
+    {"leader","Bats and Missions"},{"missions","Bats and Missions"},
+    {"tasks","Bats and Missions"},{"bashes","Bats and Missions"},
     {"memory","Roost and context"},{"project","Roost and context"},
     {"context","Roost and context"},{"status","Roost and context"},
     {"cost","Roost and context"},{"mcp","Roost and context"},
@@ -144,7 +144,7 @@ std::string helpSection(const std::string& name){
 }
 int sectionOrder(const std::string& section){
   static const std::vector<std::string> order={"Flight","Model and settings",
-    "Crew and Missions","Roost and context","More"};
+    "Bats and Missions","Roost and context","More"};
   const auto found=std::find(order.begin(),order.end(),section);
   return static_cast<int>(found-order.begin());
 }

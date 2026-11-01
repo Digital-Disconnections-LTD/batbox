@@ -17,7 +17,7 @@ void generic(AttachmentCard& card){
   const auto description=field(card.original,"description");
   card.kind=AttachmentCard::Kind::Lines;
   card.lines.push_back({{
-    {"● Task \"",false,{},{}},{description,true,{},{}},
+    {"● Mission \"",false,{},{}},{description,true,{},{}},
     {"\" "+statusText,false,{},{}}},"",true,false,1});
 }
 }

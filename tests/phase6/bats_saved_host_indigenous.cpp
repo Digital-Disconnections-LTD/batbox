@@ -175,6 +175,40 @@ struct HostSavedBatsProbe {
       "SendMessage must render its result output, not its progress: "+shown.dump());
   }
 
+  // /help groups the Bats and Missions commands under Batbox names, and no
+  // help text calls a Bat an agent or a Mission a task.
+  static void helpVocabulary(Host::Impl& impl){
+    check(impl.commands->openUiCommand("help",""),"/help must open");
+    for(int i=0;i<5;++i)impl.owner.runReady();
+    const auto& shown=impl.commands->router()->ui()->visibleUi();
+    check(shown&&shown->id=="help","/help must show its dialog");
+    const auto section=[&](const std::string& name)->std::string{
+      for(std::size_t i=0;i<shown->choices.size();++i)
+        if(shown->choices[i]==name)
+          return i<shown->choiceInfo.size()?shown->choiceInfo[i].section:std::string{};
+      return "missing";
+    };
+    check(section("/bats")=="Bats and Missions"&&section("/missions")=="Bats and Missions",
+      "/bats and /missions must be listed under Bats and Missions, got '"+
+        section("/bats")+"' and '"+section("/missions")+"'");
+    check(section("/agents")=="missing"&&section("/tasks")=="missing",
+      "/help lists commands by their Batbox names, not their aliases");
+    std::string text=shown->title+"\n"+shown->body;
+    for(std::size_t i=0;i<shown->choices.size();++i){
+      text+="\n"+shown->choices[i];
+      if(i<shown->choiceInfo.size())
+        text+=" "+shown->choiceInfo[i].detail+" "+shown->choiceInfo[i].section;
+    }
+    for(const char* word:{"Agent","agent","Tasks"," tasks"})
+      check(text.find(word)==std::string::npos,std::string("/help must not say '")+word+
+        "':\n"+text);
+    impl.commands->router()->ui()->dispatchAction({interactive::UiAction::Kind::Cancel,0,{}});
+    for(int i=0;i<5;++i)impl.owner.runReady();
+    const auto gadget=impl.bats->makeGadget();
+    check(gadget.userFacingName&&gadget.userFacingName(Json::object())=="Bat",
+      "A Bat without a type must be shown as Bat");
+  }
+
   static void run(){
     const auto original=std::filesystem::current_path();
     const auto root=std::filesystem::temp_directory_path()/
@@ -201,6 +235,7 @@ struct HostSavedBatsProbe {
         savedBats(impl);
         streamThrottle(impl);
         sendMessageResult(impl);
+        helpVocabulary(impl);
       }catch(...){finish();throw;}
       finish();
     }catch(...){

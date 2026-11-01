@@ -47,7 +47,7 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
   bats::BatGadgetDescriptorImports display;
   display.userFacingName=[](const Json& input){
     const auto name=string(field(input,"subagent_type"));
-    return name.empty()?std::string("Agent"):name;
+    return name.empty()?std::string("Bat"):name;
   };
   display.userFacingNameBackgroundColor=[](const Json&){return Json();};
   display.renderGadgetUseMessage=[](const Json& input,const Json&){

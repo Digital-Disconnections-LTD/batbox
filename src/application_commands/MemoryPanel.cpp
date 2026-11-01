@@ -211,7 +211,7 @@ user_input::CommandEntry makeMemoryCommand(event_loop::Loop& owner,
     std::shared_ptr<application_memory::Provider> memory,
     std::function<std::shared_ptr<interactive::conversation_shell::Shell>()> shell){
   Json descriptor={{"type","local-jsx"},{"name","memory"},
-    {"description","Read, edit and consolidate project and agent memory"},
+    {"description","Read, edit and consolidate project and Bat memory"},
     {"argumentHint","[refresh|consolidate]"}};
   return user_input::bindUiCommand(std::move(descriptor),router,
     [&owner,memory=std::move(memory),shell=std::move(shell)](const std::string& args){
