@@ -11,3 +11,5 @@ batbox_indigenous(phase6-string-metrics-ascii-indigenous
   tests/phase6/string_metrics_ascii_indigenous.cpp batbox_terminal_ftxui)
 batbox_indigenous(phase6-transcript-rows-incremental-indigenous
   tests/phase6/transcript_rows_incremental_indigenous.cpp batbox_terminal_ftxui)
+batbox_indigenous(phase5-flights-load-memory-indigenous
+  tests/phase5/flights_load_memory_indigenous.cpp batbox_flights)
