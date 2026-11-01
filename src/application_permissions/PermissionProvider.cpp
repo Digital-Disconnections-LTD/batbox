@@ -3,6 +3,7 @@
 #include "app_state/provider/PermissionHelpers.hpp"
 #include "runtime/JsonValue.hpp"
 #include "gadgets/web/Web.hpp"
+#include "interactive/gadget_views/GadgetViewModel.hpp"
 #include <stdexcept>
 
 namespace batbox::application_permissions {
@@ -219,6 +220,19 @@ void PermissionProvider::showNext(){
   request.choices={"Allow once",
     inputs_.persistAllowRule?"Always allow this rule":"Allow this rule for this session",
     "Deny","Cancel"};
+  // Say exactly what "always" saves, and show file changes before they land.
+  request.choiceInfo={{},{(inputs_.persistAllowRule?"Saves ":"Until this Flight ends: ")+
+      pending->rule,{},{}},{"The model hears that you declined",{},{}},{}};
+  request.hint="↑↓ choose · enter confirm · esc cancel";
+  const auto text=[&](const char* key){
+    const auto& value=field(pending->input,key);
+    return value.is_string()?value.get<std::string>():std::string{};};
+  if(pending->gadget=="Edit")
+    request.preview=interactive::gadget_views::editPreview(text("file_path"),
+      text("old_string"),text("new_string"),12);
+  else if(pending->gadget=="Write")
+    request.preview=interactive::gadget_views::writePreview(text("file_path"),
+      text("content"),12);
   request.selectedIndex=0;
   request.hidePoetry=true;
   auto weak=weak_from_this();

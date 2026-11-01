@@ -1,6 +1,7 @@
 #pragma once
 
 #include "event_loop/Loop.hpp"
+#include "runtime/JsonValue.hpp"
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -9,6 +10,17 @@
 #include <vector>
 
 namespace batbox::interactive {
+
+// Optional presentation for one choice. Callers that only set labels keep
+// working; renderers draw these when present.
+struct UiChoice {
+  // A second, dimmer line under the label.
+  std::string detail;
+  // A short tag after the label, such as "current".
+  std::string badge;
+  // Starts a titled group when it differs from the previous choice's section.
+  std::string section;
+};
 
 // A command supplies data for one indigenous view. The presentation reducer owns
 // its layout; no rendering tree or framework object enters the command path.
@@ -27,6 +39,13 @@ struct UiRequest {
   bool immediate=false;
   // Reserve action rows before showing this many one-line body previews.
   std::optional<std::size_t> bodyPreviewLines;
+  // Parallel to choices; a shorter vector leaves later choices plain.
+  std::vector<UiChoice> choiceInfo;
+  // Footer key hints, for example "↑↓ choose · enter apply · esc cancel".
+  std::string hint;
+  // A Gadget view (interactive/gadget_views) drawn under the body, such as
+  // the diff a permission request would apply.
+  Json preview;
 };
 
 struct UiAction {

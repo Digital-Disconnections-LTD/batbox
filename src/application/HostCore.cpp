@@ -403,6 +403,10 @@ int Host::run(){
   host.initialize();
   host.runtime->start();
   host.shell->start();
+  // Ask for the terminal background so the "auto" theme can follow it; the
+  // answer arrives as an OSC 11 response.
+  if(!host.config.print&&host.shell->driver().interactive())
+    host.shell->driver().writeRaw("\x1b]11;?\x07");
   auto submitInitial=[&host]{
     const auto poetry=host.poetry;
     poetry->projectRecovery().then([&host,poetry](const std::string*,

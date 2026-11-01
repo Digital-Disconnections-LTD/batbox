@@ -35,6 +35,12 @@ Token fromNode(cmark_node* node){
     }
     return token;
   }
+  if(type=="tasklist"){
+    token.kind=Kind::ListItem;
+    token.checked=cmark_gfm_extensions_get_tasklist_item_checked(node)?1:0;
+    token.children=childrenOf(node);
+    return token;
+  }
   switch(kind){
   case CMARK_NODE_BLOCK_QUOTE:token.kind=Kind::BlockQuote;break;
   case CMARK_NODE_CODE_BLOCK:

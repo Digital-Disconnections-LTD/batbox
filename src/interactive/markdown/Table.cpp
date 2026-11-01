@@ -137,6 +137,10 @@ std::string renderTable(const Token& table,int terminalWidth,
     return out;
   };
   if(maximumLines>maxRowLines)return vertical();
+  // Rules take the code-frame role so the grid recedes behind the cells.
+  const auto frameSgr=services.blockStyle?services.blockStyle().codeFrame:std::string{};
+  const auto paint=[&](std::string text){
+    return frameSgr.empty()?text:frameSgr+text+"\x1b[39m";};
   const auto border=[&](char which){
     const char* left=which=='t'?"┌":which=='m'?"├":"└";
     const char* cross=which=='t'?"┬":which=='m'?"┼":"┴";
@@ -146,7 +150,7 @@ std::string renderTable(const Token& table,int terminalWidth,
       result+=repeat("─",widths[col]+2);
       result+=col+1<columns?cross:right;
     }
-    return result;
+    return paint(result);
   };
   const auto rowLines=[&](const std::vector<Tokens>& cells,bool header){
     std::vector<std::vector<std::string>> wrapped;
@@ -157,7 +161,7 @@ std::string renderTable(const Token& table,int terminalWidth,
     }
     std::vector<std::string> lines;
     for(int line=0;line<maxLines;++line){
-      std::string output="│";
+      std::string output=paint("│");
       for(std::size_t col=0;col<wrapped.size();++col){
         const auto offset=(maxLines-static_cast<int>(wrapped[col].size()))/2;
         const auto index=line-offset;
@@ -165,8 +169,10 @@ std::string renderTable(const Token& table,int terminalWidth,
           wrapped[col][index]:"";
         const auto align=header?"center":
           col<table.align.size()?table.align[col]:"left";
-        output+=" "+padAligned(content,services.stringWidth(content),
-          widths[col],align)+" │";
+        const auto cell=header&&services.bold&&!content.empty()?
+          services.bold(content):content;
+        output+=" "+padAligned(cell,services.stringWidth(content),
+          widths[col],align)+" "+paint("│");
       }
       lines.push_back(std::move(output));
     }

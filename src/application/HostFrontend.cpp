@@ -10,6 +10,12 @@
 #include "gadget_results/Storage.hpp"
 #include "user_input/CommandMessages.hpp"
 #include "cli/headless/PermissionControl.hpp"
+#include "application_config/EndpointStore.hpp"
+#include "interactive/presentation_providers/StyleRoles.hpp"
+#include "interactive/presentation_providers/SystemTheme.hpp"
+#include "utils/tokens.hpp"
+#include <filesystem>
+#include <fstream>
 #include <algorithm>
 #include <csignal>
 #include <cstdlib>
@@ -34,6 +40,36 @@ template<class T>event_loop::Deferred<T> unsupported(event_loop::Loop& owner,
 std::string mode(const Json& state){
   const auto& value=value::property(value::property(state,"toolPermissionContext"),"mode");
   return value.is_string()?value.get<std::string>():"default";
+}
+std::string homeDirectory(){
+  auto home=indigenousEnvironment("HOME");
+  if(home.empty())home=indigenousEnvironment("USERPROFILE");
+  return home;
+}
+// The checked-out branch read straight from HEAD, following a worktree's
+// "gitdir:" pointer. Empty outside a repository; a short id when detached.
+std::string readGitBranch(std::filesystem::path directory){
+  std::error_code error;
+  for(int depth=0;depth<64&&!directory.empty();++depth){
+    auto git=directory/".git";
+    if(std::filesystem::is_regular_file(git,error)){
+      std::ifstream pointer(git);std::string line;std::getline(pointer,line);
+      if(line.rfind("gitdir:",0)!=0)return {};
+      std::filesystem::path target=value::trim(line.substr(7));
+      git=target.is_absolute()?target:directory/target;
+    }
+    if(std::filesystem::is_directory(git,error)){
+      std::ifstream head(git/"HEAD");std::string line;
+      if(!std::getline(head,line))return {};
+      line=value::trim(line);
+      if(line.rfind("ref: refs/heads/",0)==0)return line.substr(16);
+      return line.size()>=7?line.substr(0,7):line;
+    }
+    const auto parent=directory.parent_path();
+    if(parent==directory)break;
+    directory=parent;
+  }
+  return {};
 }
 }
 std::shared_ptr<application_commands::Bundle> Host::Impl::makeCommands(){
@@ -100,6 +136,7 @@ std::shared_ptr<application_commands::Bundle> Host::Impl::makeCommands(){
     return bats->backgroundForegroundMission(id);};
   commandInputs.getRuntime=[this]{return runtime;};
   commandInputs.getShell=[this]{return shell;};
+  commandInputs.theme=[this]{return theme;};
   commandInputs.openRewind=[this]{
     if(!frontend)throw std::logic_error("Rewind frontend is unavailable");
     frontend->openRewind();};
@@ -743,7 +780,19 @@ void Host::Impl::bindFrontend(){
   shellInputs.input.presentation.setContextBlocked=[this](bool blocked){
     view.contextBlocked=blocked;};
   shellInputs.input.presentation.removeTranscriptMessage=[](const Json&){};
-  shellInputs.input.onTerminalResponse=[](termio::ResponseRef){};
+  shellInputs.input.onTerminalResponse=[this](termio::ResponseRef response){
+    // An answer to the background-color query lets "auto" follow light and
+    // dark terminal profiles.
+    if(!response||!theme||!systemTheme)return;
+    if(value::property(*response,"type")!="osc"||value::property(*response,"code")!=11)return;
+    const auto& data=value::property(*response,"data");
+    if(!data.is_string())return;
+    if(const auto detected=interactive::presentation_providers::themeFromOscColor(
+        data.get<std::string>())){
+      systemTheme->set(*detected);
+      theme->systemThemeChanged(*detected);
+    }
+  };
   shellInputs.input.onMouse=[](keyboard_input::MouseRef){};
   shellInputs.input.onTerminalFocus=[this](bool focused){
     view.input.focused=focused;};
@@ -837,18 +886,61 @@ void Host::Impl::bindFrontend(){
     editorNotification.reset();
   };
   shellInputs.editorOptions.fullscreen=config.fullscreen;
+  namespace ip=interactive::presentation_providers;
   const auto terminal=indigenousEnvironment("TERM");
-  const bool colors=indigenousEnvironment("NO_COLOR").empty()&&terminal!="dumb";
-  const auto colorTerm=indigenousEnvironment("COLORTERM");
-  const bool richColors=colorTerm=="truecolor"||colorTerm=="24bit"||
-    terminal.find("direct")!=std::string::npos||terminal=="xterm-kitty";
-  const std::string indigenousTheme=!colors?"monochrome":richColors?"halloween":"halloween-ansi";
-  theme=std::make_shared<interactive::presentation_providers::ThemeState>(
-    interactive::presentation_providers::ThemeStateServices{
-      [indigenousTheme] {return indigenousTheme;},[](const std::string&){},
-      [] {return std::string("dark");},[this]{if(shell)shell->requestRedraw();}});
+  ip::TerminalEnvironment environment{terminal,indigenousEnvironment("COLORTERM"),
+    indigenousEnvironment("TERM_PROGRAM"),indigenousEnvironment("NO_COLOR"),
+    indigenousEnvironment("WT_SESSION")};
+#ifdef _WIN32
+  environment.windows=true;
+#endif
+  const auto depth=ip::detectColorDepth(environment);
+  ip::applyColorDepth(depth);
+  const bool colors=depth!=ip::ColorDepth::None;
+  systemTheme=std::make_shared<ip::SystemThemeStash>(
+    [colorFgBg=indigenousEnvironment("COLORFGBG")]()->std::optional<std::string>{
+      if(colorFgBg.empty())return std::nullopt;
+      return colorFgBg;});
+  std::string savedTheme="auto";
+  if(const auto& saved=value::property(config.settings,"theme");saved.is_string()&&
+      ip::isKnownTheme(saved.get<std::string>()))
+    savedTheme=ip::canonicalThemeName(saved.get<std::string>());
+  theme=std::make_shared<ip::ThemeState>(ip::ThemeStateServices{
+      [savedTheme]{return savedTheme;},
+      [this,settingsPath=configurationDirectory(config)/"settings.json"](const std::string& value){
+        try{application_config::patchConfigSettings(settingsPath,Json{{"theme",value}});}
+        catch(const std::exception& error){
+          statusText=std::string("Could not save the theme: ")+error.what();
+          ++view.revision;
+        }},
+      [stash=systemTheme]{return stash->current();},
+      [this]{if(shell)shell->requestRedraw();}});
   application_presentation::Inputs presentInputs;
   presentInputs.theme=theme.get();
+  presentInputs.homeDirectory=homeDirectory;
+  presentInputs.gitBranch=[roost=roost,cached=std::make_shared<std::pair<double,std::string>>(-1e9,"")]{
+    // HEAD changes rarely; read it at most every two seconds while painting.
+    const auto now=static_cast<double>(platform::nowMillis());
+    if(now-cached->first>2000){cached->first=now;cached->second=readGitBranch(roost->cwd());}
+    return cached->second;
+  };
+  presentInputs.contextUsage=[this]()->std::optional<double>{
+    const auto capacity=static_cast<double>(config.contextWindow);
+    if(capacity<=0)return std::nullopt;
+    for(auto message=view.messages.rbegin();message!=view.messages.rend();++message){
+      if(!*message)continue;
+      const auto* usage=getTokenUsage(**message);
+      if(!usage||!usage->is_object())continue;
+      double tokens=0;
+      for(const auto* key:{"input_tokens","cache_creation_input_tokens",
+          "cache_read_input_tokens","output_tokens"}){
+        const auto& count=value::property(*usage,key);
+        if(count.is_number())tokens+=count.get<double>();
+      }
+      return tokens/capacity;
+    }
+    return std::nullopt;
+  };
   presentInputs.shortcuts=interactive::presentation_providers::makeShortcutProvider(
 #ifdef __APPLE__
     {"macos",true,[](const std::string&){return false;}},

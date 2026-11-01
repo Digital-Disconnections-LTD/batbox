@@ -2,6 +2,7 @@
 #include "commands/Roster.hpp"
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace batbox::commands_indigenous {
@@ -123,6 +124,30 @@ void inlineModel(const std::string& arg,
   }catch(const std::exception& failure){error(failure.what());}
 }
 }
+std::string helpSection(const std::string& name){
+  static const std::unordered_map<std::string,std::string> sections={
+    {"clear","Flight"},{"compact","Flight"},{"resume","Flight"},{"rename","Flight"},
+    {"rewind","Flight"},{"export","Flight"},{"copy","Flight"},{"exit","Flight"},
+    {"model","Model and settings"},{"effort","Model and settings"},
+    {"config","Model and settings"},{"theme","Model and settings"},
+    {"permissions","Model and settings"},{"fast","Model and settings"},
+    {"bats","Crew and Missions"},{"agents","Crew and Missions"},
+    {"leader","Crew and Missions"},{"missions","Crew and Missions"},
+    {"tasks","Crew and Missions"},{"bashes","Crew and Missions"},
+    {"memory","Roost and context"},{"project","Roost and context"},
+    {"context","Roost and context"},{"status","Roost and context"},
+    {"cost","Roost and context"},{"mcp","Roost and context"},
+    {"skills","Roost and context"},{"init","Roost and context"},
+    {"hooks","Roost and context"},{"doctor","Roost and context"}};
+  const auto found=sections.find(name);
+  return found==sections.end()?"More":found->second;
+}
+int sectionOrder(const std::string& section){
+  static const std::vector<std::string> order={"Flight","Model and settings",
+    "Crew and Missions","Roost and context","More"};
+  const auto found=std::find(order.begin(),order.end(),section);
+  return static_cast<int>(found-order.begin());
+}
 user_input::CommandEntry makeHelpCommand(
     std::shared_ptr<user_input::UiCommandRouter> router,
     std::function<std::vector<Json>()> commands){
@@ -134,32 +159,70 @@ user_input::CommandEntry makeHelpCommand(
     [commands](const std::string&){
       return [commands](auto done,auto ready,auto error){
         try{
-          interactive::UiRequest request;
-          request.kind=interactive::UiRequest::Kind::Notice;
-          request.id="help";request.title="Help";
-          auto listed=commands();
-          std::sort(listed.begin(),listed.end(),[](const Json& left,
-              const Json& right){
-            return value::property(left,"name")<value::property(right,"name");
-          });
+          struct Entry {std::string name,description,section;};
+          std::vector<Entry> entries;
           std::unordered_set<std::string> seen;
-          for(const auto& command:listed){
+          for(const auto& command:commands()){
             const auto& name=value::property(command,"name");
             if(!name.is_string())continue;
             if(value::truthy(value::property(command,"isHidden")))continue;
             if(!seen.insert(name.get<std::string>()).second)continue;
-            request.body+="/"+name.get<std::string>();
             const auto& description=value::property(command,"description");
-            if(description.is_string())
-              request.body+="  "+description.get<std::string>();
-            request.body+='\n';
+            entries.push_back({name.get<std::string>(),
+              description.is_string()?description.get<std::string>():std::string{},
+              helpSection(name.get<std::string>())});
           }
-          ready(request,[done](const interactive::UiAction& action){
-            if(action.kind==interactive::UiAction::Kind::Activate||
-               action.kind==interactive::UiAction::Kind::Cancel)
+          std::stable_sort(entries.begin(),entries.end(),[](const Entry& left,
+              const Entry& right){
+            const auto a=sectionOrder(left.section),b=sectionOrder(right.section);
+            return a!=b?a<b:left.name<right.name;
+          });
+          // Keys sit after the commands; choosing one simply closes help.
+          const std::vector<std::pair<std::string,std::string>> keys={
+            {"esc","Interrupt the model, or return from a Bat"},
+            {"ctrl+o","Transcript with full Gadget output"},
+            {"ctrl+r","Search poetry history"},
+            {"ctrl+b","Send running work to the background"},
+            {"ctrl+e","Show earlier messages in the transcript"},
+            {"@ path","Mention a file in your poetry"},
+            {"! command","Run a shell command in the Roost"}};
+          auto request=std::make_shared<interactive::UiRequest>();
+          request->kind=interactive::UiRequest::Kind::Select;
+          request->id="help";request->title="Help";
+          request->body="Batbox commands and keys. Enter puts a command in your poetry.";
+          request->hint="↑↓ browse · enter use · esc close";
+          for(const auto& entry:entries){
+            request->choices.push_back("/"+entry.name);
+            request->choiceInfo.push_back({entry.description,{},entry.section});
+          }
+          const auto commandCount=request->choices.size();
+          for(const auto& [key,label]:keys){
+            request->choices.push_back(key);
+            request->choiceInfo.push_back({label,{},"Keys"});
+          }
+          auto respond=std::make_shared<std::function<void(const interactive::UiAction&)>>();
+          std::weak_ptr<std::function<void(const interactive::UiAction&)>> weak=respond;
+          *respond=[request,commandCount,done,ready,weak](const interactive::UiAction& action){
+            using Kind=interactive::UiAction::Kind;
+            if(action.kind==Kind::MoveSelection){
+              request->selectedIndex=std::min(action.index,request->choices.size()-1);
+              if(const auto strong=weak.lock())
+                ready(*request,[strong](const interactive::UiAction& next){(*strong)(next);});
+              return;
+            }
+            if(action.kind==Kind::Activate&&action.index<commandCount){
+              auto completion=complete(std::nullopt,interactive::DoneOptions::Display::Skip);
+              completion.options.nextInput=request->choices[action.index]+" ";
+              completion.options.submitNextInput=false;
+              done(std::move(completion));
+              return;
+            }
+            if(action.kind==Kind::Activate||action.kind==Kind::Cancel||
+               action.kind==Kind::Back)
               done(complete("Help dialog dismissed",
                 interactive::DoneOptions::Display::System));
-          });
+          };
+          ready(*request,[respond](const interactive::UiAction& action){(*respond)(action);});
         }catch(const std::exception& failure){error(failure.what());}
       };
     });

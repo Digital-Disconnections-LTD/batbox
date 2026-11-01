@@ -1,26 +1,31 @@
 #include "interactive/markdown/AnsiProjection.hpp"
 #include "runtime/Encoding.hpp"
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <sstream>
 #include <utility>
 
 namespace batbox::interactive::markdown {
 namespace {
-struct Style {
-  bool bold=false,italic=false,underline=false,dim=false;
-  std::optional<ftxui::Color> foreground;
-  std::string link;
-};
+using Style=AnsiStyle;
 ftxui::Element run(const std::string& text,const Style& style){
-  auto element=ftxui::paragraph(value::encodeUtf8(text));
-  if(style.bold)element=element|ftxui::bold;
-  if(style.italic)element=element|ftxui::italic;
-  if(style.underline)element=element|ftxui::underlined;
-  if(style.dim)element=element|ftxui::dim;
-  if(style.foreground)element=element|ftxui::color(*style.foreground);
-  if(!style.link.empty())element=element|ftxui::hyperlink(style.link);
-  return element;
+  return styleAnsiRun(ftxui::paragraph(value::encodeUtf8(text)),style);
+}
+std::optional<ftxui::Color> extended(const std::vector<int>& values,std::size_t& i){
+  if(i+2<values.size()&&values[i+1]==5){
+    const auto color=ftxui::Color(static_cast<ftxui::Color::Palette256>(
+      std::clamp(values[i+2],0,255)));
+    i+=2;return color;
+  }
+  if(i+4<values.size()&&values[i+1]==2){
+    const auto color=ftxui::Color::RGB(
+      static_cast<std::uint8_t>(std::clamp(values[i+2],0,255)),
+      static_cast<std::uint8_t>(std::clamp(values[i+3],0,255)),
+      static_cast<std::uint8_t>(std::clamp(values[i+4],0,255)));
+    i+=4;return color;
+  }
+  return {};
 }
 void applySgr(Style& style,const std::string& raw){
   std::vector<int> values;
@@ -42,28 +47,71 @@ void applySgr(Style& style,const std::string& raw){
     else if(code==2)style.dim=true;
     else if(code==3)style.italic=true;
     else if(code==4)style.underline=true;
+    else if(code==9)style.strike=true;
     else if(code==22){style.bold=false;style.dim=false;}
     else if(code==23)style.italic=false;
     else if(code==24)style.underline=false;
+    else if(code==29)style.strike=false;
     else if(code==39)style.foreground.reset();
+    else if(code==49)style.background.reset();
     else if(code>=30&&code<=37)
       style.foreground=ftxui::Color(static_cast<ftxui::Color::Palette16>(code-30));
     else if(code>=90&&code<=97)
       style.foreground=ftxui::Color(static_cast<ftxui::Color::Palette16>(code-90+8));
-    else if(code==38&&i+2<values.size()&&values[i+1]==5){
-      style.foreground=ftxui::Color(static_cast<ftxui::Color::Palette256>(
-        std::clamp(values[i+2],0,255)));
-      i+=2;
-    }else if(code==38&&i+4<values.size()&&values[i+1]==2){
-      style.foreground=ftxui::Color::RGB(
-        std::clamp(values[i+2],0,255),std::clamp(values[i+3],0,255),
-        std::clamp(values[i+4],0,255));
-      i+=4;
-    }
+    else if(code>=40&&code<=47)
+      style.background=ftxui::Color(static_cast<ftxui::Color::Palette16>(code-40));
+    else if(code>=100&&code<=107)
+      style.background=ftxui::Color(static_cast<ftxui::Color::Palette16>(code-100+8));
+    else if(code==38){if(auto color=extended(values,i))style.foreground=color;}
+    else if(code==48){if(auto color=extended(values,i))style.background=color;}
   }
 }
 } // namespace
 
+ftxui::Element styleAnsiRun(ftxui::Element element,const AnsiStyle& style){
+  if(style.bold)element=element|ftxui::bold;
+  if(style.italic)element=element|ftxui::italic;
+  if(style.underline)element=element|ftxui::underlined;
+  if(style.strike)element=element|ftxui::strikethrough;
+  if(style.dim)element=element|ftxui::dim;
+  if(style.foreground)element=element|ftxui::color(*style.foreground);
+  if(style.background)element=element|ftxui::bgcolor(*style.background);
+  if(!style.link.empty())element=element|ftxui::hyperlink(style.link);
+  return element;
+}
+std::optional<ftxui::Color> sgrColor(const std::string& sequence,bool background){
+  if(!sequence.starts_with("\x1b[")||!sequence.ends_with("m"))return {};
+  Style style;
+  applySgr(style,sequence.substr(2,sequence.size()-3));
+  return background?style.background:style.foreground;
+}
+std::vector<std::vector<AnsiRun>> parseAnsiLines(const std::string& source){
+  Style style;
+  std::vector<std::vector<AnsiRun>> lines(1);
+  std::string text;
+  const auto flush=[&](){
+    if(!text.empty()){lines.back().push_back({std::move(text),style});text.clear();}
+  };
+  for(std::size_t i=0;i<source.size();){
+    if(source[i]=='\n'){flush();lines.emplace_back();++i;continue;}
+    if(source[i]!='\x1b'){text+=source[i++];continue;}
+    if(i+1<source.size()&&source[i+1]=='['){
+      const auto end=source.find('m',i+2);
+      if(end==std::string::npos){text+=source[i++];continue;}
+      flush();applySgr(style,source.substr(i+2,end-(i+2)));i=end+1;continue;
+    }
+    if(i+1<source.size()&&source[i+1]==']'){
+      const auto end=source.find('\x07',i+2);
+      if(end==std::string::npos){text+=source[i++];continue;}
+      const auto command=source.substr(i+2,end-(i+2));
+      if(command.starts_with("8;;")){flush();style.link=command.substr(3);}
+      i=end+1;continue;
+    }
+    text+=source[i++];
+  }
+  flush();
+  return lines;
+}
 ftxui::Element projectAnsi(const std::string& source,bool dim){
   Style style;
   std::vector<ftxui::Element> lines,parts;

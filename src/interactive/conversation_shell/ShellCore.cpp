@@ -371,6 +371,8 @@ void Shell::setRemembering(bool active){
   remembering_=active;requestRedraw();
 }
 void Shell::syncActivityPulse(){
+  if(!presentation().loading)workingSince_.reset();
+  else if(!workingSince_&&imports_.nowMs)workingSince_=imports_.nowMs();
   const bool active=started_&&driver_&&driver_->interactive()&&
     driver_->mode()==terminal_ftxui::Mode::Fullscreen&&
     !driver_->suspended()&&terminalFocused_&&

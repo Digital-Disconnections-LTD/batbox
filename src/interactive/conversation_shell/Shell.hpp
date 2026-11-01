@@ -35,6 +35,20 @@ struct ViewState {
   unsigned activityFrame=0;
   unsigned welcomeFrame=welcomeAnimationFrames;
   int bodyRows=0,bodyScreenRow=0;
+  // Milliseconds since the current turn started working; zero when idle.
+  double workingMs=0;
+  std::string streamMode;
+  bool historySearch=false;
+};
+// How chrome dresses the poetry input. Framed inputs are inset by
+// poetryFrameInset columns: a rounded border plus one column of padding.
+inline constexpr int poetryFrameInset=4;
+struct PoetryDecor {
+  bool framed=false;
+  std::string placeholder;
+  ftxui::Color prompt=ftxui::Color::Default;
+  ftxui::Color placeholderColor=ftxui::Color::Default;
+  ftxui::Color border=ftxui::Color::Default;
 };
 struct ChromeProviders {
   std::function<ftxui::Element(const ViewState&)> renderHeader,
@@ -44,6 +58,13 @@ struct ChromeProviders {
   std::function<ftxui::Element(const ViewState&)> renderWelcome;
   std::function<ftxui::Element(const message_list_view::DividerRequest&)>
     renderDivider;
+  // Optional status row under the poetry input. When present it replaces the
+  // footer above the input.
+  std::function<ftxui::Element(const ViewState&)> renderStatus;
+  std::function<PoetryDecor(const ViewState&)> poetryDecor;
+  // Optional suggestion rows; the shell draws plain rows without it.
+  std::function<ftxui::Element(const std::vector<application_completion::Suggestion>&,
+    std::size_t selected,const ViewState&)> renderSuggestions;
 };
 struct Imports {
   event_loop::Loop& owner;
@@ -84,6 +105,9 @@ struct Imports {
   std::function<message_view::ProjectionServices()> projectionServices;
   std::function<ftxui::Element(const std::string&,bool)> renderStreamingMarkdown;
   message_view::RetainedViewServices retainedViews;
+  // When set, read for every paint so theme and width changes reach result
+  // cards; otherwise the services above are used as bound.
+  std::function<message_view::RetainedViewServices()> liveRetainedViews;
   ChromeProviders chrome;
   text_input::EditorOptions editorOptions;
   text_input::MetricsServices editorMetrics;
@@ -169,6 +193,7 @@ private:
   void syncFocus();
   void syncActivityPulse();
   void syncWelcomeAnimation();
+  int poetryColumns(int columns)const;
   void commitInlineScrollback();
   void observeLastMessage();
   void reportDetached(std::exception_ptr error)const;
@@ -197,6 +222,7 @@ private:
   event_loop::Loop::TimerHandle activityPulseTimer_;
   event_loop::Loop::TimerHandle welcomeTimer_;
   unsigned activityFrame_=0;
+  std::optional<double> workingSince_;
   unsigned welcomeFrame_=welcomeAnimationFrames;
   bool welcomeVisible_=false,welcomeRendered_=false,welcomeStarted_=false;
   bool remembering_=false;

@@ -111,7 +111,8 @@ gadgets::Gadget Runtime::makeGadget(std::function<std::future<Json>(const Json&,
     return "LSP "+stringField(input,"operation")+": "+stringField(input,"filePath")+
       (symbol?" ("+*symbol+")":"")+":"+std::to_string(line)+":"+std::to_string(character);
   };
-  gadget.renderGadgetResultMessage=[](const Json&,const Json& data,const Json&)->Json{
+  // Result renderers receive (output, progress, options).
+  gadget.renderGadgetResultMessage=[](const Json& data,const Json&,const Json&)->Json{
     if(data.is_object()&&data.contains("resultCount")&&data.at("resultCount").is_number_integer()){
       auto count=data.at("resultCount").get<int>();
       auto operation=stringField(data,"operation");

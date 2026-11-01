@@ -15,6 +15,8 @@ struct Token {
   Kind kind=Kind::Text;
   std::string raw,text,language,href;
   int depth=0,start=1;
+  // Task list items: -1 for a regular item, 0 unchecked, 1 checked.
+  int checked=-1;
   bool ordered=false;
   std::vector<Token> children,items;
   std::vector<std::vector<Token>> header;

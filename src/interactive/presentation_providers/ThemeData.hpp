@@ -16,6 +16,9 @@ RawTheme darkTheme();
 RawTheme darkAnsiTheme();
 RawTheme lightDaltonizedTheme();
 RawTheme darkDaltonizedTheme();
+RawTheme batboxDarkTheme();
+RawTheme batboxLightTheme();
+RawTheme batboxAnsiTheme();
 
 const RawTheme& getTheme(std::string_view name);
 std::vector<std::string> themeNames();

@@ -21,6 +21,8 @@ public:
   const std::string& setting()const{return setting_;}
   const std::optional<std::string>& preview()const{return preview_;}
   std::string currentTheme()const;
+  // The detected terminal background ("dark" or "light") that "auto" follows.
+  std::string systemTheme()const{return services_.getSystemTheme();}
   void setSetting(std::string setting);
   void setPreview(std::string setting);
   void savePreview();

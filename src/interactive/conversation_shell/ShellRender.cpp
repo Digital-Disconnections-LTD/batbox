@@ -2,6 +2,7 @@
 #include "interactive/conversation_shell/PoetryViewport.hpp"
 #include "interactive/presentation_providers/MissionFooter.hpp"
 #include "terminal_ftxui/ElementSearch.hpp"
+#include "terminal_ftxui/TextFit.hpp"
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 #include <algorithm>
@@ -51,8 +52,8 @@ std::string repeatRule(int columns){
 std::string oneLine(std::string value,std::size_t width){
   const auto breakAt=value.find_first_of("\r\n");
   if(breakAt!=std::string::npos)value.resize(breakAt);
-  if(value.size()>width&&width>1)value=value.substr(0,width-1)+"…";
-  return value;
+  // Width is in terminal columns; multibyte glyphs are never split.
+  return terminal_ftxui::truncateColumns(value,static_cast<int>(width));
 }
 }
 const ViewState Shell::viewState()const{
@@ -73,7 +74,14 @@ const ViewState Shell::viewState()const{
   result.remembering=remembering_;
   result.activityFrame=activityFrame_;
   result.welcomeFrame=welcomeFrame_;
+  if(workingSince_&&imports_.nowMs)
+    result.workingMs=std::max(0.0,imports_.nowMs()-*workingSince_);
+  result.streamMode=presentation().streamMode.value_or("");
+  result.historySearch=!batConversation_&&historyNavigator_&&historyNavigator_->searching();
   return result;
+}
+int Shell::poetryColumns(int columns)const{
+  return imports_.chrome.poetryDecor&&columns>=24?columns-poetryFrameInset:columns;
 }
 ftxui::Element Shell::renderInline(){
   const auto& view=presentation().viewport;
@@ -85,7 +93,8 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   auto projected=imports_.projectionServices();
   currentGadgets_=projected.gadgets;
   message_list_view::ProjectionImports renderer;
-  renderer.messages=retained_->bind(std::move(projected),imports_.retainedViews);
+  renderer.messages=retained_->bind(std::move(projected),
+    imports_.liveRetainedViews?imports_.liveRetainedViews():imports_.retainedViews);
   renderer.renderStreamingMarkdown=imports_.renderStreamingMarkdown;
   renderer.renderLogo=imports_.chrome.renderLogo;
   renderer.renderDivider=imports_.chrome.renderDivider;
@@ -95,25 +104,40 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   };
   auto view=viewState();
   auto header=imports_.chrome.renderHeader(view);
-  auto footer=imports_.chrome.renderFooter(view);
+  // With a status row the chrome sits under the input, where the eyes are.
+  const bool statusBelow=static_cast<bool>(imports_.chrome.renderStatus);
+  auto footer=statusBelow?imports_.chrome.renderStatus(view):
+    imports_.chrome.renderFooter(view);
   auto modal=imports_.chrome.renderModal(view);
   auto pill=imports_.chrome.renderPill(view);
   auto missions=imports_.chrome.renderMissions?imports_.chrome.renderMissions(view):
     ftxui::vbox(ftxui::Elements{});
   const bool showSticky=sticky_.kind==transcript_navigation::StickyPoetry::Kind::Poetry&&
     !presentation().modal;
-  auto sticky=showSticky?fixed(ftxui::text("› "+sticky_.text)|ftxui::dim,1):
+  auto sticky=showSticky?fixed(terminal_ftxui::fitText(presentation().input.poetry+
+    oneLine(sticky_.text,static_cast<std::size_t>(std::max(8,view.columns))))|ftxui::dim,1):
     ftxui::vbox(ftxui::Elements{});
   const auto& input=searchOpen_?searchInput_:presentation().input;
   const bool showPoetry=searchOpen_||!presentation().modal||
     !presentation().modal->hidePoetry;
-  const int poetryLimit=std::max(1,view.rows/2-heightOf(footer));
-  auto poetry=showPoetry?poetryViewport(input,view.columns,poetryLimit,
-    imports_.editorMetrics,searchOpen_?terminalFocused_:input.focused):
-    ftxui::vbox(ftxui::Elements{});
+  const auto decor=imports_.chrome.poetryDecor?
+    std::optional<PoetryDecor>(imports_.chrome.poetryDecor(view)):std::nullopt;
+  const bool framed=decor&&poetryColumns(view.columns)!=view.columns;
+  const int poetryLimit=std::max(1,view.rows/2-heightOf(footer)-(framed?2:0));
+  auto poetry=showPoetry?poetryViewport(input,poetryColumns(view.columns),poetryLimit,
+    imports_.editorMetrics,searchOpen_?terminalFocused_:input.focused,
+    decor?&*decor:nullptr):ftxui::vbox(ftxui::Elements{});
+  if(showPoetry&&framed){
+    poetry=ftxui::hbox({ftxui::text(" "),std::move(poetry)|ftxui::xflex,ftxui::text(" ")})|
+      ftxui::borderStyled(ftxui::ROUNDED,decor->border);
+  }
   const bool showSuggestions=!transcript_&&!searchOpen_&&
     !presentation().modal&&!suggestions_.empty()&&input.focused;
   ftxui::Elements suggestionLines;
+  ftxui::Element suggestions;
+  if(showSuggestions&&imports_.chrome.renderSuggestions){
+    suggestions=imports_.chrome.renderSuggestions(suggestions_,selectedSuggestion_,view);
+  }else{
   if(showSuggestions){
     const auto shown=std::min<std::size_t>(6,suggestions_.size());
     const auto first=selectedSuggestion_>=shown?
@@ -132,15 +156,16 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
       suggestionLines.push_back(std::move(line));
     }
   }
-  auto suggestions=ftxui::vbox(std::move(suggestionLines));
-  const bool showHistorySearch=!batConversation_&&historyNavigator_&&historyNavigator_->searching();
+  suggestions=ftxui::vbox(std::move(suggestionLines));
+  }
+  const bool showHistorySearch=view.historySearch;
   auto historySearch=showHistorySearch?ftxui::text(oneLine(
       std::string("reverse-i-search: ")+historyNavigator_->searchQuery()+
         (historyNavigator_->searchFailed()?"  (no further match)":""),
       static_cast<std::size_t>(std::max(8,view.columns-2))))|ftxui::dim:
     ftxui::vbox(ftxui::Elements{});
   int headerRows=heightOf(header),footerRows=heightOf(footer);
-  int poetryRows=showPoetry?std::max(1,heightOf(poetry)):0;
+  int poetryRows=showPoetry?std::max(framed?3:1,heightOf(poetry)):0;
   int suggestionRows=showSuggestions?heightOf(suggestions):0;
   int missionRows=heightOf(missions);
   const int historySearchRows=showHistorySearch?1:0;
@@ -148,7 +173,7 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   const auto rows=std::max(1,view.rows);
   footerRows=std::min(footerRows,rows/2);
   missionRows=std::min(missionRows,std::max(0,rows/4));
-  poetryRows=std::min(poetryRows,std::max(0,rows/2-footerRows));
+  poetryRows=std::min(poetryRows,std::max(framed?3:0,rows/2-footerRows));
   suggestionRows=std::min(suggestionRows,
     std::max(0,rows-footerRows-poetryRows-historySearchRows-pillRows-missionRows-2));
   headerRows=std::min(headerRows,
@@ -158,7 +183,8 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   const int bodyRows=std::max(1,rows-headerRows-footerRows-poetryRows-
     suggestionRows-historySearchRows-stickyRows-pillRows-missionRows);
   stickyScreenRow_=showSticky?std::optional<int>(headerRows):std::nullopt;
-  pillScreenRow_=pillRows?std::optional<int>(rows-poetryRows-1):std::nullopt;
+  pillScreenRow_=pillRows?std::optional<int>(rows-poetryRows-1-
+    (statusBelow?footerRows:0)):std::nullopt;
   missionScreenRow_=missionRows?std::optional<int>(headerRows+stickyRows+bodyRows+
     suggestionRows+historySearchRows):std::nullopt;
   footerMissionIds_.clear();
@@ -196,9 +222,10 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
     suggestionRows));
   if(historySearchRows)stack.push_back(fixed(std::move(historySearch),1));
   if(missionRows)stack.push_back(fixed(std::move(missions),missionRows));
-  if(footerRows)stack.push_back(fixed(std::move(footer),footerRows));
+  if(footerRows&&!statusBelow)stack.push_back(fixed(std::move(footer),footerRows));
   if(pillRows)stack.push_back(fixed(std::move(pill),pillRows));
   if(poetryRows)stack.push_back(fixed(std::move(poetry),poetryRows));
+  if(footerRows&&statusBelow)stack.push_back(fixed(std::move(footer),footerRows));
   auto base=ftxui::vbox(std::move(stack));
   if(presentation().modal){
     const bool bounded=presentation().modal->bodyPreviewLines.has_value();
@@ -287,12 +314,13 @@ void Shell::onResize(ftxui::Dimensions size){
   }
   if(batConversation_)updateViewport(imports_.presentation,size.dimx,size.dimy);
   auto options=imports_.editorOptions;
-  options.columns=poetryEditorColumns(presentation().input,size.dimx,
+  options.columns=poetryEditorColumns(presentation().input,poetryColumns(size.dimx),
     imports_.editorMetrics);
   options.fullscreen=driver_->mode()==terminal_ftxui::Mode::Fullscreen;
   editor_->setOptions(std::move(options));
   auto searchOptions=imports_.editorOptions;
-  searchOptions.columns=poetryEditorColumns(searchInput_,size.dimx,imports_.editorMetrics);
+  searchOptions.columns=poetryEditorColumns(searchInput_,poetryColumns(size.dimx),
+    imports_.editorMetrics);
   searchOptions.fullscreen=driver_->mode()==terminal_ftxui::Mode::Fullscreen;
   searchOptions.multiline=false;searchOptions.disableEscapeDoublePress=true;
   searchEditor_->setOptions(std::move(searchOptions));

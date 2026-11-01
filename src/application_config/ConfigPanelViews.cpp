@@ -18,15 +18,15 @@ void Panel::showHome(){
     view.kind=interactive::UiRequest::Kind::Select;
     view.id="endpoint-home";view.title="◆  BATBOX  /  CONFIG";
     view.body="ENDPOINTS  "+std::to_string(ids.size())+
-      " configured  ·  active "+selectedProfile()+
-      "\n↑↓ navigate  ·  Enter open  ·  Esc close";
+      " configured  ·  active "+selectedProfile();
+    view.hint="↑↓ navigate · enter open · esc close";
     if(!notice_.empty())view.body+="\n"+notice_;
     for(auto i=begin;i<std::min(total,begin+capacity);++i){
       if(i<ids.size()){
         const auto& endpoint=endpoints_.at(ids[i]);
         view.choices.push_back((selectedProfile().starts_with(ids[i]+"::")?"● ":"○ ")+
           endpoint.label+"  ·  "+std::to_string(endpoint.models.size())+" models");
-      }else if(i==ids.size())view.choices.push_back("＋ Add endpoint");
+      }else if(i==ids.size())view.choices.push_back("+ Add endpoint");
       else if(i==ids.size()+1)view.choices.push_back("⚙ Request settings");
       else view.choices.push_back("Done");
     }
@@ -65,10 +65,11 @@ void Panel::showDetail(){
       " · cache "+(endpoint.poetryStashing?"on":"off")+
       " · adaptive "+(endpoint.adaptiveThinking?"on":"off")+
       "\nDiscovery  "+modelsUrl(endpoint)+
-      "\nEsc back  ·  keys remain hidden";
+      "\nKeys remain hidden.";
+    view.hint="↑↓ choose · enter open · r refresh · m add model · esc back";
     if(!notice_.empty())view.body+="\n"+notice_;
     view.choices={"Browse models ("+std::to_string(endpoint.models.size())+")",
-      "↻ Discover / refresh models","＋ Add model ID","Edit endpoint",
+      "↻ Discover / refresh models","+ Add model ID","Edit endpoint",
       "Delete endpoint","Back"};
     view.selectedIndex=std::min<std::size_t>(detailIndex_,view.choices.size()-1);
     auto self=shared_from_this();
@@ -115,15 +116,15 @@ void Panel::showModels(){
     interactive::UiRequest view;view.kind=interactive::UiRequest::Kind::Select;
     view.id="endpoint-models";view.title="◆  "+endpoints_.at(endpointId_).label+" / MODELS";
     view.body=std::to_string(models.size())+" shown of "+
-      std::to_string(endpoints_.at(endpointId_).models.size())+
-      "  ·  / search  ·  r refresh  ·  m add  ·  Esc back";
+      std::to_string(endpoints_.at(endpointId_).models.size());
+    view.hint="↑↓ choose · enter select · / search · r refresh · m add · c clear · esc back";
     if(!search_.empty())view.body+="\nFilter  "+search_;
     if(!notice_.empty())view.body+="\n"+notice_;
     if(models.empty())view.body+="\nNo models shown. Add an ID manually or refresh discovery.";
     for(auto i=begin;i<std::min(total,begin+capacity);++i){
       if(i<models.size())view.choices.push_back(
         (selectedProfile()==profileId(endpointId_,models[i])?"● ":"○ ")+models[i]);
-      else if(i==models.size())view.choices.push_back("＋ Add model ID");
+      else if(i==models.size())view.choices.push_back("+ Add model ID");
       else if(i==models.size()+1)view.choices.push_back("↻ Refresh discovery");
       else view.choices.push_back("Back");
     }

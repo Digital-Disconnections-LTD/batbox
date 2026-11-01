@@ -100,7 +100,9 @@ std::string listItem(const Token& token,const FormatServices& services,
                      int depth,std::optional<int> number){
   std::string output;
   const auto plainPrefix=number?listNumber(depth+1,*number)+". ":"- ";
-  const auto prefix=services.listMarker?services.listMarker(plainPrefix):plainPrefix;
+  auto prefix=services.listMarker?services.listMarker(plainPrefix):plainPrefix;
+  if(token.checked>=0)prefix=services.taskMarker?services.taskMarker(token.checked==1):
+    std::string(token.checked==1?"[x] ":"[ ] ");
   bool first=true;
   for(const auto& child:token.children){
     if(child.kind==Kind::Paragraph){
@@ -155,6 +157,7 @@ std::string formatToken(const Token& token,const FormatServices& services,
     return services.highlight(token.text,language)+'\n';
   }
   case Kind::CodeSpan:
+    if(services.inlineCode)return services.inlineCode(token.text);
     require(services.permission,"inline code style");
     return services.permission(token.text);
   case Kind::Emphasis:
@@ -166,6 +169,7 @@ std::string formatToken(const Token& token,const FormatServices& services,
   case Kind::Heading:{
     require(services.bold,"bold style");
     const auto content=inner(token.children,services);
+    if(services.heading)return services.heading(content,token.depth)+"\n\n";
     if(token.depth==1){
       require(services.italic,"italic style");
       require(services.underline,"underline style");
@@ -181,9 +185,10 @@ std::string formatToken(const Token& token,const FormatServices& services,
     require(services.createHyperlink,"hyperlink creator");
     const auto text=inner(token.children,services,&token);
     const auto plainText=services.stripAnsi(text);
-    if(!plainText.empty()&&plainText!=token.href)
-      return services.createHyperlink(token.href,text);
-    return services.createHyperlink(token.href,{});
+    const auto linked=!plainText.empty()&&plainText!=token.href?
+      services.createHyperlink(token.href,text):
+      services.createHyperlink(token.href,{});
+    return services.link?services.link(linked):linked;
   }
   case Kind::List:{
     std::string output;
@@ -248,13 +253,14 @@ FormatServices indigenousFormatServices(bool colors,bool hyperlinks,
       const std::string& text){
     return colors?code+text+"\x1b[39m":text;};
   services.supportsHyperlinks=[hyperlinks]{return hyperlinks;};
-  services.createHyperlink=[colors,hyperlinks](const std::string& url,
+  services.createHyperlink=[hyperlinks](const std::string& url,
       const std::optional<std::string>& content){
     if(!hyperlinks)return url;
     const auto display=content.value_or(url);
-    return "\x1b]8;;"+url+"\x07"+
-      (colors?"\x1b[34m"+display+"\x1b[39m":display)+"\x1b]8;;\x07";
+    return "\x1b]8;;"+url+"\x07"+display+"\x1b]8;;\x07";
   };
+  services.link=[colors](const std::string& text){
+    return colors?"\x1b[34m"+text+"\x1b[39m":text;};
   services.stripAnsi=[](const std::string& text){
     std::string out;
     for(std::size_t i=0;i<text.size();){

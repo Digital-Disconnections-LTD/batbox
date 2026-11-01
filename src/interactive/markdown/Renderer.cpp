@@ -1,5 +1,6 @@
 #include "interactive/markdown/Renderer.hpp"
 #include "interactive/markdown/AnsiProjection.hpp"
+#include "interactive/markdown/Blocks.hpp"
 #include "runtime/JsonValue.hpp"
 #include <stdexcept>
 #include <utility>
@@ -8,18 +9,30 @@ namespace batbox::interactive::markdown {
 namespace {
 ftxui::Element grouped(const Tokens& tokens,const FormatServices& services,
     const WrapAnsi& wrap,int columns,bool dim){
+  const auto blocks=services.blockStyle?
+    std::optional<FormatServices::BlockStyle>(services.blockStyle()):std::nullopt;
+  const auto prose=[&](ftxui::Element element){
+    return blocks&&blocks->readingWidth>0?element|ftxui::size(ftxui::WIDTH,
+      ftxui::LESS_THAN,blocks->readingWidth):element;
+  };
   std::vector<ftxui::Element> elements;
   std::string nonTable;
   const auto flush=[&](){
-    if(!nonTable.empty()){
-      elements.push_back(projectAnsi(value::trim(nonTable),dim));
-      nonTable.clear();
-    }
+    // Blank separators between blocks are spacing, not content.
+    if(!value::trim(nonTable).empty())
+      elements.push_back(prose(projectAnsi(value::trim(nonTable),dim)));
+    nonTable.clear();
   };
   for(const auto& token:tokens){
     if(token.kind==Kind::Table){
       flush();
       elements.push_back(projectAnsi(renderTable(token,columns,services,wrap),dim));
+    }else if(blocks&&token.kind==Kind::Code){
+      flush();elements.push_back(projectCodeBlock(token,services,*blocks,columns,dim));
+    }else if(blocks&&token.kind==Kind::Rule){
+      flush();elements.push_back(projectRule(*blocks,columns));
+    }else if(blocks&&token.kind==Kind::List){
+      flush();elements.push_back(prose(projectList(token,services,*blocks,dim)));
     }else nonTable+=formatToken(token,services);
   }
   flush();

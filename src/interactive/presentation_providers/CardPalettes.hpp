@@ -8,6 +8,8 @@
 #include "interactive/cards_system/SystemTextProjection.hpp"
 #include "interactive/cards_gadget_result/GadgetErrorProjection.hpp"
 #include "interactive/presentation_providers/ThemeState.hpp"
+#include "interactive/presentation_providers/StyleRoles.hpp"
+#include "interactive/gadget_views/GadgetViewProjection.hpp"
 
 namespace batbox::interactive::presentation_providers {
 cards::OutputLinePalette outputLinePalette(const ThemeState&);
@@ -19,4 +21,6 @@ cards_gadget_result::GadgetErrorPalette gadgetErrorPalette(const ThemeState&);
 cards_remaining::AttachmentPalette attachmentPalette(const ThemeState&);
 cards_remaining::LeafPalette leafPalette(const ThemeState&,
     std::function<bool(bool)> isBlinking);
+gadget_views::GadgetViewStyle gadgetViewStyle(const StyleRoles& roles,
+    std::string expandKey);
 } // namespace batbox::interactive::presentation_providers

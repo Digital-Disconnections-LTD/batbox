@@ -20,6 +20,11 @@ struct Inputs {
   std::function<void(const std::string&)> log;
   std::function<std::optional<std::string>(int)> storedImagePath;
   std::function<std::string(const std::string&)> displayPath;
+  // Optional status-row context.
+  std::function<std::string()> gitBranch,homeDirectory;
+  std::function<std::optional<double>()> contextUsage;
+  // Paint clock in milliseconds for spinners; a steady clock by default.
+  std::function<double()> nowMs;
   bool colors=true,hyperlinks=false;
 };
 class Bundle final:public std::enable_shared_from_this<Bundle> {
@@ -38,5 +43,10 @@ private:
   text_width::WrapAnsiRef wrap_;
   std::shared_ptr<interactive::markdown::Renderer> markdown_;
   interactive::markdown::StreamingState streaming_;
+  struct MarkdownPalette;
+  std::shared_ptr<MarkdownPalette> markdownPalette_;
+  void refreshMarkdownPalette()const;
+  std::string spinnerGlyph()const;
+  std::string expandKey()const;
 };
 } // namespace batbox::application_presentation
