@@ -97,6 +97,9 @@ event_loop::Deferred<std::size_t> IndigenousBatApplication::seedSavedBats(){
   try{
     if(closing_)throw std::runtime_error("Agent application is shutting down");
     const auto flight=inputs_.currentFlightId();
+    // Each Flight is listed once; later conversation id changes for the same
+    // Flight do not rescan its Bats.
+    if(!seededFlights_.insert(flight).second){output.resolve(0);return output;}
     std::string directory;
     {
       std::lock_guard lock(pathsMutex_);
@@ -110,35 +113,46 @@ event_loop::Deferred<std::size_t> IndigenousBatApplication::seedSavedBats(){
     }).then([self,flight,output](const std::vector<flights::SavedBat>* found,
         const std::exception_ptr& error){
       --self->conversationJobs_;self->checkShutdown();
-      if(error){output.reject(error);return;}
+      if(error){self->seededFlights_.erase(flight);output.reject(error);return;}
       try{
-        std::size_t added=0;
-        if(!found||found->empty()||self->closing_){output.resolve(0);return;}
-        {
-          std::lock_guard lock(self->pathsMutex_);
-          auto paths=self->pathsForFlightLocked(flight);
-          for(const auto& bat:*found){
-            if(self->batFlights_.try_emplace(bat.id,flight).second&&!bat.subdirectory.empty())
-              paths->setBatTranscriptSubdir(bat.id,bat.subdirectory);
-          }
+        if(!found||self->closing_){output.resolve(0);return;}
+        if(self->inputs_.currentFlightId()!=flight){
+          // Seed it again if this Flight becomes current later.
+          self->seededFlights_.erase(flight);output.resolve(0);return;
         }
-        self->setAppState([&](const Json& state){
-          Json next=state;
-          if(!next["tasks"].is_object())next["tasks"]=Json::object();
-          for(const auto& bat:*found){
-            if(!value::property(next["tasks"],bat.id).is_null())continue;
-            next["tasks"][bat.id]=bats::savedBatRecord(bat.id,bat.description,
-              bat.agentType,bat.poetry,bat.startTime,bat.endTime,bat.gadgetUses,
-              bat.lastAssistant,self->registration_.getMissionOutputPath(bat.id));
-            ++added;
-          }
-          return added?next:state;
-        });
-        output.resolve(added);
+        output.resolve(self->applySavedBats(flight,*found));
       }catch(...){output.reject(std::current_exception());}
     });
   }catch(...){output.reject(std::current_exception());}
   return output;
+}
+std::size_t IndigenousBatApplication::applySavedBats(const std::string& flight,
+    const std::vector<flights::SavedBat>& found){
+  // /clear or a resume may have moved to another Flight while the scan ran;
+  // its Bats belong to the Flight they were found in.
+  if(found.empty()||inputs_.currentFlightId()!=flight)return 0;
+  std::size_t added=0;
+  {
+    std::lock_guard lock(pathsMutex_);
+    auto paths=pathsForFlightLocked(flight);
+    for(const auto& bat:found){
+      if(batFlights_.try_emplace(bat.id,flight).second&&!bat.subdirectory.empty())
+        paths->setBatTranscriptSubdir(bat.id,bat.subdirectory);
+    }
+  }
+  setAppState([&](const Json& state){
+    Json next=state;
+    if(!next["tasks"].is_object())next["tasks"]=Json::object();
+    for(const auto& bat:found){
+      if(!value::property(next["tasks"],bat.id).is_null())continue;
+      next["tasks"][bat.id]=bats::savedBatRecord(bat.id,bat.description,
+        bat.agentType,bat.poetry,bat.startTime,bat.endTime,bat.gadgetUses,
+        bat.lastAssistant,registration_.getMissionOutputPath(bat.id));
+      ++added;
+    }
+    return added?next:state;
+  });
+  return added;
 }
 Json IndigenousBatApplication::retainedStateSummary()const{
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent memory snapshot requires owner");

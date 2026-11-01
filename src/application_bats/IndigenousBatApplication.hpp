@@ -11,6 +11,7 @@
 #include "flights/Paths.hpp"
 #include "flights/ProjectDirectories.hpp"
 #include "flights/WriteQueue.hpp"
+#include "flights/SavedBats.hpp"
 #include <atomic>
 #include <condition_variable>
 #include <filesystem>
@@ -103,6 +104,10 @@ private:
   friend struct batbox::application::HostSavedBatsProbe;
   explicit IndigenousBatApplication(Inputs inputs):inputs_(std::move(inputs)){}
   void initialize();
+  // Adds scanned Bats of flight as settled records when it is still the
+  // current Flight; returns how many were added.
+  std::size_t applySavedBats(const std::string& flight,
+    const std::vector<flights::SavedBat>& found);
   void bindPreflight(bats::BatGadgetCallServices& gadget);
   void bindLaunch(bats::BatGadgetCallServices& gadget);
   void bindForeground(bats::BatGadgetCallServices& gadget);
@@ -189,5 +194,6 @@ private:
   std::unordered_map<std::string,std::vector<Json>> pendingDirectInputs_;
   std::set<std::string> pendingContinuationScheduled_;
   std::size_t conversationJobs_=0;
+  std::set<std::string> seededFlights_;
 };
 } // namespace batbox::application_bats

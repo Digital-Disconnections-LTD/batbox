@@ -130,18 +130,32 @@ std::vector<SavedBat> scanSavedBats(const fs::path& directory,std::size_t limit)
   std::vector<SavedBat> found;
   std::error_code error;
   if(!fs::is_directory(directory,error))return found;
+  // Rank sidechains by modification time first so only the newest are read.
+  struct Candidate {fs::path path;std::string subdirectory;fs::file_time_type modified;};
+  std::vector<Candidate> candidates;
   const auto visit=[&](const fs::path& folder,const std::string& subdirectory){
     std::error_code walk;
     for(fs::directory_iterator it(folder,walk),end;!walk&&it!=end;it.increment(walk)){
       std::error_code kind;
-      if(it->is_regular_file(kind))
-        if(auto bat=readSavedBat(it->path(),subdirectory))found.push_back(std::move(*bat));
+      if(!it->is_regular_file(kind))continue;
+      const auto name=runtime::pathToUtf8(it->path().filename());
+      if(name.size()<=12||!name.starts_with("agent-")||!name.ends_with(".jsonl"))continue;
+      std::error_code stamp;
+      const auto modified=it->last_write_time(stamp);
+      candidates.push_back({it->path(),subdirectory,
+        stamp?fs::file_time_type::min():modified});
     }
   };
   visit(directory,"");
   for(fs::directory_iterator it(directory,error),end;!error&&it!=end;it.increment(error)){
     std::error_code kind;
     if(it->is_directory(kind))visit(it->path(),runtime::pathToUtf8(it->path().filename()));
+  }
+  std::stable_sort(candidates.begin(),candidates.end(),
+    [](const Candidate& a,const Candidate& b){return a.modified>b.modified;});
+  for(const auto& candidate:candidates){
+    if(found.size()>=limit)break;
+    if(auto bat=readSavedBat(candidate.path,candidate.subdirectory))found.push_back(std::move(*bat));
   }
   std::stable_sort(found.begin(),found.end(),[](const SavedBat& a,const SavedBat& b){
     return a.endTime>b.endTime;

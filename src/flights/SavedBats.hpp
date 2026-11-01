@@ -14,9 +14,10 @@ struct SavedBat {
   Json lastAssistant;   // final assistant row's message object, or null
 };
 // Lists agent-<id>.jsonl sidechains under subagentsDirectory and one level of
-// subdirectories, newest first, at most limit entries. Reads each sibling
-// .meta.json plus the first rows and the tail of the transcript; never
-// writes. Unreadable or malformed entries are skipped.
+// subdirectories, newest first, at most limit entries. Only the most recently
+// modified sidechains are opened, up to limit readable ones; each read takes
+// the sibling .meta.json plus the first rows and the tail of the transcript.
+// Never writes. Unreadable or malformed entries are skipped.
 std::vector<SavedBat> scanSavedBats(const std::filesystem::path& subagentsDirectory,
   std::size_t limit);
 // Milliseconds since the Unix epoch for an ISO-8601 UTC timestamp such as

@@ -2,6 +2,7 @@
 #include "flights/SavedBats.hpp"
 #include "runtime/Platform.hpp"
 #include "user_input/SlashInternal.hpp"
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -122,6 +123,41 @@ struct HostSavedBatsProbe {
         "Second saved reply","Opening a seeded Bat must load its saved transcript");
     impl.batOwner("a2222222")->releaseMission("a2222222");
     check(settle(impl,impl.bats->seedSavedBats())==0,"Seeding twice adds nothing");
+
+    // A Flight is listed once: a Bat saved afterwards is not picked up by a
+    // later conversation id change for the same Flight.
+    writeBat(subagents,"a4444444","Saved later","Later reply");
+    check(settle(impl,impl.bats->seedSavedBats())==0&&
+      mission(impl.appState(),"a4444444").is_null(),"A Flight's Bats are seeded only once");
+    // Results of a scan for a Flight that is no longer current are dropped.
+    check(impl.bats->applySavedBats("00000000-0000-4000-8000-000000000000",
+        flights::scanSavedBats(subagents,50))==0&&
+      mission(impl.appState(),"a4444444").is_null(),
+      "Bats scanned for an earlier Flight must not be seeded into the current one");
+    check(impl.bats->applySavedBats(impl.flight->id(),flights::scanSavedBats(subagents,50))==1&&
+      !mission(impl.appState(),"a4444444").is_null(),"The current Flight's scan still applies");
+  }
+
+  // Only the newest sidechains by modification time are opened, and an
+  // unreadable one does not use up the limit.
+  static void scanLimit(const std::filesystem::path& root){
+    const auto directory=root/"scan-limit";
+    const auto base=std::filesystem::file_time_type::clock::now();
+    for(int i=0;i<5;++i){
+      const auto id="b000000"+std::to_string(i);
+      writeBat(directory,id,"Bat "+std::to_string(i),"reply");
+      std::filesystem::last_write_time(directory/("agent-"+id+".jsonl"),
+        base-std::chrono::hours(10-i));
+    }
+    std::ofstream(directory/"agent-b9999999.jsonl")<<"not json\n";
+    std::filesystem::last_write_time(directory/"agent-b9999999.jsonl",base);
+    const auto newest=flights::scanSavedBats(directory,2);
+    std::vector<std::string> ids;
+    for(const auto& bat:newest)ids.push_back(bat.id);
+    std::sort(ids.begin(),ids.end());
+    check(ids==std::vector<std::string>({"b0000003","b0000004"}),
+      "The scan must read the two most recently modified readable sidechains");
+    check(flights::scanSavedBats(directory,50).size()==5,"Without a tight limit every Bat is listed");
   }
 
   static void streamThrottle(Host::Impl& impl){
@@ -235,6 +271,7 @@ struct HostSavedBatsProbe {
         impl.owner.runReady();
       };
       try{
+        scanLimit(root);
         commandNames(impl);
         savedBats(impl);
         streamThrottle(impl);
