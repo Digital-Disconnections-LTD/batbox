@@ -1,27 +1,16 @@
 #include "interactive/text_input/Cursor.hpp"
 #include "runtime/JsonValue.hpp"
+#include "history/References.hpp"
 #include <algorithm>
 #include <stdexcept>
 
 namespace batbox::interactive::text_input {
-namespace {
-std::optional<std::size_t> imageEnd(const std::u16string& text,
-                                    std::size_t start){
-  constexpr std::u16string_view prefix=u"[Image #";
-  if(start+prefix.size()>=text.size()||
-     text.compare(start,prefix.size(),prefix)!=0)return {};
-  auto cursor=start+prefix.size();
-  const auto digits=cursor;
-  while(cursor<text.size()&&text[cursor]>=u'0'&&text[cursor]<=u'9')++cursor;
-  if(cursor==digits||cursor>=text.size()||text[cursor]!=u']')return {};
-  return cursor+1;
-}
-}
 Cursor::Cursor(std::shared_ptr<MeasuredText> text,std::size_t offset,
                std::size_t selection):measured_(std::move(text)),
     offset_(offset),selection_(selection){
   if(!measured_)throw std::invalid_argument("Cursor measured text required");
   offset_=std::min(offset_,measured_->length());
+  offset_=snapOutOfReference(offset_,true);
 }
 Cursor Cursor::fromText(std::string text,double columns,
                         MetricsServices services,std::size_t offset,
@@ -33,7 +22,8 @@ Position Cursor::getPosition()const{
   return measured_->getPositionFromOffset(offset_);
 }
 std::size_t Cursor::getOffset(Position position)const{
-  return measured_->getOffsetFromPosition(position);
+  const auto target=measured_->getOffsetFromPosition(position);
+  return snapOutOfReference(target,target<offset_);
 }
 std::size_t Cursor::getViewportStartLine(
     std::optional<std::size_t> maxVisibleLines)const{
@@ -68,37 +58,35 @@ std::size_t Cursor::getViewportCharEnd(
   return end>=lines.size()?measured_->length():lines[end].startOffset;
 }
 std::optional<std::pair<std::size_t,std::size_t>>
-Cursor::imageRefStartingAt(std::size_t offset)const{
-  const auto units=value::utf16CodeUnits(text());
-  if(const auto end=imageEnd(units,offset))return {{offset,*end}};
+Cursor::referenceStartingAt(std::size_t offset)const{
+  for(const auto& ref:history::parseReferences(text()))
+    if(ref.index==offset)return {{offset,offset+value::stringLength(ref.match)}};
   return {};
 }
 std::optional<std::pair<std::size_t,std::size_t>>
-Cursor::imageRefEndingAt(std::size_t offset)const{
-  const auto units=value::utf16CodeUnits(text());
-  for(std::size_t start=0;start<offset&&start<units.size();++start)
-    if(const auto end=imageEnd(units,start);end&&*end==offset)
-      return {{start,offset}};
+Cursor::referenceEndingAt(std::size_t offset)const{
+  for(const auto& ref:history::parseReferences(text()))
+    if(ref.index+value::stringLength(ref.match)==offset)
+      return {{ref.index,offset}};
   return {};
 }
-std::size_t Cursor::snapOutOfImageRef(std::size_t offset,
+std::size_t Cursor::snapOutOfReference(std::size_t offset,
                                        bool towardStart)const{
-  const auto units=value::utf16CodeUnits(text());
-  for(std::size_t start=0;start<units.size();++start){
-    if(const auto end=imageEnd(units,start);end&&offset>start&&offset<*end)
-      return towardStart?start:*end;
+  for(const auto& ref:history::parseReferences(text())){
+    const auto end=ref.index+value::stringLength(ref.match);
+    if(offset>ref.index&&offset<end)return towardStart?ref.index:end;
   }
   return offset;
 }
 Cursor Cursor::left()const{
   if(offset_==0)return *this;
-  if(const auto chip=imageRefEndingAt(offset_))
+  if(const auto chip=referenceEndingAt(offset_))
     return Cursor(measured_,chip->first);
   return Cursor(measured_,measured_->prevOffset(offset_));
 }
 Cursor Cursor::right()const{
   if(isAtEnd())return *this;
-  if(const auto chip=imageRefStartingAt(offset_))
+  if(const auto chip=referenceStartingAt(offset_))
     return Cursor(measured_,chip->second);
   return Cursor(measured_,std::min(measured_->nextOffset(offset_),
                                    measured_->length()));
@@ -152,7 +140,8 @@ std::pair<std::size_t,std::size_t> Cursor::logicalLineBounds()const{
 Cursor Cursor::createCursorWithColumn(std::size_t start,std::size_t end,
                                        std::size_t column)const{
   const auto clamped=std::min(column,end-start);
-  return Cursor(measured_,measured_->snapToGraphemeBoundary(start+clamped),0);
+  const auto target=measured_->snapToGraphemeBoundary(start+clamped);
+  return Cursor(measured_,snapOutOfReference(target,target<offset_),0);
 }
 Cursor Cursor::endOfLogicalLine()const{
   return Cursor(measured_,findLogicalLineEnd(offset_),0);

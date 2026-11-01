@@ -112,7 +112,7 @@ int main(){
   // followed by a terminal DA response in the same ordered input write.
   bool sent=false;
   auto started=std::chrono::steady_clock::now();
-  std::string diagnostic;
+  std::string diagnostic,terminal;
   for(;;){
     const auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now()-started).count();
@@ -125,7 +125,8 @@ int main(){
     const int ready=poll(fds,2,25);
     if(ready<0&&errno!=EINTR){std::cerr<<strerror(errno)<<'\n';break;}
     if(fds[0].revents&POLLIN){
-      char bytes[65536];const auto count=read(master,bytes,sizeof(bytes));(void)count;
+      char bytes[65536];const auto count=read(master,bytes,sizeof(bytes));
+      if(count>0)terminal.append(bytes,static_cast<std::size_t>(count));
     }
     if(fds[1].revents&POLLIN){
       char bytes[512];auto n=read(report[0],bytes,sizeof(bytes));
@@ -145,6 +146,19 @@ int main(){
   std::cout<<diagnostic;
   if(diagnostic.rfind("PASS ",0)!=0){
     std::cerr<<"No passing PTY report; child status="<<status<<'\n';
+    return 2;
+  }
+  const auto countMode=[&](const std::string& mode){
+    std::size_t count=0,offset=0;
+    while((offset=terminal.find(mode,offset))!=std::string::npos){
+      ++count;offset+=mode.size();
+    }
+    return count;
+  };
+  // Initial startup, two restored-I/O calls (one throwing), resume, and two
+  // mode switches each acquire and release bracketed-paste mode.
+  if(countMode("\x1b[?2004h")!=6||countMode("\x1b[?2004l")!=6){
+    std::cerr<<"Bracketed paste was not restored across terminal lifetimes\n";
     return 2;
   }
   return WIFEXITED(status)?WEXITSTATUS(status):2;

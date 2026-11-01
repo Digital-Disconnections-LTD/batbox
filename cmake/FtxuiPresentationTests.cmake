@@ -14,6 +14,11 @@ batbox_indigenous(phase6-ftxui-frame-projection-indigenous
 batbox_indigenous(phase5-ftxui-driver-headless
   tests/phase5/indigenous_ftxui_driver_headless.cpp batbox_terminal_ftxui)
 if(UNIX)
+  add_test(NAME phase6-paste-terminal-roundtrip
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/checks/indigenous_paste_smoke.py
+      $<TARGET_FILE:batbox> --scrapling-fixture $<TARGET_FILE:batbox-scrapling-fixture>)
+  set_tests_properties(phase6-paste-terminal-roundtrip PROPERTIES TIMEOUT 60)
   add_test(NAME phase6-welcome-animation-pty
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/tests/phase6/welcome_animation_pty.py

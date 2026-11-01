@@ -1,0 +1,16 @@
+--- a/src/ftxui/component/app.cpp
++++ b/src/ftxui/component/app.cpp
+@@ -686,6 +686,13 @@
+     enable({DECMode::kMouseSgrExtMode});
+   }
+ 
++  // The raw-input owner assembles bracketed pastes before handling keys.
++  // Use the existing terminal-mode stack so external editors, suspend,
++  // mode switches and shutdown all restore/re-enable this mode correctly.
++  if (raw_input_callback_) {
++    enable({static_cast<DECMode>(2004)});
++  }
++
+   // After installing the new configuration, flush it to the terminal to
+   // ensure it is fully applied:
+   TerminalFlush();

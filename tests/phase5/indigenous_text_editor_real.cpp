@@ -69,6 +69,20 @@ int main(){
   expect(events.back()=="submit:ab","native submit");
   expect(events[events.size()-2]=="response","response before submit");
   app->stop();
+  const auto metrics=ti::indigenousMetricsServices(intl,width,wrap);
+  for(const auto& chip:{std::string("[Pasted text #7 +40 lines]"),
+                       std::string("[Pasted text #8 (4500 characters)]")}){
+    const auto text="before "+chip+" after";
+    const auto start=std::size_t{7},end=start+chip.size();
+    auto before=ti::Cursor::fromText(text,80,metrics,start);
+    auto after=ti::Cursor::fromText(text,80,metrics,end);
+    expect(before.right().offset()==end,"right skips the whole pasted item");
+    expect(after.left().offset()==start,"left skips the whole pasted item");
+    expect(before.del().text()=="before  after","delete removes the whole pasted item");
+    expect(after.backspace().text()=="before  after","backspace removes the whole pasted item");
+    expect(before.nextWord().offset()==end,"word navigation cannot enter a pasted item");
+    expect(after.prevWord().offset()==start,"backward word navigation skips pasted item");
+  }
   std::cout<<"PASS native raw parser -> editor -> presentation; "
     <<events.size()<<" ordered callbacks\n";
 }

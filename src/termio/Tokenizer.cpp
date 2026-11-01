@@ -80,13 +80,28 @@ TokenizeResult tokenize(const std::u16string& input,InputState initialState,
   return result;
 }
 std::vector<Token> Tokenizer::feed(const std::string& input){
-  auto result=tokenize(value::utf16CodeUnits(input),state_,buffer_,false,x10Mouse_);
+  auto bytes=std::move(pendingUtf8_);pendingUtf8_.clear();bytes+=input;
+  auto end=bytes.size();
+  // Hold only an incomplete final scalar; never decode an arbitrary read as
+  // though it were a complete string. This also preserves WTF-8 surrogates.
+  if(end){
+    auto start=end-1;
+    while(start>0&&(static_cast<unsigned char>(bytes[start])&0xc0)==0x80)--start;
+    const auto lead=static_cast<unsigned char>(bytes[start]);
+    const std::size_t length=lead>=0xf0&&lead<=0xf4?4:
+      lead>=0xe0&&lead<=0xef?3:lead>=0xc2&&lead<=0xdf?2:1;
+    if(end-start<length){pendingUtf8_=bytes.substr(start);end=start;}
+  }
+  auto result=tokenize(value::utf16CodeUnits(std::string_view(bytes).substr(0,end)),
+    state_,buffer_,false,x10Mouse_);
   state_=result.state;buffer_=std::move(result.buffer);return std::move(result.tokens);
 }
 std::vector<Token> Tokenizer::flush(){
-  auto result=tokenize({},state_,buffer_,true,x10Mouse_);
+  const auto tail=pendingUtf8_.empty()?std::u16string{}:std::u16string{u'\ufffd'};
+  pendingUtf8_.clear();
+  auto result=tokenize(tail,state_,buffer_,true,x10Mouse_);
   state_=result.state;buffer_=std::move(result.buffer);return std::move(result.tokens);
 }
-void Tokenizer::reset(){state_=InputState::ground;buffer_.clear();}
+void Tokenizer::reset(){state_=InputState::ground;buffer_.clear();pendingUtf8_.clear();}
 std::string Tokenizer::buffer()const{return value::fromUtf16(buffer_);}
 }
