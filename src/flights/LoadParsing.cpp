@@ -20,7 +20,7 @@ bool applyMetadata(const Json& entry,LoadedTranscript& out) {
   if(!value::truthy(flight))return false;
   const auto id=flight.get<std::string>();
   const std::pair<const char*,std::pair<Json*,const char*>> fields[]={
-    {"custom-title",{&out.customTitles,"customTitle"}},{"tag",{&out.tags,"tag"}},
+    {"custom-title",{&out.customTitles,"customTitle"}},{"ai-title",{&out.aiTitles,"aiTitle"}},{"tag",{&out.tags,"tag"}},
     {"agent-name",{&out.batNames,"agentName"}},{"agent-color",{&out.batColors,"agentColor"}},
     {"agent-setting",{&out.batSettings,"agentSetting"}},{"mode",{&out.modes,"mode"}},
     {"worktree-state",{&out.worktreeStates,"worktreeSession"}}};

@@ -76,7 +76,7 @@ def main(binary):
             "model": "interrupt-fixture",
             "base_url": f"http://127.0.0.1:{server.server_port}",
             "state_directory": str(root / "state"), "mcpServers": {},
-            "fullscreen": True, "max_output_tokens": 50000,
+            "fullscreen": True, "auto_title": False, "max_output_tokens": 50000,
         }))
         pid, master = pty.fork()
         if pid == 0:

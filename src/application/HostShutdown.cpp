@@ -32,8 +32,14 @@ void Host::Impl::requestExit(){
     };
     if(flight){
       try{
-        flight->flush().then([settled](const event_loop::Unit*,
-            const std::exception_ptr& error){settled("Session",error);});
+        flight->flush().then([this,settled](const event_loop::Unit*,
+            const std::exception_ptr& error){
+          // The end marker only follows a complete flush, so it is always the
+          // newest line of a cleanly closed Flight.
+          if(!error)try{flight->markEnded();}
+          catch(const std::exception& failure){
+            log(std::string("Flight end marker failed: ")+failure.what());}
+          settled("Session",error);});
       }catch(...){settled("Session",std::current_exception());}
     }
     if(history){

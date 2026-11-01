@@ -449,17 +449,26 @@ int Host::run(){
       });
   };
   const auto begin=[&host,submitInitial,startFresh]{
+    if(host.config.resumePicker){
+      startFresh();
+      if(!host.commands||!host.commands->openUiCommand("resume"))
+        host.report(std::make_exception_ptr(std::runtime_error(
+          "The Flight picker could not be opened; use /resume")));
+      return;
+    }
     if(!host.config.resumeFlight&&!host.config.continueFlight){
       startFresh();return;
     }
     auto loaded=host.config.resumeFlight?
-      host.restore->load(*host.config.resumeFlight):host.restore->latest();
+      host.restore->find(*host.config.resumeFlight):host.restore->latest();
     loaded.then([&host,submitInitial](const std::optional<Json>* log,
         const std::exception_ptr& error){
       if(error){host.report(error);if(host.config.print)host.requestExit();return;}
       if(!log||!*log){
         host.report(std::make_exception_ptr(std::runtime_error(
-          "Requested conversation was not found")));
+          host.config.resumeFlight?"No saved Flight matches \""+
+            *host.config.resumeFlight+"\"":
+            std::string("No saved Flight to continue in this directory"))));
         if(host.config.print)host.requestExit();
         return;
       }

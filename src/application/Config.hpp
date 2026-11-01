@@ -49,6 +49,14 @@ struct Config {
   std::string inputFormat="text",outputFormat="text";
   std::optional<std::string> initialPoetry,resumeFlight;
   bool continueFlight=false;
+  // --resume without a value: open the Flight picker once the shell is up.
+  bool resumePicker=false;
+  // Generate a short title for each new Flight from its first prompt
+  // ("auto_title" in native-client.json).
+  bool autoTitle=true;
+  // Whether this launch chose a model or permission mode itself. A resumed
+  // Flight restores the ones it recorded only when the launch did not.
+  bool modelRequested=false,permissionModeRequested=false;
 };
 Config loadConfig(const std::vector<std::string>& arguments);
 bool bypassPermissionsDisabled(const Config& config,const Json& effectiveSettings);

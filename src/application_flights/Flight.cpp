@@ -171,6 +171,17 @@ event_loop::Deferred<event_loop::Unit> Flight::adoptResumedId(std::string id,
 void Flight::reappendMetadata(){
   project_->imports().reAppendFlightMetadata(*state_,false);
 }
+void Flight::markEnded(){
+  if(!inputs_.owner.isOwnerThread())
+    throw std::logic_error("Flight end marker requires owner loop");
+  const auto& file=state_->flightFile;
+  if(!file||file->empty())return;
+  std::error_code error;
+  if(!std::filesystem::exists(runtime::pathFromUtf8(*file),error)||error)return;
+  reappendMetadata();
+  flights::appendEntryToFile(*file,Json{{"type","flight-end"},{"sessionId",id()},
+    {"timestamp",platform::isoTimestamp()}});
+}
 void Flight::clearMessageStash(){
   if(!inputs_.owner.isOwnerThread())
     throw std::logic_error("Session cache clear requires owner loop");

@@ -36,6 +36,9 @@ if(UNIX)
   add_test(NAME phase6-indigenous-effort-smoke COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/checks/indigenous_effort_smoke.py $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-indigenous-effort-smoke PROPERTIES TIMEOUT 70)
+  add_test(NAME phase6-indigenous-resume-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/indigenous_resume_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-indigenous-resume-smoke PROPERTIES TIMEOUT 90)
 endif()
 batbox_indigenous(phase6-indigenous-lsp-grouped checks/indigenous_lsp_grouped.cpp batbox_indigenous_lsp)
 add_executable(batbox-indigenous-lsp-runtime checks/indigenous_lsp_runtime.cpp)

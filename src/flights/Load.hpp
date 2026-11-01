@@ -16,6 +16,7 @@ struct LoadedTranscript {
   MessageMap messages;
   // String-keyed maps retain insertion order.
   Json summaries=Json::object(),customTitles=Json::object(),tags=Json::object();
+  Json aiTitles=Json::object();
   Json batNames=Json::object(),batColors=Json::object(),batSettings=Json::object();
   Json prNumbers=Json::object(),prUrls=Json::object(),prRepositories=Json::object();
   Json modes=Json::object(),worktreeStates=Json::object();

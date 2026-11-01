@@ -34,6 +34,10 @@ public:
   event_loop::Deferred<event_loop::Unit> adoptResumedId(std::string id,
     std::optional<std::string> projectDirectory={});
   void reappendMetadata();
+  // Clean shutdown: re-append titles and other metadata near the end of the
+  // transcript, then write a flight-end marker. Call after flush(); a Flight
+  // that never wrote a message has no file and is left alone.
+  void markEnded();
   void clearMessageStash();
   void recordReplacement(const Json& replacements,const Json& bat);
   const std::string& id()const{return *flightId_;}

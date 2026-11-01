@@ -60,7 +60,7 @@ def main(binary):
         thread.start()
         (config / "native-client.json").write_text(json.dumps({
             "model": "effort-fixture", "base_url": f"http://127.0.0.1:{server.server_port}",
-            "state_directory": str(root / "state"), "mcpServers": {}, "fullscreen": True,
+            "state_directory": str(root / "state"), "mcpServers": {}, "fullscreen": True, "auto_title": False,
             "max_output_tokens": 50000,
         }))
         pid, master = pty.fork()

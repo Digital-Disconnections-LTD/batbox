@@ -6,6 +6,7 @@ void MetadataOperations::saveCustomTitle(const std::string& flight,const std::st
 }
 void MetadataOperations::saveAiGeneratedTitle(const std::string& flight,const std::string& title) {
   services.append(services.paths->getTranscriptPathForFlight(flight),Json{{"type","ai-title"},{"aiTitle",title},{"sessionId",flight}});
+  if(flight==services.getFlightId())services.project->currentFlightAiTitle=title;
 }
 void MetadataOperations::saveMissionSummary(const std::string& flight,const std::string& summary) {
   services.append(services.paths->getTranscriptPathForFlight(flight),Json{{"type","task-summary"},{"summary",summary},{"sessionId",flight},{"timestamp",services.nowIso()}});

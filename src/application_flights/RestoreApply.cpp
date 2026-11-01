@@ -287,7 +287,68 @@ void restoreAppState(app_state::AppStateStore& store,const Json& log,
     return next;
   });
 }
+void restoreLaunchChoices(app_state::AppStateStore& store,const Json& log,
+    const application::Config& config,
+    const std::function<void(const std::string&,const std::string&)>& transition){
+  const auto recorded=recordedLaunchChoices(log);
+  std::optional<std::string> profile;
+  if(!config.modelRequested&&recorded.model)profile=profileForModel(config,*recorded.model);
+  std::optional<std::string> mode;
+  if(!config.permissionModeRequested&&recorded.permissionMode&&
+      restorablePermissionMode(*recorded.permissionMode))mode=recorded.permissionMode;
+  if(!profile&&!mode)return;
+  store.setState([&](const app_state::AppStateRef& previous){
+    auto next=std::make_shared<app_state::AppState>(previous->shallowCopy());
+    if(profile){
+      next->fields->set("mainLoopModel",*profile);
+      next->fields->set("mainLoopModelForSession",nullptr);
+    }
+    if(mode){
+      const Json context=value::property(previous->snapshot(),"toolPermissionContext");
+      Json permission=context.is_object()?context:Json::object();
+      const auto from=permission.value("mode",std::string("default"));
+      if(from!=*mode){
+        if(transition)transition(from,*mode);
+        if(from=="plan")permission.erase("prePlanMode");
+        permission["mode"]=*mode;
+        next->setPermissionContext(std::make_shared<value::SharedRecord>(
+          value::SharedRecord::fromJson(permission)));
+      }
+    }
+    return next;
+  });
+}
 } // namespace
+
+RecordedLaunchChoices recordedLaunchChoices(const Json& log){
+  RecordedLaunchChoices result;
+  const auto& messages=value::property(log,"messages");
+  if(!messages.is_array())return result;
+  for(auto it=messages.rbegin();it!=messages.rend();++it){
+    const auto type=field(*it,"type");
+    if(!result.model&&type=="assistant"){
+      const auto model=field(value::property(*it,"message"),"model");
+      if(!model.empty()&&model!="<synthetic>")result.model=model;
+    }
+    if(!result.permissionMode&&type=="user"){
+      const auto mode=field(*it,"permissionMode");
+      if(!mode.empty())result.permissionMode=mode;
+    }
+    if(result.model&&result.permissionMode)break;
+  }
+  return result;
+}
+std::optional<std::string> profileForModel(const application::Config& config,
+    const std::string& model){
+  if(model.empty())return std::nullopt;
+  if(config.profiles.contains(model))return model;
+  for(const auto& [id,profile]:config.profiles)
+    if(profile.model==model)return id;
+  return std::nullopt;
+}
+bool restorablePermissionMode(const std::string& mode){
+  return mode=="default"||mode=="acceptEdits"||mode=="plan"||mode=="dontAsk";
+}
 
 Deferred<Unit> Restore::resume(const std::string& id,const Json& log,
     const std::string& entrypoint){
@@ -408,6 +469,8 @@ Deferred<Unit> Restore::resume(const std::string& id,const Json& log,
                     restoreAppState(*self->inputs_.store,log,id,
                       self->inputs_.fileHistoryEnabled&&
                         self->inputs_.fileHistoryEnabled());
+                    restoreLaunchChoices(*self->inputs_.store,log,
+                      self->inputs_.config,self->inputs_.transitionPermissionMode);
                     if(self->inputs_.onFileHistoryRestored)
                       self->inputs_.onFileHistoryRestored(
                         value::property(log,"fileHistorySnapshots"));

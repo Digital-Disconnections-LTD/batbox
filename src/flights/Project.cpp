@@ -92,7 +92,7 @@ void Project::appendEntryInternal(const Json& entry,const std::optional<std::str
   }
   const auto type=entry.at("type").get<std::string>();
   const auto enqueue=[&](const std::string& target){if(reader)(void)queue->enqueueWrite(target,reader);else (void)queue->enqueueWrite(target,entry);};
-  static const std::set<std::string> metadata={"summary","custom-title","ai-title","last-prompt","task-summary","tag","agent-name","agent-color","agent-setting","pr-link","file-history-snapshot","attribution-snapshot","speculation-accept","mode","worktree-state","marble-origami-commit","marble-origami-snapshot"};
+  static const std::set<std::string> metadata={"summary","custom-title","ai-title","last-prompt","task-summary","tag","agent-name","agent-color","agent-setting","pr-link","file-history-snapshot","attribution-snapshot","speculation-accept","mode","worktree-state","marble-origami-commit","marble-origami-snapshot","flight-end"};
   if(metadata.contains(type)){enqueue(file);return;}
   if(type=="content-replacement") {
     const auto& bat=value::property(entry,"agentId");enqueue(value::truthy(bat)?services.paths->getBatTranscriptPath(bat.get<std::string>()):file);return;

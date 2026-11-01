@@ -11,7 +11,8 @@ bool alwaysAppend(const std::string& type){
     type=="pr-link"||type=="file-history-snapshot"||
     type=="attribution-snapshot"||type=="speculation-accept"||
     type=="mode"||type=="worktree-state"||
-    type=="marble-origami-commit"||type=="marble-origami-snapshot";
+    type=="marble-origami-commit"||type=="marble-origami-snapshot"||
+    type=="flight-end";
 }
 }
 AsyncProject::AsyncProject(event_loop::Loop& loop,std::shared_ptr<async_queue::Queue> queue,

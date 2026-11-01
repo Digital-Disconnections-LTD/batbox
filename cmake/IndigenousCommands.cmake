@@ -3,10 +3,11 @@ add_library(batbox_application_commands src/application_commands/Commands.cpp
   src/application_commands/PermissionCommand.cpp
   src/application_commands/ProjectCommand.cpp
   src/application_commands/EffortCommand.cpp src/application_commands/ThemeCommand.cpp
-  src/application_usage/UsageCommand.cpp)
+  src/application_usage/UsageCommand.cpp src/application_commands/FlightTitles.cpp)
 target_link_libraries(batbox_application_commands PUBLIC
   batbox_core_commands batbox_application_runtime batbox_application_model
   batbox_application_poetry batbox_application_flights
   batbox_conversation_shell batbox_user_input
-  batbox_application_memory batbox_application_editor batbox_bootstrap_state)
+  batbox_application_memory batbox_application_editor batbox_bootstrap_state
+  batbox_flight_titles)
 target_compile_options(batbox_application_commands PRIVATE -Wall -Wextra -Wpedantic)

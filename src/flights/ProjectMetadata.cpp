@@ -26,6 +26,7 @@ void reAppendFlightMetadata(FlightState& state,const MetadataReappendServices& s
   }
   const std::tuple<const char*,const char*,const std::optional<std::string>*> fields[]={
     {"last-prompt","lastPrompt",&state.currentFlightLastPoetry},{"custom-title","customTitle",&state.currentFlightTitle},
+    {"ai-title","aiTitle",&state.currentFlightAiTitle},
     {"tag","tag",&state.currentFlightTag},{"agent-name","agentName",&state.currentFlightBatName},
     {"agent-color","agentColor",&state.currentFlightBatColor},{"agent-setting","agentSetting",&state.currentFlightBatSetting},
     {"mode","mode",&state.currentFlightMode}};

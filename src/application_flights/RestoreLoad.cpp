@@ -2,7 +2,9 @@
 #include "messages/RuntimeMessages.hpp"
 #include "runtime/AsyncLaunch.hpp"
 #include "runtime/IndigenousPath.hpp"
+#include "runtime/Platform.hpp"
 #include "flights/AsyncLoad.hpp"
+#include "flights/FlightListing.hpp"
 #include "flights/Views.hpp"
 #include "flights/scanning/Scanning.hpp"
 #include <algorithm>
@@ -106,6 +108,7 @@ std::optional<Json> logFromLoaded(const flights::LoadedTranscript& loaded,
   if(leafId.is_string())setIf(out,"summary",loaded.summaries,
     leafId.get<std::string>());
   setIf(out,"customTitle",loaded.customTitles,metadataId);
+  setIf(out,"aiTitle",loaded.aiTitles,metadataId);
   setIf(out,"tag",loaded.tags,metadataId);
   setIf(out,"agentName",loaded.batNames,metadataId);
   setIf(out,"agentColor",loaded.batColors,metadataId);
@@ -247,46 +250,166 @@ Deferred<Json> Restore::list(const std::vector<std::string>& projectPaths,
       for(const auto& path:unique)
         collectFiles(runtime::pathFromUtf8(directories.getProjectDir(path)),files);
     }
-    std::stable_sort(files.begin(),files.end(),[](const auto& a,const auto& b){
-      return a.modified>b.modified;});
-    Json logs=Json::array();
+    flights::PoetryServices poetry;
+    poetry.extractTag=messages::extractTag;
+    poetry.builtInCommandNames=[]{return std::set<std::string>{};};
+    std::vector<Json> scanned;
+    // file_clock has an implementation-defined epoch; translate through now().
+    const auto fileNow=std::filesystem::file_time_type::clock::now();
+    const auto systemNow=std::chrono::system_clock::now();
     for(const auto& file:files){
-      const double modified=static_cast<double>(std::chrono::duration_cast<
-        std::chrono::milliseconds>(file.modified.time_since_epoch()).count());
-      logs.push_back(Json{{"sessionId",file.id},{"messages",Json::array()},
-        {"fullPath",runtime::pathToUtf8(file.path)},{"modifiedMs",modified}});
+      const auto modified=std::chrono::time_point_cast<std::chrono::milliseconds>(
+        systemNow+std::chrono::duration_cast<std::chrono::system_clock::duration>(
+          file.modified-fileNow));
+      const auto modifiedMs=static_cast<double>(modified.time_since_epoch().count());
+      // Files with no user prompt (only metadata, snapshots or local command
+      // echoes) cannot be resumed and are left out of the listing.
+      if(auto log=flights::scanFlightFileLite(runtime::pathToUtf8(file.path),
+          file.id,modifiedMs,poetry))scanned.push_back(std::move(*log));
     }
+    std::stable_sort(scanned.begin(),scanned.end(),[](const Json& a,const Json& b){
+      return value::numberOr(value::property(a,"lastActivityMs"))>
+        value::numberOr(value::property(b,"lastActivityMs"));});
+    Json logs=Json::array();
+    for(auto& log:scanned)logs.push_back(std::move(log));
     return logs;
   });
 }
+Deferred<std::optional<Json>> firstLoadable(event_loop::Loop& owner,Json records,
+    std::function<Deferred<std::optional<Json>>(const Json&)> loader){
+  Deferred<std::optional<Json>> result(owner);
+  if(!records.is_array()||!loader){
+    result.reject(std::make_exception_ptr(std::invalid_argument(
+      "Flight records and loader required")));return result;}
+  struct Walk {
+    Json records;
+    std::function<Deferred<std::optional<Json>>(const Json&)> loader;
+    std::size_t index=0,failures=0;
+    std::exception_ptr firstError;
+  };
+  auto walk=std::make_shared<Walk>();
+  walk->records=std::move(records);walk->loader=std::move(loader);
+  auto next=std::make_shared<std::function<void()>>();
+  std::weak_ptr<std::function<void()>> weakNext=next;
+  *next=[walk,result,weakNext]{
+    auto next=weakNext.lock();
+    if(!next)return;
+    while(walk->index<walk->records.size()){
+      const Json item=walk->records[walk->index++];
+      Deferred<std::optional<Json>> pending=[&]{
+        try{return walk->loader(item);}
+        catch(...){
+          Deferred<std::optional<Json>> failed(result.dispatcher());
+          failed.reject(std::current_exception());return failed;
+        }
+      }();
+      pending.then([walk,result,next](const std::optional<Json>* full,
+          const std::exception_ptr& failure){
+        if(failure){
+          ++walk->failures;
+          if(!walk->firstError)walk->firstError=failure;
+          (*next)();return;
+        }
+        if(full&&*full){result.resolve(*full);return;}
+        (*next)();
+      });
+      return;
+    }
+    if(walk->failures==0){result.resolve(std::nullopt);return;}
+    std::string reason="unknown error";
+    try{std::rethrow_exception(walk->firstError);}
+    catch(const std::exception& error){reason=error.what();}
+    catch(...){}
+    result.reject(std::make_exception_ptr(std::runtime_error(
+      "No saved Flight could be loaded ("+std::to_string(walk->failures)+
+      (walk->failures==1?" file":" files")+" unreadable: "+reason+")")));
+  };
+  (*next)();
+  return result;
+}
 Deferred<std::optional<Json>> Restore::latest(){
+  if(!inputs_.owner.isOwnerThread())throw std::logic_error("Restore owner required");
   Deferred<std::optional<Json>> result(inputs_.owner);
   const auto self=shared_from_this();
-  list({},false).then([self,result](const Json* logs,
-      const std::exception_ptr& error){
-    if(error){result.reject(error);return;}
-    auto records=std::make_shared<Json>(*logs);
-    auto index=std::make_shared<std::size_t>(0);
-    auto next=std::make_shared<std::function<void()>>();
-    std::weak_ptr<std::function<void()>> weakNext=next;
-    *next=[self,result,records,index,weakNext]{
-      auto next=weakNext.lock();
-      if(!next)return;
-      if(*index>=records->size()){
-        result.resolve(std::nullopt);return;}
-      const Json item=(*records)[(*index)++];
-      const auto id=item.at("sessionId").get<std::string>();
-      self->loadPath(runtime::pathFromUtf8(
-        item.at("fullPath").get<std::string>()),id).then(
-        [result,next](const std::optional<Json>* full,
+  const auto current=inputs_.flight->id();
+  worktreePaths(runtime::pathToUtf8(inputs_.flight->workingDirectory())).then(
+    [self,result,current](const std::vector<std::string>* paths,
+        const std::exception_ptr& pathError){
+      // Without git the current directory alone is still a valid scope.
+      const std::vector<std::string> scope=!pathError&&paths?*paths:
+        std::vector<std::string>{};
+      self->list(scope,false).then([self,result,current](const Json* logs,
+          const std::exception_ptr& error){
+        if(error){result.reject(error);return;}
+        Json records=Json::array();
+        if(logs&&logs->is_array())for(const auto& log:*logs)
+          if(value::property(log,"sessionId")!=current)records.push_back(log);
+        firstLoadable(self->inputs_.owner,std::move(records),[self](const Json& item){
+          return self->loadPath(runtime::pathFromUtf8(
+            item.at("fullPath").get<std::string>()),
+            item.at("sessionId").get<std::string>());
+        }).then([result](const std::optional<Json>* log,
             const std::exception_ptr& failure){
-          if(failure){result.reject(failure);return;}
-          if(full&&*full){result.resolve(*full);}
-          else (*next)();
+          if(failure)result.reject(failure);else result.resolve(*log);
         });
-    };
-    (*next)();
-  });
+      });
+    });
+  return result;
+}
+Deferred<std::optional<Json>> Restore::find(const std::string& query){
+  if(!inputs_.owner.isOwnerThread())throw std::logic_error("Restore owner required");
+  const auto trimmed=value::trim(query);
+  if(validId(trimmed))return load(trimmed);
+  Deferred<std::optional<Json>> result(inputs_.owner);
+  if(trimmed.empty()){result.resolve(std::nullopt);return result;}
+  const auto self=shared_from_this();
+  const auto current=inputs_.flight->id();
+  // One match loads; several are listed so the user can pick a slug.
+  const auto settle=[self,result,trimmed,current](const Json& logs)->bool{
+    Json candidates=Json::array();
+    for(const auto& log:logs)
+      if(value::property(log,"sessionId")!=current)candidates.push_back(log);
+    const auto matches=flights::matchFlightLogs(candidates,trimmed);
+    if(matches.empty())return false;
+    if(matches.size()==1){
+      const auto& log=candidates.at(matches.front());
+      self->loadPath(runtime::pathFromUtf8(log.at("fullPath").get<std::string>()),
+        log.at("sessionId").get<std::string>()).then(
+        [result](const std::optional<Json>* full,const std::exception_ptr& error){
+          if(error)result.reject(error);else result.resolve(*full);
+        });
+      return true;
+    }
+    const auto now=static_cast<double>(platform::nowMillis());
+    std::string message="\""+trimmed+"\" matches "+std::to_string(matches.size())+
+      " Flights:";
+    for(std::size_t i=0;i<matches.size()&&i<8;++i){
+      const auto& log=candidates.at(matches[i]);
+      message+="\n  "+flights::flightListingLabel(log,now);
+      const auto& project=value::property(log,"projectPath");
+      if(project.is_string())message+="  · "+project.get<std::string>();
+    }
+    if(matches.size()>8)message+="\n  … "+std::to_string(matches.size()-8)+" more";
+    message+="\nPass the slug shown in parentheses, or run --resume alone to pick.";
+    result.reject(std::make_exception_ptr(std::runtime_error(message)));
+    return true;
+  };
+  worktreePaths(runtime::pathToUtf8(inputs_.flight->workingDirectory())).then(
+    [self,result,settle](const std::vector<std::string>* paths,
+        const std::exception_ptr& pathError){
+      const std::vector<std::string> scope=!pathError&&paths?*paths:
+        std::vector<std::string>{};
+      self->list(scope,false).then([self,result,settle](const Json* logs,
+          const std::exception_ptr& error){
+        if(error){result.reject(error);return;}
+        if(logs&&settle(*logs))return;
+        self->list({},true).then([result,settle](const Json* all,
+            const std::exception_ptr& allError){
+          if(allError){result.reject(allError);return;}
+          if(!all||!settle(*all))result.resolve(std::nullopt);
+        });
+      });
+    });
   return result;
 }
 } // namespace batbox::application_flights

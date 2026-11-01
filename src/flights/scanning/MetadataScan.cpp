@@ -16,8 +16,8 @@
 
 namespace batbox::flights::scanning {
 namespace {
-constexpr std::array<std::string_view,9> metadataMarkers={
-  "\"type\":\"summary\"","\"type\":\"custom-title\"","\"type\":\"tag\"",
+constexpr std::array<std::string_view,10> metadataMarkers={
+  "\"type\":\"summary\"","\"type\":\"custom-title\"","\"type\":\"ai-title\"","\"type\":\"tag\"",
   "\"type\":\"agent-name\"","\"type\":\"agent-color\"","\"type\":\"agent-setting\"",
   "\"type\":\"mode\"","\"type\":\"worktree-state\"","\"type\":\"pr-link\""};
 constexpr std::size_t metadataPrefixBound=25,chunkSize=64*1024;

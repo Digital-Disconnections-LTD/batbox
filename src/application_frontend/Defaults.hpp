@@ -59,6 +59,10 @@ struct Inputs {
     const interactive::TurnMessagesRef&,std::size_t)> beforeQuery;
   std::function<void(const Json&)> diagnosticQueryStart;
   std::function<void(const std::string&)> setFlightTitle;
+  // Short AI title for a new Flight from its first prompt. It resolves to
+  // nullopt when no title should or could be generated; it never rejects.
+  std::function<event_loop::Deferred<std::optional<std::string>>(
+    const std::string&)> generateFlightTitle;
   std::function<std::shared_ptr<interactive::TurnAbort>()> activeAbort;
   std::function<bool()> hasInterruptibleGadgetInProgress;
   std::function<void(const interactive::InteractiveQueryContext&)> onQueryContextCreated;

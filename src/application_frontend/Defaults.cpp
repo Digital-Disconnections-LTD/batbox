@@ -230,7 +230,8 @@ interactive::submit::PoetrySubmitRequest Bundle::submitRequest(const std::string
 }
 interactive::QueryExecutionParams Bundle::queryParams()const{
   interactive::QueryExecutionParams params;
-  params.titleDisabled=true;
+  // Titles are generated only when the host supplies a generator.
+  params.titleDisabled=!inputs_.generateFlightTitle;
   params.initialMcpClients=inputs_.initialMcpClients;
   const auto snapshot=store_->getState()->snapshot();
   params.gadgetPermissionContext=value::property(snapshot,"toolPermissionContext");
@@ -318,8 +319,18 @@ void Bundle::install(application_runtime::Inputs& runtime){
   execution.resetTurnGadgetDuration=[]{};
   execution.resetTurnClassifierDuration=[]{};
   execution.logQueryProfileReport=[]{};
-  execution.generateFlightTitle=[self](const std::string&,
-      const std::shared_ptr<interactive::TurnAbort>&){return ready(self->owner_,Json());};
+  execution.generateFlightTitle=[self](const std::string& text,
+      const std::shared_ptr<interactive::TurnAbort>&){
+    if(!self->inputs_.generateFlightTitle)return ready(self->owner_,Json());
+    event_loop::Deferred<Json> output(self->owner_);
+    try{
+      self->inputs_.generateFlightTitle(text).then([output](
+          const std::optional<std::string>* title,const std::exception_ptr& error){
+        if(error||!title||!*title)output.resolve(Json());
+        else output.resolve(Json(**title));
+      });
+    }catch(...){output.resolve(Json());}
+    return output;};
   execution.setFlightTitle=[self](const std::string& title){
     if(self->inputs_.setFlightTitle)self->inputs_.setFlightTitle(title);};
   execution.checkpoint=inputs_.log;
