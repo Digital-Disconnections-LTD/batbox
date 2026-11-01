@@ -54,3 +54,4 @@ target_link_libraries(batbox-indigenous-lsp-format-driver PRIVATE batbox_indigen
 target_compile_options(batbox-phase6-indigenous-lsp-grouped PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/UNDEBUG>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-UNDEBUG>)
+include(cmake/BatsPanelTests.cmake)

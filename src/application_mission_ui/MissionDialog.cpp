@@ -5,6 +5,7 @@
 #include "shell/FormatDuration.hpp"
 #include "shell/TailFile.hpp"
 #include "application_editor/IndigenousProcess.hpp"
+#include "interactive/presentation_providers/MissionFooter.hpp"
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
@@ -23,10 +24,15 @@ long long intField(const Json& value,const char* key){
 std::string shorten(const std::string& value,std::size_t count){
   return value::stringLength(value)>count?value::slice(value,0,count-1)+"…":value;
 }
-bool background(const Json& mission){
+// Foreground Bats block the leader but are still live work worth watching.
+bool activeBat(const Json& mission){
   const auto status=stringField(mission,"status");
-  return (status=="running"||status=="pending")&&
-    field(mission,"isBackgrounded")!=false;
+  return status=="running"||status=="pending";
+}
+std::string statusWord(const std::string& status){
+  if(status=="killed")return "stopped";
+  if(status=="pending")return "queued";
+  return status;
 }
 std::string tailLines(const std::string& value,std::size_t maxLines){
   std::vector<std::string> lines;
@@ -53,6 +59,7 @@ struct Item {
   long long started=0;
   std::optional<int> exitCode;
   bool running()const{return status=="running";}
+  bool active()const{return status=="running"||status=="pending";}
 };
 std::vector<Item> items(const Inputs& input,const std::vector<Json>& board){
   std::vector<Item> result;
@@ -69,7 +76,7 @@ std::vector<Item> items(const Inputs& input,const std::vector<Json>& board){
   if(missions.is_object())for(auto it=missions.begin();it!=missions.end();++it){
     const auto& mission=it.value();
     if(field(mission,"type")!="local_agent"||
-        (!input.includeCompletedBats&&!background(mission))||
+        (!input.includeCompletedBats&&!activeBat(mission))||
         field(mission,"agentType")=="main-session")continue;
     if(input.includeCompletedBats&&field(mission,"status")!="running"&&
        field(mission,"status")!="pending"&&field(mission,"evictAfter")==0)continue;
@@ -79,7 +86,7 @@ std::vector<Item> items(const Inputs& input,const std::vector<Json>& board){
   }
   std::stable_sort(result.begin(),result.end(),[](const Item& a,const Item& b){
     if(a.type!=b.type)return a.type=="local_bash";
-    if(a.running()!=b.running())return a.running();
+    if(a.active()!=b.active())return a.active();
     return a.started>b.started;
   });
   if(input.batsOnly&&input.batDefinitions){
@@ -105,7 +112,7 @@ std::vector<Item> items(const Inputs& input,const std::vector<Json>& board){
 std::string errorText(std::exception_ptr error){
   try{if(error)std::rethrow_exception(error);}
   catch(const std::exception& issue){return issue.what();}
-  catch(...){return "Task operation failed";}
+  catch(...){return "Mission operation failed";}
   return "";
 }
 }
@@ -139,11 +146,12 @@ public:
     loadBoard();
   }
 private:
-  void finish(const std::string& message="Background tasks dialog dismissed"){
+  void finish(const std::string& message={}){
     if(!active_)return;
     active_=false;timer_.cancel();
     interactive::CommandCompletion completion;
-    completion.result=message;
+    completion.result=!message.empty()?message:
+      input_.batsOnly?"Bats dialog dismissed":"Missions dialog dismissed";
     completion.options.display=interactive::DoneOptions::Display::System;
     done_(std::move(completion));
   }
@@ -216,6 +224,39 @@ private:
       }
     }else showList();
   }
+  long long now()const{
+    return input_.nowMillis?input_.nowMillis():
+      static_cast<long long>(platform::nowMillis());
+  }
+  std::string elapsedText(const Item& item)const{
+    if(item.started<=0)return "";
+    long long finished=0;
+    if(item.type=="local_agent"&&!item.active()){
+      if(field(item.bat,"endTime").is_number())finished=intField(item.bat,"endTime");
+      else if(field(field(item.bat,"result"),"totalDurationMs").is_number())
+        finished=item.started+intField(field(item.bat,"result"),"totalDurationMs");
+      if(!finished)return "";
+    }
+    const auto end=finished?finished:now();
+    return shell::formatDuration(static_cast<double>(std::max(0LL,end-item.started)));
+  }
+  // One Bat row: identity and the numbers that tell whether it is progressing,
+  // followed by an indented line with the latest thing it said.
+  std::vector<std::string> batRows(const Item& item)const{
+    const auto glance=interactive::presentation_providers::batGlance(item.bat,now());
+    std::string row=(input_.batsOnly?"":"Bat · ")+
+      shorten(glance.label.empty()?item.id:glance.label,48)+" · "+
+      statusWord(item.status)+(glance.foreground?" (foreground)":"");
+    const auto elapsed=elapsedText(item);
+    if(!elapsed.empty())row+=" · "+elapsed;
+    row+=" · "+std::to_string(glance.gadgetUses)+
+      (glance.gadgetUses==1?" Gadget":" Gadgets");
+    row+=" · "+interactive::presentation_providers::compactTokens(glance.tokens);
+    if(!glance.gadget.empty())row+=" · "+shorten(glance.gadget,40);
+    std::vector<std::string> rows{std::move(row)};
+    if(!glance.lastText.empty())rows.push_back("    “"+shorten(glance.lastText,120)+"”");
+    return rows;
+  }
   void showList(){
     if(!active_)return;
     auto available=items(input_,board_);
@@ -230,44 +271,61 @@ private:
     if(!available.empty())selectedId_=available[selected_].id;
     const int rows=input_.terminalRows?input_.terminalRows():24;
     const auto capacity=static_cast<std::size_t>(std::max(3,rows-10));
-    const auto begin=selected_>=capacity?selected_-capacity+1:0;
-    const auto end=std::min(available.size(),begin+capacity);
     visible_.clear();
     interactive::UiRequest request;
     request.kind=interactive::UiRequest::Kind::Select;
     request.id="background-tasks-list";
-    request.title=input_.batsOnly?"Agents":"Tasks";
+    request.title=input_.batsOnly?"Bats":"Missions";
     const auto shellCount=std::count_if(available.begin(),available.end(),
       [](const Item& item){return item.type=="local_bash";});
     const auto batCount=std::count_if(available.begin(),available.end(),
       [](const Item& item){return item.type=="local_agent";});
+    const auto runningBats=std::count_if(available.begin(),available.end(),
+      [](const Item& item){return item.type=="local_agent"&&item.active();});
     const auto boardCount=std::count_if(available.begin(),available.end(),
       [](const Item& item){return item.type=="board";});
     request.body=input_.batsOnly?
-      std::to_string(batCount)+" conversation"+(batCount==1?"":"s")+
-        " · running and completed\n↑/↓ select · Enter open · x stop · d dismiss · Esc close":
+      std::to_string(batCount)+(batCount==1?" Bat":" Bats")+" · "+
+        std::to_string(runningBats)+" running\n"+
+        (batCount==0?"No Bats yet · a Bat appears here when the leader delegates work":
+          "↑/↓ select · Enter open · i details · x stop · d dismiss · Esc close"):
       std::to_string(shellCount)+" active shell"+
       (shellCount==1?"":"s")+" · "+std::to_string(batCount)+
-      " active agent"+(batCount==1?"":"s")+" · "+
-      std::to_string(boardCount)+" board task"+(boardCount==1?"":"s")+"\n"+
-      (available.empty()?(boardPending_?"Loading task board…":"No tasks found"):
-        "↑/↓ select · Enter view · x stop · Esc close");
-    for(auto index=begin;index<end;++index){
-      const auto& item=available[index];visible_.push_back(item.id);
-      request.choices.push_back((item.type=="local_bash"?"Shell · ":
+      " active Bat"+(batCount==1?"":"s")+" · "+
+      std::to_string(boardCount)+" board Mission"+(boardCount==1?"":"s")+"\n"+
+      (available.empty()?(boardPending_?"Loading Mission board…":"No Missions found"):
+        "↑/↓ select · Enter view · i details · x stop · Esc close");
+    // Rows are laid out from the selected item so a two-line Bat never pushes
+    // the selection off the visible window.
+    std::vector<std::vector<std::string>> rendered;rendered.reserve(available.size());
+    for(const auto& item:available){
+      if(item.type=="local_agent"){rendered.push_back(batRows(item));continue;}
+      rendered.push_back({(item.type=="local_bash"?"Shell · ":
         item.type=="configuration"?"Configuration · ":
-        item.type=="board"?"Task #"+item.id.substr(6)+" · ":"Agent · ")+
+        "Mission #"+item.id.substr(6)+" · ")+
         shorten(item.label.empty()?item.id:item.label,70)+
         " ["+item.status+"]"+
-        (item.type=="local_agent"?" · "+shorten(item.id,12):
-         item.type=="board"&&!stringField(item.bat,"owner").empty()?
-         " · "+shorten(stringField(item.bat,"owner"),20):""));
+        (item.type=="board"&&!stringField(item.bat,"owner").empty()?
+         " · "+shorten(stringField(item.bat,"owner"),20):"")});
     }
-    request.selectedIndex=selected_-begin;
+    std::size_t begin=selected_,used=available.empty()?0:rendered[selected_].size();
+    while(begin>0&&used+rendered[begin-1].size()<=capacity)used+=rendered[--begin].size();
+    std::size_t end=available.empty()?0:selected_+1;
+    while(end<available.size()&&used+rendered[end].size()<=capacity)used+=rendered[end++].size();
+    for(auto index=begin;index<end;++index){
+      if(index==selected_)request.selectedIndex=request.choices.size();
+      for(auto& line:rendered[index]){
+        visible_.push_back(available[index].id);
+        request.choices.push_back(std::move(line));
+      }
+    }
     auto self=shared_from_this();
     ready_(std::move(request),[self](const interactive::UiAction& action){
       self->listAction(action);
     });
+  }
+  static bool detailKey(const std::string& text){
+    return text=="i"||text=="\x1b[C"||text=="\x1bOC";
   }
   void listAction(const interactive::UiAction& action){
     if(!active_)return;
@@ -294,6 +352,10 @@ private:
       else if(action.text=="d"&&current->type=="local_agent"&&
           !current->running()&&input_.dismissBatMission){
         input_.dismissBatMission(current->id);showList();
+      }else if(detailKey(action.text)){
+        detailId_=current->id;tail_.clear();tailTruncated_=false;
+        showDetail(*current);
+        if(current->type=="local_bash")readShellOutput(current->id);
       }
       return;
     }
@@ -306,19 +368,70 @@ private:
       if(current->type=="local_bash")readShellOutput(current->id);
     }
   }
+  void showBatDetail(const Item& item,interactive::UiRequest& request){
+    const auto glance=interactive::presentation_providers::batGlance(item.bat,now());
+    request.body="Status: "+statusWord(item.status)+
+      (glance.foreground?" (foreground)":"");
+    const auto name=stringField(item.bat,"name");
+    if(!name.empty())request.body+="\nName: "+name;
+    if(!item.label.empty())request.body+="\nDescription: "+shorten(item.label,200);
+    const auto kind=stringField(item.bat,"agentType");
+    if(!kind.empty())request.body+="\nType: "+kind;
+    if(!glance.model.empty())request.body+="\nModel: "+glance.model;
+    const auto elapsed=elapsedText(item);
+    if(!elapsed.empty())request.body+="\nRuntime: "+elapsed;
+    request.body+="\nGadget uses: "+std::to_string(glance.gadgetUses)+
+      " · "+interactive::presentation_providers::compactTokens(glance.tokens);
+    const auto& progress=field(item.bat,"progress");
+    const auto summary=stringField(progress,"summary");
+    if(!summary.empty())request.body+="\nProgress: "+shorten(summary,200);
+    const auto& activity=field(progress,"recentActivities");
+    if(activity.is_array()&&!activity.empty()){
+      request.body+="\nRecent Gadgets:";
+      for(const auto& entry:activity){
+        const auto text=entry.is_string()?entry.get<std::string>():
+          !stringField(entry,"activityDescription").empty()?
+            stringField(entry,"activityDescription"):
+          !stringField(entry,"description").empty()?
+            stringField(entry,"description"):stringField(entry,"toolName");
+        if(!text.empty())request.body+="\n› "+shorten(text,120);
+      }
+    }else if(!glance.gadget.empty())request.body+="\nLatest Gadget: "+glance.gadget;
+    if(!glance.lastText.empty())request.body+="\nLatest reply: “"+glance.lastText+"”";
+    const auto& pending=field(item.bat,"pendingMessages");
+    if(pending.is_array()&&!pending.empty())
+      request.body+="\nQueued messages: "+std::to_string(pending.size())+
+        " · delivered at the next Gadget round";
+    if(!item.poetry.empty())request.body+="\nPoetry:\n"+shorten(item.poetry,2000);
+    const auto error=stringField(item.bat,"error");
+    if(!error.empty())request.body+="\nError: "+shorten(error,400);
+    const auto resumeError=stringField(item.bat,"inputResumeError");
+    if(!resumeError.empty())request.body+="\nResume error: "+shorten(resumeError,400);
+    request.body+=std::string("\n← or Esc back · Enter open conversation")+
+      (item.running()?" · x stop":"");
+  }
   void showDetail(const Item& item){
     if(!active_)return;
     interactive::UiRequest request;
     request.kind=interactive::UiRequest::Kind::Progress;
     request.id="background-tasks-detail";
     request.title=item.type=="local_bash"?"Shell details":
-      item.type=="configuration"?"Agent configuration":
-      item.type=="board"?"Task #"+item.id.substr(6):"Agent details";
+      item.type=="configuration"?"Bat configuration":
+      item.type=="board"?"Mission #"+item.id.substr(6):
+      "Bat · "+interactive::presentation_providers::batGlance(item.bat,now()).label;
+    if(item.type=="local_agent"){
+      showBatDetail(item,request);
+      auto self=shared_from_this();
+      ready_(std::move(request),[self](const interactive::UiAction& action){
+        self->detailAction(action);
+      });
+      return;
+    }
     request.body="Status: "+item.status;
     if(item.exitCode)request.body+=" (exit code "+
       std::to_string(*item.exitCode)+")";
     if(item.started>0){
-      const auto elapsed=std::max(0LL,platform::nowMillis()-item.started);
+      const auto elapsed=std::max(0LL,now()-item.started);
       request.body+="\nRuntime: "+shell::formatDuration(
         static_cast<double>(elapsed));
     }
@@ -351,37 +464,15 @@ private:
       request.body+="\nOutput:\n"+
         (tail_.empty()?"No output available":tailLines(tail_,lines));
       if(tailTruncated_)request.body+="\n… (output truncated)";
-    }else if(item.type=="configuration"){
+    }else{
       request.body="Name: "+item.label;
       for(const auto* key:{"description","whenToUse","source","filePath","model","memory","permissionMode"}){
         const auto value=stringField(item.bat,key);
         if(!value.empty())request.body+="\n"+std::string(key)+": "+value;
       }
       const auto& gadgets=field(item.bat,"tools");
-      if(gadgets.is_array())request.body+="\nTools: "+gadgets.dump();
+      if(gadgets.is_array())request.body+="\nGadgets: "+gadgets.dump();
       if(!item.poetry.empty())request.body+="\n"+shorten(item.poetry,1200);
-    }else{
-      const auto kind=stringField(item.bat,"agentType");
-      if(!kind.empty())request.body+="\nType: "+kind;
-      const auto& progress=field(item.bat,"progress");
-      const auto summary=stringField(progress,"summary");
-      if(!summary.empty())request.body+="\nProgress: "+shorten(summary,140);
-      const auto& activity=field(progress,"recentActivities");
-      if(activity.is_array()&&!activity.empty()){
-        request.body+="\nRecent activity:";
-        const auto start=activity.size()>3?activity.size()-3:0;
-        for(std::size_t i=start;i<activity.size();++i){
-          const auto& entry=activity[i];
-          const auto text=entry.is_string()?entry.get<std::string>():
-            stringField(entry,"description").empty()?
-              stringField(entry,"toolName"):stringField(entry,"description");
-          if(!text.empty())request.body+="\n› "+shorten(text,120);
-        }
-      }
-      if(!item.poetry.empty())request.body+="\nPrompt: "+
-        shorten(item.poetry,300);
-      const auto error=stringField(item.bat,"error");
-      if(!error.empty())request.body+="\nError: "+shorten(error,200);
     }
     request.body+="\n← back · Enter/Esc close"+
       std::string(item.running()?" · x stop":"")+
@@ -391,21 +482,27 @@ private:
       self->detailAction(action);
     });
   }
+  void backToList(){
+    auto available=items(input_,board_);
+    if(autoDetail_&&available.size()<=1)finish();
+    else{autoDetail_=false;detailId_.reset();showList();}
+  }
   void detailAction(const interactive::UiAction& action){
     if(!active_)return;
-    if(action.kind==interactive::UiAction::Kind::Back){
-      auto available=items(input_,board_);
-      if(autoDetail_&&available.size()<=1)finish();
-      else{autoDetail_=false;detailId_.reset();showList();}
-      return;
-    }
-    if(action.kind==interactive::UiAction::Kind::Cancel||
-        action.kind==interactive::UiAction::Kind::Activate){finish("Task details dismissed");return;}
-    if(action.kind!=interactive::UiAction::Kind::TextChange)return;
-    if(action.text==" "){finish("Task details dismissed");return;}
     const auto available=items(input_,board_);
     const auto found=std::find_if(available.begin(),available.end(),
       [this](const Item& item){return detailId_&&item.id==*detailId_;});
+    const bool bat=found!=available.end()&&found->type=="local_agent";
+    if(action.kind==interactive::UiAction::Kind::Back||
+        (bat&&action.kind==interactive::UiAction::Kind::Cancel)){
+      backToList();return;
+    }
+    if(bat&&action.kind==interactive::UiAction::Kind::Activate&&
+        input_.openBatConversation){openBat(found->id);return;}
+    if(action.kind==interactive::UiAction::Kind::Cancel||
+        action.kind==interactive::UiAction::Kind::Activate){finish("Details dismissed");return;}
+    if(action.kind!=interactive::UiAction::Kind::TextChange)return;
+    if(action.text==" "){finish("Details dismissed");return;}
     if(found==available.end())return;
     if(action.text=="x"&&found->running())stop(*found);
     else if(action.text=="e"&&found->type=="configuration")editConfiguration(*found);
@@ -414,7 +511,7 @@ private:
     const auto path=stringField(item.bat,"filePath");
     if(path.empty()||stopping_||!input_.getShell)return;
     const auto editor=application_editor::indigenous::externalEditor();
-    if(!editor){report(std::make_exception_ptr(std::runtime_error("Set VISUAL or EDITOR to edit agent configurations")));return;}
+    if(!editor){report(std::make_exception_ptr(std::runtime_error("Set VISUAL or EDITOR to edit Bat configurations")));return;}
     stopping_=true;timer_.cancel();auto self=shared_from_this();
     input_.owner.queueNextTurn([self,path,editor=*editor]{
       const auto shell=self->input_.getShell();if(!self->active_||!shell)return;
@@ -427,7 +524,7 @@ private:
             self->stopping_=false;if(!self->active_)return;
             if(error)self->report(error);
             else if(result&&result->error)self->report(std::make_exception_ptr(std::runtime_error(*result->error)));
-            else if(result&&result->exitCode!=0)self->report(std::make_exception_ptr(std::runtime_error("Agent editor exited with code "+std::to_string(result->exitCode))));
+            else if(result&&result->exitCode!=0)self->report(std::make_exception_ptr(std::runtime_error("Bat editor exited with code "+std::to_string(result->exitCode))));
             else if(self->input_.reloadBatDefinitions)self->input_.reloadBatDefinitions();
             self->refresh();self->schedule();
           });
@@ -440,7 +537,7 @@ private:
     if(item.type=="local_agent"){
       try{
         if(!input_.stopBatMission)
-          throw std::runtime_error("Agent task stop provider is unavailable");
+          throw std::runtime_error("Stopping Bats is unavailable");
         input_.stopBatMission(item.id);
       }catch(...){report(std::current_exception());}
       stopping_=false;refresh();return;

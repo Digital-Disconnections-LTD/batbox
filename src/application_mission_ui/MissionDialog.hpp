@@ -26,6 +26,8 @@ struct Inputs {
   std::function<std::shared_ptr<interactive::conversation_shell::Shell>()> getShell;
   bool batsOnly=false,includeCompletedBats=false;
   std::function<int()> terminalRows;
+  // Clock for elapsed times; tests pin it so rendered rows are deterministic.
+  std::function<long long()> nowMillis;
   std::function<void(std::exception_ptr)> onError;
   explicit Inputs(event_loop::Loop& loop):owner(loop){}
 };
