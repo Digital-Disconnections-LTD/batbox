@@ -94,6 +94,13 @@ Fullscreen is the default; `--inline` selects the inline layout. Scrolling above
 live output holds your place. **Go to the action** returns to the latest output.
 `NO_COLOR=1` selects neutral colors.
 
+To copy a range longer than the visible screen, press Ctrl+O for the transcript,
+then `c` for its copy view. Drag to select; hold the drag at the top or bottom
+edge to scroll, or use the wheel while dragging. Releasing copies the entire
+selected range, including offscreen text and spaces. Enter or Ctrl+C copies the
+selection again. Esc returns to the transcript. The copy view takes a snapshot
+when opened; close and reopen it to include new output.
+
 For automation, `--print` returns a response and exits. Add `--output-format json`
 for JSON, or `--output-format stream-json --verbose` for streaming events. Run
 `--help` for the full flag list. Headless Flights select `bypassPermissions` by

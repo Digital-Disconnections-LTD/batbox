@@ -1,0 +1,16 @@
+--- a/src/ftxui/dom/selection.cpp
++++ b/src/ftxui/dom/selection.cpp
+@@ -158,9 +158,10 @@ void Selection::AddPart(std::string_view part, int y, int left, int right) {
+       return;
+     }
+ 
+-    if (x_ == left + 1) {
+-      parts_ << part;
+-      return;
++    // Flex paragraphs lay out words with empty cells for spaces. Preserve
++    // those selected cells when collecting text from adjacent child nodes.
++    if (left > x_ + 1) {
++      parts_ << std::string(static_cast<size_t>(left - x_ - 1), ' ');
+     }
+ 
+     parts_ << part;
