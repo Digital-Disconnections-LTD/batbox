@@ -223,8 +223,7 @@ ftxui::Element Shell::render(){
   settings.fullscreen=true;settings.transcriptMode=transcript_;
   settings.virtualScroll=true;
   settings.streamingGadgetUses=presentation().streamingGadgetUses;
-  prepared_=std::make_shared<PreparedMessageList>(prepareMessageList(
-    presentation().messages,settings,sliceAnchor_));
+  prepared_=listMemo_.prepare(presentation().messages,settings,sliceAnchor_);
   auto options=imports_.surfaceOptions(presentation());
   options.screen=transcript_?"transcript":"prompt";
   options.conversationId=presentation().conversationId;

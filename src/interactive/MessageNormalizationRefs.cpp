@@ -42,4 +42,22 @@ MessageRefs normalizeMessagesRefs(const MessageRefs& messages,
   if (offset != normalized.size()) throw std::logic_error("Normalizer output mismatch");
   return result;
 }
+
+MessageRefs normalizeMessageRef(const MessageRef& message,
+                                messages::Services& services, bool& isNewChain) {
+  if (!message) throw std::invalid_argument("Message reference required");
+  const auto normalized = messages::normalizeMessages(
+      Json::array({*message}), services, isNewChain);
+  const auto kind = type(*message);
+  const auto count = outputCount(*message);
+  if (count != normalized.size()) throw std::logic_error("Normalizer output mismatch");
+  MessageRefs result;
+  result.reserve(count);
+  for (std::size_t i = 0; i < count; ++i) {
+    if (kind == "attachment" || kind == "progress" || kind == "system")
+      result.push_back(message);
+    else result.push_back(std::make_shared<Json>(normalized[i]));
+  }
+  return result;
+}
 } // namespace batbox::interactive

@@ -1,8 +1,10 @@
 #include "interactive/conversation_shell/Shell.hpp"
+#include "interactive/presentation_providers/CardPalettes.hpp"
 #include "interactive/presentation_providers/Chrome.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
 #include "text_width/IndigenousLayout.hpp"
 #include "history/References.hpp"
+#include "runtime/MessageSnapshot.hpp"
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 #include <cassert>
@@ -59,7 +61,6 @@ int main(int argc,char** argv){
   };
   imports.messageImports=[]{return message_view::MessageImports{};};
   imports.decisionImports=[]{return MessageDecisionImports{};};
-  imports.projectionServices=[]{return message_view::ProjectionServices{};};
   imports.renderStreamingMarkdown=[](const std::string& text,bool){
     return ftxui::paragraph(text);
   };
@@ -74,6 +75,18 @@ int main(int argc,char** argv){
   auto chrome=presentation_providers::makeChromeProviders({theme,shortcuts,
     []{return std::string{};},[]{return std::string{};},
     []{return std::string{};},[]{return std::string{};}});
+  imports.projectionServices=[&theme]{
+    message_view::ProjectionServices services;
+    services.user.protocol.feature=[](const std::string&){return false;};
+    services.user.protocol.batSwarmsEnabled=[]{return false;};
+    services.user.poetry.logError=[](const std::string&){};
+    services.user.poetry.briefModeActive=[]{return false;};
+    services.user.poetry.userMessageOptIn=[]{return false;};
+    services.user.poetry.briefPreference=[]{return false;};
+    services.user.userPalette=presentation_providers::userCardPalette(theme);
+    services.user.poetryPalette=presentation_providers::poetryPalette(theme);
+    return services;
+  };
   imports.chrome.renderModal=chrome.renderModal;
   imports.chrome.renderPill=[](const ViewState&){return ftxui::text("Go to the action ↓");};
   imports.chrome.renderLogo=[]{return ftxui::text("Batbox");};
@@ -287,6 +300,21 @@ int main(int argc,char** argv){
   assert(shell->viewport().scroll().sticky);
   assert(screen.ToString().find("NEW_OUTPUT_AT_BOTTOM")!=std::string::npos);
   state.streamingText.reset();paint();
+  // A message edited in place after the stream yielded it (as message_delta
+  // does) reaches the next frame although the message list is unchanged.
+  const auto hasRow=[&](const std::string& prefix){
+    for(const auto& key:shell->viewport().ranges().keys())
+      if(key.starts_with(prefix))return true;
+    return false;
+  };
+  auto yielded=std::make_shared<Json>(Json{{"type","user"},{"uuid","before-edit"},
+    {"timestamp","t"},{"message",{{"role","user"},{"content","edited later"}}}});
+  state.messages.push_back(yielded);paint();
+  assert(hasRow("before-edit"));
+  {runtime::MessageLock lock(yielded);lock.value()["uuid"]="after-edit";}
+  paint();
+  assert(hasRow("after-edit")&&!hasRow("before-edit"));
+  state.messages.clear();paint();
   shell->setTranscript(true);shell->openSearch();
   shell->onRawInput("n");
   assert(shell->navigation().searchQuery()=="n");

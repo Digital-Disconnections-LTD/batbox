@@ -3,7 +3,11 @@
 namespace batbox::messages {
 using namespace internal;
 Json normalizeMessages(const Json& messages, Services& services) {
-  Json result = Json::array(); bool isNewChain = false;
+  bool isNewChain = false;
+  return normalizeMessages(messages, services, isNewChain);
+}
+Json normalizeMessages(const Json& messages, Services& services, bool& isNewChain) {
+  Json result = Json::array();
   for (const auto& message : messages) {
     const std::string type = field(message, "type");
     if (type == "assistant") {

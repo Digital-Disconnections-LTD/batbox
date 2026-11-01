@@ -1,5 +1,6 @@
 #pragma once
 #include "runtime/JsonValue.hpp"
+#include "runtime/MessageMutation.hpp"
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -34,15 +35,20 @@ class MessageLock {
   std::shared_ptr<Json> message_;
   std::shared_ptr<std::mutex> mutex_;
   std::unique_lock<std::mutex> lock_;
+  bool mutated_=false;
 public:
   explicit MessageLock(std::shared_ptr<Json> message):
     message_(std::move(message)),mutex_(detail::mutexFor(message_)),lock_(*mutex_){}
-  Json& value(){return *message_;}
+  MessageLock(const MessageLock&)=delete;
+  MessageLock& operator=(const MessageLock&)=delete;
+  // Mutable access publishes the edit to memoized views once the lock ends.
+  ~MessageLock(){if(mutated_)noteMessageMutated(message_.get());}
+  Json& value(){mutated_=true;return *message_;}
   const Json& value()const{return *message_;}
 };
 
 inline Json snapshotMessage(const std::shared_ptr<Json>& message) {
-  MessageLock lock(message);
+  const MessageLock lock(message);
   return lock.value();
 }
 } // namespace batbox::runtime
