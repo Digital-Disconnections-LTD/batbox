@@ -48,14 +48,14 @@ void processBatGadgetForegroundMessage(const query::MessageRef& ref,
       need(services.emitMissionProgress,"emitTaskProgress");
       services.emitMissionProgress(tracker,*foregroundMissionId,gadgetUseId,description,
         startTime,*lastGadgetName);
-      need(services.getSdkBatProgressSummariesEnabled,
-        "getSdkAgentProgressSummariesEnabled");
-      if(services.getSdkBatProgressSummariesEnabled()){
-        need(services.getProgressUpdate,"getProgressUpdate");
-        need(services.updateAsyncBatProgress,"updateAsyncAgentProgress");
-        services.updateAsyncBatProgress(*foregroundMissionId,
-          services.getProgressUpdate(tracker),rootSetAppState);
-      }
+    }
+    // The Bats list and footer read the mission record, so a foreground Bat
+    // publishes its counters on every assistant turn just like a background one.
+    if(field(message,"type")=="assistant"){
+      need(services.getProgressUpdate,"getProgressUpdate");
+      need(services.updateAsyncBatProgress,"updateAsyncAgentProgress");
+      services.updateAsyncBatProgress(*foregroundMissionId,
+        services.getProgressUpdate(tracker),rootSetAppState);
     }
   }
   const auto& type=field(message,"type");

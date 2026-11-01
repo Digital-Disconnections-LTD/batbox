@@ -1,4 +1,9 @@
 #include "application_bats/IndigenousBatApplication.hpp"
+#include "application/Async.hpp"
+#include "flights/SavedBats.hpp"
+#include "runtime/IndigenousPath.hpp"
+#include "runtime/Paths.hpp"
+#include "runtime/Platform.hpp"
 #include <algorithm>
 #include <stdexcept>
 
@@ -14,6 +19,7 @@ std::size_t textBytes(const Json& value){
 }
 void IndigenousBatApplication::releaseInactiveState(){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent reclamation requires owner");
+  sweepSettledMissions();
   // Observation/resume can still be hydrating the deduplication set on a worker.
   if(conversationJobs_)return;
   const auto state=appState();const auto& missions=field(state,"tasks");
@@ -32,7 +38,10 @@ void IndigenousBatApplication::releaseInactiveState(){
       if(idle(it->first)){evicted.push_back(it->first);it=conversations_.erase(it);}
       else ++it;
     }
-    std::erase_if(latestStreams_,[&](const auto& item){return idle(item.first);});
+    for(auto it=latestStreams_.begin();it!=latestStreams_.end();){
+      if(idle(it->first)){streamThrottle_.forget(it->first);it=latestStreams_.erase(it);}
+      else ++it;
+    }
     std::erase_if(writtenMessageIds_,[&](const auto& item){return idle(item.first);});
     std::erase_if(lastTranscriptUuids_,[&](const auto& item){return idle(item.first);});
   }
@@ -48,6 +57,88 @@ void IndigenousBatApplication::releaseInactiveState(){
     }
     return next;
   });
+}
+void IndigenousBatApplication::sweepSettledMissions(){
+  if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent record sweep requires owner");
+  if(closing_)return;
+  const auto tasks=inputs_.store->getState()->fieldRef("tasks");
+  if(!tasks)return;
+  std::set<std::string> busy;
+  {
+    std::lock_guard lock(conversationMutex_);
+    for(const auto& [id,_]:batJobs_)busy.insert(id);
+    busy.insert(pendingResumes_.begin(),pendingResumes_.end());
+  }
+  for(const auto& [id,inputs]:pendingDirectInputs_)if(!inputs.empty())busy.insert(id);
+  busy.insert(pendingContinuationScheduled_.begin(),pendingContinuationScheduled_.end());
+  const auto isBusy=[&busy](const std::string& id){return busy.contains(id);};
+  const auto now=static_cast<std::int64_t>(platform::nowMillis());
+  const auto sweep=bats::sweepSettledBatMissions(*tasks,now,
+    bats::settledBatRecordLimit,isBusy);
+  if(sweep.missions)setAppState([&](const Json& state){
+    const auto current=bats::sweepSettledBatMissions(field(state,"tasks"),now,
+      bats::settledBatRecordLimit,isBusy);
+    if(!current.missions)return state;
+    Json next=state;next["tasks"]=*current.missions;return next;
+  });
+  if(!sweep.nextDueMs||(sweepDueMs_&&*sweepDueMs_<=*sweep.nextDueMs))return;
+  sweepTimer_.cancel();sweepDueMs_=sweep.nextDueMs;
+  // Unreferenced: a pending sweep never keeps the application alive.
+  sweepTimer_=inputs_.owner.setTimeout(static_cast<double>(*sweep.nextDueMs-now+25),
+    [weak=weak_from_this()]{
+      const auto self=weak.lock();if(!self)return;
+      self->sweepDueMs_.reset();self->sweepTimer_={};
+      self->sweepSettledMissions();
+    },false);
+}
+event_loop::Deferred<std::size_t> IndigenousBatApplication::seedSavedBats(){
+  if(!inputs_.owner.isOwnerThread())throw std::logic_error("Saved Bat listing requires owner");
+  event_loop::Deferred<std::size_t> output(inputs_.owner);
+  try{
+    if(closing_)throw std::runtime_error("Agent application is shutting down");
+    const auto flight=inputs_.currentFlightId();
+    std::string directory;
+    {
+      std::lock_guard lock(pathsMutex_);
+      // The probe name only locates this Flight's subagents directory.
+      directory=value::dirname(pathsForFlightLocked(flight)->getBatTranscriptPath("probe"));
+    }
+    auto self=shared_from_this();++conversationJobs_;
+    application::runInWorker<std::vector<flights::SavedBat>>(inputs_.owner,[directory]{
+      return flights::scanSavedBats(runtime::pathFromUtf8(directory),
+        bats::settledBatRecordLimit);
+    }).then([self,flight,output](const std::vector<flights::SavedBat>* found,
+        const std::exception_ptr& error){
+      --self->conversationJobs_;self->checkShutdown();
+      if(error){output.reject(error);return;}
+      try{
+        std::size_t added=0;
+        if(!found||found->empty()||self->closing_){output.resolve(0);return;}
+        {
+          std::lock_guard lock(self->pathsMutex_);
+          auto paths=self->pathsForFlightLocked(flight);
+          for(const auto& bat:*found){
+            if(self->batFlights_.try_emplace(bat.id,flight).second&&!bat.subdirectory.empty())
+              paths->setBatTranscriptSubdir(bat.id,bat.subdirectory);
+          }
+        }
+        self->setAppState([&](const Json& state){
+          Json next=state;
+          if(!next["tasks"].is_object())next["tasks"]=Json::object();
+          for(const auto& bat:*found){
+            if(!value::property(next["tasks"],bat.id).is_null())continue;
+            next["tasks"][bat.id]=bats::savedBatRecord(bat.id,bat.description,
+              bat.agentType,bat.poetry,bat.startTime,bat.endTime,bat.gadgetUses,
+              bat.lastAssistant,self->registration_.getMissionOutputPath(bat.id));
+            ++added;
+          }
+          return added?next:state;
+        });
+        output.resolve(added);
+      }catch(...){output.reject(std::current_exception());}
+    });
+  }catch(...){output.reject(std::current_exception());}
+  return output;
 }
 Json IndigenousBatApplication::retainedStateSummary()const{
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent memory snapshot requires owner");

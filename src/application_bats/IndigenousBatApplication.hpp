@@ -1,6 +1,7 @@
 #pragma once
 #include "application/Config.hpp"
 #include "application_bats/BatServices.hpp"
+#include "application_bats/StreamPublishThrottle.hpp"
 #include "application_engine/Engine.hpp"
 #include "application_permissions/PermissionProvider.hpp"
 #include "bats/BatMissionBinding.hpp"
@@ -18,6 +19,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+namespace batbox::application {struct HostSavedBatsProbe;}
 namespace batbox::application_skills {class Provider;}
 namespace batbox::application_hooks {class Provider;}
 namespace batbox::mcp::manager {class IndigenousRuntime;}
@@ -75,6 +77,13 @@ public:
   bool hasActiveJobs()const;
   bool ownsMission(const std::string& missionId)const;
   void releaseInactiveState();
+  // Reduces or removes settled, unobserved Bat records once their grace
+  // window passes, then schedules the next pass.
+  void sweepSettledMissions();
+  // Lists Bats saved by earlier runs of the current Flight as settled,
+  // unloaded records so /bats can show, open and resume them. Resolves with
+  // the number of records added.
+  event_loop::Deferred<std::size_t> seedSavedBats();
   Json retainedStateSummary()const;
   std::unordered_map<std::string,std::string> transcriptOrigins()const;
   void restoreTranscriptOrigins(const std::unordered_map<std::string,std::string>&);
@@ -91,6 +100,7 @@ public:
   void stopMission(const std::string& missionId);
   event_loop::Deferred<event_loop::Unit> shutdown();
 private:
+  friend struct batbox::application::HostSavedBatsProbe;
   explicit IndigenousBatApplication(Inputs inputs):inputs_(std::move(inputs)){}
   void initialize();
   void bindPreflight(bats::BatGadgetCallServices& gadget);
@@ -105,6 +115,7 @@ private:
   void recordBatMessages(const Json& messages,const std::string& batId,
     const std::optional<std::string>& parent,bool awaitWrites=false);
   void publishStream(const std::string& missionId,const Json& message);
+  void flushStream(const std::string& missionId,const Json& recorded);
   void rememberConversation(const std::string& missionId,
     const bats::BatContext& context,const IndigenousQueryBridge::CanUseGadget& canUse);
   std::optional<Json> readTranscript(const std::string& missionId);
@@ -132,6 +143,8 @@ private:
   Inputs inputs_;
   std::shared_ptr<flights::ProjectDirectories> directories_;
   std::shared_ptr<flights::Paths> pathsForBat(const std::string& batId)const;
+  // Requires pathsMutex_.
+  std::shared_ptr<flights::Paths> pathsForFlightLocked(const std::string& flightId)const;
   std::shared_ptr<flights::WriteQueue> writes_;
   std::shared_ptr<IndigenousQueryBridge> query_;
   Json definitions_=Json::object();
@@ -170,6 +183,9 @@ private:
   // Owner-only current block projection, also accumulated while unobserved.
   // Selecting mid-stream can then show its prefix without hidden UI redraws.
   std::unordered_map<std::string,Json> latestStreams_;
+  StreamPublishThrottle streamThrottle_;
+  event_loop::Loop::TimerHandle sweepTimer_;
+  std::optional<std::int64_t> sweepDueMs_;
   std::unordered_map<std::string,std::vector<Json>> pendingDirectInputs_;
   std::set<std::string> pendingContinuationScheduled_;
   std::size_t conversationJobs_=0;

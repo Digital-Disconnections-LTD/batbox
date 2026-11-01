@@ -178,6 +178,7 @@ bats::ResumeResult IndigenousBatApplication::resumeMission(const std::string& id
       bats::BatRegistrationParams params;
       params.batId=string(field(value,"agentId"));params.description=string(field(value,"description"));
       params.poetry=string(field(value,"prompt"));params.selectedBat=field(value,"selectedAgent");
+      params.model=string(field(value,"model"));
       if(field(value,"toolUseId").is_string())params.gadgetUseId=field(value,"toolUseId").get<std::string>();
       auto state=self->missionState_;state.setAppState=set;
       auto registration=self->registration_;registration.state=&state;

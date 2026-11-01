@@ -64,3 +64,4 @@ add_test(NAME phase6-visual-goldens-indigenous
   ${CMAKE_SOURCE_DIR}/tests/phase6/goldens/visual)
 batbox_indigenous(phase6-visual-roles-indigenous
   tests/phase6/visual_roles_indigenous.cpp batbox_application_commands)
+include(cmake/BatsPanelTests.cmake)

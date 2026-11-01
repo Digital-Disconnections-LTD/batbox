@@ -6,6 +6,27 @@ namespace {
 const Json& field(const Json& object,const char* key){return value::property(object,key);}
 double number(const Json& value){return value.is_number()?value.get<double>():0.0;}
 }
+std::string lastAssistantTextLine(const Json& message,std::size_t maxChars){
+  if(field(message,"type")!="assistant"||maxChars<2)return {};
+  const Json& blocks=field(field(message,"message"),"content");
+  if(!blocks.is_array())return {};
+  for(auto block=blocks.rbegin();block!=blocks.rend();++block){
+    if(field(*block,"type")!="text"||!field(*block,"text").is_string())continue;
+    const auto& text=field(*block,"text").get_ref<const std::string&>();
+    std::size_t end=text.size();
+    while(end>0){
+      const auto start=text.rfind('\n',end-1);
+      const auto begin=start==std::string::npos?0:start+1;
+      const auto line=value::trim(text.substr(begin,end-begin));
+      if(!line.empty())
+        return value::stringLength(line)>maxChars?
+          value::slice(line,0,maxChars-1)+"…":line;
+      if(start==std::string::npos)break;
+      end=start;
+    }
+  }
+  return {};
+}
 Json createProgressTracker(){
   return Json{{"toolUseCount",0},{"latestInputTokens",0},
     {"cumulativeOutputTokens",0},{"recentActivities",Json::array()}};
@@ -25,6 +46,8 @@ void updateProgressFromMessage(Json& tracker,const Json& message,
     number(field(usage,"cache_read_input_tokens"));
   tracker["cumulativeOutputTokens"]=number(field(tracker,"cumulativeOutputTokens"))+
     number(field(usage,"output_tokens"));
+  if(const auto line=lastAssistantTextLine(message);!line.empty())
+    tracker["lastText"]=line;
   const Json& blocks=field(body,"content");
   if(blocks.is_array())for(const Json& block:blocks){
     if(field(block,"type")!="tool_use")continue;
@@ -57,6 +80,9 @@ Json getProgressUpdate(const Json& tracker){
     {"recentActivities",field(tracker,"recentActivities")}};
   const Json& activities=field(tracker,"recentActivities");
   if(activities.is_array()&&!activities.empty())out["lastActivity"]=activities.back();
+  const Json& lastText=field(tracker,"lastText");
+  if(lastText.is_string()&&!lastText.get_ref<const std::string&>().empty())
+    out["lastText"]=lastText;
   return out;
 }
 ActivityResolver createActivityDescriptionResolver(const gadgets::Gadgets& gadgets){

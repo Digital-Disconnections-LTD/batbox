@@ -56,6 +56,8 @@ Json launchBatGadgetAsync(const Json& input,const Json& assistantMessage,
   registration.description=text(field(input,"description"));
   registration.poetry=text(field(input,"prompt"));
   registration.selectedBat=planRef->runBatParams.batDefinition;
+  registration.name=text(field(input,"name"));
+  registration.model=planRef->resolvedBatModel;
   const auto& gadgetUseId=field(context.query.data,"toolUseId");
   if(gadgetUseId.is_string())registration.gadgetUseId=gadgetUseId.get<std::string>();
   // Background missions deliberately do not inherit the parent's abort source.

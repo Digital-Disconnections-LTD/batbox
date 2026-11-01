@@ -1,6 +1,8 @@
 #include "bats/BatMissionState.hpp"
 #include "bats/ResumeFilters.hpp"
+#include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 namespace batbox::bats {
 namespace {
@@ -185,5 +187,111 @@ void failBatMission(const std::string& id,const std::string& error,
     terminalFields(next,"failed",services);return next;
   });
   need(services.evictMissionOutput,"evictTaskOutput");services.evictMissionOutput(id);
+}
+namespace {
+bool settledStatus(const Json& mission){
+  const auto& status=field(mission,"status");
+  return status=="completed"||status=="failed"||status=="killed";
+}
+std::string clippedText(const Json& value,std::size_t limit){
+  if(!value.is_string())return {};
+  const auto& text=value.get_ref<const std::string&>();
+  return value::stringLength(text)>limit?value::slice(text,0,limit-1)+"…":text;
+}
+Json summarizedRecord(const Json& mission){
+  Json summary=Json::object();
+  for(const char* key:{"id","agentId","type","status","description","name","model",
+      "agentType","startTime","endTime","toolUseId","outputFile","outputOffset",
+      "notified","retrieved","isBackgrounded","evictAfter","inputResumeError"})
+    if(mission.contains(key))summary[key]=mission[key];
+  if(mission.contains("prompt"))summary["prompt"]=clippedText(mission["prompt"],2000);
+  if(mission.contains("error"))summary["error"]=clippedText(mission["error"],400);
+  const Json& progress=field(mission,"progress");
+  if(progress.is_object()){
+    Json kept=Json::object();
+    for(const char* key:{"toolUseCount","tokenCount","lastText","summary"})
+      if(progress.contains(key))kept[key]=progress[key];
+    const Json& activity=field(progress,"lastActivity");
+    if(activity.is_object()){
+      Json last=Json::object();
+      for(const char* key:{"toolName","activityDescription"})
+        if(activity.contains(key))last[key]=activity[key];
+      kept["lastActivity"]=std::move(last);
+    }
+    summary["progress"]=std::move(kept);
+  }
+  const Json& result=field(mission,"result");
+  if(result.is_object()){
+    Json kept=Json::object();
+    for(const char* key:{"totalTokens","totalDurationMs","totalToolUseCount"})
+      if(result.contains(key))kept[key]=result[key];
+    summary["result"]=std::move(kept);
+  }
+  summary["pendingMessages"]=Json::array();
+  summary["retain"]=false;summary["diskLoaded"]=false;summary["summarized"]=true;
+  return summary;
+}
+}
+Json savedBatRecord(const std::string& id,const std::string& description,
+  const std::string& agentType,const std::string& poetry,std::int64_t startTime,
+  std::int64_t endTime,std::size_t gadgetUses,const Json& lastAssistant,
+  const std::string& outputFile){
+  const Json& body=field(lastAssistant,"message");
+  const Json& usage=field(body,"usage");
+  double tokens=0;
+  for(const char* key:{"input_tokens","cache_creation_input_tokens",
+      "cache_read_input_tokens","output_tokens"})
+    if(field(usage,key).is_number())tokens+=field(usage,key).get<double>();
+  Json progress={{"toolUseCount",gadgetUses},{"tokenCount",tokens}};
+  if(const auto line=lastAssistantTextLine(lastAssistant);!line.empty())
+    progress["lastText"]=line;
+  Json record={{"id",id},{"agentId",id},{"type","local_agent"},{"status","completed"},
+    {"description",description.empty()?std::string("Saved Bat"):description},
+    {"agentType",agentType.empty()?std::string("general-purpose"):agentType},
+    {"prompt",clippedText(Json(poetry),2000)},{"startTime",startTime},
+    {"endTime",endTime},{"outputFile",outputFile},{"outputOffset",0},
+    {"notified",true},{"retrieved",true},{"isBackgrounded",true},
+    {"pendingMessages",Json::array()},{"retain",false},{"diskLoaded",false},
+    {"savedOnDisk",true},{"progress",std::move(progress)}};
+  if(field(body,"model").is_string())record["model"]=body["model"];
+  return record;
+}
+SettledBatSweep sweepSettledBatMissions(const Json& missions,std::int64_t nowMs,
+  std::size_t keepSettled,const std::function<bool(const std::string&)>& busy){
+  SettledBatSweep sweep;
+  if(!missions.is_object())return sweep;
+  std::optional<Json> next;
+  const auto edit=[&]()->Json&{if(!next)next=missions;return *next;};
+  struct Settled {std::string id;std::int64_t at;};
+  std::vector<Settled> settled;
+  for(auto it=missions.begin();it!=missions.end();++it){
+    const auto& mission=it.value();
+    if(!isPanelBatMission(mission)||!settledStatus(mission)||
+       value::truthy(field(mission,"retain"))||(busy&&busy(it.key())))continue;
+    const Json& evict=field(mission,"evictAfter");
+    if(evict.is_number()){
+      const auto due=static_cast<std::int64_t>(evict.get<double>());
+      if(due>nowMs){
+        sweep.nextDueMs=sweep.nextDueMs?std::min(*sweep.nextDueMs,due):due;
+        continue;
+      }
+      if(due==0){edit().erase(it.key());++sweep.removed;continue;}
+      if(!value::truthy(field(mission,"summarized"))){
+        edit()[it.key()]=summarizedRecord(mission);++sweep.summarized;
+      }
+    }
+    const Json& end=field(mission,"endTime");
+    const Json& start=field(mission,"startTime");
+    settled.push_back({it.key(),end.is_number()?static_cast<std::int64_t>(end.get<double>()):
+      start.is_number()?static_cast<std::int64_t>(start.get<double>()):0});
+  }
+  if(settled.size()>keepSettled){
+    std::stable_sort(settled.begin(),settled.end(),
+      [](const Settled& a,const Settled& b){return a.at>b.at;});
+    for(auto it=settled.begin()+static_cast<std::ptrdiff_t>(keepSettled);
+        it!=settled.end();++it){edit().erase(it->id);++sweep.removed;}
+  }
+  sweep.missions=std::move(next);
+  return sweep;
 }
 } // namespace batbox::bats

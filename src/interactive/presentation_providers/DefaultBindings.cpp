@@ -11,7 +11,7 @@ std::vector<BindingBlock> baseBlocks(){
       {"ctrl+c","app:interrupt"},
       {"ctrl+d","app:exit"},
       {"ctrl+l","app:redraw"},
-      {"ctrl+t","app:toggleTodos"},
+      {"ctrl+t","app:openBats"},
       {"ctrl+o","app:toggleTranscript"},
       {"ctrl+shift+o","app:toggleTeammatePreview"},
       {"ctrl+r","history:search"},

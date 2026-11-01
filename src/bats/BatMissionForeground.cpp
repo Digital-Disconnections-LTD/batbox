@@ -80,6 +80,8 @@ RegisteredForegroundBat registerBatForeground(
   mission["pendingMessages"]=Json::array();
   mission["retain"]=false;
   mission["diskLoaded"]=false;
+  if(!params.name.empty())mission["name"]=params.name;
+  if(!params.model.empty())mission["model"]=params.model;
   output.registered.missionState=mission;
   const auto observed=services.signals->createObserved(params.batId);
   output.backgroundSignal=observed.future;

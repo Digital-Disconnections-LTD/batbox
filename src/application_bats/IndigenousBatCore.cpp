@@ -232,7 +232,10 @@ std::shared_ptr<flights::Paths> IndigenousBatApplication::pathsForBat(
   std::lock_guard lock(pathsMutex_);
   auto [bat,inserted]=batFlights_.try_emplace(id,current);
   (void)inserted;
-  const auto& flight=bat->second;
+  return pathsForFlightLocked(bat->second);
+}
+std::shared_ptr<flights::Paths> IndigenousBatApplication::pathsForFlightLocked(
+    const std::string& flight)const{
   if(const auto existing=flightPaths_.find(flight);existing!=flightPaths_.end())
     return existing->second;
   if(flightPaths_.size()>=32)flightPaths_.erase(flightPaths_.begin());

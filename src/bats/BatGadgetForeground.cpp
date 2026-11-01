@@ -90,6 +90,8 @@ Json runBatGadgetForeground(const Json& input,const Json& assistantMessage,
       registration.description=description;
       registration.poetry=poetry;
       registration.selectedBat=plan.runBatParams.batDefinition;
+      registration.name=text(field(input,"name"));
+      registration.model=plan.resolvedBatModel;
       const auto& gadgetUseId=field(context.query.data,"toolUseId");
       if(gadgetUseId.is_string())registration.gadgetUseId=gadgetUseId.get<std::string>();
       const double autoBackgroundMs=services.getAutoBackgroundMs();
