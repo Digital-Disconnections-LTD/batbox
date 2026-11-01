@@ -242,7 +242,7 @@ private:
   }
   // One Bat row: identity and the numbers that tell whether it is progressing,
   // with the latest thing it said as the dimmer detail line.
-  struct ListRow {std::string label,detail;};
+  struct ListRow {std::string label,detail,section;};
   ListRow batRow(const Item& item)const{
     const auto glance=interactive::presentation_providers::batGlance(item.bat,now());
     std::string row=(input_.batsOnly?"":"Bat · ")+
@@ -255,7 +255,7 @@ private:
     row+=" · "+interactive::presentation_providers::compactTokens(glance.tokens);
     if(!glance.gadget.empty())row+=" · "+shorten(glance.gadget,40);
     return {std::move(row),glance.lastText.empty()?std::string{}:
-      "“"+shorten(glance.lastText,120)+"”"};
+      "“"+shorten(glance.lastText,120)+"”",{}};
   }
   void showList(){
     if(!active_)return;
@@ -287,7 +287,7 @@ private:
     request.body=input_.batsOnly?
       std::to_string(batCount)+(batCount==1?" Bat":" Bats")+" · "+
         std::to_string(runningBats)+" running\n"+
-        (batCount==0?"No Bats yet · a Bat appears here when the leader delegates work":
+        (batCount==0?"No Bats yet · send one with the Agent Gadget or ask the leader to delegate":
           "↑/↓ select · Enter open · i details · x stop · d dismiss · Esc close"):
       std::to_string(shellCount)+" active shell"+
       (shellCount==1?"":"s")+" · "+std::to_string(batCount)+
@@ -301,13 +301,18 @@ private:
     const auto height=[](const ListRow& row)->std::size_t{return row.detail.empty()?1:2;};
     for(const auto& item:available){
       if(item.type=="local_agent"){rendered.push_back(batRow(item));continue;}
+      if(input_.batsOnly&&item.type=="configuration"){
+        // Configured types are what the leader can send, not running Bats.
+        rendered.push_back({shorten(item.label,48),shorten(item.poetry,90),"Bat types"});
+        continue;
+      }
       rendered.push_back({(item.type=="local_bash"?"Shell · ":
         item.type=="configuration"?"Configuration · ":
         "Mission #"+item.id.substr(6)+" · ")+
         shorten(item.label.empty()?item.id:item.label,70)+
         " ["+item.status+"]"+
         (item.type=="board"&&!stringField(item.bat,"owner").empty()?
-         " · "+shorten(stringField(item.bat,"owner"),20):""),{}});
+         " · "+shorten(stringField(item.bat,"owner"),20):""),{},{}});
     }
     std::size_t begin=selected_,used=available.empty()?0:height(rendered[selected_]);
     while(begin>0&&used+height(rendered[begin-1])<=capacity)used+=height(rendered[--begin]);
@@ -317,7 +322,8 @@ private:
       if(index==selected_)request.selectedIndex=request.choices.size();
       visible_.push_back(available[index].id);
       request.choices.push_back(std::move(rendered[index].label));
-      request.choiceInfo.push_back({std::move(rendered[index].detail),{},{}});
+      request.choiceInfo.push_back({std::move(rendered[index].detail),{},
+        std::move(rendered[index].section)});
     }
     auto self=shared_from_this();
     ready_(std::move(request),[self](const interactive::UiAction& action){

@@ -25,7 +25,10 @@ std::string joined(const interactive::UiRequest& request){
   return all;
 }
 void checkVocabulary(const interactive::UiRequest& request){
-  const auto all=joined(request);
+  auto all=joined(request);
+  // The Gadget that starts a Bat is really named Agent.
+  for(auto at=all.find("Agent Gadget");at!=std::string::npos;at=all.find("Agent Gadget"))
+    all.replace(at,12,"Bat Gadget");
   for(const char* word:{"Agent","agent","Task","task"})
     check(!contains(all,word),std::string("Bats UI must use Batbox vocabulary, found '")+
       word+"' in:\n"+all);
@@ -164,6 +167,38 @@ int main(){
       contains(missionText,"2 active Bats")&&!contains(missionText,"Summarize history"),
       "Missions list must include running foreground and background Bats only:\n"+missionText);
     router->ui()->dispatchAction({interactive::UiAction::Kind::Cancel,0,{}});
+
+    {
+      // With nothing running, /bats explains how to start one and lists the
+      // configured types in their own section.
+      for(int i=0;i<5;++i)loop.runReady();
+      auto emptyState=std::make_shared<app_state::AppState>();
+      emptyState->fields=std::make_shared<value::SharedRecord>();
+      emptyState->fields->set("tasks",Json::object());
+      auto emptyInputs=inputs;
+      emptyInputs.store=std::make_shared<app_state::AppStateStore>(emptyState);
+      emptyInputs.batDefinitions=[]{return Json{{"activeAgents",Json::array({
+        Json{{"agentType","general-purpose"},{"whenToUse","Research and multi-step work"}},
+        Json{{"agentType","reviewer"},{"whenToUse","Reviews a change for bugs"}}})}};};
+      auto emptyBats=application_mission_ui::makeBatsCommand(router,emptyInputs);
+      auto shown=emptyBats.invokeUi("");
+      (void)shown;
+      for(int i=0;i<5;++i)loop.runReady();
+      check(modal&&modal->title=="Bats","Empty Bats list did not open");
+      check(contains(modal->body,"0 Bats · 0 running")&&contains(modal->body,
+        "No Bats yet · send one with the Agent Gadget or ask the leader to delegate"),
+        "Empty Bats list must explain how to start a Bat:\n"+modal->body);
+      check(modal->choices==std::vector<std::string>({"general-purpose","reviewer"})&&
+        modal->choiceInfo.size()==2&&modal->choiceInfo[0].section=="Bat types"&&
+        modal->choiceInfo[1].section=="Bat types"&&
+        modal->choiceInfo[1].detail=="Reviews a change for bugs",
+        "Configured types belong under Bat types:\n"+joined(*modal));
+      check(!contains(joined(*modal),"Configuration ·"),
+        "Bat types are listed by name:\n"+joined(*modal));
+      checkVocabulary(*modal);
+      router->ui()->dispatchAction({interactive::UiAction::Kind::Cancel,0,{}});
+      for(int i=0;i<5;++i)loop.runReady();
+    }
 
     const auto footerRows=providers::backgroundFooterMissions(missions());
     check(footerRows.size()==2&&footerRows[0].at("id")=="bat-foreground",
