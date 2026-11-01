@@ -339,6 +339,62 @@ void pickerFlow(){
   check(none.result=="No saved Flight to continue in this project","/continue with nothing saved");
 }
 
+void pickerRowParts(){
+  const auto normal=scan(fixtures/"normal.jsonl","11111111-1111-4111-8111-111111111111");
+  const auto now=at("2026-10-30T11:01:30.000Z");
+  check(flights::flightListingDetail(*normal,now)==
+    "dazzling-whistling-tide · fix/login · sonnet-4-5 · 2 hours ago · 4 messages",
+    "detail line: "+flights::flightListingDetail(*normal,now));
+  check(flights::flightListingEndState(*normal)=="ended","clean exit badge");
+  const auto titled=scan(fixtures/"custom-title.jsonl","22222222-2222-4222-8222-222222222222");
+  check(flights::flightListingEndState(*titled)=="interrupted","interrupted badge");
+  Json bare={{"sessionId","3f2a9c1b-0000-4000-8000-000000000000"}};
+  check(flights::flightListingDetail(bare,now).empty()&&
+    flights::flightListingEndState(bare).empty(),"unknown parts are left out");
+
+  // The picker shows the title as the row and the rest as its detail line.
+  event_loop::Loop loop;
+  std::optional<interactive::UiRequest> view;
+  auto router=user_input::UiCommandRouter::create(loop,{
+    [&](std::optional<interactive::UiRequest> next){view=std::move(next);},
+    [](const std::string& failure){throw std::runtime_error(failure);},
+    [](bool){},[](bool){}
+  });
+  Json logs=Json::array({*normal,*titled});
+  std::string resumedAt;
+  auto services=pickerServices(loop,logs,resumedAt);
+  services->logLabel=flights::flightListingTitle;
+  services->logChoice=[now](const Json& log){
+    interactive::UiChoice choice;
+    choice.detail=flights::flightListingDetail(log,now);
+    choice.badge=flights::flightListingEndState(log);
+    return choice;
+  };
+  auto resume=commands_indigenous::makeResumeCommand(router,services);
+  auto picked=resume.invokeUi("");
+  for(int i=0;i<20&&(!view||view->id!="resume");++i)loop.runReady();
+  check(view&&view->id=="resume","picker visible");
+  check(view->choices.size()==3&&view->choiceInfo.size()==3,
+    "two Flights and the scope toggle, each with presentation");
+  check(view->choices[0]==flights::flightListingTitle(*normal),
+    "the title is the main row: "+view->choices[0]);
+  check(view->choiceInfo[0].detail==flights::flightListingDetail(*normal,now)&&
+    view->choiceInfo[0].badge=="ended","slug, branch, model and time are the detail line");
+  check(view->choiceInfo[1].badge=="interrupted","end state is the badge");
+  check(view->choiceInfo[2].detail.empty()&&view->choiceInfo[2].badge.empty(),
+    "the toggle row stays plain");
+  for(const char c:std::string("qwen3"))
+    router->ui()->dispatchAction({interactive::UiAction::Kind::TextChange,0,std::string(1,c)});
+  loop.runReady();
+  check(view->choices.size()==2&&view->choices[0]==flights::flightListingTitle(*titled),
+    "the filter matches detail text such as the model");
+  router->ui()->dispatchAction({interactive::UiAction::Kind::Activate,0,{}});
+  const auto completion=await(loop,picked);
+  check(completion.display=="skip"&&
+    resumedAt=="22222222-2222-4222-8222-222222222222:slash_command_picker",
+    "picking the filtered row resumes it: "+resumedAt);
+}
+
 void continueSkipsBadFiles(){
   event_loop::Loop loop;
   const Json records=Json::array({Json{{"id","broken"}},Json{{"id","empty"}},
@@ -433,6 +489,7 @@ int main(){
     liteScanGenerated();
     labels();
     matching();
+    pickerRowParts();
     pickerFilter();
     pickerFlow();
     continueSkipsBadFiles();

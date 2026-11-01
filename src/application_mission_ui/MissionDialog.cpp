@@ -241,8 +241,9 @@ private:
     return shell::formatDuration(static_cast<double>(std::max(0LL,end-item.started)));
   }
   // One Bat row: identity and the numbers that tell whether it is progressing,
-  // followed by an indented line with the latest thing it said.
-  std::vector<std::string> batRows(const Item& item)const{
+  // with the latest thing it said as the dimmer detail line.
+  struct ListRow {std::string label,detail;};
+  ListRow batRow(const Item& item)const{
     const auto glance=interactive::presentation_providers::batGlance(item.bat,now());
     std::string row=(input_.batsOnly?"":"Bat · ")+
       shorten(glance.label.empty()?item.id:glance.label,48)+" · "+
@@ -253,9 +254,8 @@ private:
       (glance.gadgetUses==1?" Gadget":" Gadgets");
     row+=" · "+interactive::presentation_providers::compactTokens(glance.tokens);
     if(!glance.gadget.empty())row+=" · "+shorten(glance.gadget,40);
-    std::vector<std::string> rows{std::move(row)};
-    if(!glance.lastText.empty())rows.push_back("    “"+shorten(glance.lastText,120)+"”");
-    return rows;
+    return {std::move(row),glance.lastText.empty()?std::string{}:
+      "“"+shorten(glance.lastText,120)+"”"};
   }
   void showList(){
     if(!active_)return;
@@ -297,27 +297,27 @@ private:
         "↑/↓ select · Enter view · i details · x stop · Esc close");
     // Rows are laid out from the selected item so a two-line Bat never pushes
     // the selection off the visible window.
-    std::vector<std::vector<std::string>> rendered;rendered.reserve(available.size());
+    std::vector<ListRow> rendered;rendered.reserve(available.size());
+    const auto height=[](const ListRow& row)->std::size_t{return row.detail.empty()?1:2;};
     for(const auto& item:available){
-      if(item.type=="local_agent"){rendered.push_back(batRows(item));continue;}
+      if(item.type=="local_agent"){rendered.push_back(batRow(item));continue;}
       rendered.push_back({(item.type=="local_bash"?"Shell · ":
         item.type=="configuration"?"Configuration · ":
         "Mission #"+item.id.substr(6)+" · ")+
         shorten(item.label.empty()?item.id:item.label,70)+
         " ["+item.status+"]"+
         (item.type=="board"&&!stringField(item.bat,"owner").empty()?
-         " · "+shorten(stringField(item.bat,"owner"),20):"")});
+         " · "+shorten(stringField(item.bat,"owner"),20):""),{}});
     }
-    std::size_t begin=selected_,used=available.empty()?0:rendered[selected_].size();
-    while(begin>0&&used+rendered[begin-1].size()<=capacity)used+=rendered[--begin].size();
+    std::size_t begin=selected_,used=available.empty()?0:height(rendered[selected_]);
+    while(begin>0&&used+height(rendered[begin-1])<=capacity)used+=height(rendered[--begin]);
     std::size_t end=available.empty()?0:selected_+1;
-    while(end<available.size()&&used+rendered[end].size()<=capacity)used+=rendered[end++].size();
+    while(end<available.size()&&used+height(rendered[end])<=capacity)used+=height(rendered[end++]);
     for(auto index=begin;index<end;++index){
       if(index==selected_)request.selectedIndex=request.choices.size();
-      for(auto& line:rendered[index]){
-        visible_.push_back(available[index].id);
-        request.choices.push_back(std::move(line));
-      }
+      visible_.push_back(available[index].id);
+      request.choices.push_back(std::move(rendered[index].label));
+      request.choiceInfo.push_back({std::move(rendered[index].detail),{},{}});
     }
     auto self=shared_from_this();
     ready_(std::move(request),[self](const interactive::UiAction& action){

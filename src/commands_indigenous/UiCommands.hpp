@@ -83,6 +83,9 @@ struct ResumeServices {
     matchLogs;
   // Newest resumable Flight for this directory and its sibling worktrees.
   std::function<event_loop::Deferred<std::optional<Json>>()> latestLog;
+  // Picker row presentation under the logLabel row: a dim detail line and a
+  // badge. Detail text is also matched by the filter.
+  std::function<interactive::UiChoice(const Json&)> logChoice;
 };
 
 user_input::CommandEntry makeHelpCommand(

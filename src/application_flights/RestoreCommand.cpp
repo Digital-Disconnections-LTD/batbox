@@ -30,9 +30,6 @@ bool uuid(const std::string& id){
   }
   return true;
 }
-std::string label(const Json& log){
-  return flights::flightListingLabel(log,static_cast<double>(platform::nowMillis()));
-}
 std::string homeRelative(const std::string& path){
 #ifdef _WIN32
   auto home=runtime::environmentUtf8("USERPROFILE");
@@ -112,7 +109,13 @@ std::shared_ptr<commands_indigenous::ResumeServices> Restore::makeResumeServices
   services->flightIdFromLog=[](const Json& log){
     const auto id=flights::getFlightIdFromLog(log);
     return id&&id->is_string()?id->get<std::string>():"";};
-  services->logLabel=label;
+  services->logLabel=flights::flightListingTitle;
+  services->logChoice=[](const Json& log){
+    interactive::UiChoice choice;
+    choice.detail=flights::flightListingDetail(log,static_cast<double>(platform::nowMillis()));
+    choice.badge=flights::flightListingEndState(log);
+    return choice;
+  };
   services->searchText=flights::flightSearchText;
   services->projectLabel=[](const Json& log){
     return homeRelative(string(log,"projectPath"));};

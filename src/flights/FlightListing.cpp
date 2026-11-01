@@ -391,6 +391,43 @@ std::string flightListingLabel(const Json& log,double nowMs){
   return label;
 }
 
+std::string flightListingDetail(const Json& log,double nowMs){
+  std::vector<std::string> parts;
+  if(const auto slug=stringField(log,"slug");!slug.empty())parts.push_back(slug);
+  if(const auto branch=stringField(log,"gitBranch");!branch.empty())parts.push_back(branch);
+  if(const auto model=stringField(log,"model");!model.empty())
+    parts.push_back(shortModelName(model));
+  const auto& activity=value::property(log,"lastActivityMs");
+  const auto& modified=value::property(log,"modifiedMs");
+  if(activity.is_number())parts.push_back(relativeTimeText(activity.get<double>(),nowMs));
+  else if(modified.is_number())parts.push_back(relativeTimeText(modified.get<double>(),nowMs));
+  else if(const auto stamp=isoTimestampMs(stringField(log,"modified")))
+    parts.push_back(relativeTimeText(*stamp,nowMs));
+  const auto& count=value::property(log,"messageCount");
+  if(count.is_number_unsigned()||count.is_number_integer()){
+    const auto value=count.get<long long>();
+    if(value>0){
+      const bool approximate=value::property(log,"messageCountApproximate")==true;
+      parts.push_back((approximate?"~":"")+std::to_string(value)+
+        (value==1?" message":" messages"));
+    }
+  }
+  std::string detail;
+  for(const auto& part:parts){
+    if(!detail.empty())detail+=" · ";
+    detail+=part;
+  }
+  return detail;
+}
+
+std::string flightListingEndState(const Json& log){
+  const auto state=stringField(log,"endState");
+  if(state=="interrupted")return "interrupted";
+  if(state=="error")return "last reply failed";
+  if(state=="ended")return "ended";
+  return {};
+}
+
 std::string flightSearchText(const Json& log){
   std::string text=flightListingTitle(log);
   for(const auto* key:{"slug","gitBranch","projectPath","firstPrompt","customTitle",

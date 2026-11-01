@@ -20,6 +20,13 @@ std::string shortModelName(const std::string& model);
 std::string flightListingTitle(const Json& log);
 // "title · 2 hours ago · branch · model · 12 messages · interrupted  [slug]"
 std::string flightListingLabel(const Json& log,double nowMs);
+// The picker's dimmer line under the title:
+// "slug · branch · model · 2 hours ago · 12 messages". Parts that are unknown
+// are left out.
+std::string flightListingDetail(const Json& log,double nowMs);
+// How the Flight's last run ended: "ended", "interrupted", "last reply failed",
+// or empty when no end marker was saved.
+std::string flightListingEndState(const Json& log);
 // Lower-cased text a picker filter matches against.
 std::string flightSearchText(const Json& log);
 // Indices of logs matching a /resume or --resume argument. Exact slug, title

@@ -44,9 +44,20 @@ struct ResumeRun:std::enable_shared_from_this<ResumeRun> {
   // filter, and what each visible choice index refers to.
   enum class Row {Log,Inert,Toggle};
   std::vector<std::string> labels,haystacks;
+  std::vector<interactive::UiChoice> infos;
   std::vector<std::pair<Row,std::size_t>> rows;
   std::string filter;
   void fail(std::exception_ptr failure){error(errorText(failure));}
+  // One-line text for a Flight outside the picker: title, then its details.
+  std::string lineLabel(const Json& log){
+    auto label=services->logLabel(log);
+    if(services->logChoice){
+      const auto info=services->logChoice(log);
+      if(!info.detail.empty())label+=" · "+info.detail;
+      if(!info.badge.empty())label+=" · "+info.badge;
+    }
+    return label;
+  }
   std::string decorate(const std::string& text)const{
     return services->bold?services->bold(text):text;
   }
@@ -114,19 +125,25 @@ struct ResumeRun:std::enable_shared_from_this<ResumeRun> {
   }
   void showPicker(){
     require(bool(services->logLabel),"logLabel");
-    labels.clear();haystacks.clear();
+    labels.clear();haystacks.clear();infos.clear();
     for(const auto& log:pickerLogs){
       auto label=services->logLabel(log);
+      auto info=services->logChoice?services->logChoice(log):interactive::UiChoice{};
       if(allProjects){
         std::string project;
         if(services->projectLabel)project=services->projectLabel(log);
         else if(const auto& path=value::property(log,"projectPath");path.is_string())
           project=path.get<std::string>();
-        if(!project.empty())label+="  · "+project;
+        if(!project.empty()){
+          if(services->logChoice)info.detail+=(info.detail.empty()?"":" · ")+project;
+          else label+="  · "+project;
+        }
       }
+      const auto shown=info.detail.empty()?label:label+" "+info.detail;
       haystacks.push_back(lowered(services->searchText?
-        services->searchText(log)+" "+label:label));
+        services->searchText(log)+" "+shown:shown));
       labels.push_back(std::move(label));
+      infos.push_back(std::move(info));
     }
     filter.clear();
     renderPicker();
@@ -143,20 +160,24 @@ struct ResumeRun:std::enable_shared_from_this<ResumeRun> {
       if(rows.size()<maxPickerRows){
         rows.push_back({Row::Log,index});
         view.choices.push_back(labels[index]);
+        view.choiceInfo.push_back(infos[index]);
       }
     }
     if(matched>rows.size()){
       rows.push_back({Row::Inert,0});
       view.choices.push_back("… "+std::to_string(matched-maxPickerRows)+
         " more, keep typing to narrow");
+      view.choiceInfo.emplace_back();
     }
     if(matched==0){
       rows.push_back({Row::Inert,0});
       view.choices.push_back("No Flights match \""+filter+"\"");
+      view.choiceInfo.emplace_back();
     }
     rows.push_back({Row::Toggle,0});
     view.choices.push_back(allProjects?"Show current project only":
       "Show all projects");
+    view.choiceInfo.emplace_back();
     const std::string scope=allProjects?"All projects":"Current project";
     view.body=filter.empty()?scope+" · "+flightCount(labels.size()):
       scope+" · filter: "+filter+"▏ · "+std::to_string(matched)+" of "+
@@ -334,7 +355,7 @@ struct ResumeRun:std::enable_shared_from_this<ResumeRun> {
                 std::string message="Found "+std::to_string(matches.size())+
                   " Flights matching "+self->decorate(self->arg)+":";
                 for(std::size_t i=0;i<matches.size()&&i<8;++i)
-                  message+="\n  "+self->services->logLabel(resumable.at(matches[i]));
+                  message+="\n  "+self->lineLabel(resumable.at(matches[i]));
                 if(matches.size()>8)message+="\n  … "+
                   std::to_string(matches.size()-8)+" more";
                 message+="\nUse a more specific name, or /resume and type to filter.";

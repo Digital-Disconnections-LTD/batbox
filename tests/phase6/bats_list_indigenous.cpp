@@ -21,6 +21,7 @@ bool contains(const std::string& text,const std::string& part){
 std::string joined(const interactive::UiRequest& request){
   std::string all=request.title+"\n"+request.body;
   for(const auto& choice:request.choices)all+="\n"+choice;
+  for(const auto& info:request.choiceInfo)all+="\n"+info.detail+"\n"+info.badge;
   return all;
 }
 void checkVocabulary(const interactive::UiRequest& request){
@@ -104,7 +105,8 @@ int main(){
     check(modal->title=="Bats","Bats list title must say Bats");
     checkVocabulary(*modal);
     const auto& rows=modal->choices;
-    check(rows.size()==4,"Expected three Bats with one second line, got "+
+    check(rows.size()==3&&modal->choiceInfo.size()==3,
+      "Expected one selectable row per Bat, got "+
       std::to_string(rows.size())+":\n"+joined(*modal));
     check(contains(rows[0],"Foreground scan")&&contains(rows[0],"running (foreground)")&&
       contains(rows[0],"5s")&&contains(rows[0],"1 Gadget ")&&contains(rows[0],"900 tokens"),
@@ -113,11 +115,13 @@ int main(){
       contains(rows[1],"2m 5s")&&contains(rows[1],"3 Gadgets")&&
       contains(rows[1],"12.3k tokens")&&contains(rows[1],"Reading parser.cpp"),
       "Named Bat row must show name, elapsed, Gadgets, tokens and Gadget: "+rows[1]);
-    check(contains(rows[2],"“Reading the parser now”")&&rows[2].starts_with("    "),
-      "Bat's latest reply must follow on an indented second line: "+rows[2]);
-    check(contains(rows[3],"Summarize history")&&contains(rows[3],"completed")&&
-      contains(rows[3],"1m")&&contains(rows[3],"7 Gadgets")&&contains(rows[3],"4.2k tokens"),
-      "Settled Bat must show its final runtime and totals: "+rows[3]);
+    check(modal->choiceInfo[1].detail=="“Reading the parser now”",
+      "Bat's latest reply must be the row's dim detail line: "+modal->choiceInfo[1].detail);
+    check(modal->choiceInfo[0].detail.empty(),
+      "A Bat that has not spoken yet has no detail line: "+modal->choiceInfo[0].detail);
+    check(contains(rows[2],"Summarize history")&&contains(rows[2],"completed")&&
+      contains(rows[2],"1m")&&contains(rows[2],"7 Gadgets")&&contains(rows[2],"4.2k tokens"),
+      "Settled Bat must show its final runtime and totals: "+rows[2]);
     check(!contains(joined(*modal),"Leader"),"The leader must not be listed as a Bat");
     check(modal->selectedIndex==0,"The first Bat must start selected");
 
