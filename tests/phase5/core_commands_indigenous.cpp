@@ -141,8 +141,9 @@ int main(){
   check(commands[0].descriptor.at("name")=="help","help registration");
   check(commands[1].descriptor.at("aliases").at(0)=="reset",
     "clear aliases");
-  check(commands[4].descriptor.at("aliases").at(0)=="continue",
-    "resume alias");
+  check(commands[4].descriptor.at("name")=="resume"&&
+    !commands[4].descriptor.contains("aliases"),
+    "resume no longer aliases /continue");
   auto cleared=await(loop,await(loop,commands[1].loadLocal())(""));
   check(cleared==Json{{"type","text"},{"value",""}},"clear result");
   check(clear->readFileState->size()==0,"read cache cleared");

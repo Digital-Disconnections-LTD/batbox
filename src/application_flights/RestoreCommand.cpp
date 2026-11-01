@@ -1,9 +1,13 @@
 #include "application_flights/Restore.hpp"
 #include "process/ExecFileNoThrow.hpp"
 #include "runtime/IndigenousPath.hpp"
+#include "flights/FlightListing.hpp"
 #include "flights/Views.hpp"
+#include "runtime/Platform.hpp"
+#include "runtime/IndigenousUnicode.hpp"
 #include "shell/ShellQuote.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <cctype>
 #include <iostream>
 #include <set>
@@ -27,13 +31,23 @@ bool uuid(const std::string& id){
   return true;
 }
 std::string label(const Json& log){
-  const auto title=string(log,"customTitle");
-  const auto poetry=string(log,"firstPrompt");
-  const auto id=string(log,"sessionId");
-  const auto date=string(log,"date");
-  const auto shortId=id.size()>8?id.substr(0,8):id;
-  const auto display=!title.empty()?title:(!poetry.empty()?poetry:shortId);
-  return date.empty()?display:display+"  "+date.substr(0,std::min<std::size_t>(16,date.size()));
+  return flights::flightListingLabel(log,static_cast<double>(platform::nowMillis()));
+}
+std::string homeRelative(const std::string& path){
+#ifdef _WIN32
+  auto home=runtime::environmentUtf8("USERPROFILE");
+  if(home.empty())home=runtime::environmentUtf8("HOME");
+#else
+  const char* value=std::getenv("HOME");
+  std::string home=value?value:"";
+#endif
+  while(home.size()>1&&(home.back()=='/'||home.back()=='\\'))home.pop_back();
+  if(home.empty()||home=="/")return path;
+  if(path==home)return "~";
+  if(path.size()>home.size()&&path.starts_with(home)&&
+      (path[home.size()]=='/'||path[home.size()]=='\\'))
+    return "~"+path.substr(home.size());
+  return path;
 }
 std::string folded(std::string value){
   value=value::trim(value);
@@ -48,6 +62,41 @@ std::string commandFor(const Json& log,const std::string& id){
 }
 } // namespace
 
+event_loop::Deferred<std::vector<std::string>> Restore::worktreePaths(
+    const std::string& cwd){
+  event_loop::Deferred<std::vector<std::string>> output(inputs_.owner);
+  process::ExecImports imports;
+  imports.execa=process::indigenousExeca(inputs_.owner);
+  imports.getCwd=[cwd]{return cwd;};
+  imports.logError=inputs_.logError;
+  process::ExecOptions options;options.cwd=cwd;options.timeout=10000;
+  options.preserveOutputOnError=false;
+  process::execFileNoThrowWithCwd(inputs_.owner,"git",
+    {"worktree","list","--porcelain"},options,imports).then(
+    [output,cwd](const process::ExecResult* response,
+        const std::exception_ptr& error){
+      if(error){output.reject(error);return;}
+      std::vector<std::string> paths{cwd};
+      if(response&&response->code==0){
+        const auto& text=response->stdoutText;
+        std::size_t at=0;
+        while(at<text.size()){
+          const auto end=text.find('\n',at);
+          const auto line=text.substr(at,end==std::string::npos?
+            std::string::npos:end-at);
+          if(line.starts_with("worktree ")){
+            const auto path=line.substr(9);
+            if(std::find(paths.begin(),paths.end(),path)==paths.end())
+              paths.push_back(path);
+          }
+          if(end==std::string::npos)break;
+          at=end+1;
+        }
+      }
+      output.resolve(std::move(paths));
+    });
+  return output;
+}
 std::shared_ptr<commands_indigenous::ResumeServices> Restore::makeResumeServices(){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Restore owner required");
   auto services=std::make_shared<commands_indigenous::ResumeServices>(inputs_.owner);
@@ -56,39 +105,7 @@ std::shared_ptr<commands_indigenous::ResumeServices> Restore::makeResumeServices
     return runtime::pathToUtf8(flight->workingDirectory());};
   services->currentFlightId=[flight=inputs_.flight]{return flight->id();};
   services->worktreePaths=[self](const std::string& cwd){
-    event_loop::Deferred<std::vector<std::string>> output(self->inputs_.owner);
-    process::ExecImports imports;
-    imports.execa=process::indigenousExeca(self->inputs_.owner);
-    imports.getCwd=[cwd]{return cwd;};
-    imports.logError=self->inputs_.logError;
-    process::ExecOptions options;options.cwd=cwd;options.timeout=10000;
-    options.preserveOutputOnError=false;
-    process::execFileNoThrowWithCwd(self->inputs_.owner,"git",
-      {"worktree","list","--porcelain"},options,imports).then(
-      [output,cwd](const process::ExecResult* response,
-          const std::exception_ptr& error){
-        if(error){output.reject(error);return;}
-        std::vector<std::string> paths{cwd};
-        if(response&&response->code==0){
-          const auto& text=response->stdoutText;
-          std::size_t at=0;
-          while(at<text.size()){
-            const auto end=text.find('\n',at);
-            const auto line=text.substr(at,end==std::string::npos?
-              std::string::npos:end-at);
-            if(line.starts_with("worktree ")){
-              const auto path=line.substr(9);
-              if(std::find(paths.begin(),paths.end(),path)==paths.end())
-                paths.push_back(path);
-            }
-            if(end==std::string::npos)break;
-            at=end+1;
-          }
-        }
-        output.resolve(std::move(paths));
-      });
-    return output;
-  };
+    return self->worktreePaths(cwd);};
   services->loadSameRepoLogs=[self](const std::vector<std::string>& paths){
     return self->list(paths,false);};
   services->loadAllProjectsLogs=[self]{return self->list({},true);};
@@ -96,6 +113,11 @@ std::shared_ptr<commands_indigenous::ResumeServices> Restore::makeResumeServices
     const auto id=flights::getFlightIdFromLog(log);
     return id&&id->is_string()?id->get<std::string>():"";};
   services->logLabel=label;
+  services->searchText=flights::flightSearchText;
+  services->projectLabel=[](const Json& log){
+    return homeRelative(string(log,"projectPath"));};
+  services->matchLogs=flights::matchFlightLogs;
+  services->latestLog=[self]{return self->latest();};
   services->isLiteLog=flights::isLiteLog;
   services->loadFullLog=[self](const Json& lite){
     event_loop::Deferred<Json> output(self->inputs_.owner);
@@ -169,12 +191,17 @@ std::shared_ptr<commands_indigenous::ResumeServices> Restore::makeResumeServices
     if(!all||project.empty()||runtime::pathFromUtf8(project).lexically_normal()==current)
       return result;
     result.isCrossProject=true;
-    if(self->inputs_.roost&&self->inputs_.rebindRoost)
+    result.projectPath=homeRelative(project);
+    if(self->inputs_.roost&&self->inputs_.rebindRoost){
       for(const auto& path:worktrees)
         if(runtime::pathFromUtf8(path).lexically_normal()==
             runtime::pathFromUtf8(project).lexically_normal()){
           result.isSameRepoWorktree=true;break;
         }
+      // Restore::resume rebinds the Roost (cwd, storage, providers, MCP and
+      // commands) the same way it does for worktrees.
+      result.canSwitchInProcess=true;
+    }
     result.command=commandFor(log,string(log,"sessionId"));
     return result;
   };

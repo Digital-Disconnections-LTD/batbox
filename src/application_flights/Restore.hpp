@@ -41,6 +41,9 @@ struct RestoreInputs {
   std::function<bool()> canResume;
   std::function<bool()> fileHistoryEnabled;
   std::function<void(std::exception_ptr)> logError;
+  // Plan/auto mode bookkeeping when a resumed Flight changes permission mode.
+  std::function<void(const std::string& from,const std::string& to)>
+    transitionPermissionMode;
   explicit RestoreInputs(event_loop::Loop& loop):owner(loop){}
 };
 
@@ -56,10 +59,31 @@ public:
   event_loop::Deferred<event_loop::Unit> resume(const std::string& id,
     const Json& log,const std::string& entrypoint);
   std::shared_ptr<commands_indigenous::ResumeServices> makeResumeServices();
+  // Resolves --resume <value>: a Flight id, or a slug, title or search words
+  // matched against this directory, its worktrees, then all projects.
+  // Rejects with a message listing candidates when the value is ambiguous.
+  event_loop::Deferred<std::optional<Json>> find(const std::string& query);
 private:
   explicit Restore(RestoreInputs inputs):inputs_(std::move(inputs)){}
+  event_loop::Deferred<std::vector<std::string>> worktreePaths(const std::string& cwd);
   event_loop::Deferred<std::optional<Json>> loadPath(
     const std::filesystem::path& path,const std::string& id);
   RestoreInputs inputs_;
 };
+// Model and permission mode a Flight last ran with, read from its messages.
+struct RecordedLaunchChoices {
+  std::optional<std::string> model,permissionMode;
+};
+RecordedLaunchChoices recordedLaunchChoices(const Json& log);
+// Profile id serving a recorded model (matched by id or wire model).
+std::optional<std::string> profileForModel(const application::Config& config,
+  const std::string& model);
+// Permission modes a resume may restore by itself. bypassPermissions is never
+// restored silently; it needs an explicit --yolo or /permissions.
+bool restorablePermissionMode(const std::string& mode);
+// Walks records (lite logs, newest first) and resolves to the first one the
+// loader turns into a full log. A record that fails to load is skipped; the
+// first failure is only reported when nothing at all could be loaded.
+event_loop::Deferred<std::optional<Json>> firstLoadable(event_loop::Loop& owner,
+  Json records,std::function<event_loop::Deferred<std::optional<Json>>(const Json&)> loader);
 } // namespace batbox::application_flights

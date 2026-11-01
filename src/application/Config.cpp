@@ -60,6 +60,7 @@ void applyConfig(Config& config,const Json& value){
     config.settings["autoCompactEnabled"]=value.at("autoCompactEnabled").get<bool>();
   if(value.contains("fullscreen"))config.fullscreen=value.at("fullscreen").get<bool>();
   if(value.contains("thinking"))config.thinking=value.at("thinking").get<bool>();
+  if(value.contains("auto_title"))config.autoTitle=value.at("auto_title").get<bool>();
   if(value.contains("fileCheckpointingEnabled"))
     config.fileCheckpointingEnabled=value.at("fileCheckpointingEnabled").get<bool>();
   if(value.contains("builtinExplorePlanAgents"))
@@ -188,6 +189,7 @@ Config loadConfig(const std::vector<std::string>& arguments){
   envNumber("BATBOX_COMPACT_AT",config.compactAt);envNumber("BATBOX_MAX_SUBAGENTS",config.maxSubagents);
   envNumber("BATBOX_MAX_CONCURRENT_SUBAGENTS",config.maxConcurrentSubagents);
   std::vector<std::string> poetry;
+  config.modelRequested=false;
   for(std::size_t i=0;i<arguments.size();++i){
     const auto& argument=arguments[i];
     const auto next=[&](const char* flag){
@@ -196,7 +198,8 @@ Config loadConfig(const std::vector<std::string>& arguments){
     };
     if(argument=="--help"||argument=="-h")config.help=true;
     else if(argument=="--config"){++i;}
-    else if(argument=="--profile")config.selectedProfile=next("--profile");
+    else if(argument=="--profile"){
+      config.selectedProfile=next("--profile");config.modelRequested=true;}
     else if(argument=="--model"){
       config.model=next("--model");requestedModel=config.model;}
     else if(argument=="--base-url"){
@@ -229,7 +232,11 @@ Config loadConfig(const std::vector<std::string>& arguments){
     else if(argument=="--no-thinking")config.thinking=false;
     else if(argument=="--thinking")config.thinking=true;
     else if(argument=="--continue"||argument=="-c")config.continueFlight=true;
-    else if(argument=="--resume")config.resumeFlight=next("--resume");
+    else if(argument=="--resume"||argument=="-r"){
+      // A missing value, or a following option, opens the picker instead.
+      if(i+1==arguments.size()||arguments[i+1].starts_with('-'))config.resumePicker=true;
+      else config.resumeFlight=arguments[++i];
+    }
     else if(argument=="--mcp-config"){
       const auto value=readObject(runtime::pathFromUtf8(next("--mcp-config")),true);
       config.mcpServers=value.value("mcpServers",value);
@@ -247,6 +254,13 @@ Config loadConfig(const std::vector<std::string>& arguments){
     else if(argument.starts_with('-'))throw std::invalid_argument("Unknown option: "+argument);
     else poetry.push_back(argument);
   }
+  config.modelRequested=config.modelRequested||requestedModel.has_value();
+  config.permissionModeRequested=requestedPermissionMode.has_value()||config.print;
+  if(config.resumePicker&&config.print)
+    throw std::invalid_argument("--resume needs a Flight id, slug or title with --print");
+  if(config.resumePicker&&!poetry.empty())
+    throw std::invalid_argument("--resume without a value opens the Flight picker and "
+      "cannot take an initial prompt; use --resume <slug> \"prompt\"");
   if(requestedPermissionMode||config.print){
     if(!config.permissions.is_object())
       throw std::invalid_argument("Permissions must be a JSON object");
@@ -402,7 +416,10 @@ std::string commandLineHelp(){
     "                                 default, acceptEdits, bypassPermissions, dontAsk, plan\n"
     "                                 --print defaults to bypassPermissions; policy still applies\n"
     "  --mcp-config PATH              MCP server configuration\n"
-    "  --resume SESSION | --continue  Resume a saved conversation\n"
+    "  -c, --continue                 Resume the most recent Flight for this directory\n"
+    "                                 and its git worktrees\n"
+    "  -r, --resume [FLIGHT]          Resume a saved Flight; FLIGHT is an id, slug or\n"
+    "                                 title words. Without FLIGHT, pick from a list\n"
     "  --max-output-tokens N          Output limit\n"
     "  --context-window N             Model context capacity\n"
     "  --thinking | --no-thinking     Extended model reasoning\n"
