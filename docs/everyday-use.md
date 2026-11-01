@@ -51,6 +51,9 @@ with an empty child input, returns to your main conversation.
 Ctrl+B from the leader view can background a foreground child. The mission footer
 helps you return to active work. Custom Bat poetry live in
 `~/.batbox/agents/` or your project’s `.batbox/agents/`.
+Agent progress shows each task's status and latest tool. Foreground agents return
+their final results before the leader continues; progress events are display
+updates and are excluded from the leader's model requests.
 
 ## Choose how you fly
 

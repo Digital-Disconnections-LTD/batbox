@@ -55,7 +55,7 @@ jobs:
           cmake --build build/indigenous --target batbox batbox-scrapling-fixture batbox-phase3-number-parsing batbox-phase5-keyboard-paste-indigenous batbox-phase5-indigenous-text-editor-real batbox-phase6-conversation-shell-indigenous batbox-phase5-ftxui-driver-pty --parallel 2
       - name: Streaming and file gadgets
         run: |
-          ctest --test-dir build/indigenous --output-on-failure -R '^phase3-number-parsing$|^phase5-(keyboard-paste-indigenous|indigenous-text-editor-real|ftxui-driver-pty)$|^phase6-(paste-terminal-roundtrip|conversation-shell-indigenous|transcript-copy-pty|escape-interrupt-pty)$'
+          ctest --test-dir build/indigenous --output-on-failure -R '^phase3-number-parsing$|^phase5-(keyboard-paste-indigenous|indigenous-text-editor-real|ftxui-driver-pty)$|^phase6-(paste-terminal-roundtrip|conversation-shell-indigenous|transcript-copy-pty|escape-interrupt-pty|agent-progress-pty)$'
           python3 checks/indigenous_posix_install.py
           python3 checks/indigenous_platform_smoke.py build/indigenous/batbox --scrapling-fixture build/indigenous/batbox-scrapling-fixture --skill-shell
           python3 checks/indigenous_platform_smoke.py build/indigenous/batbox --scrapling-fixture build/indigenous/batbox-scrapling-fixture --mission-board
