@@ -86,6 +86,11 @@ int main(){
     const auto gadget=makeBashGadget(service);
     check(gadget.name=="Bash"&&gadget.call&&gadget.checkPermissions&&gadget.renderGadgetUseMessage,"Tool methods missing");
     check(!gadget.isReadOnly(Json{{"command","cd x"}}),"readonly callback missing");
+    check(gadget.getActivityDescription(Json{{"command","./scripts/check.sh"},
+      {"description","Run the test suite"}})=="Run the test suite",
+      "a Bash description is already a sentence and must not gain a Running prefix");
+    check(gadget.getActivityDescription(Json{{"command","./scripts/check.sh"}})==
+      "Running ./scripts/check.sh","a bare Bash command reads as Running <command>");
     check(gadget.checkPermissions(Json{{"command","echo hi"}},Json()).get()["behavior"]=="allow"&&permissionChecks==1,
       "permission callback missing");
     gadgets::GadgetCallContext context;context.data=Json::object();
