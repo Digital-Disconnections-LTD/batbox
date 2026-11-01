@@ -12,6 +12,7 @@
 #include "runtime/OrderedStringSet.hpp"
 #include "commands_indigenous/CoreCatalog.hpp"
 #include "interactive/conversation_shell/Shell.hpp"
+#include "interactive/presentation_providers/ThemeState.hpp"
 #include "application_runtime/ApplicationRuntime.hpp"
 #include "mcp/manager/IndigenousRuntime.hpp"
 #include "bootstrap/InvokedSkills.hpp"
@@ -60,6 +61,7 @@ struct Inputs {
   std::function<void()> reloadBatDefinitions;
   std::function<std::shared_ptr<application_runtime::ApplicationRuntime>()> getRuntime;
   std::function<std::shared_ptr<interactive::conversation_shell::Shell>()> getShell;
+  std::function<std::shared_ptr<interactive::presentation_providers::ThemeState>()> theme;
   std::function<void()> openRewind;
   std::function<void(std::vector<std::string>)> updateWatchPaths;
   std::function<void(const std::string&)> log;

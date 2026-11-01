@@ -15,6 +15,11 @@ struct CollapsedProjectionImports {
   ftxui::Color success=ftxui::Color::Default;
   ftxui::Color error=ftxui::Color::Default;
   std::string blackCircle;
+  // Optional: animate active groups and mark settled ones like Gadget cards.
+  std::function<std::string()> spinnerGlyph;
+  ftxui::Color running=ftxui::Color::Default;
+  ftxui::Color text=ftxui::Color::Default;
+  std::string okGlyph="✓";
 };
 std::optional<ftxui::Element> projectCollapsedReadSearch(
     const CollapsedCard& card,const CollapsedProjectionImports& imports);

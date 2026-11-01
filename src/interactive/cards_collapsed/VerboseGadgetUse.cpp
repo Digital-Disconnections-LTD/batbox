@@ -1,4 +1,5 @@
 #include "interactive/cards_collapsed/VerboseGadgetUse.hpp"
+#include "interactive/gadget_views/GadgetViewModel.hpp"
 #include "runtime/JsonValue.hpp"
 #include <stdexcept>
 
@@ -55,6 +56,18 @@ VerboseGadgetUseCard classifyVerboseGadgetUse(const Json& content,
     if(gadget->renderGadgetUseTag){
       require(services.renderTag,"verbose Gadget tag renderer");
       card.tag=services.renderTag(*gadget,*parsed);
+    }
+  }
+  if(card.resolved&&card.error&&result!=lookups.gadgetResultByGadgetUseID.end()&&
+     result->second){
+    // A failed Gadget shows why, in the error style used by live cards.
+    const auto& blocks=value::property(value::property(*result->second,"message"),"content");
+    if(blocks.is_array())for(const auto& block:blocks){
+      if(field(block,"type")!="tool_result"||field(block,"tool_use_id")!=id)continue;
+      card.resultMessage=gadget_views::errorView(gadget_views::visibleText(
+        value::property(block,"content")),false);
+      card.hasResultMessage=true;
+      break;
     }
   }
   if(card.resolved&&!card.error&&gadgetResult){

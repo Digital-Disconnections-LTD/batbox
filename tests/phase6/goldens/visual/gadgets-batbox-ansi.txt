@@ -1,0 +1,103 @@
+✓ Read src/lexer.cpp
+  ⎿  Read 20 lines
+      1  line 1  of the lexer
+      2  line 2  of the lexer
+      3  line 3  of the lexer
+      4  line 4  of the lexer
+      5  line 5  of the lexer
+      6  line 6  of the lexer
+      7  line 7  of the lexer
+      8  line 8  of the lexer
+      9  line 9  of the lexer
+     10  line 10 of the lexer
+     11  line 11 of the lexer
+     12  line 12 of the lexer
+     13  line 13 of the lexer
+     14  line 14 of the lexer
+     15  line 15 of the lexer
+     16  line 16 of the lexer
+     17  line 17 of the lexer
+     18  line 18 of the lexer
+     19  line 19 of the lexer
+     20  line 20 of the lexer
+
+✓ Edit src/lexer.cpp
+  ⎿  Updated src/lexer.cpp with 2 additions and 1 removal
+     11   Token next() {
+     12 -   return {pos};
+     12 +   // Keep the span.
+     13 +   return {pos, span()};
+     14   }
+
+✓ Bash $ ctest --output-on-failure
+  ⎿  ok      lexer
+     test 1 passed
+     test 2 passed
+     test 3 passed
+     test 4 passed
+     test 5 passed
+     test 6 passed
+     test 7 passed
+     test 8 passed
+     test 9 passed
+     test 10 passed
+     warning: 1 test was slow
+     … +19 lines (ctrl+o to expand)
+
+⠹ Bash $ make lint
+
+
+
+# styles
+0:0-1 fg=32 bg=-
+0:2-5 fg=- bg=- b
+1:0-4 fg=90 bg=-
+2:0-79 fg=90 bg=-
+3:0-79 fg=90 bg=-
+4:0-79 fg=90 bg=-
+5:0-79 fg=90 bg=-
+6:0-79 fg=90 bg=-
+7:0-79 fg=90 bg=-
+8:0-79 fg=90 bg=-
+9:0-79 fg=90 bg=-
+10:0-79 fg=90 bg=-
+11:0-79 fg=90 bg=-
+12:0-79 fg=90 bg=-
+13:0-79 fg=90 bg=-
+14:0-79 fg=90 bg=-
+15:0-79 fg=90 bg=-
+16:0-79 fg=90 bg=-
+17:0-79 fg=90 bg=-
+18:0-79 fg=90 bg=-
+19:0-79 fg=90 bg=-
+20:0-79 fg=90 bg=-
+21:0-79 fg=90 bg=-
+23:0-1 fg=32 bg=-
+23:2-5 fg=- bg=- b
+24:0-4 fg=90 bg=-
+25:0-7 fg=90 bg=-
+26:0-7 fg=90 bg=-
+26:8-79 fg=31 bg=-
+27:0-7 fg=90 bg=-
+27:8-79 fg=32 bg=-
+28:0-7 fg=90 bg=-
+28:8-79 fg=32 bg=-
+29:0-7 fg=90 bg=-
+31:0-1 fg=32 bg=-
+31:2-5 fg=- bg=- b
+32:0-4 fg=90 bg=-
+33:0-4 fg=90 bg=-
+34:0-4 fg=90 bg=-
+35:0-4 fg=90 bg=-
+36:0-4 fg=90 bg=-
+37:0-4 fg=90 bg=-
+38:0-4 fg=90 bg=-
+39:0-4 fg=90 bg=-
+40:0-4 fg=90 bg=-
+41:0-4 fg=90 bg=-
+42:0-4 fg=90 bg=-
+43:0-4 fg=90 bg=-
+43:5-79 fg=31 bg=-
+44:0-79 fg=90 bg=-
+46:0-1 fg=36 bg=-
+46:2-5 fg=- bg=- b

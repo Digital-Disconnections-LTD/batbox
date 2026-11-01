@@ -93,17 +93,19 @@ private:
   }
   void show(){
     interactive::UiRequest request;request.kind=interactive::UiRequest::Kind::Select;
-    request.bodyPreviewLines=4;
+    request.bodyPreviewLines=2;
     request.id="permission-mode";request.title="Permissions";
     const auto current=currentMode();const bool disabled=bypassDisabled();
-    request.body="Current mode: "+current+"\n"+modes[selected_].description+
-      "\n↑/↓ choose · Enter apply · Esc cancel\nApplies to this Flight only.";
+    request.body="Applies to this Flight only; saved settings are unchanged.";
     if(!notice_.empty())request.body+="\n"+notice_;
+    request.hint="↑↓ choose · enter apply · esc cancel";
     for(const auto& mode:modes){
-      auto label=std::string(mode.name);
-      if(current==mode.name)label+=" (current)";
-      if(disabled&&std::string(mode.name)=="bypassPermissions")label+=" (disabled by policy)";
-      request.choices.push_back(std::move(label));
+      request.choices.push_back(mode.name);
+      interactive::UiChoice info;
+      info.detail=mode.description;
+      if(current==mode.name)info.badge="current";
+      if(disabled&&std::string(mode.name)=="bypassPermissions")info.badge="disabled by policy";
+      request.choiceInfo.push_back(std::move(info));
     }
     request.selectedIndex=selected_;
     auto self=shared_from_this();ready_(std::move(request),[self](const interactive::UiAction& action){

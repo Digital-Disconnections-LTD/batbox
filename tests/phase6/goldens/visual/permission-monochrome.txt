@@ -1,0 +1,66 @@
+╭─ ✦ Allow Edit? ──────────────────────────────────────────────────────────────╮
+│ /home/bat/roost/src/lexer.cpp                                                │
+│                                                                              │
+│ -   return {pos};                                                            │
+│ +   // Keep the span.                                                        │
+│ +   return {pos, span()};                                                    │
+│                                                                              │
+│ ❯ Allow once                                                                 │
+│   Always allow this rule   Saves Edit(/home/bat/roost/src/lexer.cpp)         │
+│   Deny                     The model hears that you declined                 │
+│   Cancel                                                                     │
+│                                                                              │
+│ ↑↓ choose · enter confirm · esc cancel                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+# styles
+0:0-1 fg=- bg=- d
+0:4-16 fg=- bg=- b
+0:17-79 fg=- bg=- d
+1:0-0 fg=- bg=- d
+1:79-79 fg=- bg=- d
+2:0-0 fg=- bg=- d
+2:79-79 fg=- bg=- d
+3:0-0 fg=- bg=- d
+3:2-77 fg=- bg=- b
+3:79-79 fg=- bg=- d
+4:0-0 fg=- bg=- d
+4:2-77 fg=- bg=- b
+4:79-79 fg=- bg=- d
+5:0-0 fg=- bg=- d
+5:2-77 fg=- bg=- b
+5:79-79 fg=- bg=- d
+6:0-0 fg=- bg=- d
+6:79-79 fg=- bg=- d
+7:0-0 fg=- bg=- d
+7:2-25 fg=- bg=- b
+7:79-79 fg=- bg=- d
+8:0-0 fg=- bg=- d
+8:2-3 fg=- bg=- b
+8:29-69 fg=- bg=- d
+8:79-79 fg=- bg=- d
+9:0-0 fg=- bg=- d
+9:2-3 fg=- bg=- b
+9:29-61 fg=- bg=- d
+9:79-79 fg=- bg=- d
+10:0-0 fg=- bg=- d
+10:2-3 fg=- bg=- b
+10:79-79 fg=- bg=- d
+11:0-0 fg=- bg=- d
+11:79-79 fg=- bg=- d
+12:0-0 fg=- bg=- d
+12:2-3 fg=- bg=- b
+12:4-13 fg=- bg=- d
+12:14-18 fg=- bg=- b
+12:19-29 fg=- bg=- d
+12:30-32 fg=- bg=- b
+12:33-39 fg=- bg=- d
+12:79-79 fg=- bg=- d
+13:0-79 fg=- bg=- d

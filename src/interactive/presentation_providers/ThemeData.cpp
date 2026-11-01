@@ -1,4 +1,5 @@
 #include "interactive/presentation_providers/ThemeData.hpp"
+#include "interactive/presentation_providers/StyleRoles.hpp"
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -6,8 +7,9 @@
 
 namespace batbox::interactive::presentation_providers {
 namespace {
-const std::array<std::string,6> names={"dark","light","light-daltonized",
-  "dark-daltonized","light-ansi","dark-ansi"};
+const std::array<std::string,10> names={"dark","light","light-daltonized",
+  "dark-daltonized","light-ansi","dark-ansi","batbox-dark","batbox-light",
+  "batbox-ansi","monochrome"};
 std::optional<int> decimal(std::string_view value){
   int result=0;
   const auto [end,error]=std::from_chars(value.data(),
@@ -29,39 +31,14 @@ const RawTheme& getTheme(std::string_view name){
     lightAnsi=lightAnsiTheme(),darkAnsi=darkAnsiTheme(),
     lightDaltonized=lightDaltonizedTheme(),
     darkDaltonized=darkDaltonizedTheme();
-  static const RawTheme halloween=[] {
-    auto theme=darkTheme();
-    for(const auto* key:{"text","background","mascotBackground",
-        "userMessageBackground","userMessageBackgroundHover",
-        "bashMessageBackgroundColor","memoryBackgroundColor"})theme[key]="default";
-    theme["brand"]="rgb(242,153,74)";
-    theme["brandShimmer"]="rgb(255,185,120)";
-    theme["suggestion"]=theme["remember"]=theme["success"]=
-      theme["brandBlueSpinner"]="rgb(151,204,105)";
-    theme["permission"]=theme["bashBorder"]=theme["warning"]=
-      theme["briefLabelAssistant"]="rgb(242,153,74)";
-    theme["planMode"]="rgb(151,204,105)";
-    theme["subtle"]="rgb(156,156,156)";
-    theme["inactive"]="rgb(176,176,176)";
-    theme["promptBorder"]="rgb(110,110,110)";
-    return theme;
-  }();
-  static const RawTheme halloweenAnsi=[] {
-    auto theme=darkAnsiTheme();
-    for(const auto* key:{"text","background","mascotBackground",
-        "userMessageBackground","userMessageBackgroundHover",
-        "bashMessageBackgroundColor","memoryBackgroundColor"})theme[key]="default";
-    for(const auto* key:{"brand","brandShimmer","permission","bashBorder",
-        "warning","briefLabelAssistant"})theme[key]="ansi:yellow";
-    for(const auto* key:{"suggestion","remember","success","planMode",
-        "brandBlueSpinner"})theme[key]="ansi:greenBright";
-    return theme;
-  }();
+  static const RawTheme batboxDark=batboxDarkTheme(),
+    batboxLight=batboxLightTheme(),batboxAnsi=batboxAnsiTheme();
   static const RawTheme monochrome=[] {
     auto theme=darkTheme();for(auto& [key,value]:theme)value="default";return theme;
   }();
-  if(name=="halloween")return halloween;
-  if(name=="halloween-ansi")return halloweenAnsi;
+  if(name=="batbox-dark"||name=="halloween")return batboxDark;
+  if(name=="batbox-light")return batboxLight;
+  if(name=="batbox-ansi"||name=="halloween-ansi")return batboxAnsi;
   if(name=="monochrome")return monochrome;
   if(name=="light")return light;
   if(name=="light-ansi")return lightAnsi;
@@ -73,7 +50,7 @@ const RawTheme& getTheme(std::string_view name){
 std::vector<std::string> themeNames(){return {names.begin(),names.end()};}
 std::string resolveThemeName(std::string_view setting,
     std::string_view systemTheme){
-  return setting=="auto"?std::string(systemTheme):std::string(setting);
+  return themeForSetting(setting,activeColorDepth(),systemTheme);
 }
 std::optional<std::string> rawColor(std::string_view theme,
     std::string_view key){

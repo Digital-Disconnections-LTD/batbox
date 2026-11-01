@@ -38,6 +38,14 @@ struct DefaultInputs {
   std::shared_ptr<skills::SkillRoster> skillRoster;
   skills::SkillRosterServices skillServices;
 };
+// What the built-in file and shell Gadgets show in their cards: header text
+// after the Gadget name and result views (interactive/gadget_views). Options
+// carry "verbose" or "transcriptMode" when the transcript wants full output.
+Json fileGadgetUseView(const std::string& name,const Json& input,
+  const std::string& cwd,const std::string& home);
+Json fileGadgetResultView(const std::string& name,const Json& output,
+  const Json& options,const std::string& cwd,const std::string& home);
+Json shellGadgetResultView(const Json& output,const Json& options);
 // Complete local gadget imports for an interactive owner. Enabled optional
 // integrations without indigenous providers remain explicit feature boundaries.
 Inputs makeDefaultInputs(DefaultInputs defaults);

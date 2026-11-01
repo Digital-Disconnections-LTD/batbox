@@ -32,7 +32,7 @@ struct InputState {
   // converts it to a terminal column after grapheme layout.
   std::size_t caretUtf16 = 0;
   bool focused = true;
-  std::string poetry = "> ";
+  std::string poetry = "❯ ";
 };
 
 struct Viewport {

@@ -3,6 +3,7 @@
 #include "application_commands/MemoryPanel.hpp"
 #include "application_commands/ProjectCommand.hpp"
 #include "application_commands/EffortCommand.hpp"
+#include "application_commands/ThemeCommand.hpp"
 #include "application_commands/PermissionCommand.hpp"
 #include "application_usage/UsageCommand.hpp"
 #include "application_config/ConfigPanel.hpp"
@@ -434,6 +435,8 @@ void Bundle::initialize(){
       const auto found=profiles.find(selected(self->inputs_));
       return found!=profiles.end()&&found->second.effort;
     }));
+  if(inputs_.theme)entries_.push_back(makeThemeCommand(router_,inputs_.theme,
+    !inputs_.config.print));
   application_usage::Sources usage;
   usage.config=inputs_.config;usage.store=inputs_.store;usage.view=&inputs_.view;
   usage.model=inputs_.model;usage.poetry=inputs_.poetry;

@@ -10,6 +10,7 @@
 #include "gadgets/mission_stop/MissionStop.hpp"
 #include "gadgets/mission_management/Gadgets.hpp"
 #include "runtime/JsonValue.hpp"
+#include "interactive/gadget_views/GadgetViewModel.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
 #endif
@@ -54,6 +55,29 @@ std::string target(const Json& input){
     const auto text=field(input,key);if(!text.empty())return text;
   }
   return visible(input);
+}
+namespace gv=interactive::gadget_views;
+// Result renderers receive (output, progress, options); options carries the
+// call input and whether the transcript asked for full output.
+bool expanded(const Json& options){
+  return value::property(options,"verbose")==true||
+    value::property(options,"transcriptMode")==true;
+}
+std::string homeDirectory(){
+  const char* value=std::getenv("HOME");return value?value:"";
+}
+// A one-line summary of arbitrary Gadget input: "key: value" pairs.
+std::string inputSummary(const Json& input){
+  if(!input.is_object())return gv::sanitize(visible(input));
+  std::string text;
+  for(auto it=input.begin();it!=input.end();++it){
+    if(!text.empty())text+=", ";
+    auto part=it.value().is_string()?it.value().get<std::string>():it.value().dump();
+    if(part.size()>48)part=part.substr(0,47)+"…";
+    text+=it.key()+": "+part;
+    if(text.size()>120)break;
+  }
+  return gv::sanitize(text);
 }
 bool isSettingsFile(const std::string& file){
   auto path=std::filesystem::path(file).lexically_normal().generic_string();
@@ -211,6 +235,47 @@ std::vector<std::string> normalizeReadPatterns(const std::vector<std::string>& p
   }
   return {output.begin(),output.end()};
 }
+// Header text after the Gadget name: what it acts on, relative to the Roost.
+Json fileUse(const std::string& name,const Json& input,const std::string& cwd,
+    const std::string& home){
+  const auto shown=[&](const std::string& path){
+    return gv::displayPath(path,cwd,home);};
+  if(name=="Glob"||name=="Grep"){
+    std::string text=name=="Grep"?"\""+field(input,"pattern")+"\"":field(input,"pattern");
+    const auto path=field(input,"path");
+    if(!path.empty())text+=" in "+shown(path);
+    const auto glob=field(input,"glob");
+    if(!glob.empty())text+=" ("+glob+")";
+    return text;
+  }
+  auto text=shown(field(input,"file_path"));
+  if(text.empty())text=shown(target(input));
+  if(name=="Read"){
+    const auto& offset=value::property(input,"offset");
+    const auto& limit=value::property(input,"limit");
+    if(offset.is_number()||limit.is_number()){
+      const auto start=offset.is_number()?offset.get<long long>():1;
+      text+=limit.is_number()?" · lines "+std::to_string(start)+"–"+
+        std::to_string(start+limit.get<long long>()-1):" · from line "+std::to_string(start);
+    }
+  }
+  return text;
+}
+Json fileResult(const std::string& name,const Json& output,const Json& options,
+    const std::string& cwd,const std::string& home){
+  const bool full=expanded(options);
+  const auto path=gv::displayPath(field(output,"filePath"),cwd,home);
+  if(name=="Read")return gv::readView(output,full);
+  if(name=="Edit")return gv::diffView("Updated",path,value::property(output,"structuredPatch"),full);
+  if(name=="Write"){
+    if(field(output,"type")=="create")
+      return gv::createdFileView(path,field(output,"content"),full);
+    return gv::diffView("Wrote",path,value::property(output,"structuredPatch"),full);
+  }
+  if(name=="Glob")return gv::globView(output,full);
+  if(name=="Grep")return gv::grepView(output,full);
+  return gv::textView(visible(output),"normal",full);
+}
 gadgets::files::FileGadgetBindings fileBinding(const std::string& name,
     const std::shared_ptr<application_permissions::PermissionProvider>& permission,
     const std::string& cwd){
@@ -243,23 +308,41 @@ gadgets::files::FileGadgetBindings fileBinding(const std::string& name,
     return application_shell::matchWildcardPattern(pattern,value);};
   result.userFacingName=[name](const Json&){return name;};
   result.getGadgetUseSummary=[](const Json& input)->Json{return target(input);};
-  result.renderUse=[name](const Json& input,const Json&)->Json{return name+": "+target(input);};
-  result.renderResult=[](const Json&,const Json& output,const Json&)->Json{return visible(output);};
-  result.renderError=[](const Json& error,const Json&)->Json{return visible(error);};
-  result.renderRejected=[](const Json& reason,const Json&)->Json{return visible(reason);};
+  result.renderUse=[name,cwd](const Json& input,const Json&)->Json{
+    return fileUse(name,input,cwd,homeDirectory());};
+  result.renderResult=[name,cwd](const Json& output,const Json&,const Json& options)->Json{
+    return fileResult(name,output,options,cwd,homeDirectory());};
+  result.renderError=[](const Json& error,const Json&)->Json{
+    return gv::errorView(visible(error),false);};
+  result.renderRejected=[name,cwd](const Json& input,const Json&)->Json{
+    return gv::textView("Rejected · "+fileUse(name,input,cwd,homeDirectory()).get<std::string>(),
+      "muted",false);};
   result.renderTag=[](const Json&)->Json{return Json();};
   result.isResultTruncated=[](const Json& output){
     return value::property(output,"truncated")==true;};
   return result;
 }
-gadgets::web::UI webUi(const std::string& name){
+gadgets::web::UI webUi(const std::string&){
   gadgets::web::UI result;
   result.getGadgetUseSummary=[](const Json& input)->Json{return target(input);};
-  result.renderUse=[name](const Json& input,const Json&)->Json{return name+": "+target(input);};
+  result.renderUse=[](const Json& input,const Json&)->Json{return gv::sanitize(target(input));};
   result.renderProgress=[](const Json& progress,const Json&)->Json{return visible(progress);};
-  result.renderResult=[](const Json&,const Json& output,const Json&)->Json{return visible(output);};
+  result.renderResult=[](const Json& output,const Json&,const Json& options)->Json{
+    return gv::textView(visible(output),"normal",expanded(options));};
   return result;
 }
+}
+
+Json fileGadgetUseView(const std::string& name,const Json& input,
+    const std::string& cwd,const std::string& home){
+  return fileUse(name,input,cwd,home);
+}
+Json fileGadgetResultView(const std::string& name,const Json& output,
+    const Json& options,const std::string& cwd,const std::string& home){
+  return fileResult(name,output,options,cwd,home);
+}
+Json shellGadgetResultView(const Json& output,const Json& options){
+  return gv::shellView(output,expanded(options));
 }
 
 Inputs makeDefaultInputs(DefaultInputs d){
@@ -387,11 +470,14 @@ Inputs makeDefaultInputs(DefaultInputs d){
   bash.services.fileEditUserFacingName=[](const Json&){return std::string("Edit");};
   bash.services.truncateSummary=[](const std::string& text,std::size_t limit){
     return text.size()>limit?text.substr(0,limit)+"…":text;};
-  bash.services.renderUse=[](const Json& input,const Json&)->Json{return "$ "+target(input);};
-  bash.services.renderResult=[](const Json&,const Json& output,const Json&)->Json{return visible(output);};
+  bash.services.renderUse=[](const Json& input,const Json&)->Json{
+    return "$ "+gv::sanitize(target(input));};
+  bash.services.renderResult=[](const Json& output,const Json&,const Json& options)->Json{
+    return shellGadgetResultView(output,options);};
   bash.services.renderProgress=[](const Json& progress,const Json&)->Json{return visible(progress);};
   bash.services.renderQueued=[]()->Json{return "Queued";};
-  bash.services.renderError=[](const Json& error,const Json&)->Json{return visible(error);};
+  bash.services.renderError=[](const Json& error,const Json&)->Json{
+    return gv::errorView(visible(error),false);};
   bash.services.clearGadgetJSX=[](const Json&){};
   bash.cwdPolicy.shouldMaintainProjectWorkingDir=[](){return false;};
   bash.cwdPolicy.pathInAllowedWorkingPath=[cwd](const std::string& path,const Json&){
@@ -433,11 +519,11 @@ Inputs makeDefaultInputs(DefaultInputs d){
     if(const auto mission=missions->get(id);mission&&mission->outputFilePath)
       return *mission->outputFilePath;
     return shell->outputPath(id);};
-  missionOutput.renderResult=[](const Json&,const Json& data,const Json&)->Json{
+  missionOutput.renderResult=[](const Json& data,const Json&,const Json& options)->Json{
     const auto& mission=value::property(data,"task");
-    if(!mission.is_object())return Json(visible(data));
+    if(!mission.is_object())return gv::textView(visible(data),"normal",expanded(options));
     const auto& output=value::property(mission,"output");
-    std::string text="Task "+field(mission,"task_id");
+    std::string text="Mission "+field(mission,"task_id");
     const auto status=field(mission,"status");
     if(!status.empty())text+=" ("+status+")";
     const auto retrieval=field(data,"retrieval_status");
@@ -446,22 +532,22 @@ Inputs makeDefaultInputs(DefaultInputs d){
     if(output.is_string()&&!output.get<std::string>().empty())
       text+='\n'+output.get<std::string>();
     const auto error=field(mission,"error");if(!error.empty())text+='\n'+error;
-    return text.empty()?Json(visible(data)):Json(std::move(text));};
+    return gv::textView(text.empty()?visible(data):text,"normal",expanded(options));};
   missionOutput.renderProgress=[](const Json& data,const Json&)->Json{
     return visible(data);};
   missionOutput.renderError=[](const Json& data,const Json&)->Json{
     return visible(data);};
   missionOutput.renderRejected=missionOutput.renderError;
-  missionOutput.renderTag=[](const Json&)->Json{return "Task Output";};
+  missionOutput.renderTag=[](const Json&)->Json{return "Mission output";};
   out.additionalGadgets.push_back(mission_output::makeMissionOutputGadget(
     std::move(missionOutput)));
   mission_stop::Services missionStop;
   missionStop.roster=d.shell.missions;
   missionStop.renderUse=[](const Json& input,const Json&)->Json{
     const auto id=field(input,"task_id");
-    return "Stop task "+(id.empty()?field(input,"shell_id"):id);};
-  missionStop.renderResult=[](const Json&,const Json& data,const Json&)->Json{
-    return visible(data);};
+    return "Stop Mission "+(id.empty()?field(input,"shell_id"):id);};
+  missionStop.renderResult=[](const Json& data,const Json&,const Json&)->Json{
+    return gv::textView(visible(data),"muted",false);};
   out.additionalGadgets.push_back(mission_stop::makeMissionStopGadget(
     std::move(missionStop)));
   mission_management::Services missionList;
@@ -484,8 +570,10 @@ Inputs makeDefaultInputs(DefaultInputs d){
   mcpServices.classifyForCollapse=mcp::classifyMcpGadgetForCollapse;
   mcpServices.nowMs=nowMs;
   mcpServices.localizedError=[](const std::string& value){return value;};
-  mcpServices.renderGadgetUseMessage=[](const Json& input,const Json&)->Json{return visible(input);};
-  mcpServices.renderGadgetResultMessage=[](const Json&,const Json& output,const Json&)->Json{return visible(output);};
+  mcpServices.renderGadgetUseMessage=[](const Json& input,const Json&)->Json{
+    return inputSummary(input);};
+  mcpServices.renderGadgetResultMessage=[](const Json& output,const Json&,const Json& options)->Json{
+    return gv::textView(visible(output),"normal",expanded(options));};
   mcpServices.renderGadgetUseProgressMessage=[](const Json& progress,const Json&)->Json{return visible(progress);};
   mcpServices.isOutputLineTruncated=[](const std::string& text){return text.find("[OUTPUT TRUNCATED")!=std::string::npos;};
   mcpServices.logError=d.log?d.log:[](const std::string&){};

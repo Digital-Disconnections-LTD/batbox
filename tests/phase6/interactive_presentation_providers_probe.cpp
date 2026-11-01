@@ -91,7 +91,9 @@ int main(){
   std::optional<interactive::message_actions::Cursor> cursor;
   interactive::conversation_shell::ViewState view{state,sticky,cursor,{},"",
     0,0,2,80,24,false,false,true};
-  auto frame=ftxui::vbox({chrome.renderHeader(view),chrome.renderFooter(view),
+  // The model and mode live in the status row under the input.
+  auto frame=ftxui::vbox({chrome.renderHeader(view),chrome.renderStatus(view),
+    chrome.renderFooter(view),
     chrome.renderModal(view),chrome.renderPill(view),chrome.renderLogo(),
     chrome.renderDivider({interactive::message_list_view::DividerKind::Unseen,
       0,80})});

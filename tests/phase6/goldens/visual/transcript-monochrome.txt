@@ -1,0 +1,51 @@
+
+❯ Teach the lexer about source spans
+
+● ◆ Parser notes
+
+  The lexer now keeps Span offsets; see the design (https://example.com/spans).
+
+  • Tokens carry their source range, so diagnostics can point at the exact
+    column instead of the line.
+    ◦ Nested items get their own marker.
+  [✓] Keep the old API
+  [ ] Remove the shim
+
+  ╭─ cpp ──────────────────────────────────────────────────────────────────────╮
+  │ // Tokens remember where they came from.                                   │
+  │ struct Token { int start = 0; std::string text; };                         │
+  ╰────────────────────────────────────────────────────────────────────────────╯
+
+  ┌───────┬──────┐
+  │ Stage │ Time │
+  ├───────┼──────┤
+  │ lex   │ 4 ms │
+  └───────┴──────┘
+
+  ──────────────────────────────────────────────────────────────────────────────
+
+  Done.
+
+
+
+
+
+
+
+
+
+
+
+
+
+# styles
+10:2-79 fg=- bg=- d
+13:2-4 fg=- bg=- d
+13:8-79 fg=- bg=- d
+14:2-2 fg=- bg=- d
+14:4-43 fg=- bg=- i
+14:79-79 fg=- bg=- d
+15:2-2 fg=- bg=- d
+15:79-79 fg=- bg=- d
+16:2-79 fg=- bg=- d
+24:2-79 fg=- bg=- d

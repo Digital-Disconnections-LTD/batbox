@@ -74,7 +74,7 @@ int main() {
   ftxui::Screen drawn(12, 6);
   ftxui::Render(drawn, tf::renderPresentation(state, {12, 6}));
   assert(drawn.CellAt(2, 0).character == "r");
-  assert(drawn.CellAt(0, 5).character == ">");
+  assert(drawn.CellAt(0, 5).character == "❯");
   assert(drawn.cursor().x == 7 && drawn.cursor().y == 5);
   assert(drawn.cursor().shape == ftxui::Screen::Cursor::Bar);
 

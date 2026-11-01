@@ -20,6 +20,19 @@ struct VisualLine {
   bool hardBreakAfter = false;
 };
 ftxui::Color colorFor(interactive::TranscriptRow::Kind kind);
+// Row colors for inline mode. The host installs colors from the active theme;
+// the defaults use the terminal's basic palette.
+struct InlinePalette {
+  ftxui::Color user = ftxui::Color::Yellow;
+  ftxui::Color assistant = ftxui::Color::Default;
+  ftxui::Color reasoning = ftxui::Color::GrayDark;
+  ftxui::Color gadget = ftxui::Color::Magenta;
+  ftxui::Color gadgetResult = ftxui::Color::GrayDark;
+  ftxui::Color progress = ftxui::Color::GrayDark;
+  ftxui::Color system = ftxui::Color::Cyan;
+  ftxui::Color error = ftxui::Color::Red;
+};
+void setInlinePalette(const InlinePalette& palette);
 struct PresentationLayout {
   std::vector<VisualLine> visibleLines;
   std::size_t transcriptRowCount = 0;

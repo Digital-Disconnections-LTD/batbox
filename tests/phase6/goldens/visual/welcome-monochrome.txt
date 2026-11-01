@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+
+
+                          /\       /\               .----.
+                     __  /  \_____/  \  __         / (o o)\
+                    /  \    (o.o)    /  \         /    u   \
+                   /         \v v/         \     (  |    |  )
+                   \_/\_/\____\_/____/\_/\_/      \_|    |_/
+                            /   \                   |    |
+                           (_/ \_)                  '~~~~'
+
+                                  ✦  Batbox  ✦
+                                code after dark
+
+                night-owl-7b · ~/roost · ⎇ night-shift · ◆ plan
+
+         /help commands  ·  @ mention a file  ·  ! run a shell command
+                                     v0.0.1
+
+
+
+# styles
+17:37-42 fg=- bg=- b
+20:16-27 fg=- bg=- b
+20:28-56 fg=- bg=- d
+20:57-62 fg=- bg=- b
+22:9-13 fg=- bg=- b
+22:14-27 fg=- bg=- d
+22:28-28 fg=- bg=- b
+22:29-48 fg=- bg=- d
+22:49-49 fg=- bg=- b
+22:50-69 fg=- bg=- d
+23:37-42 fg=- bg=- d

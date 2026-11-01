@@ -1,13 +1,19 @@
 #include "application_presentation/Bindings.hpp"
 #include "interactive/presentation_providers/CardPalettes.hpp"
 #include "interactive/presentation_providers/ThemeData.hpp"
+#include "interactive/presentation_providers/StyleRoles.hpp"
+#include "interactive/gadget_views/GadgetViewProjection.hpp"
+#include "interactive/markdown/Highlight.hpp"
 #include "interactive/cards_gadget_result/GadgetErrorProjection.hpp"
 #include "interactive/cards_remaining/MessageLeaves.hpp"
 #include "interactive/cards_remaining/AttachmentProjection.hpp"
 #include "interactive/text_input/MeasuredText.hpp"
 #include "npm_wrap_ansi/Wrap.hpp"
 #include "runtime/Encoding.hpp"
+#include "runtime/IndigenousTime.hpp"
 #include <chrono>
+#include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
@@ -20,26 +26,63 @@ std::string field(const Json& value,const char* name){
   auto it=value.find(name);
   return it!=value.end()&&it->is_string()?it->get<std::string>():std::string{};
 }
-std::string display(const Json& value){
-  if(value.is_null()||value.is_discarded())return {};
-  if(value.is_string())return value.get<std::string>();
-  if(value.is_array()){
-    std::string out;
-    for(const auto& item:value){auto part=display(item);if(part.empty())continue;
-      if(!out.empty())out+='\n';
-      out+=part;}
-    return out;
-  }
-  if(value.is_object()){
-    for(const auto* key:{"text","content","stdout","stderr","message","description","summary","output","result"}){
-      auto it=value.find(key);if(it!=value.end()){
-        auto out=display(*it);if(!out.empty())return out;
-      }
-    }
-  }
-  return value.dump(2);
+namespace gv=batbox::interactive::gadget_views;
+// Plain rendering for values outside the Gadget card path (system notices,
+// attachments): terminal-safe text, never a raw JSON dump of a known field.
+ftxui::Element renderComponent(const Json& value){
+  return ftxui::paragraph(value::encodeUtf8(gv::sanitize(gv::visibleText(value))));
 }
-ftxui::Element renderComponent(const Json& value){return ftxui::paragraph(value::encodeUtf8(display(value)));}
+// Parallel Bats arrive as "N Bats" followed by one indented line per Bat;
+// running Bats gain their elapsed time.
+Json groupView(const Json& value,bool running,const std::vector<std::string>& suffixes){
+  if(!value.is_string())return value;
+  const auto lines=gv::splitLines(value.get<std::string>());
+  if(lines.empty())return value;
+  Json entries=Json::array();
+  for(std::size_t i=1;i<lines.size();++i)
+    entries.push_back(value::trim(lines[i])+(i-1<suffixes.size()?suffixes[i-1]:std::string{}));
+  return Json{{gv::viewKey,"group"},{"title",lines.front()},{"entries",entries},
+    {"running",running}};
+}
+double steadyMs(){
+  return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::steady_clock::now().time_since_epoch()).count());
+}
+// Seconds since the epoch for a UTC "2026-11-01T20:16:05.270Z" timestamp.
+std::optional<double> isoSeconds(const std::string& iso){
+  int year=0,month=0,day=0,hour=0,minute=0;double second=0;
+  if(std::sscanf(iso.c_str(),"%d-%d-%dT%d:%d:%lf",&year,&month,&day,&hour,&minute,
+      &second)<5||month<1||month>12||day<1||day>31)return std::nullopt;
+  // Days from 1970-01-01 for a proleptic Gregorian date (Howard Hinnant).
+  const int y=year-(month<=2?1:0);
+  const int era=(y>=0?y:y-399)/400;
+  const int yoe=y-era*400;
+  const int doy=(153*(month+(month>2?-3:9))+2)/5+day-1;
+  const int doe=yoe*365+yoe/4-yoe/100+doy;
+  const long long days=static_cast<long long>(era)*146097+doe-719468;
+  return static_cast<double>(days*86400+hour*3600+minute*60)+second;
+}
+// "2026-11-01T20:16:05.270Z" as a local clock time, with the date when it is
+// not today.
+std::string localClock(const std::string& iso){
+  const auto seconds=isoSeconds(iso);
+  if(!seconds)return iso;
+  const auto epoch=static_cast<std::time_t>(*seconds);
+  std::tm local{},now{};
+  const auto current=std::time(nullptr);
+  if(!runtime::localtimeIndigenous(epoch,local)||
+     !runtime::localtimeIndigenous(current,now))return iso;
+  char text[32]={};
+  const bool today=local.tm_year==now.tm_year&&local.tm_yday==now.tm_yday;
+  if(!std::strftime(text,sizeof text,today?"%H:%M":"%b %d %H:%M",&local))return iso;
+  return text;
+}
+std::string seconds(double milliseconds){
+  if(!(milliseconds>=0))return "0s";
+  if(milliseconds<1000)return std::to_string(static_cast<int>(milliseconds))+"ms";
+  const auto tenths=static_cast<long long>(milliseconds/100.0);
+  return std::to_string(tenths/10)+"."+std::to_string(tenths%10)+"s";
+}
 std::optional<Json> parseInput(const gadgets::Gadget& gadget,const Json& input){
   try{return gadget.parseInput?gadget.parseInput(input):input;}catch(...){return {};}
 }
@@ -58,8 +101,51 @@ std::string userText(const Json& message){
     if(content.is_string())return content.get<std::string>();
     if(content.is_array())for(const auto& part:content){auto text=field(part,"text");if(!text.empty())return text;}
   }
-  return display(message.value("content",Json()));
+  return gv::visibleText(message.value("content",Json()));
 }
+}
+struct Bundle::MarkdownPalette {
+  std::string theme;
+  bool colors=true;
+  interactive::markdown::FormatServices::BlockStyle blocks;
+  std::string heading,headingGlyph,headingMinorGlyph,link,inlineCode,listMarker,
+    strongLeadIn,taskDone,taskOpen;
+  interactive::markdown::SyntaxPalette syntax;
+};
+void Bundle::refreshMarkdownPalette()const{
+  const auto theme=inputs_.theme->currentTheme();
+  auto& palette=*markdownPalette_;
+  if(palette.theme==theme)return;
+  const auto& roles=ip::styleRoles(theme);
+  const auto sgr=[&](const ftxui::Color& color,bool background=false){
+    return palette.colors?ip::sgr(color,background):std::string{};};
+  palette.theme=theme;
+  palette.heading=sgr(roles.heading);
+  palette.headingGlyph=sgr(roles.headingGlyph);
+  palette.headingMinorGlyph=sgr(roles.headingMinorGlyph);
+  palette.link=sgr(roles.link);
+  palette.inlineCode=sgr(roles.inlineCode)+sgr(roles.inlineCodeBg,true);
+  palette.listMarker=sgr(roles.listMarker);
+  palette.strongLeadIn=sgr(roles.lantern);
+  palette.taskDone=sgr(roles.statusOk);
+  palette.taskOpen=sgr(roles.muted);
+  palette.blocks.codeFrame=sgr(roles.codeFrame);
+  palette.blocks.codeLabel=sgr(roles.codeLabel);
+  palette.blocks.codeBackground=sgr(roles.codeBg,true);
+  palette.blocks.rule=sgr(roles.faint);
+  palette.blocks.listMarker=palette.listMarker;
+  palette.blocks.readingWidth=100;
+  palette.syntax={sgr(roles.syntaxKeyword),sgr(roles.syntaxString),
+    sgr(roles.syntaxNumber),sgr(roles.syntaxComment),sgr(roles.syntaxType),
+    sgr(roles.diffAdd),sgr(roles.diffDel),sgr(roles.diffHunk)};
+}
+std::string Bundle::spinnerGlyph()const{
+  static const char* frames[]={"⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"};
+  const auto now=inputs_.nowMs?inputs_.nowMs():steadyMs();
+  return frames[static_cast<std::size_t>(std::max(0.0,now)/100.0)%10];
+}
+std::string Bundle::expandKey()const{
+  return inputs_.shortcuts.display("expand","global","ctrl+o");
 }
 Bundle::Bundle(interactive::conversation_shell::Imports& shell,Inputs inputs):
     inputs_(std::move(inputs)),state_(&shell.presentation){
@@ -73,13 +159,41 @@ Bundle::Bundle(interactive::conversation_shell::Imports& shell,Inputs inputs):
   intl_=std::make_shared<intl::Stash>(intl::indigenousServices());
   width_=std::make_shared<text_width::StringWidth>(text_width::indigenousServices(intl_));
   wrap_=text_width::indigenousWrapAnsiModule(false).wrapAnsi();
-  std::optional<interactive::markdown::SemanticAccents> accents;
-  if(inputs_.theme->currentTheme()=="halloween")
-    accents=interactive::markdown::SemanticAccents{"\x1b[38;2;151;204;105m","\x1b[38;2;242;153;74m"};
-  else if(inputs_.theme->currentTheme()=="halloween-ansi")
-    accents=interactive::markdown::SemanticAccents{"\x1b[92m","\x1b[33m"};
+  markdownPalette_=std::make_shared<MarkdownPalette>();
+  markdownPalette_->colors=inputs_.colors;
+  refreshMarkdownPalette();
+  const auto palette=markdownPalette_;
+  interactive::markdown::SyntaxHighlighter highlighter{
+    [](const std::string& language){return interactive::markdown::supportsSyntaxLanguage(language);},
+    [palette](const std::string& code,const std::string& language){
+      return interactive::markdown::highlightSyntax(code,language,palette->syntax);},
+    inputs_.log};
+  auto customize=[palette](interactive::markdown::FormatServices& services){
+    const auto wrap=[](const std::string& sgr,const std::string& text,const char* reset){
+      return sgr.empty()?text:sgr+text+reset;};
+    services.heading=[palette,wrap,bold=services.bold](const std::string& content,int depth){
+      const auto& p=*palette;
+      const auto title=bold(wrap(p.heading,content,"\x1b[39m"));
+      if(depth==1)return wrap(p.headingGlyph,"✦ ","\x1b[39m")+title;
+      if(depth==2)return wrap(p.headingMinorGlyph,"◆ ","\x1b[39m")+title;
+      return title;
+    };
+    services.link=[palette,wrap](const std::string& text){
+      return palette->colors?wrap(palette->link+"\x1b[4m",text,"\x1b[24;39m"):text;};
+    services.inlineCode=[palette,wrap](const std::string& text){
+      return wrap(palette->inlineCode,text,"\x1b[39;49m");};
+    services.listMarker=[palette,wrap](const std::string& prefix){
+      return wrap(palette->listMarker,prefix=="- "?std::string("• "):prefix,"\x1b[39m");};
+    services.strongLeadIn=[palette,wrap](const std::string& text){
+      return wrap(palette->strongLeadIn,text,"\x1b[39m");};
+    services.taskMarker=[palette,wrap](bool checked){
+      return checked?wrap(palette->taskDone,"[✓] ","\x1b[39m"):
+        wrap(palette->taskOpen,"[ ] ","\x1b[39m");};
+    services.blockStyle=[palette]{return palette->blocks;};
+  };
   markdown_=interactive::markdown::makeIndigenousRenderer(width_,
-    state_->viewport.columns,inputs_.colors,inputs_.hyperlinks,"",{},std::move(accents));
+    state_->viewport.columns,inputs_.colors,inputs_.hyperlinks,"",
+    std::move(highlighter),std::nullopt,std::move(customize));
 }
 std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& shell,Inputs inputs){
   auto self=std::shared_ptr<Bundle>(new Bundle(shell,std::move(inputs)));
@@ -106,12 +220,15 @@ std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& s
   shell.projectionServices=[self]{return self->projectionServices();};
   shell.retainedViews=self->retainedServices();
   shell.renderStreamingMarkdown=[self](const std::string& text,bool dim){
+    self->refreshMarkdownPalette();
     self->markdown_->setTerminalColumns(self->state_->viewport.columns);
     return self->markdown_->renderStreaming(self->streaming_,text,dim);
   };
+  shell.liveRetainedViews=[self]{return self->retainedServices();};
   shell.chrome=ip::makeChromeProviders({*self->inputs_.theme,self->inputs_.shortcuts,
     self->inputs_.modelLabel,self->inputs_.workingDirectory,
-    self->inputs_.permissionMode,self->inputs_.statusText});
+    self->inputs_.permissionMode,self->inputs_.statusText,
+    self->inputs_.gitBranch,self->inputs_.contextUsage,self->inputs_.homeDirectory});
   shell.editorMetrics=interactive::text_input::indigenousMetricsServices(self->intl_,self->width_,self->wrap_);
   shell.editorOptions.columns=self->state_->viewport.columns;
   return self;
@@ -157,9 +274,13 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   using namespace interactive;
   message_view::ProjectionServices out;
   const auto theme=inputs_.theme->currentTheme();
-  const auto subtle=ip::themeColor(theme,"subtle");
-  const auto success=ip::themeColor(theme,"success");
-  const auto error=ip::themeColor(theme,"error");
+  const auto& roles=ip::styleRoles(theme);
+  refreshMarkdownPalette();
+  const auto subtle=roles.muted;
+  const auto success=roles.gadgetOk;
+  const auto error=roles.gadgetErr;
+  const int columns=std::max(1,state_->viewport.columns);
+  const auto viewStyle=ip::gadgetViewStyle(roles,expandKey());
   out.gadgets=inputs_.gadgets();out.commands=inputs_.commands();
   out.user.protocol={"(no content)","[Request interrupted by user]",
     "[Request interrupted by user for Gadget use]","command-message",
@@ -172,7 +293,8 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.user.poetry.briefModeActive=[]{return false;};
   out.user.poetry.userMessageOptIn=[]{return false;};
   out.user.poetry.briefPreference=[]{return false;};
-  out.user.highlight.pointerGlyph="›";
+  // Sent poetry keeps the input's prompt glyph.
+  out.user.highlight.pointerGlyph="❯";
   out.user.bashResult.outputPalette=ip::outputLinePalette(*inputs_.theme);
   out.user.bashResult.dimColor=subtle;
   out.user.bashResult.outputLine.stringWidth=[width=width_](const std::string& text){return width->stringWidth(Json(text));};
@@ -184,8 +306,29 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.user.bashResult.outputLine.dim=[](const std::string& text){return text;};
   out.user.bashResult.outputLine.expandHint=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};
   out.user.bashResult.backgroundShortcutHint=[this]{return inputs_.shortcuts.display("background","global","ctrl+b");};
-  out.user.renderOtherCard=[](cards::UserTextKind,const Json&,const cards::UserTextCard& card){
-    return ftxui::paragraph(value::encodeUtf8(card.text.empty()?card.planContent:card.text));
+  out.user.renderOtherCard=[viewStyle,columns](cards::UserTextKind kind,const Json&,
+      const cards::UserTextCard& card){
+    if(kind==cards::UserTextKind::LocalCommandOutput){
+      // Slash-command output hangs under the command like Gadget output.
+      const auto between=[&](const std::string& tag){
+        const auto open="<"+tag+">",close="</"+tag+">";
+        const auto start=card.text.find(open);
+        if(start==std::string::npos)return std::string{};
+        const auto end=card.text.find(close,start+open.size());
+        return card.text.substr(start+open.size(),
+          end==std::string::npos?std::string::npos:end-start-open.size());
+      };
+      const auto out=value::trim(between("local-command-stdout"));
+      const auto err=value::trim(between("local-command-stderr"));
+      if(out.empty()&&err.empty())return ftxui::vbox(ftxui::Elements{});
+      return gv::projectGadgetResult(err.empty()?gv::textView(out,"muted",true):
+        gv::textView(out.empty()?err:out+"\n"+err,"error",true),viewStyle,columns);
+    }
+    if(kind==cards::UserTextKind::Interrupted)
+      return gv::projectGadgetResult(gv::textView("Interrupted · What should Batbox do instead?","muted",false),
+        viewStyle,columns);
+    return ftxui::paragraph(value::encodeUtf8(gv::sanitize(
+      card.text.empty()?card.planContent:card.text)));
   };
   out.assistant.protocol={"(no content)","No response requested.","poetry is too long",
     "Credit balance is too low",
@@ -205,7 +348,7 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
     return text.starts_with("API Error")||text.starts_with("Please run /login · API Error");};
   out.assistant.projection.palette=ip::assistantPalette(*inputs_.theme);
   // Markdown keeps terminal-default body text; color its leading marker only.
-  out.assistant.projection.palette.text=ip::themeColor(theme,"suggestion");
+  out.assistant.projection.palette.text=roles.assistantMarker;
   out.assistant.projection.dotGlyph="●";
   out.assistant.projection.renderMarkdown=[this](const std::string& text,bool dim){
     markdown_->setTerminalColumns(state_->viewport.columns);return markdown_->render(text,dim);
@@ -249,7 +392,7 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   attach.renderPlanApproval=[](const cards_remaining::MailboxItem& item){return ftxui::paragraph(value::encodeUtf8(item.text));};
   attach.renderPartnerText=[](const cards_remaining::MailboxItem& item,bool){return ftxui::paragraph(value::encodeUtf8(item.text));};
   attach.renderAnsi=[](const std::string& text){return ftxui::paragraph(value::encodeUtf8(text));};
-  out.gadgetResult=[this](const message_view::MessagePlan&,
+  out.gadgetResult=[this,viewStyle,columns](const message_view::MessagePlan&,
       const message_view::BlockPlan&,const MessageLookups&,const gadgets::Gadgets&){
     cards_gadget_result::GadgetResultProjectionImports result;
     result.resultProtocol={
@@ -261,11 +404,16 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
       "The user doesn't want to proceed with this Gadget use. The Gadget use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). To tell you how to proceed, the user said:\n",
       "Denied by auto mode classifier"};
     result.palette=ip::gadgetErrorPalette(*inputs_.theme);
+    result.columns=columns;
     result.shortcutDisplay=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};
     result.renderRejectedPlan=[](const std::string& plan)->std::optional<ftxui::Element>{return ftxui::paragraph(value::encodeUtf8(plan));};
-    result.renderGadgetError=[](const cards_gadget_result::GadgetResultCard& card,const Json& content,const Json& progress)->std::optional<ftxui::Element>{
+    result.renderGadgetError=[viewStyle,columns](const cards_gadget_result::GadgetResultCard& card,
+        const Json& content,const Json& progress)->std::optional<ftxui::Element>{
       if(!card.gadget||!card.gadget->renderGadgetUseErrorMessage)return {};
-      return renderComponent(card.gadget->renderGadgetUseErrorMessage(content,progress));
+      auto rendered=card.gadget->renderGadgetUseErrorMessage(content,progress);
+      // Errors always read as errors, whatever shape a Gadget returns.
+      if(!gv::isView(rendered))rendered=gv::errorView(gv::visibleText(rendered),false);
+      return gv::projectGadgetResult(rendered,viewStyle,columns);
     };
     return result;
   };
@@ -292,17 +440,76 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   use.renderQueued=[](const gadgets::Gadget& gadget){return gadget.renderGadgetUseQueuedMessage();};
   use.logError=inputs_.log;
   use.stringWidth=[width=width_](const std::string& text){return static_cast<int>(width->stringWidth(Json(text)));};
-  out.gadgetUseProjection={renderComponent,resolve,[](bool){return true;},subtle,success,error,"●"};
+  const auto spinner=[this]{return spinnerGlyph();};
+  // Grouped Bats: a status glyph and title, then one row per Bat.
+  const auto renderGroup=[&roles,viewStyle,spinner](const Json& value)->ftxui::Element{
+    if(gv::viewKind(value)!="group")return renderComponent(value);
+    const bool running=value::property(value,"running")==true;
+    ftxui::Elements rows;
+    rows.push_back(ftxui::hbox({
+      (running?ftxui::text(spinner())|ftxui::color(roles.gadgetRunning):
+        ftxui::text("✓")|ftxui::color(roles.gadgetOk))|
+        ftxui::size(ftxui::WIDTH,ftxui::GREATER_THAN,2),
+      ftxui::text(value::encodeUtf8(field(value,"title")))|ftxui::bold|
+        ftxui::color(roles.gadgetName)}));
+    ftxui::Elements entries;
+    const auto& list=value::property(value,"entries");
+    if(list.is_array())for(const auto& entry:list){
+      if(!entry.is_string())continue;
+      const auto text=entry.get<std::string>();
+      const auto split=text.find(" · ");
+      entries.push_back(ftxui::hbox({
+        ftxui::text(value::encodeUtf8(text.substr(0,split)))|ftxui::color(roles.text),
+        split==std::string::npos?ftxui::text(""):
+          ftxui::text(value::encodeUtf8(text.substr(split)))|ftxui::color(roles.muted)}));
+    }
+    if(!entries.empty())rows.push_back(gv::gadgetResponse(ftxui::vbox(std::move(entries)),viewStyle));
+    return ftxui::vbox(std::move(rows));
+  };
+  {
+    auto& projection=out.gadgetUseProjection;
+    projection.renderGadgetMessage=renderGroup;projection.resolveColor=resolve;
+    projection.isBlinking=[](bool){return true;};
+    projection.subtle=subtle;projection.success=success;projection.error=error;
+    projection.blackCircle="●";
+    projection.spinnerGlyph=spinner;
+    projection.running=roles.gadgetRunning;
+    projection.nameColor=roles.gadgetName;
+    projection.renderInline=[target=roles.gadgetTarget](const Json& value){
+      return gv::projectGadgetInline(value,target);};
+    projection.renderTag=[muted=roles.muted](const Json& value){
+      return gv::projectGadgetInline(value,muted);};
+    projection.renderProgress=[viewStyle,columns](const Json& value){
+      return gv::projectGadgetResult(gv::isView(value)?value:
+        gv::textView(gv::visibleText(value),"muted",false),viewStyle,columns);};
+  }
   out.groupedGadgetUse=[](const gadgets::Gadget& gadget,const std::vector<cards_gadget_use::GroupedGadgetUseEntry>& entries,bool animate,const gadgets::Gadgets&){
-    Json payload=Json::array();for(const auto& entry:entries)
+    Json payload=Json::array();bool running=false;
+    std::vector<std::string> elapsed;
+    const auto now=static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count())/1000.0;
+    for(const auto& entry:entries){
       payload.push_back(Json{{"param",entry.param},{"isResolved",entry.isResolved},
         {"isError",entry.isError},{"isInProgress",entry.isInProgress},
         {"progressMessages",entry.progressMessages}});
-    return gadget.renderGroupedGadgetUse?gadget.renderGroupedGadgetUse(payload,Json{{"shouldAnimate",animate}}):Json();
+      const bool active=!entry.isResolved&&!entry.isError;
+      running=running||active;
+      std::optional<double> started;
+      if(active&&entry.progressMessages.is_array())for(const auto& message:entry.progressMessages){
+        const auto& stamp=value::property(message,"timestamp");
+        if(!stamp.is_string())continue;
+        if(const auto at=isoSeconds(stamp.get<std::string>());at&&(!started||*at<*started))
+          started=at;
+      }
+      elapsed.push_back(started?" · "+std::to_string(static_cast<long long>(
+        std::max(0.0,now-*started)))+"s":std::string{});
+    }
+    return gadget.renderGroupedGadgetUse?groupView(gadget.renderGroupedGadgetUse(payload,
+      Json{{"shouldAnimate",animate}}),running,elapsed):Json();
   };
   out.otherBlock=[](const message_view::MessagePlan&,const message_view::BlockPlan& block)->std::optional<ftxui::Element>{return renderComponent(block.value());};
   out.otherMessage=[](const message_view::MessagePlan& plan)->std::optional<ftxui::Element>{return renderComponent(*plan.item.message);};
-  out.metadata.formatLocalTime=[](const std::string& value){return value;};
+  out.metadata.formatLocalTime=localClock;
   out.metadata.stringWidth=[width=width_](const std::string& text){return static_cast<int>(width->stringWidth(Json(text)));};
   out.metadataColor=subtle;
   return out;
@@ -311,9 +518,18 @@ interactive::message_view::RetainedViewServices Bundle::retainedServices()const{
   using namespace interactive;
   message_view::RetainedViewServices out;
   const auto theme=inputs_.theme->currentTheme();
-  const auto subtle=ip::themeColor(theme,"subtle");
-  const auto success=ip::themeColor(theme,"success");
-  const auto error=ip::themeColor(theme,"error");
+  const auto& roles=ip::styleRoles(theme);
+  const auto subtle=roles.muted;
+  const auto success=roles.gadgetOk;
+  const auto error=roles.gadgetErr;
+  const int columns=std::max(1,state_->viewport.columns);
+  const auto viewStyle=ip::gadgetViewStyle(roles,expandKey());
+  const std::function<ftxui::Element(const Json&)> renderResult=[viewStyle,columns](const Json& value){
+    return gv::projectGadgetResult(value,viewStyle,columns);};
+  const std::function<ftxui::Element(const Json&)> renderQuiet=[viewStyle,columns](const Json& value){
+    return gv::projectGadgetResult(gv::isView(value)?value:
+      gv::textView(gv::visibleText(value),"muted",false),viewStyle,columns);};
+  const auto spinner=[this]{return spinnerGlyph();};
   auto& result=out.result;
   result.success.readTheme=[this]{return gadgetTheme(*inputs_.theme);};
   result.success.readBriefOnly=[]{return false;};
@@ -336,22 +552,23 @@ interactive::message_view::RetainedViewServices Bundle::retainedServices()const{
       const cards_gadget_children::RejectRenderContext& context){
     return gadget.renderGadgetUseRejectedMessage(input,context.theme);
   };
-  result.successProjection={state_->viewport.columns,subtle,success,"✓",renderComponent};
-  result.rejectedSubtle=subtle;result.renderRejectedComponent=renderComponent;
+  result.successProjection={columns,subtle,success,"✓",renderResult};
+  result.rejectedSubtle=subtle;result.renderRejectedComponent=renderQuiet;
   auto& collapsed=out.collapsed;
   collapsed.readSelectedBackground=[]{return Json();};
   collapsed.readTheme=[this]{return gadgetTheme(*inputs_.theme);};
   collapsed.isFullscreen=[]{return true;};
   collapsed.teamMemoryEnabled=[this]{return inputs_.feature("TEAMMEM");};
   collapsed.displayPath=inputs_.displayPath;
-  collapsed.formatDuration=[](double value){return std::to_string(static_cast<int>(value))+"ms";};
-  collapsed.formatSecondsShort=[](double value){return std::to_string(static_cast<int>(value))+"s";};
-  collapsed.expandHint=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};
+  // Hook timings arrive in milliseconds.
+  collapsed.formatDuration=seconds;
+  collapsed.formatSecondsShort=seconds;
+  collapsed.expandHint=[this]{return "("+expandKey()+" to expand)";};
   collapsed.stripMcpServerPrefix=[](const std::string& value){return value;};
   out.collapsedProjection={resolve,[](bool){return true;},renderComponent,
-    [](const std::string& text){return ftxui::paragraph(value::encodeUtf8(text));},
-    basename,[](double value){return std::to_string(static_cast<int>(value))+"s";},
-    subtle,success,error,"●"};
+    [](const std::string& text){return ftxui::paragraph(value::encodeUtf8(gv::sanitize(text)));},
+    basename,seconds,subtle,success,error,"●",spinner,roles.gadgetRunning,
+    roles.text,"✓"};
   auto& verbose=out.verboseGadgets;
   verbose.readSelectedBackground=[]{return Json();};
   verbose.primitiveGadgets=inputs_.gadgets;
@@ -361,9 +578,22 @@ interactive::message_view::RetainedViewServices Bundle::retainedServices()const{
   verbose.renderUse=[](const gadgets::Gadget& gadget,const Json& input,const Json& theme){return gadget.renderGadgetUseMessage(input,theme);};
   verbose.renderTag=[](const gadgets::Gadget& gadget,const Json& input){return gadget.renderGadgetUseTag?gadget.renderGadgetUseTag(input):Json();};
   verbose.renderResult=[](const gadgets::Gadget& gadget,const Json& output,
-      const gadgets::Gadgets&,const Json& theme){return gadget.renderGadgetResultMessage?
-        gadget.renderGadgetResultMessage(output,Json::array(),theme):Json();};
-  out.verboseProjection={renderComponent,resolve,[](bool){return true;},subtle,success,error,"●"};
+      const gadgets::Gadgets&,const Json& theme){
+    // The verbose list is the expanded view: Gadgets show full output.
+    Json expanded=theme.is_object()?theme:Json::object();
+    expanded["verbose"]=true;
+    return gadget.renderGadgetResultMessage?
+      gadget.renderGadgetResultMessage(output,Json::array(),expanded):Json();};
+  out.verboseProjection.renderComponent=renderComponent;
+  out.verboseProjection.resolveColor=resolve;
+  out.verboseProjection.isBlinking=[](bool){return true;};
+  out.verboseProjection.subtle=subtle;out.verboseProjection.success=success;
+  out.verboseProjection.error=error;out.verboseProjection.blackCircle="●";
+  out.verboseProjection.spinnerGlyph=spinner;
+  out.verboseProjection.running=roles.gadgetRunning;
+  out.verboseProjection.renderInline=[target=roles.gadgetTarget](const Json& value){
+    return gv::projectGadgetInline(value,target);};
+  out.verboseProjection.renderResult=renderResult;
   return out;
 }
 } // namespace batbox::application_presentation

@@ -234,7 +234,7 @@ int main(){
     auto choosing=permissions.invokeUi("");loop.run();
     check(modal&&modal->kind==interactive::UiRequest::Kind::Select&&
         modal->selectedIndex==0&&modal->choices.size()==5&&
-        modal->choices[0].find("current")!=std::string::npos,
+        modal->choiceInfo.size()==5&&modal->choiceInfo[0].badge=="current",
       "Permission selector must show and select the current mode");
     router->ui()->dispatchAction({interactive::UiAction::Kind::MoveSelection,2,"down"});
     check(modal&&modal->selectedIndex==2&&currentPermission()==rules,
@@ -268,7 +268,7 @@ int main(){
         {{"disableBypassPermissionsMode","disable"}}}});return next;});
     router->ui()->dispatchAction({interactive::UiAction::Kind::Activate,2,{}});
     check(currentPermission().at("mode")=="dontAsk"&&modal&&
-        modal->choices[2].find("disabled by policy")!=std::string::npos&&
+        modal->choiceInfo[2].badge=="disabled by policy"&&
         modal->body.find("disabled by settings")!=std::string::npos,
       "Disabled bypass must remain unavailable when policy changes in an open selector");
     router->ui()->dispatchAction({interactive::UiAction::Kind::Cancel,0,{}});

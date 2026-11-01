@@ -8,6 +8,14 @@ namespace batbox::interactive::cards_collapsed {
 namespace {
 ftxui::Element indicator(const CollapsedCard& card,
                          const CollapsedProjectionImports& imports){
+  if(imports.spinnerGlyph){
+    if(card.active&&!card.error)
+      return ftxui::text(value::encodeUtf8(imports.spinnerGlyph()))|
+        ftxui::color(imports.running)|ftxui::size(ftxui::WIDTH,ftxui::GREATER_THAN,2);
+    return ftxui::text(value::encodeUtf8(card.error?std::string("✗"):imports.okGlyph))|
+      ftxui::color(card.error?imports.error:imports.success)|
+      ftxui::size(ftxui::WIDTH,ftxui::GREATER_THAN,2);
+  }
   if(!card.active)return ftxui::text("  ");
   if(imports.blackCircle.empty()||!imports.isBlinking)
     throw std::logic_error("Collapsed indicator glyph and blink provider required");
@@ -74,14 +82,18 @@ std::optional<ftxui::Element> projectCollapsedReadSearch(
     for(const auto& span:card.summary){
       auto value=ftxui::text(value::encodeUtf8(span.text));
       if(span.bold)value=value|ftxui::bold;
+      if(span.bold&&imports.spinnerGlyph)value=value|ftxui::color(imports.text);
       if(span.hyperlink)
         value=value|ftxui::underlined|ftxui::hyperlink(*span.hyperlink);
       spans.push_back(std::move(value));
     }
     if(card.active)spans.push_back(ftxui::text("…"));
     spans.push_back(ftxui::text(" "));
-    if(!card.expandHint.empty())spans.push_back(ftxui::text(
-      value::encodeUtf8(card.expandHint)));
+    if(!card.expandHint.empty()){
+      auto hint=ftxui::text(value::encodeUtf8(card.expandHint));
+      // The shortcut reads as a key; the dimmed summary keeps it quiet.
+      spans.push_back(imports.spinnerGlyph?hint|ftxui::dim:hint);
+    }
     auto summary=ftxui::hbox({indicator(card,imports),
       ftxui::hflow(std::move(spans))|
       ftxui::color(imports.subtle)});

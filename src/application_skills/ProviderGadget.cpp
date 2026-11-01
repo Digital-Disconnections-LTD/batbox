@@ -108,7 +108,8 @@ gadgets::Gadget Provider::makeGadget(){
   gadget.execution.modelSupports1M=[](const std::string&){return false;};
   gadget.renderGadgetUseMessage=[](const Json& input,const Json&)->Json{
     return "Skill: "+string(value::property(input,"skill"));};
-  gadget.renderGadgetResultMessage=[](const Json&,const Json& result,
+  // Result renderers receive (output, progress, options).
+  gadget.renderGadgetResultMessage=[](const Json& result,const Json&,
       const Json&)->Json{return visible(result);};
   gadget.renderGadgetUseProgressMessage=[](const Json& progress,
       const Json&)->Json{return visible(progress);};

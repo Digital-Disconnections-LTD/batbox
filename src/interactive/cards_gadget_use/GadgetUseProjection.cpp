@@ -17,6 +17,32 @@ ftxui::Element response(ftxui::Element child,ftxui::Color subtle){
       ftxui::color(subtle)|ftxui::dim,std::move(child)})|
       ftxui::size(ftxui::HEIGHT,ftxui::EQUAL,1);
 }
+ftxui::Element statusGlyph(const GadgetUseCard& card,
+                           const UseProjectionImports& imports){
+  const bool running=!card.queued&&!card.resolved;
+  if(imports.spinnerGlyph){
+    if(card.resolved){
+      return ftxui::text(value::encodeUtf8(card.error?imports.errorGlyph:
+        imports.okGlyph))|ftxui::color(card.error?imports.error:imports.success);
+    }
+    if(running&&card.progressKind!=GadgetUseCard::ProgressKind::WaitingPermission)
+      return ftxui::text(value::encodeUtf8(imports.spinnerGlyph()))|
+        ftxui::color(imports.running);
+    return ftxui::text(value::encodeUtf8(imports.blackCircle))|
+      ftxui::color(imports.subtle)|ftxui::dim;
+  }
+  std::string glyph=imports.blackCircle;
+  if(!card.queued){
+    if(!imports.isBlinking)
+      throw std::logic_error("Gadget-use blink provider required");
+    const bool blinking=imports.isBlinking(card.animate);
+    if(card.animate&&!blinking&&!card.error&&!card.resolved)glyph=" ";
+  }
+  auto dot=ftxui::text(value::encodeUtf8(glyph));
+  if(card.queued||!card.resolved)dot=dot|ftxui::color(imports.subtle)|ftxui::dim;
+  else dot=dot|ftxui::color(card.error?imports.error:imports.success);
+  return dot;
+}
 std::optional<ftxui::Element> progress(const GadgetUseCard& card,
                                        const UseProjectionImports& imports){
   if(card.progressKind==GadgetUseCard::ProgressKind::None)return {};
@@ -26,7 +52,8 @@ std::optional<ftxui::Element> progress(const GadgetUseCard& card,
   std::vector<ftxui::Element> rows;
   if(auto hook=cards_gadget_result::projectHookProgress(
       card.preGadgetHook,imports.subtle))rows.push_back(std::move(*hook));
-  if(!card.progress.is_null())rows.push_back(component(card.progress,imports));
+  if(!card.progress.is_null())rows.push_back(imports.renderProgress?
+    imports.renderProgress(card.progress):component(card.progress,imports));
   if(rows.empty())return {};
   return ftxui::vbox(std::move(rows));
 }
@@ -41,33 +68,40 @@ std::optional<ftxui::Element> projectGadgetUse(const GadgetUseCard& card,
     if(card.showDot){
       if(imports.blackCircle.empty())
         throw std::logic_error("Gadget-use indicator glyph required");
-      std::string glyph=imports.blackCircle;
-      if(!card.queued){
-        if(!imports.isBlinking)
-          throw std::logic_error("Gadget-use blink provider required");
-        const bool blinking=imports.isBlinking(card.animate);
-        if(card.animate&&!blinking&&!card.error&&!card.resolved)glyph=" ";
-      }
-      auto dot=ftxui::text(value::encodeUtf8(glyph));
-      if(card.queued||!card.resolved)dot=dot|ftxui::color(imports.subtle)|ftxui::dim;
-      else dot=dot|ftxui::color(card.error?imports.error:imports.success);
-      header.push_back(std::move(dot)|ftxui::size(ftxui::WIDTH,ftxui::GREATER_THAN,2));
+      header.push_back(statusGlyph(card,imports)|
+        ftxui::size(ftxui::WIDTH,ftxui::GREATER_THAN,2));
     }
     auto name=ftxui::text(value::encodeUtf8(card.name))|ftxui::bold;
+    if(imports.renderInline&&!(imports.nameColor==ftxui::Color::Default))
+      name=name|ftxui::color(imports.nameColor);
     if(!card.nameBackground.is_null()){
       if(!imports.resolveColor)
         throw std::logic_error("Gadget-use color resolver required");
       name=name|ftxui::bgcolor(imports.resolveColor(card.nameBackground));
     }
     header.push_back(std::move(name));
-    if(!card.useText.is_null()&&card.useText!=""){
-      header.push_back(ftxui::text("("));
-      header.push_back(component(card.useText,imports));
-      header.push_back(ftxui::text(")"));
+    const bool hasUse=!card.useText.is_null()&&card.useText!="";
+    if(imports.renderInline){
+      if(hasUse){
+        header.push_back(ftxui::text(" "));
+        header.push_back(imports.renderInline(card.useText));
+      }
+      if(!card.tag.is_null()&&card.tag!=""){
+        header.push_back(ftxui::text(" "));
+        header.push_back(imports.renderTag?imports.renderTag(card.tag):
+          component(card.tag,imports));
+      }
+      rows.push_back(ftxui::hbox(std::move(header)));
+    }else{
+      if(hasUse){
+        header.push_back(ftxui::text("("));
+        header.push_back(component(card.useText,imports));
+        header.push_back(ftxui::text(")"));
+      }
+      if(!card.tag.is_null())header.push_back(component(card.tag,imports));
+      rows.push_back(ftxui::hbox(std::move(header))|
+        ftxui::size(ftxui::WIDTH,ftxui::GREATER_THAN,card.nameWidth));
     }
-    if(!card.tag.is_null())header.push_back(component(card.tag,imports));
-    rows.push_back(ftxui::hbox(std::move(header))|
-      ftxui::size(ftxui::WIDTH,ftxui::GREATER_THAN,card.nameWidth));
   }
   if(auto value=progress(card,imports))rows.push_back(std::move(*value));
   if(!card.queuedMessage.is_null())rows.push_back(component(card.queuedMessage,imports));

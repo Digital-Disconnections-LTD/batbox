@@ -121,6 +121,7 @@ struct Host::Impl {
   std::shared_ptr<application_presentation::Bundle> presentation;
   std::shared_ptr<interactive::conversation_shell::Shell> shell;
   std::shared_ptr<interactive::presentation_providers::ThemeState> theme;
+  std::shared_ptr<interactive::presentation_providers::SystemThemeStash> systemTheme;
   std::shared_ptr<gadgets::live_roster::Roster> roster;
   std::optional<application_gadgets::Prepared> preparedGadgets;
   mcp::Services mcpServices;

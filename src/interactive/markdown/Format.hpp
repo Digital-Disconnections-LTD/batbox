@@ -19,6 +19,18 @@ struct FormatServices {
   std::function<void(const std::string&)> debug;
   std::string blockQuoteBar="│";
   std::function<std::string(const std::string&)> listMarker,strongLeadIn;
+  // Optional role styling. Each wraps already formatted text in SGR codes.
+  std::function<std::string(const std::string&,int depth)> heading;
+  std::function<std::string(const std::string&)> link,inlineCode;
+  std::function<std::string(bool checked)> taskMarker;
+  // Block chrome painted by the terminal renderer: code frames, rules and
+  // list markers. Values are SGR sequences so this layer stays toolkit-free.
+  struct BlockStyle {
+    std::string codeFrame,codeLabel,codeBackground,rule,listMarker;
+    // Prose wraps at this width (0: the full terminal width).
+    int readingWidth=0;
+  };
+  std::function<BlockStyle()> blockStyle;
 };
 
 std::string formatToken(const Token& token,const FormatServices& services,

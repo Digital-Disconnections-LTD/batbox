@@ -12,7 +12,8 @@ std::shared_ptr<Renderer> makeIndigenousRenderer(
     int terminalColumns,bool colors,bool hyperlinks,
     std::string permissionSgr,
     std::optional<SyntaxHighlighter> highlighter,
-    std::optional<SemanticAccents> accents){
+    std::optional<SemanticAccents> accents,
+    FormatCustomizer customize){
   if(!width)throw std::invalid_argument("Markdown Unicode width provider required");
   auto measure=[width](const std::string& text){
     const auto value=width->stringWidth(Json(text));
@@ -37,6 +38,7 @@ std::shared_ptr<Renderer> makeIndigenousRenderer(
     services.highlight=std::move(highlighter->highlight);
     services.debug=std::move(highlighter->debug);
   }
+  if(customize)customize(services);
   WrapAnsi wrap=[](const std::string& text,int columns,bool hard){
     return npm_wrap_ansi::wrapAnsi(text,columns,
       Json{{"hard",hard},{"trim",false},{"wordWrap",true}});
