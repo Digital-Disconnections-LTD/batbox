@@ -1,0 +1,98 @@
+✓ Read src/lexer.cpp
+  ⎿  Read 20 lines
+      1  line 1  of the lexer
+      2  line 2  of the lexer
+      3  line 3  of the lexer
+      4  line 4  of the lexer
+      5  line 5  of the lexer
+      6  line 6  of the lexer
+      7  line 7  of the lexer
+      8  line 8  of the lexer
+      9  line 9  of the lexer
+     10  line 10 of the lexer
+     11  line 11 of the lexer
+     12  line 12 of the lexer
+     13  line 13 of the lexer
+     14  line 14 of the lexer
+     15  line 15 of the lexer
+     16  line 16 of the lexer
+     17  line 17 of the lexer
+     18  line 18 of the lexer
+     19  line 19 of the lexer
+     20  line 20 of the lexer
+
+✓ Edit src/lexer.cpp
+  ⎿  Updated src/lexer.cpp with 2 additions and 1 removal
+     11   Token next() {
+     12 -   return {pos};
+     12 +   // Keep the span.
+     13 +   return {pos, span()};
+     14   }
+
+✓ Bash $ ctest --output-on-failure
+  ⎿  ok      lexer
+     test 1 passed
+     test 2 passed
+     test 3 passed
+     test 4 passed
+     test 5 passed
+     test 6 passed
+     test 7 passed
+     test 8 passed
+     test 9 passed
+     test 10 passed
+     warning: 1 test was slow
+     … +19 lines (ctrl+o to expand)
+
+⠹ Bash $ make lint
+
+
+
+# styles
+0:2-5 fg=- bg=- b
+1:0-4 fg=- bg=- d
+2:0-79 fg=- bg=- d
+3:0-79 fg=- bg=- d
+4:0-79 fg=- bg=- d
+5:0-79 fg=- bg=- d
+6:0-79 fg=- bg=- d
+7:0-79 fg=- bg=- d
+8:0-79 fg=- bg=- d
+9:0-79 fg=- bg=- d
+10:0-79 fg=- bg=- d
+11:0-79 fg=- bg=- d
+12:0-79 fg=- bg=- d
+13:0-79 fg=- bg=- d
+14:0-79 fg=- bg=- d
+15:0-79 fg=- bg=- d
+16:0-79 fg=- bg=- d
+17:0-79 fg=- bg=- d
+18:0-79 fg=- bg=- d
+19:0-79 fg=- bg=- d
+20:0-79 fg=- bg=- d
+21:0-79 fg=- bg=- d
+23:2-5 fg=- bg=- b
+24:0-4 fg=- bg=- d
+25:0-79 fg=- bg=- d
+26:0-7 fg=- bg=- d
+26:8-79 fg=- bg=- b
+27:0-7 fg=- bg=- d
+27:8-79 fg=- bg=- b
+28:0-7 fg=- bg=- d
+28:8-79 fg=- bg=- b
+29:0-79 fg=- bg=- d
+31:2-5 fg=- bg=- b
+32:0-4 fg=- bg=- d
+33:0-4 fg=- bg=- d
+34:0-4 fg=- bg=- d
+35:0-4 fg=- bg=- d
+36:0-4 fg=- bg=- d
+37:0-4 fg=- bg=- d
+38:0-4 fg=- bg=- d
+39:0-4 fg=- bg=- d
+40:0-4 fg=- bg=- d
+41:0-4 fg=- bg=- d
+42:0-4 fg=- bg=- d
+43:0-4 fg=- bg=- d
+44:0-79 fg=- bg=- d
+46:2-5 fg=- bg=- b

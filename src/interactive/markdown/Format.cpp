@@ -255,7 +255,8 @@ FormatServices indigenousFormatServices(bool colors,bool hyperlinks,
   services.supportsHyperlinks=[hyperlinks]{return hyperlinks;};
   services.createHyperlink=[hyperlinks](const std::string& url,
       const std::optional<std::string>& content){
-    if(!hyperlinks)return url;
+    // Without OSC 8 the reader still needs both the words and the address.
+    if(!hyperlinks)return content&&*content!=url?*content+" ("+url+")":url;
     const auto display=content.value_or(url);
     return "\x1b]8;;"+url+"\x07"+display+"\x1b]8;;\x07";
   };

@@ -54,3 +54,13 @@ target_link_libraries(batbox-indigenous-lsp-format-driver PRIVATE batbox_indigen
 target_compile_options(batbox-phase6-indigenous-lsp-grouped PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/UNDEBUG>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-UNDEBUG>)
+add_executable(batbox-phase6-visual-goldens-indigenous
+  tests/phase6/visual_goldens_indigenous.cpp)
+target_link_libraries(batbox-phase6-visual-goldens-indigenous PRIVATE
+  batbox_application_presentation batbox_application_gadgets
+  batbox_application_permissions)
+add_test(NAME phase6-visual-goldens-indigenous
+  COMMAND batbox-phase6-visual-goldens-indigenous
+  ${CMAKE_SOURCE_DIR}/tests/phase6/goldens/visual)
+batbox_indigenous(phase6-visual-roles-indigenous
+  tests/phase6/visual_roles_indigenous.cpp batbox_application_commands)

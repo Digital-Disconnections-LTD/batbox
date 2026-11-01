@@ -79,46 +79,6 @@ std::string inputSummary(const Json& input){
   }
   return gv::sanitize(text);
 }
-// Header text after the Gadget name: what it acts on, relative to the Roost.
-Json fileUse(const std::string& name,const Json& input,const std::string& cwd){
-  const auto shown=[&](const std::string& path){
-    return gv::displayPath(path,cwd,homeDirectory());};
-  if(name=="Glob"||name=="Grep"){
-    std::string text=name=="Grep"?"\""+field(input,"pattern")+"\"":field(input,"pattern");
-    const auto path=field(input,"path");
-    if(!path.empty())text+=" in "+shown(path);
-    const auto glob=field(input,"glob");
-    if(!glob.empty())text+=" ("+glob+")";
-    return text;
-  }
-  auto text=shown(field(input,"file_path"));
-  if(text.empty())text=shown(target(input));
-  if(name=="Read"){
-    const auto& offset=value::property(input,"offset");
-    const auto& limit=value::property(input,"limit");
-    if(offset.is_number()||limit.is_number()){
-      const auto start=offset.is_number()?offset.get<long long>():1;
-      text+=limit.is_number()?" · lines "+std::to_string(start)+"–"+
-        std::to_string(start+limit.get<long long>()-1):" · from line "+std::to_string(start);
-    }
-  }
-  return text;
-}
-Json fileResult(const std::string& name,const Json& output,const Json& options,
-    const std::string& cwd){
-  const bool full=expanded(options);
-  const auto path=gv::displayPath(field(output,"filePath"),cwd,homeDirectory());
-  if(name=="Read")return gv::readView(output,full);
-  if(name=="Edit")return gv::diffView("Updated",path,value::property(output,"structuredPatch"),full);
-  if(name=="Write"){
-    if(field(output,"type")=="create")
-      return gv::createdFileView(path,field(output,"content"),full);
-    return gv::diffView("Wrote",path,value::property(output,"structuredPatch"),full);
-  }
-  if(name=="Glob")return gv::globView(output,full);
-  if(name=="Grep")return gv::grepView(output,full);
-  return gv::textView(visible(output),"normal",full);
-}
 bool isSettingsFile(const std::string& file){
   auto path=std::filesystem::path(file).lexically_normal().generic_string();
   std::transform(path.begin(),path.end(),path.begin(),[](unsigned char c){
@@ -275,6 +235,47 @@ std::vector<std::string> normalizeReadPatterns(const std::vector<std::string>& p
   }
   return {output.begin(),output.end()};
 }
+// Header text after the Gadget name: what it acts on, relative to the Roost.
+Json fileUse(const std::string& name,const Json& input,const std::string& cwd,
+    const std::string& home){
+  const auto shown=[&](const std::string& path){
+    return gv::displayPath(path,cwd,home);};
+  if(name=="Glob"||name=="Grep"){
+    std::string text=name=="Grep"?"\""+field(input,"pattern")+"\"":field(input,"pattern");
+    const auto path=field(input,"path");
+    if(!path.empty())text+=" in "+shown(path);
+    const auto glob=field(input,"glob");
+    if(!glob.empty())text+=" ("+glob+")";
+    return text;
+  }
+  auto text=shown(field(input,"file_path"));
+  if(text.empty())text=shown(target(input));
+  if(name=="Read"){
+    const auto& offset=value::property(input,"offset");
+    const auto& limit=value::property(input,"limit");
+    if(offset.is_number()||limit.is_number()){
+      const auto start=offset.is_number()?offset.get<long long>():1;
+      text+=limit.is_number()?" · lines "+std::to_string(start)+"–"+
+        std::to_string(start+limit.get<long long>()-1):" · from line "+std::to_string(start);
+    }
+  }
+  return text;
+}
+Json fileResult(const std::string& name,const Json& output,const Json& options,
+    const std::string& cwd,const std::string& home){
+  const bool full=expanded(options);
+  const auto path=gv::displayPath(field(output,"filePath"),cwd,home);
+  if(name=="Read")return gv::readView(output,full);
+  if(name=="Edit")return gv::diffView("Updated",path,value::property(output,"structuredPatch"),full);
+  if(name=="Write"){
+    if(field(output,"type")=="create")
+      return gv::createdFileView(path,field(output,"content"),full);
+    return gv::diffView("Wrote",path,value::property(output,"structuredPatch"),full);
+  }
+  if(name=="Glob")return gv::globView(output,full);
+  if(name=="Grep")return gv::grepView(output,full);
+  return gv::textView(visible(output),"normal",full);
+}
 gadgets::files::FileGadgetBindings fileBinding(const std::string& name,
     const std::shared_ptr<application_permissions::PermissionProvider>& permission,
     const std::string& cwd){
@@ -308,13 +309,13 @@ gadgets::files::FileGadgetBindings fileBinding(const std::string& name,
   result.userFacingName=[name](const Json&){return name;};
   result.getGadgetUseSummary=[](const Json& input)->Json{return target(input);};
   result.renderUse=[name,cwd](const Json& input,const Json&)->Json{
-    return fileUse(name,input,cwd);};
+    return fileUse(name,input,cwd,homeDirectory());};
   result.renderResult=[name,cwd](const Json& output,const Json&,const Json& options)->Json{
-    return fileResult(name,output,options,cwd);};
+    return fileResult(name,output,options,cwd,homeDirectory());};
   result.renderError=[](const Json& error,const Json&)->Json{
     return gv::errorView(visible(error),false);};
   result.renderRejected=[name,cwd](const Json& input,const Json&)->Json{
-    return gv::textView("Rejected · "+fileUse(name,input,cwd).get<std::string>(),
+    return gv::textView("Rejected · "+fileUse(name,input,cwd,homeDirectory()).get<std::string>(),
       "muted",false);};
   result.renderTag=[](const Json&)->Json{return Json();};
   result.isResultTruncated=[](const Json& output){
@@ -330,6 +331,18 @@ gadgets::web::UI webUi(const std::string&){
     return gv::textView(visible(output),"normal",expanded(options));};
   return result;
 }
+}
+
+Json fileGadgetUseView(const std::string& name,const Json& input,
+    const std::string& cwd,const std::string& home){
+  return fileUse(name,input,cwd,home);
+}
+Json fileGadgetResultView(const std::string& name,const Json& output,
+    const Json& options,const std::string& cwd,const std::string& home){
+  return fileResult(name,output,options,cwd,home);
+}
+Json shellGadgetResultView(const Json& output,const Json& options){
+  return gv::shellView(output,expanded(options));
 }
 
 Inputs makeDefaultInputs(DefaultInputs d){
@@ -460,7 +473,7 @@ Inputs makeDefaultInputs(DefaultInputs d){
   bash.services.renderUse=[](const Json& input,const Json&)->Json{
     return "$ "+gv::sanitize(target(input));};
   bash.services.renderResult=[](const Json& output,const Json&,const Json& options)->Json{
-    return gv::shellView(output,expanded(options));};
+    return shellGadgetResultView(output,options);};
   bash.services.renderProgress=[](const Json& progress,const Json&)->Json{return visible(progress);};
   bash.services.renderQueued=[]()->Json{return "Queued";};
   bash.services.renderError=[](const Json& error,const Json&)->Json{

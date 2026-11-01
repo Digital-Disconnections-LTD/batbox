@@ -189,7 +189,7 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
   if(view.batId)return footer(imports,view);
   const auto& roles=styleRoles(imports.theme.currentTheme());
   const int columns=std::max(1,view.columns);
-  const std::string separator="  ·  ";
+  const std::string separator=" · ";
   std::vector<Segment> right;
   const auto status=imports.statusText();
   if(view.searchOpen){
@@ -220,8 +220,22 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
     }
   }
   // The right side may take most of the row; the left gives up detail first.
+  // Idle hints are the exception: they yield before the Roost details do.
   const int rightLimit=std::max(24,columns*3/5);
   while(right.size()>1&&segmentsWidth(right,3)>rightLimit)right.pop_back();
+  if(!view.presentation.loading&&status.empty()&&!view.searchOpen){
+    const auto mode=modeBadge(imports.permissionMode(),roles).text;
+    const auto model=imports.modelLabel();
+    const auto home=imports.homeDirectory?imports.homeDirectory():std::string{};
+    const auto directory=homePath(imports.workingDirectory(),home);
+    const auto branch=imports.gitBranch?imports.gitBranch():std::string{};
+    std::vector<Segment> wanted{{mode,{}}};
+    if(!model.empty())wanted.push_back({model,{}});
+    if(!directory.empty())wanted.push_back({tailPath(directory,24),{}});
+    if(!branch.empty())wanted.push_back({"⎇ "+truncateColumns(branch,20),{}});
+    while(right.size()>1&&segmentsWidth(wanted,3)+segmentsWidth(right,3)+4>columns)
+      right.pop_back();
+  }
   if(!right.empty()&&segmentsWidth(right,3)>rightLimit)
     right.front().text=truncateColumns(right.front().text,rightLimit);
   const int rightWidth=segmentsWidth(right,3);
@@ -239,7 +253,7 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
     if(!model.empty())trial.push_back({model,{}});
     if(withDirectory)trial.push_back({"",{}});
     if(withBranch)trial.push_back({truncateColumns("⎇ "+branch,branchWidth),{}});
-    return segmentsWidth(trial,5);
+    return segmentsWidth(trial,3);
   };
   bool showDirectory=!directory.empty(),showBranch=!branch.empty();
   int branchWidth=showBranch?displayWidth("⎇ "+branch):0;
@@ -256,9 +270,9 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
   if(!model.empty())left.push_back({model,roles.cream});
   if(showDirectory)left.push_back({tailPath(directory,directoryRoom),roles.muted,false,true});
   if(showBranch)left.push_back({truncateColumns("⎇ "+branch,branchWidth),roles.muted,false,true});
-  const auto fits=[&]{return segmentsWidth(left,5)<=leftBudget;};
+  const auto fits=[&]{return segmentsWidth(left,3)<=leftBudget;};
   if(!fits()&&left.size()>1){
-    const int room=leftBudget-displayWidth(left.front().text)-5;
+    const int room=leftBudget-displayWidth(left.front().text)-3;
     if(room>=6)left[1].text=truncateColumns(left[1].text,room);
     else left.resize(1);
   }
