@@ -43,6 +43,9 @@ struct Update {
 
 // Apply each Gadget's getAppState wrapper to a freshly read base state.
 Json effectiveAppState(const Context& context,const Json& base);
+// A copy of the context whose data omits the conversation ("messages"), for
+// callbacks that only read app-state modifiers and are copied often.
+Context contextWithoutConversation(const Context& context);
 void appendAppStateModifier(Context& context,
   const std::function<Json(const Json&)>& next);
 void appendAppStateModifierPair(Context& context,

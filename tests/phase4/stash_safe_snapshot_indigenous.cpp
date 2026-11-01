@@ -40,6 +40,27 @@ int main() {
   assert(!plain->gadgetUseContext.query.data.contains("messages"));
   assert(plain->gadgetUseContext.query.data == bare.data);
 
+  // Callbacks that only read app-state modifiers share a context copy
+  // without the conversation.
+  batbox::execution::Context live = current;
+  live.abortReason = "reason";
+  live.appStateModifier = [](const Json& state) {
+    auto next = state; next["modified"] = true; return next;
+  };
+  live.readFileState = nullptr;
+  live.gadgetSnapshotOwner = std::make_shared<int>(7);
+  const auto slim = batbox::execution::contextWithoutConversation(live);
+  assert(!slim.data.contains("messages"));
+  auto expectedData = live.data;
+  expectedData.erase("messages");
+  assert(slim.data == expectedData);
+  assert(slim.abortReason == "reason");
+  assert(slim.gadgetSnapshotOwner == live.gadgetSnapshotOwner);
+  assert(slim.typedAppStateModifierComplete == live.typedAppStateModifierComplete);
+  assert(batbox::execution::effectiveAppState(slim, Json::object()) ==
+         Json({{"modified", true}}));
+  assert(live.data.at("messages") == conversation);
+
   std::cout << "stash-safe snapshots keep one copy of the conversation\n";
   return 0;
 }
