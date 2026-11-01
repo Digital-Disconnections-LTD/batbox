@@ -4,6 +4,7 @@
 #include "application_commands/ThemeCommand.hpp"
 #include "commands_indigenous/UiCommands.hpp"
 #include "interactive/gadget_views/GadgetViewProjection.hpp"
+#include "interactive/markdown/AnsiProjection.hpp"
 #include "interactive/markdown/Blocks.hpp"
 #include "interactive/markdown/Highlight.hpp"
 #include "interactive/markdown/Renderer.hpp"
@@ -236,6 +237,12 @@ void markdownBlocks(){
   check(drawn.find("────────────────────────────────────────")!=std::string::npos,
     "rules draw a line");
   check(drawn.find("\n\n\n\n")==std::string::npos,"blocks are separated by one blank row");
+  // A styled word followed by a long plain run wraps between words, not
+  // where the style changes.
+  const auto flowed=draw(md::projectAnsi("A \x1b[1mterminal UI\x1b[22m (TUI) is a user "
+    "interface that runs inside a text terminal"),30,4);
+  check(flowed.find("A terminal UI (TUI) is a user")!=std::string::npos,
+    "text after a styled run continues on the same row");
 }
 
 void themeCommand(){

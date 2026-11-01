@@ -9,8 +9,23 @@
 namespace batbox::interactive::markdown {
 namespace {
 using Style=AnsiStyle;
-ftxui::Element run(const std::string& text,const Style& style){
-  return styleAnsiRun(ftxui::paragraph(value::encodeUtf8(text)),style);
+// Words, each carrying its trailing spaces, flow independently so a line
+// wraps between any two words, not only where the styling changes.
+void words(std::vector<ftxui::Element>& parts,const std::string& text,const Style& style){
+  std::size_t start=0;
+  while(start<text.size()){
+    auto end=text.find(' ',start);
+    if(end==start){
+      // Leading spaces (indentation) stay together as one piece.
+      end=text.find_first_not_of(' ',start);
+    }else if(end!=std::string::npos){
+      end=text.find_first_not_of(' ',end);
+    }
+    if(end==std::string::npos)end=text.size();
+    parts.push_back(styleAnsiRun(ftxui::text(value::encodeUtf8(text.substr(start,end-start))),
+      style));
+    start=end;
+  }
 }
 std::optional<ftxui::Color> extended(const std::vector<int>& values,std::size_t& i){
   if(i+2<values.size()&&values[i+1]==5){
@@ -118,7 +133,7 @@ ftxui::Element projectAnsi(const std::string& source,bool dim){
   std::string runText;
   const auto flush=[&](){
     if(!runText.empty()){
-      parts.push_back(run(runText,style));runText.clear();
+      words(parts,runText,style);runText.clear();
     }
   };
   const auto newLine=[&](){
