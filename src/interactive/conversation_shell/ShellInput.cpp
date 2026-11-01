@@ -446,21 +446,27 @@ void Shell::onPastedText(const std::string& text){
   pendingImageSpace_=false;
   auto cleaned=value::fromUtf16(npm_wrap_ansi::stripAnsi(value::utf16CodeUnits(text)));
   std::string normalized;normalized.reserve(cleaned.size());
-  for(const char c:cleaned){
-    if(c=='\r')normalized+='\n';
+  for(std::size_t i=0;i<cleaned.size();++i){
+    const char c=cleaned[i];
+    if(c=='\r'){
+      normalized+='\n';
+      if(i+1<cleaned.size()&&cleaned[i+1]=='\n')++i;
+    }
     else if(c=='\t')normalized+="    ";
     else normalized+=c;
   }
   if(normalized.empty())return;
   const auto lines=history::getPastedTextRefNumLines(normalized);
-  const int maxLines=std::min(presentation().viewport.rows-10,2);
+  const int maxLines=std::clamp(presentation().viewport.rows-10,1,2);
   std::string inserted=normalized;
   if(value::stringLength(normalized)>800||
       static_cast<int>(lines)>maxLines){
     const int id=maxPasteId(presentation())+1;
     presentation().input.pastedContents[std::to_string(id)]=
       Json{{"id",id},{"type","text"},{"content",normalized}};
-    inserted=history::formatPastedTextRef(id,lines);
+    const auto characters=std::count_if(normalized.begin(),normalized.end(),
+      [](unsigned char c){return (c&0xc0)!=0x80;});
+    inserted=history::formatPastedTextRef(id,lines,characters);
   }
   keyboard_input::ParsedKey key;
   key.name="";key.sequence=inserted;key.raw=inserted;key.isPasted=true;

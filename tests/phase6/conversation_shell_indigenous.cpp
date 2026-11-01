@@ -2,6 +2,7 @@
 #include "interactive/presentation_providers/Chrome.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
 #include "text_width/IndigenousLayout.hpp"
+#include "history/References.hpp"
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 #include <cassert>
@@ -174,6 +175,27 @@ int main(int argc,char** argv){
     return 0;
   }
   assert(shell->viewState().welcomeFrame==welcomeAnimationFrames);
+  // Paste content remains out of the editable line and expands exactly once
+  // when submitted; CRLF must not turn into double line breaks.
+  const std::string pasted="Résumé — systems\r\n"+std::string(4500,'x')+"\r\n雪 🦇";
+  const std::string normalized="Résumé — systems\n"+std::string(4500,'x')+"\n雪 🦇";
+  shell->onRawInput("\x1b[200~"+pasted+"\x1b[201~");
+  const auto chip=state.input.text;
+  assert(chip.starts_with("[Pasted text #1 (")&&chip.ends_with(" characters)]"));
+  assert(chip.size()<64&&state.input.pastedContents.size()==1);
+  assert(history::expandPastedTextRefs(chip,state.input.pastedContents)==normalized);
+  shell->onRawInput("\x1b[D");assert(state.input.caretUtf16==0);
+  shell->onRawInput("\x1b[C");assert(state.input.caretUtf16==chip.size());
+  shell->onRawInput("\x7f");assert(state.input.text.empty());
+  // Two adjacent pastes keep independent IDs and delete independently.
+  shell->onRawInput("\x1b[200~"+pasted+"\x1b[201~");
+  const auto first=state.input.text;
+  shell->onRawInput("\x1b[200~"+pasted+"\x1b[201~");
+  assert(history::expandPastedTextRefs(state.input.text,state.input.pastedContents)==
+    normalized+normalized);
+  shell->onRawInput("\x7f");assert(state.input.text==first);
+  shell->onRawInput("\x1b[D\x1b[3~");assert(state.input.text.empty());
+  state.input.pastedContents=Json::object();
   shell->onRawInput("h");shell->onRawInput("i");
   assert(state.input.text=="hi"&&state.input.caretUtf16==2);
   shell->onRawInput("\x1b[?1;2c");assert(replies==1);

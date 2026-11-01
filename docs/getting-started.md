@@ -99,6 +99,14 @@ Use `/permissions` to choose your permission mode. `/help` lists the commands av
 your running version. `/context` shows your conversation’s context budget,
 `/status` shows the current model and usage, and `/exit` closes the app.
 
+Large or multiline pastes appear as a compact item such as
+`[Pasted text #1 (4481 characters)]`. Left and Right move across the whole
+item; Backspace after it or Delete before it removes the whole paste. You can
+type instructions before and after it. On Enter, Batbox sends the full text
+to your model, so the compact display does not reduce model token usage.
+
+![A large paste shown as one editable item in the terminal](images/paste-chip.png)
+
 Want a quick answer from a script? Use `--print`:
 
 ```sh

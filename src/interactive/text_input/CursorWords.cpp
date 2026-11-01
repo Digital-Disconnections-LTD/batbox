@@ -35,7 +35,7 @@ Cursor Cursor::nextWord()const{
   if(isAtEnd())return *this;
   for(const auto& boundary:measured_->getWordBoundaries())
     if(boundary.isWordLike&&boundary.start>offset_)
-      return Cursor(measured_,boundary.start);
+      return Cursor(measured_,snapOutOfReference(boundary.start,boundary.start<offset_));
   return Cursor(measured_,measured_->length());
 }
 Cursor Cursor::endOfWord()const{
@@ -44,17 +44,17 @@ Cursor Cursor::endOfWord()const{
   for(const auto& boundary:boundaries){
     if(!boundary.isWordLike)continue;
     if(offset_>=boundary.start&&offset_<boundary.end-1)
-      return Cursor(measured_,boundary.end-1);
+      return Cursor(measured_,snapOutOfReference(boundary.end-1,false));
     if(offset_==boundary.end-1){
       for(const auto& next:boundaries)
         if(next.isWordLike&&next.start>offset_)
-          return Cursor(measured_,next.end-1);
+          return Cursor(measured_,snapOutOfReference(next.end-1,false));
       return *this;
     }
   }
   for(const auto& boundary:boundaries)
     if(boundary.isWordLike&&boundary.start>offset_)
-      return Cursor(measured_,boundary.end-1);
+      return Cursor(measured_,snapOutOfReference(boundary.end-1,false));
   return *this;
 }
 Cursor Cursor::prevWord()const{
@@ -64,7 +64,7 @@ Cursor Cursor::prevWord()const{
     if(!boundary.isWordLike)continue;
     if(boundary.start<offset_){
       if(offset_>boundary.start&&offset_<=boundary.end)
-        return Cursor(measured_,boundary.start);
+        return Cursor(measured_,snapOutOfReference(boundary.start,boundary.start<offset_));
       previous=boundary.start;
     }
   }
@@ -84,7 +84,7 @@ Cursor Cursor::nextVimWord()const{
   }
   while(position<measured_->length()&&isVimWhitespace(graphemeAt(position)))
     position=measured_->nextOffset(position);
-  return Cursor(measured_,position);
+  return Cursor(measured_,snapOutOfReference(position,false));
 }
 Cursor Cursor::endOfVimWord()const{
   if(isAtEnd())return *this;
@@ -105,7 +105,7 @@ Cursor Cursor::endOfVimWord()const{
       position=next;
     }
   }
-  return Cursor(measured_,position);
+  return Cursor(measured_,snapOutOfReference(position,false));
 }
 Cursor Cursor::prevVimWord()const{
   if(isAtStart())return *this;

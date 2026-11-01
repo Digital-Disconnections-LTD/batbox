@@ -13,8 +13,10 @@ std::size_t getPastedTextRefNumLines(const std::string& text){
   }
   return count;
 }
-std::string formatPastedTextRef(double id,double numLines){
+std::string formatPastedTextRef(double id,double numLines,
+    std::optional<std::size_t> characters){
   const auto prefix="[Pasted text #"+value::numberToString(id);
+  if(characters)return prefix+" ("+std::to_string(*characters)+" characters)]";
   if(numLines==0)return prefix+"]";
   return prefix+" +"+value::numberToString(numLines)+" lines]";
 }
@@ -23,7 +25,7 @@ std::string formatImageRef(double id){
 }
 std::vector<Reference> parseReferences(const std::string& input){
   static const std::regex pattern(
-    R"(\[(Pasted text|Image|\.\.\.Truncated text) #([0-9]+)( \+[0-9]+ lines)?(\.)*\])",
+    R"(\[(Pasted text|Image|\.\.\.Truncated text) #([0-9]+)( \+[0-9]+ lines| \([0-9]+ characters\))?(\.)*\])",
     std::regex::ECMAScript);
   std::vector<Reference> result;
   for(auto it=std::sregex_iterator(input.begin(),input.end(),pattern);

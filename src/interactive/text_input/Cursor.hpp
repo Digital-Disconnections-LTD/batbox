@@ -43,11 +43,11 @@ public:
       std::optional<std::size_t> maxVisibleLines={})const;
   Cursor left()const;
   Cursor right()const;
-  std::optional<std::pair<std::size_t,std::size_t>> imageRefEndingAt(
+  std::optional<std::pair<std::size_t,std::size_t>> referenceEndingAt(
       std::size_t offset)const;
-  std::optional<std::pair<std::size_t,std::size_t>> imageRefStartingAt(
+  std::optional<std::pair<std::size_t,std::size_t>> referenceStartingAt(
       std::size_t offset)const;
-  std::size_t snapOutOfImageRef(std::size_t offset,bool towardStart)const;
+  std::size_t snapOutOfReference(std::size_t offset,bool towardStart)const;
   Cursor up()const;
   Cursor down()const;
   Cursor startOfLine()const;

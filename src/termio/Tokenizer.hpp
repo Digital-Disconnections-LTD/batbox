@@ -17,6 +17,8 @@ public:
 private:
   InputState state_=InputState::ground;
   std::u16string buffer_;
+  // Raw terminal reads may split one UTF-8 character across several feeds.
+  std::string pendingUtf8_;
   bool x10Mouse_;
 };
 }

@@ -60,9 +60,9 @@ int main(){
   auto chip=Cursor::fromText("[Image #12] foo",20,services,0);
   const auto token=chip.deleteTokenBefore();
   std::cout<<Out{{"name","chip"},{"values",Out::array({
-    view(c),view(c.left()),bounds(c.imageRefEndingAt(11)),
-    bounds(c.imageRefStartingAt(0)),c.snapOutOfImageRef(4,true),
-    c.snapOutOfImageRef(4,false),view(chip.right()),
+    view(c),view(c.left()),bounds(c.referenceEndingAt(11)),
+    bounds(c.referenceStartingAt(0)),c.snapOutOfReference(4,true),
+    c.snapOutOfReference(4,false),view(chip.right()),
     view(token?*token:c),view(chip.backspace())
   })}}.dump()<<'\n';
   c=Cursor::fromText("👩‍💻x",10,services,5);
