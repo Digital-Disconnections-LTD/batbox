@@ -722,7 +722,7 @@ void Host::Impl::bindFrontend(){
       const interactive::TurnMessagesRef& turn,bool aborted){
     auto result=completed(turn,aborted);
     result.then([this](const event_loop::Unit*,const std::exception_ptr&){
-      owner.queueNextTurn([this]{releaseRetiredProviders();});
+      owner.queueNextTurn([this]{releaseRetiredProviders();platform::releaseFreeMemory();});
     });return result;
   };
   runtime=application_runtime::ApplicationRuntime::create(std::move(bindings));

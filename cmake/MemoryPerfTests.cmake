@@ -22,3 +22,5 @@ if(UNIX)
     target_link_libraries(batbox-phase5-ftxui-pump-backoff-pty PRIVATE util)
   endif()
 endif()
+batbox_indigenous(phase4-memory-usage-indigenous
+  tests/phase4/memory_usage_indigenous.cpp batbox_profiler)

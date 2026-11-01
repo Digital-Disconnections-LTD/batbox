@@ -85,7 +85,8 @@ int main(){
     sources.poetry=poetry;sources.flightId=[]{return std::string("session-1");};
     sources.runtimeMemory=[] {return Json{{"liveWorkspaceGenerations",2},
       {"dormantWorkspaceRecords",1},{"retainedChildContexts",3},
-      {"retainedStreamBytes",4096}};};
+      {"retainedStreamBytes",4096},{"residentBytes",150.0*1024*1024},
+      {"heapUsedBytes",42.5*1024*1024}};};
     sources.interactive=false;
     auto status=application_usage::makeStatusCommand(loop,{},sources);
     auto statusText=await(loop,await(loop,status.loadLocal())(""));
@@ -101,6 +102,8 @@ int main(){
     check(rendered.find("Workspace generations: 2 live · 1 dormant")!=std::string::npos&&
       rendered.find("Stream buffers: 4096 bytes")!=std::string::npos,
       "Optional native runtime lifetime counts must be rendered as counts");
+    check(rendered.find("Memory: 150MB resident · 42.5MB heap in use")!=std::string::npos,
+      "Native runtime state must show resident and heap memory");
 
     auto context=application_usage::makeContextCommand(loop,{},sources);
     const auto contextText=await(loop,await(loop,context.loadLocal())(""));

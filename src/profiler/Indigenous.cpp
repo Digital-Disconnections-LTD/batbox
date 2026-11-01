@@ -15,6 +15,7 @@
 #include <psapi.h>
 #elif defined(__APPLE__)
 #include <mach/mach.h>
+#include <malloc/malloc.h>
 #else
 #include <unistd.h>
 #endif
@@ -84,6 +85,10 @@ MemoryUsage indigenousMemoryUsage(){
 #endif
 #if defined(__GLIBC__)
   usage.heapUsed=static_cast<double>(mallinfo2().uordblks);
+#elif defined(__APPLE__)
+  malloc_statistics_t heap{};
+  ::malloc_zone_statistics(nullptr,&heap);
+  usage.heapUsed=static_cast<double>(heap.size_in_use);
 #endif
   return usage;
 }

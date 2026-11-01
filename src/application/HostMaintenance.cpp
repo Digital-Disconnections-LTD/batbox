@@ -1,4 +1,5 @@
 #include "application/HostInternal.hpp"
+#include "profiler/Indigenous.hpp"
 #include "runtime/JsonValue.hpp"
 #include <stdexcept>
 
@@ -90,10 +91,13 @@ Json Host::Impl::runtimeMemorySummary()const{
     else ++live;
     accumulate(generation.bats);
   }
+  const auto memory=profiler::indigenousMemoryUsage();
   return Json{{"liveWorkspaceGenerations",live},
     {"dormantWorkspaceRecords",dormant},
     {"retainedChildContexts",contexts},
-    {"retainedStreamBytes",streamBytes}};
+    {"retainedStreamBytes",streamBytes},
+    {"residentBytes",memory.rss},
+    {"heapUsedBytes",memory.heapUsed}};
 }
 
 void Host::Impl::beginRetiredShutdown(std::size_t index){

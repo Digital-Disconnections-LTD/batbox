@@ -2,6 +2,7 @@
 #include "application/Async.hpp"
 #include "api_errors/ApiErrors.hpp"
 #include "bats/ForkedBat.hpp"
+#include "runtime/Platform.hpp"
 #include "utils/tokens.hpp"
 
 namespace batbox::application_engine {
@@ -16,6 +17,7 @@ void Compactor::postCompactCleanup(const std::optional<std::string>& source){
   if(!inputs_.owner.isOwnerThread())
     throw std::logic_error("Post-compact cleanup requires owner loop");
   inputs_.cleanupAfterCompact(source);
+  platform::releaseFreeMemory();
 }
 void Compactor::clearInvokedSkills(
     const std::vector<std::string>& preservedBatIds){
