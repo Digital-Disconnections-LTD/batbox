@@ -78,7 +78,7 @@ def main() -> None:
             'base_url': 'http://127.0.0.1:8000', 'model': 'your-model',
             'context_window': 200000, 'max_output_tokens': 50000,
             'compact_at': 100000, 'scrapling_command': 'scrapling',
-            'searxng_url': 'http://127.0.0.1:8888', 'max_subagents': 5,
+            'searxng_url': 'http://127.0.0.1:8888/search', 'max_subagents': 5,
             'max_concurrent_subagents': 2,
             'permissions': {'defaultMode': 'default'}, 'fullscreen': True,
         }, indent=2) + '\n')
