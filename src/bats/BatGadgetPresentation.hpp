@@ -9,4 +9,6 @@ Json mapBatGadgetResult(const Json& data,const std::string& gadgetUseId,
   const std::string& fileReadGadgetName,const std::string& bashGadgetName);
 std::string batGadgetAutoClassifierInput(const Json& input);
 Json batGadgetActivityDescription(const Json& input);
+std::string batGadgetProgressText(const Json& progressMessages);
+std::string groupedBatGadgetUseText(const Json& entries);
 } // namespace batbox::bats

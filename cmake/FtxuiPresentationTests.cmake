@@ -18,6 +18,11 @@ batbox_indigenous(phase6-ftxui-frame-projection-indigenous
 batbox_indigenous(phase5-ftxui-driver-headless
   tests/phase5/indigenous_ftxui_driver_headless.cpp batbox_terminal_ftxui)
 if(UNIX)
+  add_test(NAME phase6-agent-progress-pty
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/checks/indigenous_agent_progress_smoke.py
+      $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-agent-progress-pty PROPERTIES TIMEOUT 50)
   add_test(NAME phase6-transcript-copy-pty
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/checks/indigenous_transcript_copy_smoke.py

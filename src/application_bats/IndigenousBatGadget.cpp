@@ -54,7 +54,7 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
     return field(input,"description");
   };
   display.renderGadgetUseProgressMessage=[](const Json& progress,const Json&){
-    return progress;
+    return Json(bats::batGadgetProgressText(progress));
   };
   display.renderGadgetUseRejectedMessage=[](const Json& input,const Json&){
     return Json("Bat request rejected: "+string(field(input,"description")));
@@ -66,7 +66,9 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
     return field(data,"content");
   };
   display.renderGadgetUseTag=[](const Json& input){return field(input,"subagent_type");};
-  display.renderGroupedGadgetUse=[](const Json& data,const Json&){return data;};
+  display.renderGroupedGadgetUse=[](const Json& data,const Json&){
+    return Json(bats::groupedBatGadgetUseText(data));
+  };
   bats::configureBatGadgetDescriptor(gadget,display);
   bats::configureBatGadgetInputSchema(gadget,bats::BatGadgetSchemaOptions{});
   bats::BatGadgetPoetryDependencies poetry;

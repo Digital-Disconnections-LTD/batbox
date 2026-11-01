@@ -1,5 +1,6 @@
 #include "bats/BatGadgetPresentation.hpp"
 #include <stdexcept>
+#include <unordered_set>
 
 namespace batbox::bats {
 namespace {
@@ -107,5 +108,47 @@ Json batGadgetActivityDescription(const Json& input) {
   if (!input.is_object() || !input.contains("description") ||
       input.at("description").is_null()) return "Running task";
   return input.at("description");
+}
+
+std::string batGadgetProgressText(const Json& progressMessages){
+  std::unordered_set<std::string> calls;
+  std::string latest;
+  if(progressMessages.is_array())for(const auto& event:progressMessages){
+    const auto& data=value::property(event,"data");
+    if(value::property(data,"type")!="agent_progress")continue;
+    const auto& message=value::property(data,"message");
+    if(value::property(message,"type")!="assistant")continue;
+    const auto& blocks=value::property(value::property(message,"message"),"content");
+    if(!blocks.is_array())continue;
+    for(const auto& block:blocks){
+      if(value::property(block,"type")!="tool_use")continue;
+      const auto& id=value::property(block,"id");
+      if(id.is_string())calls.insert(id.get<std::string>());
+      const auto& name=value::property(block,"name");
+      if(name.is_string())latest=name.get<std::string>();
+    }
+  }
+  if(latest.empty())return "Working…";
+  return "Latest tool: "+latest+" · "+std::to_string(calls.size())+
+    (calls.size()==1?" tool call":" tool calls");
+}
+
+std::string groupedBatGadgetUseText(const Json& entries){
+  if(!entries.is_array()||entries.empty())return {};
+  std::string text=std::to_string(entries.size())+
+    (entries.size()==1?" Bat":" Bats");
+  for(const auto& entry:entries){
+    const auto& input=value::property(value::property(entry,"param"),"input");
+    const auto& description=value::property(input,"description");
+    text+="\n  "+(description.is_string()?description.get<std::string>():"Agent task")+" · ";
+    if(value::property(entry,"isError")==true)text+="Failed";
+    else if(value::property(entry,"isResolved")==true)text+="Completed";
+    else if(value::property(entry,"isInProgress")==true||
+        (value::property(entry,"progressMessages").is_array()&&
+         !value::property(entry,"progressMessages").empty()))
+      text+=batGadgetProgressText(value::property(entry,"progressMessages"));
+    else text+="Queued";
+  }
+  return text;
 }
 } // namespace batbox::bats
