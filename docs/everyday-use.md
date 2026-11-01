@@ -93,8 +93,10 @@ On Windows, the same configuration root lives under `%USERPROFILE%\.batbox`.
 Fullscreen is the default; `--inline` selects the inline layout. Scrolling above
 live output holds your place. **Go to the action** returns to the latest output.
 `NO_COLOR=1` selects neutral colors.
-Press Esc while a response is running to stop that turn. At the idle prompt,
-Esc retains its input editing behavior.
+Press Esc while a response is running to stop that turn. Batbox adds
+“Interrupted the Batbox. What should the model do differently?” to the
+transcript. Type your next instruction to continue. At the idle prompt, Esc
+retains its input editing behavior.
 
 To copy a range longer than the visible screen, press Ctrl+O for the transcript,
 then `c` for its copy view. Drag to select; hold the drag at the top or bottom

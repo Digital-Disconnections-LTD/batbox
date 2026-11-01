@@ -13,6 +13,7 @@ void ApplicationRuntime::bindShellImports(
   imports.interruptTurn=[weak]{
     auto self=weak.lock();
     if(!self||!self->activeAbort_||self->activeAbort_->aborted())return false;
+    self->interruptedTurn_=self->activeAbort_;
     self->activeAbort_->abort("interrupt");
     return true;
   };

@@ -270,6 +270,11 @@ void Bundle::install(application_runtime::Inputs& runtime){
   runtime.turn.getBatName=[]()->std::optional<std::string>{return {};};
   runtime.turn.setMemberActive=[](const std::string&,const std::string&,bool){};
   runtime.turn.sendBridgeResult=[]{};
+  runtime.createInterruptionMessage=[messages=inputs_.messages]{
+    return std::make_shared<Json>(messages::createSystemMessage(
+      "[Interrupted the Batbox. What should the model do differently?]",
+      "suggestion",*messages));
+  };
   runtime.turn.removeLastFromHistory=[self]{
     if(self->inputs_.history)self->inputs_.history->removeLast();};
   runtime.turn.mrOnBeforeQuery=[self](const std::string& input,

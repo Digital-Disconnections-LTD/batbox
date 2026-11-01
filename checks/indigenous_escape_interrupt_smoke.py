@@ -20,6 +20,7 @@ import time
 def main(binary):
     slow_release = threading.Event()
     requests = []
+    interruption = "[Interrupted the Batbox. What should the model do differently?]"
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -120,6 +121,9 @@ def main(binary):
             send(b"Begin slow response\r")
             wait_for(lambda: b"SLOW BEGIN" in output, "slow stream")
             send(b"\x1b")
+            wait_for(lambda: interruption.encode() in output,
+                     "visible interruption message")
+            send(b"\x1b")  # An idle Escape must not add another interruption.
             send(b"Second request\r")
             wait_for(lambda: b"FAST COMPLETE" in output, "next response after Escape")
             if b"SLOW END" in output:
@@ -129,7 +133,19 @@ def main(binary):
             wait_for(lambda: status is not None, "clean exit")
             if os.waitstatus_to_exitcode(status) != 0:
                 raise RuntimeError(f"Batbox exited with {status}")
-            print("Escape stopped the streamed turn and allowed a new prompt")
+            notices = {}
+            for path in root.rglob("*.jsonl"):
+                for line in path.read_text().splitlines():
+                    record = json.loads(line)
+                    if record.get("type") == "system" and \
+                            record.get("content") == interruption:
+                        notices[record["uuid"]] = record
+            if len(notices) != 1:
+                raise RuntimeError(f"Expected one persisted interruption, got {len(notices)}")
+            if interruption.encode() in requests[-1]:
+                raise RuntimeError("Local interruption notice was sent as model conversation")
+            print("Escape stopped the turn, displayed one saved interruption, "
+                  "and allowed a new prompt")
         finally:
             slow_release.set()
             if status is None:
