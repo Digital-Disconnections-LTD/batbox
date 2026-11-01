@@ -56,8 +56,13 @@ Json buildParamsFromContext(const Json& retryContext, RequestCapture& capture,
   Json outputConfig = field(extraBodyParams, "output_config");
   if (!outputConfig.is_object()) outputConfig = Json::object();
   require(deps.modelSupportsEffort, "modelSupportsEffort");
-  configureEffortParams(capture.effort, capture.effortDefined, outputConfig,
-    extraBodyParams, betasParams, deps.modelSupportsEffort(model), capture.internalUser, wire);
+  const bool supportsEffort=deps.modelSupportsEffort(model);
+  if(capture.provider=="local"){
+    // Local Messages servers accept effort directly, without a provider beta header.
+    if(supportsEffort&&capture.effortDefined&&capture.effort.is_string()&&
+       !has(outputConfig,"effort"))outputConfig["effort"]=capture.effort;
+  }else configureEffortParams(capture.effort, capture.effortDefined, outputConfig,
+    extraBodyParams, betasParams, supportsEffort, capture.internalUser, wire);
   configureMissionBudgetParams(field(options, "taskBudget"), outputConfig, betasParams,
     capture.includeFirstPartyBetas, wire.missionBudgetBetaHeader);
 

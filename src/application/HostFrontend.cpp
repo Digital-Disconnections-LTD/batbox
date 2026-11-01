@@ -372,6 +372,9 @@ void Host::Impl::bindFrontend(){
   frontendInputs.persistOnTurnComplete=false;
   frontendInputs.feature=[](const std::string&){return false;};
   frontendInputs.log=[this](const std::string& value){log(value);};
+  frontendInputs.showImmediateNotice=[this](const std::string& value){
+    statusText=value;++view.revision;
+    if(shell)shell->requestRedraw();};
   frontendInputs.onError=[this](std::exception_ptr error){report(error);};
   frontendInputs.redraw=[this]{if(shell)shell->requestRedraw();};
   frontendInputs.shutdown=[this]{requestExit();};

@@ -391,7 +391,10 @@ void Bundle::install(application_runtime::Inputs& runtime){
       return value::property(command,"enabled")!=false;};
     submit.gracefulShutdownSync=[self](int){
       if(self->inputs_.shutdown)self->inputs_.shutdown();};
-    submit.notifyImmediate=[self](const std::string&,const std::string& value){self->inputs_.log(value);};
+    submit.notifyImmediate=[self](const std::string&,const std::string& value){
+      if(self->inputs_.showImmediateNotice)self->inputs_.showImmediateNotice(value);
+      if(self->inputs_.log)self->inputs_.log(value);
+    };
     submit.logForDebugging=self->inputs_.log;submit.queryCheckpoint=self->inputs_.log;
     submit.startQueryProfile=[]{ };
     submit.resetHistory=[self]{

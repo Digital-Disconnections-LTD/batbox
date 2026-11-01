@@ -1,5 +1,6 @@
 #include "application_usage/UsageCommand.hpp"
 #include "application_commands/PermissionCommand.hpp"
+#include "application_commands/EffortCommand.hpp"
 #include "bats/ForkedBat.hpp"
 #include "application_engine/AutoPolicy.hpp"
 #include "project_recovery/Recovery.hpp"
@@ -156,6 +157,42 @@ int main(){
     projection.onQueueBlocked=[](bool){};
     projection.onPoetryFocus=[](bool){};
     auto router=user_input::UiCommandRouter::create(loop,std::move(projection));
+    auto effort=application_commands::makeEffortCommand(loop,router,config,store,
+      []{return true;});
+    check(effort.descriptor.at("name")=="effort"&&
+      effort.descriptor.at("immediate")==true,
+      "Effort command must be discoverable and immediate");
+    auto effortStatus=await(loop,effort.invokeUi(""));
+    check(effortStatus.result&&effortStatus.result->find("auto")!=
+      std::string::npos,"Unset effort must show auto");
+    auto effortChanged=await(loop,effort.invokeUi("low"));
+    check(effortChanged.result&&effortChanged.result->find("low")!=
+      std::string::npos&&
+      value::property(store->getState()->snapshot(),"effortValue")=="low",
+      "Low effort must update live app state");
+    {std::ifstream saved(config.configDirectory/"settings.json");
+      const auto document=Json::parse(saved);
+      check(document.at("effortLevel")=="low",
+        "Effort must persist in user settings");}
+    effortChanged=await(loop,effort.invokeUi("nonsense"));
+    check(effortChanged.result&&effortChanged.result->find("Invalid")!=
+      std::string::npos&&
+      value::property(store->getState()->snapshot(),"effortValue")=="low",
+      "Invalid effort must not modify the setting");
+    auto unavailable=application_commands::makeEffortCommand(loop,router,config,store,
+      []{return false;});
+    effortChanged=await(loop,unavailable.invokeUi("medium"));
+    check(effortChanged.result&&effortChanged.result->find("does not support")!=
+      std::string::npos&&
+      value::property(store->getState()->snapshot(),"effortValue")=="low",
+      "Unsupported model must leave the effort unchanged");
+    effortChanged=await(loop,effort.invokeUi("auto"));
+    check(value::property(store->getState()->snapshot(),"effortValue").is_null(),
+      "Auto must clear the live effort override");
+    {std::ifstream saved(config.configDirectory/"settings.json");
+      const auto document=Json::parse(saved);
+      check(!document.contains("effortLevel"),
+        "Auto must remove the persisted effort override");}
     auto interactiveSources=sources;interactiveSources.interactive=true;
     auto interactiveContext=application_usage::makeContextCommand(
       loop,router,interactiveSources);

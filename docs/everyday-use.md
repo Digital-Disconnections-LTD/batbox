@@ -21,6 +21,7 @@ to choose it. Gadget approvals follow your configured permission mode.
 | `/config` | Manage endpoints, authentication, and request limits. |
 | `/permissions` | Choose the current Flight's permission mode. |
 | `/model` | Choose a model for upcoming turns. |
+| `/effort` | Show or set the model server's reasoning effort. |
 | `/context` | See context usage and adjust automatic compaction. |
 | `/status` | Check the current flight, model, and usage. |
 | `/bats` | Open bat conversations and edit bat definitions. |
@@ -33,6 +34,14 @@ to choose it. Gadget approvals follow your configured permission mode.
 | `/exit` | Close Batbox cleanly. |
 
 ## Bring a crew
+
+Use `/effort low`, `/effort medium`, or `/effort high` to send
+`output_config.effort` with upcoming Messages requests. `/effort auto` clears
+the override and leaves the choice to the server. The selection is saved in
+`~/.batbox/settings.json` and can be changed while a turn runs; that turn keeps
+its original request. A configured model must support effort for the command to
+set a level. This setting does not change Batbox's separate thinking token
+budget. `/config` also opens during an active turn.
 
 Open `/bats` to follow a child’s poetry, reasoning, gadgets, and replies. Send a
 follow-up right in its conversation. Completed children can resume their existing
