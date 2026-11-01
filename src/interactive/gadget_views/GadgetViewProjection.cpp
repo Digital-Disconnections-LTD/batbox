@@ -224,6 +224,22 @@ ftxui::Element projectGadgetResult(const Json& value,const GadgetViewStyle& styl
   return gadgetResponse(projectGadgetView(textView(text,"normal",false),style,width),style);
 }
 
+ftxui::Element projectMissionNotice(const MissionNotice& notice,
+    const GadgetViewStyle& style){
+  const bool failed=notice.outcome=="failed";
+  const bool finished=notice.outcome=="finished";
+  auto glyph=ftxui::text(failed?"✗ ":finished?"✓ ":"■ ")|ftxui::bold;
+  glyph=failed?tint(std::move(glyph),style.error,style):
+    finished?tint(std::move(glyph),style.ok,style):quiet(std::move(glyph),style);
+  const auto who=sanitize(notice.kind+(notice.name.empty()?"":" "+notice.name));
+  ftxui::Elements cells{std::move(glyph),
+    tint(ftxui::text(who),style.text,style)|ftxui::bold,
+    tint(ftxui::text(" "+notice.outcome),failed?style.error:style.text,style)};
+  if(!notice.detail.empty())
+    cells.push_back(quiet(fitText(" · "+sanitize(notice.detail)),style)|ftxui::xflex);
+  return ftxui::hbox(std::move(cells));
+}
+
 ftxui::Element projectGadgetInline(const Json& value,ftxui::Color color){
   auto text=sanitize(visibleText(value));
   const auto end=text.find('\n');

@@ -32,6 +32,10 @@ ftxui::Element projectGadgetView(const Json& view,const GadgetViewStyle& style,
 // kind, strings as sanitized text, other Json by its visible text member.
 ftxui::Element projectGadgetResult(const Json& value,const GadgetViewStyle& style,
     int columns);
+// A finished background job as one card row, like a Gadget header:
+// "✓ Bat reviewer finished · 3 Gadgets · 12s · Found two parser bugs".
+ftxui::Element projectMissionNotice(const MissionNotice& notice,
+    const GadgetViewStyle& style);
 // Header text after the Gadget name: one row, ellipsis when narrow.
 ftxui::Element projectGadgetInline(const Json& value,ftxui::Color color);
 

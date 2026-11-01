@@ -2,6 +2,7 @@
 
 #include "runtime/JsonValue.hpp"
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -61,5 +62,21 @@ std::string visibleText(const Json& value);
 std::string displayPath(std::string_view path,std::string_view cwd,
     std::string_view home);
 std::string plural(std::size_t count,std::string_view one,std::string_view many);
+
+// A finished background job as the transcript shows it, read from a
+// <task-notification> block. The model still receives the whole block.
+struct MissionNotice {
+  // "Bat", "Shell", "Background Flight", or "Mission" for other jobs.
+  std::string kind;
+  std::string name;
+  // "finished", "failed" or "stopped".
+  std::string outcome;
+  // "3 Gadgets · 12s · first line of the result", or the failure reason.
+  std::string detail;
+};
+// Every <task-notification> block in the text, in order; empty when none.
+std::vector<MissionNotice> parseMissionNotifications(std::string_view text);
+// "Bat reviewer finished · 3 Gadgets · 12s · Found two parser bugs"
+std::string missionNoticeText(const MissionNotice& notice);
 
 } // namespace batbox::interactive::gadget_views

@@ -1,5 +1,7 @@
 #include "interactive/gadget_views/GadgetViewModel.hpp"
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <filesystem>
 
 namespace batbox::interactive::gadget_views {
@@ -392,6 +394,149 @@ std::string displayPath(std::string_view path,std::string_view cwd,
 std::string plural(std::size_t count,std::string_view one,std::string_view many){
   return std::to_string(count)+" "+std::string(count==1?one:many);
 }
+namespace {
+// The text of the first <name>…</name> in a block; "result" may itself hold
+// tags, so it runs to the last closing tag.
+std::optional<std::string> tagText(std::string_view block,std::string_view name,
+    bool lastClose=false){
+  const auto open="<"+std::string(name)+">",close="</"+std::string(name)+">";
+  const auto start=block.find(open);
+  if(start==std::string_view::npos)return std::nullopt;
+  const auto from=start+open.size();
+  const auto end=lastClose?block.rfind(close):block.find(close,from);
+  if(end==std::string_view::npos||end<from)return std::nullopt;
+  return std::string(block.substr(from,end-from));
+}
+std::string unescapeXml(std::string text){
+  static const std::pair<const char*,const char*> entities[]={
+    {"&lt;","<"},{"&gt;",">"},{"&quot;","\""},{"&apos;","'"},{"&amp;","&"}};
+  for(const auto& [entity,plain]:entities){
+    std::string::size_type at=0;
+    while((at=text.find(entity,at))!=std::string::npos){
+      text.replace(at,std::char_traits<char>::length(entity),plain);
+      at+=std::char_traits<char>::length(plain);
+    }
+  }
+  return text;
+}
+// The first line of prose; a leading Markdown heading is used only when
+// nothing follows it.
+std::string firstLine(const std::string& text){
+  std::string heading;
+  for(const auto& line:splitLines(sanitize(text))){
+    auto trimmed=value::trim(line);
+    if(trimmed.empty())continue;
+    if(trimmed.front()!='#')return trimmed;
+    if(heading.empty()){
+      while(!trimmed.empty()&&trimmed.front()=='#')trimmed.erase(0,1);
+      heading=value::trim(trimmed);
+    }
+  }
+  return heading;
+}
+std::string clip(const std::string& text,std::size_t columns){
+  return value::stringLength(text)>columns?value::slice(text,0,
+    static_cast<double>(columns-1))+"…":text;
+}
+std::string noticeDuration(double ms){
+  if(!(ms>=1000))return "<1s";
+  const auto seconds=static_cast<long long>(std::llround(ms/1000));
+  if(seconds<60)return std::to_string(seconds)+"s";
+  if(seconds<3600)return std::to_string(seconds/60)+"m "+std::to_string(seconds%60)+"s";
+  return std::to_string(seconds/3600)+"h "+std::to_string(seconds%3600/60)+"m";
+}
+std::optional<double> number(const std::optional<std::string>& text){
+  if(!text)return std::nullopt;
+  const auto trimmed=value::trim(*text);
+  if(trimmed.empty())return std::nullopt;
+  char* end=nullptr;
+  const double parsed=std::strtod(trimmed.c_str(),&end);
+  if(end==trimmed.c_str()||*end!='\0'||!std::isfinite(parsed))return std::nullopt;
+  return parsed;
+}
+// 'Agent "name" completed' and the shell and background Flight forms: the
+// quoted name and what follows it.
+bool quoted(const std::string& summary,const std::string& prefix,std::string& name,
+    std::string& rest){
+  if(!summary.starts_with(prefix+" \""))return false;
+  const auto from=prefix.size()+2;
+  std::string::size_type end=std::string::npos;
+  for(const char* tail:{"\" completed","\" failed","\" was stopped","\" stopped"}){
+    const auto at=summary.find(tail,from);
+    if(at!=std::string::npos&&(end==std::string::npos||at<end))end=at;
+  }
+  if(end==std::string::npos)end=summary.rfind('"');
+  if(end==std::string::npos||end<from)return false;
+  name=summary.substr(from,end-from);
+  rest=value::trim(summary.substr(end+1));
+  return true;
+}
+MissionNotice notice(std::string_view block){
+  MissionNotice result;
+  const auto status=value::trim(tagText(block,"status").value_or(""));
+  result.outcome=status=="completed"?"finished":status=="failed"?"failed":
+    status=="killed"||status=="stopped"?"stopped":
+    status.empty()?"finished":status;
+  const auto summary=firstLine(unescapeXml(tagText(block,"summary").value_or("")));
+  std::vector<std::string> parts;
+  std::string name,rest;
+  if(quoted(summary,"Agent",name,rest))result.kind="Bat";
+  else if(quoted(summary,"Background command",name,rest))result.kind="Shell";
+  else if(quoted(summary,"Background session",name,rest))result.kind="Background Flight";
+  else result.kind="Mission";
+  result.name=clip(sanitize(name),48);
+  if(const auto uses=number(tagText(block,"tool_uses"));uses&&*uses>=0)
+    parts.push_back(plural(static_cast<std::size_t>(*uses),"Gadget","Gadgets"));
+  if(const auto ms=number(tagText(block,"duration_ms"));ms&&*ms>=0)
+    parts.push_back(noticeDuration(*ms));
+  if(result.kind=="Shell"){
+    const auto code=rest.find("exit code ");
+    if(code!=std::string::npos){
+      auto digits=rest.substr(code+10);
+      digits=digits.substr(0,digits.find_first_not_of("-0123456789"));
+      if(!digits.empty())parts.push_back("exit "+digits);
+    }
+  }
+  std::string reason;
+  if(result.kind=="Mission")reason=summary;
+  else if(result.outcome=="failed"&&rest.starts_with("failed:"))
+    reason=value::trim(rest.substr(7));
+  const auto line=firstLine(unescapeXml(tagText(block,"result",true).value_or("")));
+  if(!reason.empty())parts.push_back(clip(reason,120));
+  else if(!line.empty())parts.push_back(clip(line,120));
+  for(const auto& part:parts){
+    if(!result.detail.empty())result.detail+=" · ";
+    result.detail+=part;
+  }
+  return result;
+}
+} // namespace
+
+std::vector<MissionNotice> parseMissionNotifications(std::string_view text){
+  static constexpr std::string_view open="<task-notification>",
+    close="</task-notification>";
+  std::vector<MissionNotice> notices;
+  std::string_view::size_type at=0;
+  while((at=text.find(open,at))!=std::string_view::npos){
+    const auto from=at+open.size();
+    auto end=text.find(close,from);
+    const auto block=text.substr(from,end==std::string_view::npos?
+      std::string_view::npos:end-from);
+    notices.push_back(notice(block));
+    if(end==std::string_view::npos)break;
+    at=end+close.size();
+  }
+  return notices;
+}
+
+std::string missionNoticeText(const MissionNotice& notice){
+  std::string text=notice.kind;
+  if(!notice.name.empty())text+=" "+notice.name;
+  text+=" "+notice.outcome;
+  if(!notice.detail.empty())text+=" · "+notice.detail;
+  return text;
+}
+
 std::string visibleText(const Json& value){
   if(value.is_null()||value.is_discarded())return {};
   if(value.is_string())return value.get<std::string>();

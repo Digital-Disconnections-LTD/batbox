@@ -306,8 +306,22 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.user.bashResult.outputLine.dim=[](const std::string& text){return text;};
   out.user.bashResult.outputLine.expandHint=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};
   out.user.bashResult.backgroundShortcutHint=[this]{return inputs_.shortcuts.display("background","global","ctrl+b");};
-  out.user.renderOtherCard=[viewStyle,columns](cards::UserTextKind kind,const Json&,
+  // Finished background jobs arrive as <task-notification> blocks. The
+  // transcript shows each as one card row; the model still reads the block.
+  const auto missionCards=[viewStyle](const std::string& text,
+      bool margin)->std::optional<ftxui::Element>{
+    if(text.find("<task-notification>")==std::string::npos)return std::nullopt;
+    const auto notices=gv::parseMissionNotifications(text);
+    if(notices.empty())return std::nullopt;
+    ftxui::Elements rows;
+    if(margin)rows.push_back(ftxui::text(""));
+    for(const auto& notice:notices)rows.push_back(gv::projectMissionNotice(notice,viewStyle));
+    return ftxui::vbox(std::move(rows));
+  };
+  out.user.renderOtherCard=[viewStyle,columns,missionCards](cards::UserTextKind kind,const Json&,
       const cards::UserTextCard& card){
+    if(kind==cards::UserTextKind::MissionNotification)
+      if(auto element=missionCards(card.text,true))return *element;
     if(kind==cards::UserTextKind::LocalCommandOutput){
       // Slash-command output hangs under the command like Gadget output.
       const auto between=[&](const std::string& tag){
@@ -386,7 +400,9 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   attach.supportsHyperlinks=[this]{return inputs_.hyperlinks;};
   attach.filePathURL=fileUrl;attach.basename=basename;
   attach.expandHint=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};
-  attach.renderUserText=[](const std::string& text,bool,bool,bool){return ftxui::paragraph(value::encodeUtf8(text));};
+  attach.renderUserText=[missionCards](const std::string& text,bool margin,bool,bool){
+    if(auto element=missionCards(text,margin))return *element;
+    return ftxui::paragraph(value::encodeUtf8(text));};
   attach.renderImage=[](int id){return ftxui::text("[Image #"+std::to_string(id)+"]");};
   attach.renderDiagnostics=[](const Json& value,bool){return renderComponent(value);};
   attach.renderPlanApproval=[](const cards_remaining::MailboxItem& item){return ftxui::paragraph(value::encodeUtf8(item.text));};
