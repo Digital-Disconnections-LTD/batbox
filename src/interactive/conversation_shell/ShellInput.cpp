@@ -120,6 +120,12 @@ void Shell::onParsedInput(const keyboard_input::ParsedInput& input){
 void Shell::onKey(const keyboard_input::KeyRef& key){
   if(!key)return;
   if(copyView_){
+    if(named(key,"y")&&plain(key)){
+      const auto selection=copyView_->selectedText();
+      openNativeTranscriptCopy(selection.empty()?std::nullopt:
+        std::optional<std::string>(selection));
+      return;
+    }
     if(named(key,"escape")||(named(key,"q")&&plain(key))){
       copyScrollTimer_.cancel();copyScrollTimer_={};copyView_.reset();
       requestRedraw();return;
@@ -156,6 +162,8 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
   }
   if(commands_->hasActionableUi()){onModalKey(key);return;}
   if(searchOpen_){onSearchKey(key);return;}
+  if(named(key,"escape")&&!transcript_&&!batConversation_&&
+      imports_.interruptTurn&&imports_.interruptTurn())return;
   if(batConversation_&&!cursor_&&!transcript_){
     if((named(key,"left")&&key->meta)||
         (named(key,"escape")&&presentation().input.text.empty())){
@@ -227,6 +235,9 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
     }
   }
   if(transcript_&&driver_->mode()==terminal_ftxui::Mode::Fullscreen){
+    if(key->sequence&&*key->sequence=="y"&&plain(key)){
+      openNativeTranscriptCopy();return;
+    }
     if(key->sequence&&*key->sequence=="c"&&plain(key)&&
         presentation().viewport.rows>=3){
       copyView_=std::make_unique<terminal_ftxui::TranscriptCopy>(
