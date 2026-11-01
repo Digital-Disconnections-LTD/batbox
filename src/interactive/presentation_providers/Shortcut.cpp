@@ -130,7 +130,17 @@ std::optional<std::string> getBindingDisplayText(const std::string& action,
 std::string ShortcutProvider::display(const std::string& action,
     const std::string& context,const std::string& fallback)const{
   if(!loadBindings)throw std::logic_error("Keybinding loader required");
-  return getBindingDisplayText(action,context,loadBindings()).value_or(fallback);
+  if(!displayCache)
+    return getBindingDisplayText(action,context,loadBindings()).value_or(fallback);
+  auto key=action;key+='\0';key+=context;key+='\0';key+=fallback;
+  {
+    std::lock_guard lock(displayCache->mutex);
+    if(const auto found=displayCache->text.find(key);found!=displayCache->text.end())
+      return found->second;
+  }
+  auto text=getBindingDisplayText(action,context,loadBindings()).value_or(fallback);
+  std::lock_guard lock(displayCache->mutex);
+  return displayCache->text.emplace(std::move(key),std::move(text)).first->second;
 }
 std::string shortcutHintText(const std::string& shortcut,
     const std::string& action,bool parens){

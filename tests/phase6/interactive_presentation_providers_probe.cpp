@@ -78,6 +78,23 @@ int main(){
   output["saved"]=saved;
   auto shortcutProvider=makeShortcutProvider({"linux",true,
     [](const auto&){return false;}},[]{return std::vector<Binding>{};});
+  {
+    // Key hints are drawn every frame; bindings are read once per action.
+    int loads=0;
+    ShortcutProvider counted{[&loads,inner=shortcutProvider.loadBindings]{
+      ++loads;return inner();}};
+    const auto first=counted.display("expand","global","ctrl+o");
+    for(int i=0;i<100;++i)
+      if(counted.display("expand","global","ctrl+o")!=first)
+        throw std::runtime_error("Shortcut display text changed between frames");
+    if(loads!=1)throw std::runtime_error("Shortcut display reloaded bindings "+
+      std::to_string(loads)+" times");
+    const auto copy=counted;
+    if(copy.display("expand","global","ctrl+o")!=first||loads!=1)
+      throw std::runtime_error("Copies of a provider must share resolved hints");
+    (void)counted.display("transcript","global","ctrl+r");
+    if(loads!=2)throw std::runtime_error("Each new action resolves once");
+  }
   auto chrome=makeChromeProviders({theme,shortcutProvider,
     []{return std::string("local model");},
     []{return std::string("/work");},
