@@ -364,13 +364,45 @@ Deferred<std::optional<Json>> Restore::find(const std::string& query){
   if(trimmed.empty()){result.resolve(std::nullopt);return result;}
   const auto self=shared_from_this();
   const auto current=inputs_.flight->id();
-  // One match loads; several are listed so the user can pick a slug.
-  const auto settle=[self,result,trimmed,current](const Json& logs)->bool{
+  // One match loads; several are listed so the user can pick a slug. Outside
+  // this project only an exact Flight id or slug may switch the Roost; looser
+  // matches are listed with their projects and nothing switches.
+  const auto settle=[self,result,trimmed,current](const Json& logs,
+      bool otherProjects)->bool{
     Json candidates=Json::array();
     for(const auto& log:logs)
       if(value::property(log,"sessionId")!=current)candidates.push_back(log);
-    const auto matches=flights::matchFlightLogs(candidates,trimmed);
+    auto matches=flights::matchFlightLogs(candidates,trimmed);
     if(matches.empty())return false;
+    if(otherProjects){
+      std::vector<std::size_t> exact;
+      for(const auto index:matches){
+        const auto& log=candidates.at(index);
+        const auto& slug=value::property(log,"slug");
+        if(value::property(log,"sessionId")==trimmed||
+            (slug.is_string()&&slug.get<std::string>()==trimmed))exact.push_back(index);
+      }
+      if(exact.empty()){
+        std::string message="\""+trimmed+"\" only loosely matches "+
+          std::to_string(matches.size())+(matches.size()==1?" Flight":" Flights")+
+          " in other projects; nothing was switched:";
+        for(std::size_t i=0;i<matches.size()&&i<8;++i){
+          const auto& log=candidates.at(matches[i]);
+          message+="\n  "+flights::flightListingTitle(log);
+          const auto& project=value::property(log,"projectPath");
+          if(project.is_string())message+="  · "+project.get<std::string>();
+          const auto& slug=value::property(log,"slug");
+          const auto& id=value::property(log,"sessionId");
+          const auto exactName=slug.is_string()&&!slug.get<std::string>().empty()?
+            slug.get<std::string>():id.is_string()?id.get<std::string>():std::string{};
+          if(!exactName.empty())message+="  → --resume "+exactName;
+        }
+        if(matches.size()>8)message+="\n  … "+std::to_string(matches.size()-8)+" more";
+        result.reject(std::make_exception_ptr(std::runtime_error(message)));
+        return true;
+      }
+      matches=std::move(exact);
+    }
     if(matches.size()==1){
       const auto& log=candidates.at(matches.front());
       self->loadPath(runtime::pathFromUtf8(log.at("fullPath").get<std::string>()),
@@ -402,11 +434,11 @@ Deferred<std::optional<Json>> Restore::find(const std::string& query){
       self->list(scope,false).then([self,result,settle](const Json* logs,
           const std::exception_ptr& error){
         if(error){result.reject(error);return;}
-        if(logs&&settle(*logs))return;
+        if(logs&&settle(*logs,false))return;
         self->list({},true).then([result,settle](const Json* all,
             const std::exception_ptr& allError){
           if(allError){result.reject(allError);return;}
-          if(!all||!settle(*all))result.resolve(std::nullopt);
+          if(!all||!settle(*all,true))result.resolve(std::nullopt);
         });
       });
     });

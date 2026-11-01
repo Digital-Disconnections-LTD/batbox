@@ -10,6 +10,7 @@ import pty
 import select
 import signal
 import struct
+import subprocess
 import sys
 import tempfile
 import termios
@@ -196,8 +197,46 @@ def main(binary):
             session(["-c"], latest)
             if len(transcripts()) != 1:
                 raise RuntimeError("Resuming created a second transcript")
+            # A loose match in another project must not switch the Roost; the
+            # exact slug (or id) shown for it does.
+            other = root / "other"
+            other.mkdir()
+
+            def run_print(cwd, arguments):
+                env = {key: value for key, value in os.environ.items()
+                       if not key.startswith("BATBOX_") and key not in
+                       {"TMUX", "STY", "SSH_CONNECTION"}}
+                env.update(BATBOX_CONFIG_DIR=str(config))
+                return subprocess.run([str(binary), "--cwd", str(cwd), "--print"] + arguments,
+                                      capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                                      env=env, timeout=60)
+
+            made = run_print(other, ["Tune the cache eviction"])
+            if made.returncode != 0:
+                raise RuntimeError(f"Could not create a Flight in another project: {made.stderr}")
+            others = [path for path in transcripts() if path not in files]
+            if len(others) != 1:
+                raise RuntimeError(f"Expected one Flight in the other project, got {others}")
+            other_records = records(others[0])
+            slug = next((record["slug"] for record in other_records
+                         if isinstance(record.get("slug"), str) and record["slug"]),
+                        others[0].stem)
+            before = len(requests)
+            loose = run_print(work, ["--resume", "eviction", "next step"])
+            text = loose.stdout + loose.stderr
+            if "nothing was switched" not in text or str(other) not in text or \
+                    f"--resume {slug}" not in text:
+                raise RuntimeError(f"A loose match in another project must list its project "
+                                   f"and exact slug: {text!r}")
+            if len(requests) != before:
+                raise RuntimeError("A loose cross-project match must not start a turn")
+            exact = run_print(work, ["--resume", slug, "next step"])
+            if exact.returncode != 0 or "REPLY" not in exact.stdout:
+                raise RuntimeError(f"The exact slug must resume across projects: "
+                                   f"{exact.stdout!r} {exact.stderr!r}")
             print("Flights were titled, listed by title with an end marker, filtered, "
-                  "renamed, and resumed from the picker, by name and with -c")
+                  "renamed, and resumed from the picker, by name and with -c; loose "
+                  "cross-project matches list candidates instead of switching")
         finally:
             server.shutdown()
             server.server_close()

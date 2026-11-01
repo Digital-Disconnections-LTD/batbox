@@ -395,6 +395,51 @@ void pickerRowParts(){
     "picking the filtered row resumes it: "+resumedAt);
 }
 
+void pickerAllProjectsSwitch(){
+  event_loop::Loop loop;
+  std::optional<interactive::UiRequest> view;
+  auto router=user_input::UiCommandRouter::create(loop,{
+    [&](std::optional<interactive::UiRequest> next){view=std::move(next);},
+    [](const std::string& failure){throw std::runtime_error(failure);},
+    [](bool){},[](bool){}
+  });
+  Json local=Json::array({Json{{"sessionId","here-1"},{"messages",Json::array()},
+    {"firstPrompt","Local work"},{"projectPath","/project"}}});
+  Json all=Json::array({Json{{"sessionId","there-1"},{"messages",Json::array()},
+    {"firstPrompt","Elsewhere work"},{"projectPath","/elsewhere"}}});
+  std::string resumedAt;
+  auto services=pickerServices(loop,local,resumedAt);
+  services->loadAllProjectsLogs=[&loop,all]{return ready(loop,all);};
+  services->projectLabel=[](const Json& log){return log.at("projectPath").get<std::string>();};
+  services->logLabel=flights::flightListingTitle;
+  services->logChoice=[](const Json& log){
+    interactive::UiChoice choice;choice.detail=flights::flightListingDetail(log,0);
+    return choice;};
+  services->checkCrossProject=[](const Json& log,bool allProjects,const std::vector<std::string>&){
+    commands_indigenous::CrossProject cross;
+    if(allProjects&&log.at("projectPath")!="/project"){
+      cross.isCrossProject=true;cross.canSwitchInProcess=true;cross.projectPath="~/elsewhere";
+    }
+    return cross;};
+  auto resume=commands_indigenous::makeResumeCommand(router,services);
+  auto picked=resume.invokeUi("");
+  for(int i=0;i<20&&(!view||view->id!="resume");++i)loop.runReady();
+  check(view&&view->choices.size()==2,"local picker shows one Flight and the toggle");
+  router->ui()->dispatchAction({interactive::UiAction::Kind::Activate,1,{}});
+  const auto showsElsewhere=[&]{
+    return view&&!view->choices.empty()&&view->choices.front()=="Elsewhere work";};
+  for(int i=0;i<20&&!showsElsewhere();++i)loop.runReady();
+  check(showsElsewhere()&&!view->choiceInfo.empty()&&
+    view->choiceInfo.front().detail.find("/elsewhere")!=std::string::npos,
+    "All projects rows show their project path in the detail line");
+  router->ui()->dispatchAction({interactive::UiAction::Kind::Activate,0,{}});
+  const auto completion=await(loop,picked);
+  check(resumedAt=="there-1:slash_command_picker"&&
+    completion.result==std::optional<std::string>("Switched Roost to ~/elsewhere"),
+    "switching projects from the picker says where the Roost went: "+
+      completion.result.value_or("<none>"));
+}
+
 void continueSkipsBadFiles(){
   event_loop::Loop loop;
   const Json records=Json::array({Json{{"id","broken"}},Json{{"id","empty"}},
@@ -490,6 +535,7 @@ int main(){
     labels();
     matching();
     pickerRowParts();
+    pickerAllProjectsSwitch();
     pickerFilter();
     pickerFlow();
     continueSkipsBadFiles();

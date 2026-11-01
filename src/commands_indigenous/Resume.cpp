@@ -255,7 +255,7 @@ struct ResumeRun:std::enable_shared_from_this<ResumeRun> {
           self->allProjects,self->worktrees);
         if(cross.isCrossProject&&cross.canSwitchInProcess){
           self->resume(id,full,"slash_command_picker",
-            "Switched the workspace to "+cross.projectPath);
+            "Switched Roost to "+cross.projectPath);
           return;
         }
         if(cross.isCrossProject&&!cross.isSameRepoWorktree){
