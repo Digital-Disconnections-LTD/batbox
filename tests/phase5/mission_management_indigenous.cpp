@@ -91,6 +91,13 @@ int main(int argc,char** argv){
     const auto& list=byName(gadgets,"TaskList");
     assert(create.shouldDefer&&*create.shouldDefer);
     assert(get.isReadOnly(Json::object())&&list.isReadOnly(Json::object()));
+    // Result renderers receive (output, progress, options); the card shows the output.
+    for(const auto* gadget:{&create,&get,&update,&list}){
+      const auto shown=gadget->renderGadgetResultMessage(Json("Mission #1 created"),
+        Json::array({Json("progress must not be shown")}),Json::object());
+      if(shown!=Json("Mission #1 created"))
+        throw std::runtime_error(gadget->name+" rendered "+shown.dump()+" instead of its output");
+    }
     try{(void)call(create,{{"subject","A"},{"description","First"}});
       throw std::runtime_error("created hook did not block");}
     catch(const std::runtime_error& error){

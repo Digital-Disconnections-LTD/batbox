@@ -73,7 +73,7 @@ inline gadgets::Gadget base(std::shared_ptr<Services> services,const char* name,
     return ready(std::string(description));};
   gadget.poetry=[poetry](const gadgets::PoetryContext&){return ready(poetry());};
   gadget.renderGadgetUseMessage=[](const Json&,const Json&)->Json{return nullptr;};
-  gadget.renderGadgetResultMessage=[](const Json&,const Json& output,const Json&)->Json{
+  gadget.renderGadgetResultMessage=[](const Json& output,const Json&,const Json&)->Json{
     return output.is_string()?output:Json(output.dump(2));};
   return gadget;
 }
