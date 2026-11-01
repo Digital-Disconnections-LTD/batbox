@@ -64,7 +64,10 @@ std::vector<VisualLine> wrap(std::string_view text, std::string_view firstPrefix
     const auto next = text.find_first_of("\n\t", start);
     appendChunk(lines, text.substr(start, next - start), width, kind, selected);
     if (next == std::string_view::npos) break;
-    if (text[next] == '\n') nextLine(lines, kind, selected);
+    if (text[next] == '\n') {
+      lines.back().hardBreakAfter = true;
+      nextLine(lines, kind, selected);
+    }
     else {
       auto spaces = 8 - (lines.back().cells.size() % 8);
       while (spaces-- > 0)
@@ -138,6 +141,20 @@ std::vector<VisualLine> projectTranscriptLines(
   for (std::size_t i = 0; i < state.transcriptRows.size(); ++i) {
     const auto& row = state.transcriptRows[i];
     appendWrapped(body, row, static_cast<std::size_t>(columns), row.scrollbackId);
+  }
+  return body;
+}
+
+std::vector<VisualLine> projectCopyLines(
+    const interactive::PresentationState& state, int columns) {
+  if (columns <= 0) throw ProjectionError("Positive copy viewport required");
+  std::vector<VisualLine> body;
+  for (const auto& row : state.transcriptRows) {
+    auto lines = wrap(value::encodeUtf8(row.text), "",
+                      static_cast<std::size_t>(columns), row.kind);
+    if (!lines.empty()) lines.back().hardBreakAfter = true;
+    body.insert(body.end(), std::make_move_iterator(lines.begin()),
+                std::make_move_iterator(lines.end()));
   }
   return body;
 }

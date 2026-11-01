@@ -98,6 +98,7 @@ void Shell::onParsedInput(const keyboard_input::ParsedInput& input){
     imports_.input.onTerminalResponse(response->response);return;
   }
   if(const auto mouse=std::get_if<keyboard_input::MouseRef>(&input)){
+    if(copyView_)return;
     const auto row=static_cast<int>((*mouse)->row)-1;
     if((*mouse)->action=="press"&&(*mouse)->button==0){
       if(stickyScreenRow_&&row==*stickyScreenRow_){
@@ -118,6 +119,24 @@ void Shell::onParsedInput(const keyboard_input::ParsedInput& input){
 }
 void Shell::onKey(const keyboard_input::KeyRef& key){
   if(!key)return;
+  if(copyView_){
+    if(named(key,"escape")||(named(key,"q")&&plain(key))){
+      copyScrollTimer_.cancel();copyScrollTimer_={};copyView_.reset();
+      requestRedraw();return;
+    }
+    if(named(key,"return")||named(key,"enter")||
+        (named(key,"c")&&key->ctrl)){
+      const auto text=copyView_->selectedText();
+      if(!text.empty())imports_.copyMessageText(text);
+      return;
+    }
+    if(named(key,"wheelup")||named(key,"up")){copyView_->scrollBy(-3);requestRedraw();return;}
+    if(named(key,"wheeldown")||named(key,"down")){copyView_->scrollBy(3);requestRedraw();return;}
+    if(named(key,"pageup")){copyView_->scrollBy(-std::max(1,presentation().viewport.rows-2));requestRedraw();return;}
+    if(named(key,"pagedown")){copyView_->scrollBy(std::max(1,presentation().viewport.rows-2));requestRedraw();return;}
+    if(named(key,"home")){copyView_->scrollBy(-static_cast<int>(copyView_->top()));requestRedraw();return;}
+    return;
+  }
   if(named(key,"c")&&(key->ctrl||key->super)){
     const auto selected=driver_->selectedText();
     if(!selected.empty()){imports_.copyMessageText(selected);return;}
@@ -208,6 +227,12 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
     }
   }
   if(transcript_&&driver_->mode()==terminal_ftxui::Mode::Fullscreen){
+    if(key->sequence&&*key->sequence=="c"&&plain(key)&&
+        presentation().viewport.rows>=3){
+      copyView_=std::make_unique<terminal_ftxui::TranscriptCopy>(
+        presentation(),presentation().viewport.columns,presentation().viewport.rows);
+      requestRedraw();return;
+    }
     if(key->sequence&&*key->sequence=="v"&&plain(key)){
       startTranscriptExport();return;
     }
@@ -513,7 +538,35 @@ void Shell::onSearchKey(const keyboard_input::KeyRef& key){
   searchEditor_->onParsedKey(*key,searchInput_);
   requestRedraw();
 }
+bool Shell::onCopyMouse(const ftxui::Mouse& mouse){
+  if(!copyView_)return false;
+  if(mouse.button!=ftxui::Mouse::Left)return true;
+  if(mouse.motion==ftxui::Mouse::Pressed)copyView_->press(mouse.x,mouse.y);
+  else if(mouse.motion==ftxui::Mouse::Moved)copyView_->move(mouse.x,mouse.y);
+  else if(mouse.motion==ftxui::Mouse::Released){
+    copyScrollTimer_.cancel();copyScrollTimer_={};
+    if(auto text=copyView_->release(mouse.x,mouse.y))
+      imports_.copyMessageText(*text);
+  }
+  if(copyView_->dragging())scheduleCopyScroll();
+  requestRedraw();return true;
+}
+void Shell::scheduleCopyScroll(){
+  copyScrollTimer_.cancel();copyScrollTimer_={};
+  if(!copyView_||!copyView_->dragging()||!copyView_->edgeDirection())return;
+  auto weak=weak_from_this();
+  copyScrollTimer_=imports_.owner.setTimeout(80,[weak]{
+    auto self=weak.lock();if(!self||!self->copyView_)return;
+    self->copyScrollTimer_={};
+    const auto before=self->copyView_->top();
+    self->copyView_->scrollBy(self->copyView_->edgeDirection());
+    if(self->copyView_->top()!=before){
+      self->requestRedraw();self->scheduleCopyScroll();
+    }
+  });
+}
 void Shell::scroll(double rows){
+  if(copyView_){copyView_->scrollBy(static_cast<int>(rows));requestRedraw();return;}
   if(driver_->mode()==terminal_ftxui::Mode::Fullscreen){
     viewport_->scrollBy(rows);
     if(transcript_)navigation_->disarmSearch();
@@ -538,6 +591,7 @@ void Shell::dispatchMessageAction(const std::string& action){
   actions_->dispatch(action);requestRedraw();
 }
 void Shell::setTranscript(bool active){
+  if(!active){copyScrollTimer_.cancel();copyScrollTimer_={};copyView_.reset();}
   if(transcript_==active)return;
   if(batConversation_){
     transcript_=active;

@@ -3,7 +3,8 @@
 find_package(Git REQUIRED)
 set(batbox_ftxui_patch_names
     ftxui-7.0.3-raw-input.patch ftxui-7.0.3-string-metrics.patch
-    ftxui-7.0.3-inline-scrollback.patch ftxui-7.0.3-bracketed-paste.patch)
+    ftxui-7.0.3-inline-scrollback.patch ftxui-7.0.3-bracketed-paste.patch
+    ftxui-7.0.3-selection-spaces.patch)
 set(batbox_ftxui_signature_files)
 foreach(name IN LISTS batbox_ftxui_patch_names)
   set(patch "${CMAKE_CURRENT_LIST_DIR}/../src/terminal_ftxui/patches/${name}")

@@ -50,6 +50,7 @@ Shell::Shell(Imports imports):imports_(std::move(imports)),
 }
 Shell::~Shell(){
   incompleteEscapeTimer_.cancel();
+  copyScrollTimer_.cancel();
   commandUiSwapTimer_.cancel();
   activityPulseTimer_.cancel();
   welcomeTimer_.cancel();
@@ -292,6 +293,7 @@ void Shell::initialize(){
   };
   callbacks.consumeMouseEvent=[weak](ftxui::Event event){
     auto self=weak.lock();if(!self||!event.is_mouse())return false;
+    if(self->copyView_)return self->onCopyMouse(event.mouse());
     const auto row=event.mouse().y;
     return (self->pillScreenRow_&&row==*self->pillScreenRow_)||
       (self->stickyScreenRow_&&row==*self->stickyScreenRow_)||
@@ -339,6 +341,7 @@ void Shell::stop(){
   remembering_=false;
   activityPulseTimer_.cancel();activityPulseTimer_={};activityFrame_=0;
   welcomeTimer_.cancel();welcomeTimer_={};welcomeFrame_=welcomeAnimationFrames;
+  copyScrollTimer_.cancel();copyScrollTimer_={};copyView_.reset();
   if(!started_)return;
   started_=false;
   ++batOpenGeneration_;

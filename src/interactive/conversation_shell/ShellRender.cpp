@@ -217,6 +217,7 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
 ftxui::Element Shell::render(){
   refreshBatConversation();
   syncActivityPulse();
+  if(copyView_)return copyView_->render();
   if(driver_->mode()==terminal_ftxui::Mode::Inline)return renderInline();
   auto settings=imports_.listSettings(presentation());
   settings.fullscreen=true;settings.transcriptMode=transcript_;
@@ -280,6 +281,10 @@ void Shell::commitInlineScrollback(){
 void Shell::onResize(ftxui::Dimensions size){
   const auto prior=presentation().viewport.columns;
   updateViewport(presentation(),size.dimx,size.dimy);
+  if(copyView_){
+    if(size.dimx>0&&size.dimy>=3)copyView_->resize(presentation(),size.dimx,size.dimy);
+    else{copyScrollTimer_.cancel();copyScrollTimer_={};copyView_.reset();}
+  }
   if(batConversation_)updateViewport(imports_.presentation,size.dimx,size.dimy);
   auto options=imports_.editorOptions;
   options.columns=poetryEditorColumns(presentation().input,size.dimx,

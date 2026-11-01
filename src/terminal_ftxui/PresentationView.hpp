@@ -17,6 +17,7 @@ struct VisualLine {
   bool selected = false;
   std::string id;
   bool transient = false;
+  bool hardBreakAfter = false;
 };
 ftxui::Color colorFor(interactive::TranscriptRow::Kind kind);
 struct PresentationLayout {
@@ -32,6 +33,8 @@ PresentationLayout layoutPresentation(const interactive::PresentationState& stat
                                       int columns, int rows,
                                       const std::unordered_set<std::string>* excluded = nullptr);
 std::vector<VisualLine> projectTranscriptLines(
+    const interactive::PresentationState& state, int columns);
+std::vector<VisualLine> projectCopyLines(
     const interactive::PresentationState& state, int columns);
 ftxui::Element renderPresentation(const interactive::PresentationState& state,
                                   ftxui::Dimensions dimensions);

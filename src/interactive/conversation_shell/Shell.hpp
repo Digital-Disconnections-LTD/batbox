@@ -8,6 +8,7 @@
 #include "interactive/text_input/TextEditor.hpp"
 #include "interactive/transcript_navigation/Navigation.hpp"
 #include "interactive/viewport/Controller.hpp"
+#include "terminal_ftxui/TranscriptCopy.hpp"
 #include "application_history/History.hpp"
 #include "application_completion/Completion.hpp"
 #include <ftxui/dom/node.hpp>
@@ -154,6 +155,8 @@ private:
   void acceptCompletion(bool execute);
   void onModalKey(const keyboard_input::KeyRef& key);
   void onSearchKey(const keyboard_input::KeyRef& key);
+  bool onCopyMouse(const ftxui::Mouse& mouse);
+  void scheduleCopyScroll();
   void submitPoetry(const std::string& text);
   void onPastedText(const std::string& text);
   void startTranscriptExport();
@@ -219,8 +222,10 @@ private:
   MessageRef lastObservedMessage_;
   keyboard_input::KeyParseState parser_;
   event_loop::Loop::TimerHandle incompleteEscapeTimer_;
+  event_loop::Loop::TimerHandle copyScrollTimer_;
   terminal_ftxui::PlainCursor plainCursor_;
   terminal_ftxui::ScrollbackCursor scrollbackCursor_;
+  std::unique_ptr<terminal_ftxui::TranscriptCopy> copyView_;
   terminal_ftxui::Mode baseMode_=terminal_ftxui::Mode::Inline;
   gadgets::Gadgets currentGadgets_;
   std::optional<std::size_t> dividerIndex_;

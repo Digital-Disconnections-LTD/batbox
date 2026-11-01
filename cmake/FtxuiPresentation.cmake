@@ -13,6 +13,7 @@ include(cmake/InteractiveContext.cmake)
 
 add_library(batbox_terminal_ftxui
   src/terminal_ftxui/Driver.cpp src/terminal_ftxui/PresentationLayout.cpp
+  src/terminal_ftxui/TranscriptCopy.cpp
   src/terminal_ftxui/PresentationView.cpp src/terminal_ftxui/StyleProjection.cpp
   src/terminal_ftxui/IndigenousStringMetrics.cpp
   src/terminal_ftxui/ScrollbackProjection.cpp)
