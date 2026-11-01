@@ -30,6 +30,14 @@ std::optional<Json> parseTerminalResponse(const std::string& s){
   if(s.starts_with("\x1bP")){
     static const glob::Regex16 xt(u"(?s)^\x1bP>\\|(.*?)(?:\x07|\x1b\\\\)$");
     if(match(xt,s,m))return Json{{"type","xtversion"},{"name",group(m,1)}};
+    // DECRQSS replies (for example the cursor-shape query FTXUI sends at
+    // startup) and any other complete device control string are terminal
+    // answers, never typed text.
+    static const glob::Regex16 decrqss(u"(?s)^\x1bP([01])\\$r(.*?)(?:\x07|\x1b\\\\)$");
+    if(match(decrqss,s,m))return Json{{"type","decrqss"},
+      {"valid",group(m,1)=="1"},{"data",group(m,2)}};
+    static const glob::Regex16 dcs(u"(?s)^\x1bP(.*?)(?:\x07|\x1b\\\\)$");
+    if(match(dcs,s,m))return Json{{"type","dcs"},{"data",group(m,1)}};
   }
   return {};
 }
