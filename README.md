@@ -58,6 +58,41 @@ interface from your configured **Anthropic Messages-compatible backend**.
 The model runs at the endpoint you choose. File and shell Gadgets act on the
 machine running Batbox, with approvals controlled by your permission settings.
 
+## A look inside
+
+Every shot below is the real terminal UI, driven by a scripted local model server.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshots/welcome.png" alt="Batbox welcome screen: the bat and ghost art, the model, Roost and branch card, the poetry input and the status row"></td>
+    <td width="50%"><img src="docs/assets/screenshots/transcript.png" alt="A Flight with an Edit diff, a Write card, a collapsed shell command and a markdown reply with a framed code block"></td>
+  </tr>
+  <tr>
+    <td>A bat, a ghost, and a place to start your poetry.</td>
+    <td>Edits arrive as diffs, long shell output folds away, and replies render as markdown.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/screenshots/bats.png" alt="The /bats list with one Bat running its current Gadget and one finished Bat with its last line"></td>
+    <td><img src="docs/assets/screenshots/resume.png" alt="The resume picker filtering saved Flights by title, with branch, age, message count and an interrupted Flight"></td>
+  </tr>
+  <tr>
+    <td><code>/bats</code> shows who is still flying, what Gadget they hold, and what they last said.</td>
+    <td><code>batbox -r</code> brings back any Flight, interrupted ones included. Type to filter.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/screenshots/theme.png" alt="The /theme picker previewing the 16-color theme live behind the dialog"></td>
+    <td><img src="docs/assets/screenshots/permission.png" alt="A permission dialog for an Edit, showing the diff and the rule that allowing it for the session would add"></td>
+  </tr>
+  <tr>
+    <td><code>/theme</code> previews each palette live before you commit to it.</td>
+    <td>Approvals show the change and the exact rule you would be agreeing to.</td>
+  </tr>
+</table>
+
+`/theme` includes dark and light Batbox palettes, a 16-color theme that uses your
+terminal's own colors, monochrome, and color-blind and classic variants.
+[Here is the same Flight in Batbox light](docs/assets/screenshots/light.png).
+
 ## Why choose Batbox?
 
 If you want a C++20 terminal companion you can understand, change, and make your
