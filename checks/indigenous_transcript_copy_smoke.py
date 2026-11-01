@@ -21,6 +21,7 @@ import time
 
 def main(binary):
     lines = [f"ROW{index:02d} one two three" for index in range(50)]
+    lines[0] += "\x1b]52;c;EVIL\x07"
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -138,7 +139,37 @@ def main(binary):
             edge_copy = copied_texts()[-1]
             if "ROW35" not in edge_copy:
                 raise RuntimeError(f"Drag edge did not extend the selection: {edge_copy!r}")
+            before_native = len(output)
+            send(b"y")
+            wait_for(lambda: b"BATBOX TRANSCRIPT  /  NATIVE COPY" in
+                     output[before_native:], "selected native copy")
+            selected_native = output[before_native:]
+            if b"\x1b[?1049l" not in selected_native:
+                raise RuntimeError("Native copy did not leave the alternate screen")
+            if edge_copy.encode() not in selected_native.replace(b"\r\n", b"\n"):
+                raise RuntimeError(f"Selected native copy lost text or spaces: "
+                                   f"selection={edge_copy!r} output={selected_native[-1500:]!r}")
+            if b"ROW49" in selected_native:
+                raise RuntimeError("Selected native copy printed the full transcript")
+            send(b"\r")
+            wait_for(lambda: b"COPY TRANSCRIPT" in output[before_native +
+                     len(selected_native):], "copy view after native copy")
+            if b"\x1b[?1049h" not in output[before_native +
+                    len(selected_native):]:
+                raise RuntimeError("Native copy did not restore fullscreen")
             send(b"\x1b")
+            drain(0.2)
+            before_full = len(output)
+            send(b"y")
+            wait_for(lambda: b"Press Return to return to Batbox" in
+                     output[before_full:], "full native copy")
+            native_full = output[before_full:]
+            if b"ROW00 one two three" not in native_full or \
+                    b"ROW49 one two three" not in native_full:
+                raise RuntimeError("Native copy did not include the full transcript")
+            if b"\x1b]52;c;EVIL" in native_full or b"\x07" in native_full:
+                raise RuntimeError("Native copy emitted model-supplied terminal controls")
+            send(b"\r")
             drain(0.2)
             send(b"\x0f")
             drain(0.2)
@@ -146,7 +177,7 @@ def main(binary):
             wait_for(lambda: status is not None, "clean exit")
             if os.waitstatus_to_exitcode(status) != 0:
                 raise RuntimeError(f"Batbox exited with {status}")
-            print("Transcript drag, wheel scroll, and full-range clipboard copy passed")
+            print("Transcript OSC 52 and native terminal copy passed")
         finally:
             if status is None:
                 os.kill(pid, signal.SIGKILL)

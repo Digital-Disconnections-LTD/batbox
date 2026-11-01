@@ -6,7 +6,9 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 #include <algorithm>
+#include <iostream>
 #include <stdexcept>
+#include <string_view>
 
 namespace batbox::interactive::conversation_shell {
 struct TranscriptExportRun {
@@ -29,6 +31,33 @@ std::string trimLineEnds(std::string text){
   }
   return output;
 }
+std::string safeTerminalText(std::string_view value){
+  std::string result;result.reserve(value.size());
+  for(const unsigned char ch:value)
+    if((ch>=0x20&&ch!=0x7f)||ch=='\n'||ch=='\t')
+      result+=static_cast<char>(ch);
+  return result;
+}
+}
+void Shell::openNativeTranscriptCopy(std::optional<std::string> selection){
+  if(!transcript_||!started_||driver_->mode()!=terminal_ftxui::Mode::Fullscreen)
+    return;
+  try{
+    driver_->withRestoredIO([this,&selection]{
+      std::cout<<"\nBATBOX TRANSCRIPT  /  NATIVE COPY\n\n";
+      if(selection)
+        std::cout<<safeTerminalText(*selection)<<"\n";
+      else for(const auto& row:presentation().transcriptRows)
+        std::cout<<safeTerminalText(row.text)<<"\n\n";
+      std::cout<<"\nSelect text and use your terminal's copy shortcut. "
+        "Press Return to return to Batbox.\n"<<std::flush;
+      std::string ignored;
+      std::getline(std::cin,ignored);
+      if(!std::cin)std::cin.clear();
+    });
+  }catch(const std::exception& issue){
+    transcriptStatus(std::string("native copy failed: ")+issue.what());
+  }
 }
 void Shell::transcriptStatus(const std::string& value)const{
   if(imports_.editorCallbacks.addNotification)

@@ -124,7 +124,7 @@ ftxui::Element TranscriptCopy::render()const{
       ftxui::text(join(cells,end,cells.size()))
     })|ftxui::size(ftxui::HEIGHT,ftxui::EQUAL,1));
   }
-  rows.push_back(ftxui::text("Wheel / PgUp / PgDn scroll  ·  Enter copies  ·  Esc returns")|
+  rows.push_back(ftxui::text("Wheel / PgUp / PgDn scroll  ·  Y terminal copy  ·  Esc returns")|
     ftxui::dim|ftxui::size(ftxui::HEIGHT,ftxui::EQUAL,1));
   return ftxui::vbox(std::move(rows))|
     ftxui::size(ftxui::WIDTH,ftxui::EQUAL,columns_)|

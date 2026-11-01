@@ -68,6 +68,7 @@ struct Imports {
     const std::string&,const std::string&)> submitBatMessage;
   std::function<void(const std::string&)> releaseBatMission,stopBatMission;
   std::function<std::size_t()> getSubmitCount;
+  std::function<bool()> interruptTurn;
   std::function<void(const std::string&)> copyMessageText;
   std::function<event_loop::Deferred<event_loop::Unit>(MessageRef)> editMessage;
   std::function<event_loop::Deferred<Json>()> getImageFromClipboard;
@@ -161,6 +162,7 @@ private:
   void onPastedText(const std::string& text);
   void startTranscriptExport();
   void advanceTranscriptExport();
+  void openNativeTranscriptCopy(std::optional<std::string> selection={});
   void transcriptStatus(const std::string& value)const;
   std::string renderTranscriptChunk(const PreparedMessageList& prepared,
     std::size_t begin,std::size_t end,int columns);

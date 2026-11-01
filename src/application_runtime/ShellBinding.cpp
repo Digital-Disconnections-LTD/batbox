@@ -10,6 +10,12 @@ void ApplicationRuntime::bindShellImports(
     throw std::invalid_argument("Shell and runtime must share one owner and presentation");
   imports.submitServices=submit_;
   auto weak=weak_from_this();
+  imports.interruptTurn=[weak]{
+    auto self=weak.lock();
+    if(!self||!self->activeAbort_||self->activeAbort_->aborted())return false;
+    self->activeAbort_->abort("interrupt");
+    return true;
+  };
   imports.makeSubmitRequest=[weak](const std::string& text,
       const interactive::InputState& input){
     auto self=weak.lock();
