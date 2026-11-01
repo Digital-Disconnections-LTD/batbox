@@ -95,14 +95,25 @@ Host::~Host(){
   bats::saveStashSafeParams({});
 }
 void Host::Impl::log(std::string value)const{
-  if(logFile&&*logFile){
+  if(!logFile||!*logFile)return;
+  bool schedule=false;
+  {
     std::lock_guard lock(*logMutex);
-    *logFile<<platform::isoTimestamp()<<" "<<value<<'\n';logFile->flush();
+    *logFile<<platform::isoTimestamp()<<" "<<value<<'\n';
+    // Batch writes: flush within 250 ms on the owner loop rather than per line.
+    if(!logFlushPending||!scheduleLogFlush)logFile->flush();
+    else if(!*logFlushPending)schedule=*logFlushPending=true;
   }
+  if(schedule)scheduleLogFlush();
+}
+void Host::Impl::flushLog()const{
+  if(!logFile||!logMutex)return;
+  std::lock_guard lock(*logMutex);
+  logFile->flush();
 }
 void Host::Impl::report(std::exception_ptr error){
   const auto value=errorText(error);
-  if(!value.empty())log(value);
+  if(!value.empty()){log(value);flushLog();}
   if(value.empty())return;
   failed.store(true);
   const auto show=[this,value]{
@@ -134,6 +145,15 @@ void Host::Impl::initialize(){
   logMutex=std::make_shared<std::mutex>();
   logFile=std::make_shared<std::ofstream>(
     config.stateDirectory/"native.log",std::ios::app);
+  logFlushPending=std::make_shared<bool>(false);
+  scheduleLogFlush=[dispatcher=owner.dispatcher(),loop=&owner,file=logFile,
+      mutex=logMutex,pending=logFlushPending]{
+    dispatcher.postMission([loop,file,mutex,pending]{
+      (void)loop->setTimeout(250,[file,mutex,pending]{
+        std::lock_guard lock(*mutex);*pending=false;file->flush();
+      },false);
+    });
+  };
   messages=std::make_shared<messages::Services>();
   messages->randomUUID=platform::randomUUID;
   messages->nowISO=[] {return platform::isoTimestamp();};

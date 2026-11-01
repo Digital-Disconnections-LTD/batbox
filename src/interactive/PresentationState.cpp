@@ -101,6 +101,20 @@ void applyStreamMessage(PresentationState& state, const StreamInput& input,
     if (state.showStreamingText)
       state.streamingText = update(state.streamingText);
   };
+  callbacks.appendStreamingText = [&](const std::string& text) {
+    if (!state.showStreamingText) return;
+    if (!state.streamingText) state.streamingText.emplace();
+    state.streamingText->append(text);
+  };
+  callbacks.appendGadgetInput = [&](const Json& index, const std::string& fragment) {
+    auto& uses = state.streamingGadgetUses;
+    const auto found = std::find_if(uses.begin(), uses.end(),
+        [&](const StreamingGadgetUse& use) { return use.index == index; });
+    if (found == uses.end()) return;
+    found->unparsedGadgetInput.append(fragment);
+    // The updater path re-appends the extended use; keep that order.
+    std::rotate(found, found + 1, uses.end());
+  };
   handleMessageFromStream(*input.event, callbacks, imports.stream);
   ++state.revision;
 }

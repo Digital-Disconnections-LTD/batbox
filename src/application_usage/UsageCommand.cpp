@@ -1,5 +1,6 @@
 #include "application_usage/UsageCommand.hpp"
 #include "bats/ForkedBat.hpp"
+#include "formatting/Format.hpp"
 #include "application_engine/AutoPolicy.hpp"
 #include "interactive/conversation_shell/Shell.hpp"
 #include "poetryEntries/EffectiveSystemPoetry.hpp"
@@ -422,6 +423,12 @@ std::string renderStatus(const Sources& sources,int width,bool verbose){
       out<<"  Retained child contexts: "<<number(fieldNumber(indigenous,"retainedChildContexts"))
         <<" · Stream buffers: "<<number(fieldNumber(indigenous,"retainedStreamBytes"))
         <<" bytes\n";
+      if(const auto resident=fieldNumber(indigenous,"residentBytes");resident>0){
+        out<<"  Memory: "<<formatting::formatFileSize(resident)<<" resident";
+        if(const auto heap=fieldNumber(indigenous,"heapUsedBytes");heap>0)
+          out<<" · "<<formatting::formatFileSize(heap)<<" heap in use";
+        out<<'\n';
+      }
     }
   }
   if(!verbose)out<<"\n/context for breakdown · Esc to close";

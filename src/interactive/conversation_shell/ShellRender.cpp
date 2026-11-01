@@ -247,9 +247,11 @@ ftxui::Element Shell::render(){
   auto settings=imports_.listSettings(presentation());
   settings.fullscreen=true;settings.transcriptMode=transcript_;
   settings.virtualScroll=true;
-  settings.streamingGadgetUses=presentation().streamingGadgetUses;
-  prepared_=std::make_shared<PreparedMessageList>(prepareMessageList(
-    presentation().messages,settings,sliceAnchor_));
+  // The list shows streaming Gadget uses by content block; skip copying the
+  // partial input, which grows with every fragment.
+  for(const auto& use:presentation().streamingGadgetUses)
+    settings.streamingGadgetUses.push_back({use.index,use.contentBlock,{}});
+  prepared_=listMemo_.prepare(presentation().messages,settings,sliceAnchor_);
   auto options=imports_.surfaceOptions(presentation());
   options.screen=transcript_?"transcript":"prompt";
   options.conversationId=presentation().conversationId;

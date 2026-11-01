@@ -26,8 +26,16 @@ PreparedMessageList prepareMessageList(const MessageRefs& messages,
                                        std::optional<SliceAnchor>& anchor) {
   if (!settings.gadgets) throw std::logic_error("Grouping Gadgets required");
   if (!settings.messageServices) throw std::logic_error("Message services required");
+  return prepareNormalizedMessageList(
+      normalizeMessagesRefs(messages, *settings.messageServices), settings, anchor);
+}
+
+PreparedMessageList prepareNormalizedMessageList(MessageRefs normalized,
+                                                 const MessageListSettings& settings,
+                                                 std::optional<SliceAnchor>& anchor) {
+  if (!settings.gadgets) throw std::logic_error("Grouping Gadgets required");
+  if (!settings.messageServices) throw std::logic_error("Message services required");
   PreparedMessageList output;
-  const auto normalized = normalizeMessagesRefs(messages, *settings.messageServices);
   for (const auto& message : normalized)
     if (message && isNotEmptyMessage(*message, settings.visibility))
       output.normalizedMessages.push_back(message);

@@ -44,5 +44,8 @@ RenderItemsRef asRenderItems(const MessageRefs& messages);
 RenderItemsRef applyGrouping(const RenderItemsRef& messages,
                              const GroupingGadgets& gadgets, bool verbose = false);
 Json materializeRenderItem(const RenderItem& item);
+// Read-only materialized view: a plain item shares its message, while groups
+// and collapsed items are materialized into a new value.
+std::shared_ptr<const Json> materializedView(const RenderItem& item);
 
 } // namespace batbox::interactive

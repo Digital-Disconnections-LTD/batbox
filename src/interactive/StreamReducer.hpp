@@ -41,6 +41,10 @@ struct StreamCallbacks {
   std::function<void(ThinkingUpdate)> onStreamingThinking;
   std::function<void(double)> onApiMetrics;
   std::function<void(TextUpdate)> onStreamingText;
+  // Optional in-place accumulators. When bound, deltas are appended to the
+  // live buffers directly instead of rebuilding them through the updaters.
+  std::function<void(const std::string&)> appendStreamingText;
+  std::function<void(const Json& index, const std::string& fragment)> appendGadgetInput;
 };
 
 void handleMessageFromStream(const Json& message,

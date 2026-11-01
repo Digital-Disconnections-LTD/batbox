@@ -17,14 +17,24 @@ SurfacePlan prepareSurface(std::shared_ptr<const PreparedMessageList> prepared,
   result.latestBashOutputUUID=latestBashOutputUUID(messages.normalizedMessages);
   std::ptrdiff_t divider=-1,selected=-1;
   const auto prefix=o.unseenDivider?value::slice(o.unseenDivider->firstUnseenUuid,0,24):"";
-  MessageRefs materialized;
   for(std::size_t index=0;index<messages.renderable->size();++index){
     const auto& item=(*messages.renderable)[index];
-    const auto id=field(*item.message,"uuid").get<std::string>();
+    const auto& id=field(*item.message,"uuid").get_ref<const std::string&>();
     if(o.unseenDivider&&divider<0&&value::slice(id,0,24)==prefix)divider=index;
     if(o.cursor&&selected<0&&id==o.cursor->uuid)selected=index;
-    materialized.push_back(std::make_shared<Json>(materializeRenderItem(item)));
   }
+  // Only collapsed read/search rows look ahead, and only grouped items differ
+  // from their root message once materialized; build the list on demand.
+  MessageRefs materialized;
+  const auto materialize=[&]()->const MessageRefs&{
+    if(materialized.empty()&&!messages.renderable->empty()){
+      materialized.reserve(messages.renderable->size());
+      for(const auto& item:*messages.renderable)
+        materialized.push_back(item.members.empty()&&!item.collapsedItems?item.message:
+          std::make_shared<Json>(materializeRenderItem(item)));
+    }
+    return materialized;
+  };
   const bool canAnimate=(!o.gadgetUiContinueAnimation||*o.gadgetUiContinueAnimation)&&
     o.permissionQueueSize==0&&!o.messageSelectorVisible;
   auto lookups=std::shared_ptr<const MessageLookups>(result.prepared,&result.prepared->lookups);
@@ -44,7 +54,7 @@ SurfacePlan prepareSurface(std::shared_ptr<const PreparedMessageList> prepared,
       field(*(*messages.renderable)[index-1].message,"type")=="user";
     request.hasContentAfter=type=="collapsed_read_search"&&
       ((o.streamingText&&!o.streamingText->empty())||
-        hasContentAfterIndex(materialized,index,o.streamingGadgetUseIDs,decisions));
+        hasContentAfterIndex(materialize(),index,o.streamingGadgetUseIDs,decisions));
     SurfaceRow row{field(*item.message,"uuid").get<std::string>()+"-"+o.conversationId,
       std::move(request),isSelected,{}};
     if(o.unseenDivider&&static_cast<std::ptrdiff_t>(index)==divider)row.unseenCount=o.unseenDivider->count;

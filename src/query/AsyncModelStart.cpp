@@ -36,11 +36,14 @@ ModelRequest makeRequest(const Run& run){
   request.thinkingConfig=field(options,"thinkingConfig");
   request.gadgets=prepared.gadgetUseContext.gadgets;
   request.signal=prepared.gadgetUseContext.stop;
-  const auto context=prepared.gadgetUseContext;
+  // The model service copies this callback many times; share one context
+  // without the conversation, which the app-state lookup does not read.
+  const auto context=std::make_shared<const execution::Context>(
+    execution::contextWithoutConversation(prepared.gadgetUseContext));
   const auto getAppState=sync.getAppState;
   request.getGadgetPermissionContext=[context,getAppState]{
     need(getAppState,"getAppState");
-    return field(execution::effectiveAppState(context,getAppState(context)),
+    return field(execution::effectiveAppState(*context,getAppState(*context)),
       "toolPermissionContext");
   };
   request.addNotification=sync.addNotification;

@@ -31,7 +31,7 @@ void Shell::resetConversationNavigation(){
   searchInput_.text.clear();searchInput_.caretUtf16=0;
   searchCount_=searchCurrent_=0;positions_.reset();sticky_={};
   cursor_.reset();actions_->setCursor({});navigation_->setSearchQuery("");
-  prepared_.reset();sliceAnchor_.reset();previousThinking_.reset();thinkingRef_.reset();
+  prepared_.reset();listMemo_.clear();sliceAnchor_.reset();previousThinking_.reset();thinkingRef_.reset();
   suggestions_.clear();++completionGeneration_;
   retained_->unmountAll();surfaceState_={};
   pendingImageSpace_=false;

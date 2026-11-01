@@ -128,6 +128,11 @@ RenderItemsRef applyGrouping(const RenderItemsRef& messages,
   return output;
 }
 
+std::shared_ptr<const Json> materializedView(const RenderItem& item) {
+  if (item.message && item.members.empty() && !item.collapsedItems) return item.message;
+  return std::make_shared<const Json>(materializeRenderItem(item));
+}
+
 Json materializeRenderItem(const RenderItem& item) {
   if (!item.message) return nullptr;
   if (item.collapsedItems) {

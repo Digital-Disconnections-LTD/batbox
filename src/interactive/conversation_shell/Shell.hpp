@@ -1,5 +1,6 @@
 #pragma once
 #include "interactive/InteractionController.hpp"
+#include "interactive/MessageListMemo.hpp"
 #include "interactive/message_actions/MessageActions.hpp"
 #include "interactive/message_list_view/Projection.hpp"
 #include "interactive/message_list_view/Search.hpp"
@@ -253,6 +254,7 @@ private:
   message_list_view::SearchTextStash searchText_;
   std::optional<SliceAnchor> sliceAnchor_;
   std::shared_ptr<PreparedMessageList> prepared_;
+  MessageListMemo listMemo_;
   MessageRef lastObservedMessage_;
   keyboard_input::KeyParseState parser_;
   event_loop::Loop::TimerHandle incompleteEscapeTimer_;

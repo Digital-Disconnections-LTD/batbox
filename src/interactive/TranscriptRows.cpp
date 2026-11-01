@@ -1,5 +1,7 @@
 #include "interactive/TranscriptRows.hpp"
 #include "messages/TextContent.hpp"
+#include "runtime/MessageMutation.hpp"
+#include <algorithm>
 
 namespace batbox::interactive {
 namespace {
@@ -81,46 +83,71 @@ void appendBlocks(PresentationState& state, const Json& content,
     }
   }
 }
+void appendMessageRows(PresentationState& state, const MessageRef& message) {
+  if (!message || !message->is_object()) return;
+  const std::weak_ptr<Json> weak = message;
+  auto token = state.transcriptMessageTokens.find(weak);
+  if (token == state.transcriptMessageTokens.end())
+    token = state.transcriptMessageTokens.emplace(
+        weak, state.nextTranscriptMessageToken++).first;
+  const auto rowStart = state.transcriptRows.size();
+  const auto type = string(*message, "type");
+  const auto id = string(*message, "uuid");
+  if (type == "assistant" || type == "user") {
+    const auto* inner = member(*message, "message");
+    const auto* content = inner ? member(*inner, "content") : nullptr;
+    if (content)
+      appendBlocks(state, *content, id, type == "assistant",
+                   type == "assistant" &&
+                   value::truthy(value::property(*message, "isApiErrorMessage")));
+  } else if (type == "progress") {
+    const auto* data = member(*message, "data");
+    auto label = data ? string(*data, "type") : "";
+    auto detail = data ? string(*data, "message") : "";
+    if (detail.empty() && data) detail = string(*data, "output");
+    if (!detail.empty()) label += ": " + detail;
+    append(state, TranscriptRow::Kind::Progress, id, std::move(label));
+  } else if (type == "system") {
+    auto text = string(*message, "content");
+    if (text.empty()) text = string(*message, "subtype");
+    append(state, TranscriptRow::Kind::System, id, std::move(text));
+  } else if (type == "attachment") {
+    const auto* attachment = member(*message, "attachment");
+    auto text = attachment ? string(*attachment, "type") : "attachment";
+    append(state, TranscriptRow::Kind::System, id, "[" + text + "]");
+  }
+  for (std::size_t i = rowStart; i < state.transcriptRows.size(); ++i)
+    state.transcriptRows[i].scrollbackId = std::to_string(token->second) +
+        ":" + std::to_string(i - rowStart);
+}
 } // namespace
 
 void rebuildTranscriptRows(PresentationState& state) {
-  state.transcriptRows.clear();
-  for (const auto& message : state.messages) {
-    if (!message || !message->is_object()) continue;
-    const std::weak_ptr<Json> weak = message;
-    auto token = state.transcriptMessageTokens.find(weak);
-    if (token == state.transcriptMessageTokens.end())
-      token = state.transcriptMessageTokens.emplace(
-          weak, state.nextTranscriptMessageToken++).first;
-    const auto rowStart = state.transcriptRows.size();
-    const auto type = string(*message, "type");
-    const auto id = string(*message, "uuid");
-    if (type == "assistant" || type == "user") {
-      const auto* inner = member(*message, "message");
-      const auto* content = inner ? member(*inner, "content") : nullptr;
-      if (content)
-        appendBlocks(state, *content, id, type == "assistant",
-                     type == "assistant" &&
-                     value::truthy(value::property(*message, "isApiErrorMessage")));
-    } else if (type == "progress") {
-      const auto* data = member(*message, "data");
-      auto label = data ? string(*data, "type") : "";
-      auto detail = data ? string(*data, "message") : "";
-      if (detail.empty() && data) detail = string(*data, "output");
-      if (!detail.empty()) label += ": " + detail;
-      append(state, TranscriptRow::Kind::Progress, id, std::move(label));
-    } else if (type == "system") {
-      auto text = string(*message, "content");
-      if (text.empty()) text = string(*message, "subtype");
-      append(state, TranscriptRow::Kind::System, id, std::move(text));
-    } else if (type == "attachment") {
-      const auto* attachment = member(*message, "attachment");
-      auto text = attachment ? string(*attachment, "type") : "attachment";
-      append(state, TranscriptRow::Kind::System, id, "[" + text + "]");
+  const auto mutations = runtime::messagesMutatedSince(state.transcriptRowsEpoch);
+  state.transcriptRowsEpoch = mutations.epoch;
+  auto& sources = state.transcriptRowSources;
+  auto& rows = state.transcriptRows;
+  const bool consistent = sources.empty() ? rows.empty() :
+      rows.size() == sources.back().rowEnd;
+  std::size_t keep = 0;
+  if (consistent && mutations.changed) {
+    const auto& changed = *mutations.changed;
+    const auto limit = std::min(sources.size(), state.messages.size());
+    while (keep < limit) {
+      const auto& message = state.messages[keep];
+      const auto& source = sources[keep].message;
+      if (source.owner_before(message) || message.owner_before(source)) break;
+      if (message && std::find(changed.begin(), changed.end(), message.get()) != changed.end())
+        break;
+      ++keep;
     }
-    for (std::size_t i = rowStart; i < state.transcriptRows.size(); ++i)
-      state.transcriptRows[i].scrollbackId = std::to_string(token->second) +
-          ":" + std::to_string(i - rowStart);
+  }
+  rows.resize(keep ? sources[keep - 1].rowEnd : 0);
+  sources.resize(keep);
+  sources.reserve(state.messages.size());
+  for (std::size_t i = keep; i < state.messages.size(); ++i) {
+    appendMessageRows(state, state.messages[i]);
+    sources.push_back({state.messages[i], rows.size()});
   }
   if (state.transcriptMessageTokens.size() > state.messages.size() * 2 + 1024)
     for (auto it = state.transcriptMessageTokens.begin();

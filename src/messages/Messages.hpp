@@ -20,5 +20,7 @@ Json createAssistantMessage(const Json& args, Services& services);
 Json createAssistantAPIErrorMessage(const Json& args, Services& services);
 Json prepareUserContent(const Json& args);
 Json normalizeMessages(const Json& messages, Services& services);
+// Continues from the chain state of preceding messages and updates it.
+Json normalizeMessages(const Json& messages, Services& services, bool& isNewChain);
 Json ensureGadgetResultPairing(const Json& messages, Services& services);
 } // namespace batbox::messages

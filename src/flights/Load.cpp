@@ -10,9 +10,18 @@ void bindIndigenousFileReads(LoadServices& services) {
     return std::filesystem::file_size(indigenousPath(path));
   };
   services.readFile=[](const std::string& path){
-    std::ifstream input(indigenousPath(path),std::ios::binary);
+    const auto file=indigenousPath(path);
+    std::ifstream input(file,std::ios::binary);
     if(!input)throw std::system_error(errno,std::generic_category(),"readFile");
-    std::string raw((std::istreambuf_iterator<char>(input)),{});
+    // Size the buffer once instead of growing it byte by byte; keep reading
+    // in case the file grew after it was measured.
+    std::error_code sizeError;
+    const auto expected=std::filesystem::file_size(file,sizeError);
+    std::string raw;
+    if(!sizeError)raw.reserve(static_cast<std::size_t>(expected));
+    char chunk[1<<16];
+    while(input.read(chunk,sizeof chunk)||input.gcount()>0)
+      raw.append(chunk,static_cast<std::size_t>(input.gcount()));
     if(input.bad())throw std::system_error(errno,std::generic_category(),"readFile");
     return raw;
   };

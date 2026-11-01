@@ -1,14 +1,23 @@
 #include "flights/LoadParsing.hpp"
 namespace batbox::flights {
-Json parseJSONLBuffer(const std::string& buffer) {
+namespace {
+// Parses one JSONL entry at a time so callers can move entries into place
+// without first materializing the whole file as a Json array.
+template<class Visit>void forEachJSONLEntry(const std::string& buffer,Visit&& visit) {
   std::size_t start=buffer.starts_with("\xef\xbb\xbf") ? 3 : 0;
-  Json results=Json::array();
   while(start<buffer.size()) {
     auto end=buffer.find('\n',start);if(end==std::string::npos)end=buffer.size();
     const auto line=value::trim(value::decodeUtf8(std::string_view(buffer).substr(start,end-start)));start=end+1;
     if(line.empty())continue;
-    try{results.push_back(value::parse(line));}catch(const std::exception&){}
+    Json entry;
+    try{entry=value::parse(line);}catch(const std::exception&){continue;}
+    visit(std::move(entry));
   }
+}
+}
+Json parseJSONLBuffer(const std::string& buffer) {
+  Json results=Json::array();
+  forEachJSONLEntry(buffer,[&](Json entry){results.push_back(std::move(entry));});
   return results;
 }
 namespace {
@@ -37,17 +46,19 @@ void parseLoadedTranscriptBuffers(const std::string& buffer,const std::vector<st
       for(const auto& entry:parseJSONLBuffer(raw))applyMetadata(entry,out);
     }
     std::unordered_map<std::string,Json> progressBridge;
-    for(auto entry:parseJSONLBuffer(buffer)) {
+    forEachJSONLEntry(buffer,[&](Json entry) {
       if(isLegacyProgressEntry(entry)) {
         auto parent=value::property(entry,"parentUuid");
         if(value::truthy(parent))if(const auto at=progressBridge.find(parent.get<std::string>());at!=progressBridge.end())parent=at->second;
-        progressBridge[entry.at("uuid").get<std::string>()]=parent;continue;
+        progressBridge[entry.at("uuid").get<std::string>()]=parent;return;
       }
       if(isTranscriptMessage(entry)) {
         const auto parent=value::property(entry,"parentUuid");
         if(value::truthy(parent))if(const auto at=progressBridge.find(parent.get<std::string>());at!=progressBridge.end())entry["parentUuid"]=at->second;
-        out.messages.set(entry.at("uuid").get<std::string>(),entry);
-        if(compactBoundary(entry)){out.contextCollapseCommits=Json::array();out.contextCollapseSnapshot.reset();}
+        const bool boundary=compactBoundary(entry);
+        const auto uuid=entry.at("uuid").get<std::string>();
+        out.messages.set(uuid,std::move(entry));
+        if(boundary){out.contextCollapseCommits=Json::array();out.contextCollapseSnapshot.reset();}
       }else if(applyMetadata(entry,out)){}
       else {
         const auto& type=value::property(entry,"type");
@@ -62,7 +73,7 @@ void parseLoadedTranscriptBuffers(const std::string& buffer,const std::vector<st
         }else if(type=="marble-origami-commit")out.contextCollapseCommits.push_back(entry);
         else if(type=="marble-origami-snapshot")out.contextCollapseSnapshot=entry;
       }
-    }
+    });
 }
 void finishLoadedTranscript(LoadedTranscript& out,bool pruneLeaves){
   applyPreservedSegmentRelinks(out.messages);applySnipRemovals(out.messages);

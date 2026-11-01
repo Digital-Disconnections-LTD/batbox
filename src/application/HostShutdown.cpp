@@ -189,5 +189,6 @@ void Host::Impl::shutdown(){
   if(runtime)runtime->stop();
   if(shell)shell->stop();
   if(connectors)connectors->shutdown();
+  flushLog();
 }
 } // namespace batbox::application

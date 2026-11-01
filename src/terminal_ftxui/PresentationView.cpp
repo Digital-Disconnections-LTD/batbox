@@ -93,9 +93,7 @@ std::string drainPresentationPlain(const interactive::PresentationState& state,
                                    PlainCursor& cursor) {
   std::string output;
   for (const auto& message : state.messages) {
-    if (!message || std::find(cursor.emitted.begin(), cursor.emitted.end(),
-                              message) != cursor.emitted.end())
-      continue;
+    if (!message || cursor.emittedIds.contains(message.get())) continue;
     interactive::PresentationState one;
     one.messages.push_back(message);
     interactive::rebuildTranscriptRows(one);
@@ -104,6 +102,7 @@ std::string drainPresentationPlain(const interactive::PresentationState& state,
       if (output.empty() || output.back() != '\n') output += '\n';
     }
     cursor.emitted.push_back(message);
+    cursor.emittedIds.insert(message.get());
   }
   return output;
 }

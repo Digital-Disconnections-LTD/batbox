@@ -46,5 +46,9 @@ struct PreparedMessageList {
 PreparedMessageList prepareMessageList(const MessageRefs& messages,
                                        const MessageListSettings& settings,
                                        std::optional<SliceAnchor>& anchor);
+// prepareMessageList after normalizeMessagesRefs has already run.
+PreparedMessageList prepareNormalizedMessageList(MessageRefs normalized,
+                                                 const MessageListSettings& settings,
+                                                 std::optional<SliceAnchor>& anchor);
 
 } // namespace batbox::interactive

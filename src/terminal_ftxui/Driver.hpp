@@ -1,5 +1,6 @@
 #pragma once
 #include "event_loop/Loop.hpp"
+#include "terminal_ftxui/PumpSchedule.hpp"
 #include <ftxui/component/app.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/component/event.hpp>
@@ -21,6 +22,10 @@ struct Options {
   int inputFd=0,outputFd=1;
   int redirectedWidth=80,redirectedHeight=24;
   double pumpIntervalMs=8;
+  // Input is polled inside each pump. After this many quiet pumps (no input,
+  // frame, or redraw request) the interval doubles up to the idle ceiling.
+  double idlePumpIntervalMs=32;
+  int quietPumpsBeforeBackoff=32;
 };
 struct CommittedRow {
   std::string id;
@@ -72,6 +77,8 @@ public:
   bool running()const{return running_;}
   bool suspended()const{return suspended_;}
   bool interactive()const{return interactive_;}
+  // Delay before the next scheduled pump; grows while the terminal is idle.
+  double pumpIntervalMs()const{return pumpSchedule_?pumpSchedule_->current():options_.pumpIntervalMs;}
   Mode mode()const{return options_.mode;}
   std::string selectedText()const;
 private:
@@ -91,6 +98,8 @@ private:
   std::unique_ptr<ftxui::Loop> loop_;
   ftxui::Component component_;
   event_loop::Loop::TimerHandle pumpTimer_;
+  std::optional<PumpSchedule> pumpSchedule_;
+  double scheduledPumpMs_=0;
   std::optional<ftxui::Dimensions> lastSize_;
   std::optional<Mode> pendingMode_;
   std::unordered_set<std::string> committedRowIds_;
@@ -99,7 +108,7 @@ private:
   std::vector<std::string> pendingRaw_;
   bool running_=false,interactive_=false,inPump_=false,
     redrawAfterPump_=false,exitNotified_=false,suspended_=false,
-    frameRendered_=false;
+    frameRendered_=false,pumpActive_=false;
   bool selectionDragging_=false,selectionMoved_=false,copySelectionPending_=false;
 };
 } // namespace batbox::terminal_ftxui

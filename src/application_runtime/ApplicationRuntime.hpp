@@ -127,7 +127,7 @@ private:
   void bindSubmit();
   void bindRuntime();
   void acceptStep(const query::AsyncEngineStep& step);
-  void publishMessageChanges(const std::vector<interactive::MessageRef>& before);
+  void publishMessageChanges(std::size_t beforeSize,const interactive::MessageRef& beforeLast);
   void recordTranscriptChanges(const interactive::TurnMessagesRef& messages);
   void requestRedraw()const;
   Inputs inputs_;

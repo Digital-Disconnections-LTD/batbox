@@ -46,6 +46,11 @@ std::shared_ptr<StashSafeParams> makeStashSafeSnapshot(
   result->systemContext=systemContext;
   result->gadgetUseContext=*fullContext;
   result->gadgetUseContext.query=currentQueryContext;
+  // Forked runs start from forkContextMessages and their query setup replaces
+  // data["messages"]; keep a single copy of the conversation in the snapshot.
+  if(auto& data=result->gadgetUseContext.query.data;
+      data.is_object()&&data.contains("messages")&&data["messages"].is_array())
+    data["messages"]=Json::array();
   materializeAppStateModifier(result->gadgetUseContext);
   result->forkContextMessages=forkContextMessages;
   return result;

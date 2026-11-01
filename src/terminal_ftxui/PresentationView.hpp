@@ -57,6 +57,8 @@ ftxui::Element renderPresentation(const interactive::PresentationState& state,
 
 struct PlainCursor {
   std::vector<interactive::MessageRef> emitted;
+  // Identities of `emitted`; the references above keep them unique.
+  std::unordered_set<const Json*> emittedIds;
 };
 std::string drainPresentationPlain(const interactive::PresentationState& state,
                                    PlainCursor& cursor);

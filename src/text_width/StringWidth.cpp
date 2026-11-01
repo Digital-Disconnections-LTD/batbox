@@ -1,12 +1,31 @@
 #include "text_width/StringWidth.hpp"
 #include "text_width/CodePoints.hpp"
+#include <optional>
 namespace batbox::text_width {
 StringWidth::StringWidth(Services services):services_(std::move(services)),emoji_(services_.emojiRegex()),bun_(services_.resolveBunStringWidth()){}
 double StringWidth::stringWidth(const Json& text)const{
   return bun_?bun_(text,bunOptions_):stringWidthJavaScript(text);
 }
+namespace {
+// Width of text whose bytes are all below DEL and not ESC: the visible
+// (non-control) bytes. Matches the pure-ASCII branch below without the
+// UTF-16 conversion. Unset when the text needs the full algorithm.
+std::optional<double> asciiWidth(std::string_view text){
+  double width=0;
+  for(const unsigned char code:text){
+    if(code>=127||code==0x1b)return std::nullopt;
+    if(code>0x1f)++width;
+  }
+  return width;
+}
+}
+double StringWidth::stringWidthUtf8(std::string_view text)const{
+  if(!bun_)if(const auto width=asciiWidth(text))return *width;
+  return stringWidth(Json(std::string(text)));
+}
 double StringWidth::stringWidthJavaScript(const Json& value)const{
   if(!value.is_string()||value.get_ref<const std::string&>().empty())return 0;
+  if(const auto width=asciiWidth(value.get_ref<const std::string&>()))return *width;
   auto str=value.get<std::string>();const auto units=value::utf16CodeUnits(str);
   bool pure=true;
   for(const auto code:units)if(code>=127||code==0x1b){pure=false;break;}

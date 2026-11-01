@@ -2,6 +2,7 @@
 #include "terminal_ftxui/IndigenousStringMetrics.hpp"
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/terminal.hpp>
+#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <stdexcept>
@@ -60,6 +61,9 @@ Driver::Driver(event_loop::Loop& owner,Options options,Callbacks callbacks):
     throw std::invalid_argument("FTXUI driver imports required");
   if(options_.redirectedWidth<=0||options_.redirectedHeight<=0)
     throw std::invalid_argument("Redirected terminal dimensions required");
+  pumpSchedule_.emplace(options_.pumpIntervalMs,
+    std::max(options_.pumpIntervalMs,options_.idlePumpIntervalMs),
+    std::max(0,options_.quietPumpsBeforeBackoff));
 }
 Driver::~Driver(){
   if(running_)teardown(false);
@@ -106,6 +110,7 @@ void Driver::startInteractive(){
     if(const auto owner=weak.lock()){
       if(!owner->owner_.isOwnerThread())
         throw std::logic_error("FTXUI input arrived off owner thread");
+      owner->pumpActive_=true;
       owner->callbacks_.onRawInputBytes(bytes);
     }
   });
@@ -150,11 +155,15 @@ void Driver::drawRedirected(){
 void Driver::schedulePump(){
   if(!running_||!interactive_)return;
   auto weak=weak_from_this();
-  pumpTimer_=owner_.setTimeout(options_.pumpIntervalMs,[weak]{
+  scheduledPumpMs_=pumpSchedule_->current();
+  pumpTimer_=owner_.setTimeout(scheduledPumpMs_,[weak]{
     if(const auto self=weak.lock()){
       self->pumpTimer_={};
+      self->pumpActive_=false;
       self->pumpOnce();
-      if(self->running_)self->schedulePump();
+      if(!self->running_)return;
+      (void)self->pumpSchedule_->next(self->pumpActive_);
+      self->schedulePump();
     }
   });
 }
@@ -176,7 +185,7 @@ void Driver::pumpOnce(){
   try{
     loop_->RunOnce();
     if(frameRendered_){
-      frameRendered_=false;
+      frameRendered_=false;pumpActive_=true;
       if(callbacks_.onFrameCommitted)callbacks_.onFrameCommitted();
       if(copySelectionPending_){
         copySelectionPending_=false;
@@ -195,7 +204,7 @@ void Driver::pumpOnce(){
     checkResize();
     if(loop_->HasQuitted()){teardown(true);return;}
     flushScrollback();
-    if(redrawAfterPump_){redrawAfterPump_=false;requestRedraw();}
+    if(redrawAfterPump_){redrawAfterPump_=false;pumpActive_=true;requestRedraw();}
   }catch(...){
     inPump_=false;teardown(true);throw;
   }
@@ -254,6 +263,12 @@ void Driver::requestRedraw(){
   if(!interactive_){drawRedirected();return;}
   if(inPump_){redrawAfterPump_=true;return;}
   app_->Post(ftxui::Event::Custom);
+  // A redraw while idle should not wait out the backed-off interval.
+  pumpSchedule_->wake();
+  if(scheduledPumpMs_>pumpSchedule_->current()&&pumpTimer_.valid()){
+    pumpTimer_.cancel();pumpTimer_={};
+    schedulePump();
+  }
 }
 std::string Driver::selectedText()const{
   return app_?app_->GetSelection():std::string{};

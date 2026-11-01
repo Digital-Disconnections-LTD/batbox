@@ -56,14 +56,22 @@ ProjectionServices RetainedViews::bind(ProjectionServices base,RetainedViewServi
       return hint->render(value,minimum);
     };
     cards_collapsed::CollapsedInputs input;
-    input.message=materializeRenderItem(message.item);input.inProgressGadgetUseIDs=&message.options.inProgressGadgetUseIDs;
+    const auto& from=retained->materializedFrom;
+    const bool reuse=!from.expired()&&!from.owner_before(message.item.message)&&
+      !message.item.message.owner_before(from);
+    input.message=reuse?std::move(retained->materialized):materializeRenderItem(message.item);
+    retained->materializedFrom.reset();
+    input.inProgressGadgetUseIDs=&message.options.inProgressGadgetUseIDs;
     input.shouldAnimate=message.options.shouldAnimate;
     input.verbose=message.options.verbose||message.options.transcriptMode;
     input.active=message.options.isActiveCollapsedGroup;input.gadgets=&gadgets;input.lookups=&lookups;
     const auto card=cards_collapsed::classifyCollapsedReadSearch(retained->state,input,imports);
-    return cards_collapsed::projectCollapsedWithIndigenousGadgets(card,gadgets,lookups,
+    auto projected=cards_collapsed::projectCollapsedWithIndigenousGadgets(card,gadgets,lookups,
       message.options.inProgressGadgetUseIDs,services.verboseGadgets,
       services.verboseProjection,services.collapsedProjection);
+    retained->materialized=std::move(input.message);
+    retained->materializedFrom=message.item.message;
+    return projected;
   };
   return base;
 }

@@ -4,6 +4,7 @@ add_library(batbox_indigenous_host STATIC
   src/application/ModelBinding.cpp src/application/HostMaintenance.cpp
   src/application/HostShutdown.cpp)
 target_link_libraries(batbox_indigenous_host PUBLIC
+  batbox_profiler
   batbox_application_config batbox_application_model
   batbox_application_engine batbox_application_flights
   batbox_application_shell batbox_application_connectors

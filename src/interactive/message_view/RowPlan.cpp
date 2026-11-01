@@ -41,7 +41,8 @@ GadgetIDs siblingsFromLookup(const Json& message,const MessageLookups& lookups){
 }
 RowPlan prepareRow(RowRequest request,const MessageImports& imports){
   if(!request.item.message||!request.lookups)throw std::invalid_argument("Row message and lookups required");
-  const auto message=materializeRenderItem(request.item);
+  const auto materialized=materializedView(request.item);
+  const auto& message=*materialized;
   const auto& type=field(message,"type");
   const bool grouped=type=="grouped_tool_use",collapsed=type=="collapsed_read_search";
   auto options=request.options;
@@ -97,7 +98,8 @@ bool sameRowView(const RowRequest& previous,const RowRequest& next){
   if(!sameThinkingMarker(previous.options.lastThinkingBlockId,next.options.lastThinkingBlockId)&&
       hasThinkingContent(*next.item.message))return false;
   if(!previous.lookups)throw std::invalid_argument("Previous row lookups required");
-  const auto message=materializeRenderItem(previous.item);
+  const auto materialized=materializedView(previous.item);
+  const auto& message=*materialized;
   return !isMessageStreaming(message,previous.streamingGadgetUseIDs)&&
     allGadgetsResolved(message,previous.lookups->resolvedGadgetUseIDs);
 }

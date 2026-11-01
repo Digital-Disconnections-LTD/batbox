@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 namespace batbox::text_width {
 struct EmojiRegex {
   std::function<void()> reset;
@@ -25,6 +26,8 @@ class StringWidth {
 public:
   explicit StringWidth(Services services);
   double stringWidth(const Json& text)const;
+  // stringWidth for UTF-8 text, answering printable ASCII without boxing.
+  double stringWidthUtf8(std::string_view text)const;
   double stringWidthJavaScript(const Json& text)const;
 private:
   Services services_;

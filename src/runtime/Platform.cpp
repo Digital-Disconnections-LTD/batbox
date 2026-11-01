@@ -15,10 +15,16 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <bcrypt.h>
+#include <malloc.h>
 #elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
 #include <stdlib.h>
 #else
 #include <sys/random.h>
+#endif
+#if defined(__APPLE__)
+#include <malloc/malloc.h>
+#elif defined(__GLIBC__)
+#include <malloc.h>
 #endif
 
 namespace batbox::platform {
@@ -86,5 +92,14 @@ double randomUnitInterval() {
   std::uint64_t value;
   entropy(&value,sizeof(value));
   return static_cast<double>(value>>11)/9007199254740992.0;
+}
+void releaseFreeMemory() {
+#if defined(__APPLE__)
+  (void)::malloc_zone_pressure_relief(nullptr,0);
+#elif defined(__GLIBC__)
+  (void)::malloc_trim(0);
+#elif defined(_WIN32)
+  (void)::_heapmin();
+#endif
 }
 } // namespace batbox::platform
