@@ -764,8 +764,8 @@ void Host::Impl::bindFrontend(){
   shellInputs.backgroundForegroundMissions=[this]{
     return commands&&commands->backgroundForegroundMissions();};
   shellInputs.missionSnapshot=[this]{
-    Json missions=value::property(appState(),"tasks");
-    if(!missions.is_object())missions=Json::object();
+    const auto tasks=store->getState()->fieldRef("tasks");
+    Json missions=tasks&&tasks->is_object()?*tasks:Json::object();
     if(managedShell.missions)for(const auto& mission:managedShell.missions->list()){
       if(mission.type!="local_bash")continue;
       missions[mission.id]={{"type",mission.type},{"status",mission.status},
@@ -785,7 +785,9 @@ void Host::Impl::bindFrontend(){
   shellInputs.observeBatMission=[this](const std::string& id){
     return observeBatMission(id);};
   shellInputs.batMissionSnapshot=[this](const std::string& id)->std::optional<Json>{
-    const auto state=appState();const auto& mission=value::property(value::property(state,"tasks"),id);
+    static const Json none;
+    const auto tasks=store->getState()->fieldRef("tasks");
+    const auto& mission=value::property(tasks?*tasks:none,id);
     return mission.is_object()?std::optional(mission):std::nullopt;
   };
   shellInputs.submitBatMessage=[this](const std::string& id,const std::string& text){
@@ -871,17 +873,22 @@ void Host::Impl::bindFrontend(){
     return result;
   };
   presentInputs.modelLabel=[this]{
-    const auto& state=appState();
+    const auto state=store->getState();
     for(const auto* key:{"mainLoopModelForSession","mainLoopModel"}){
-      const auto& selected=value::property(state,key);
-      if(selected.is_string()&&!selected.get<std::string>().empty())
-        return selected.get<std::string>();
+      const auto selected=state->fieldRef(key);
+      if(selected&&selected->is_string()&&!selected->get_ref<const std::string&>().empty())
+        return selected->get<std::string>();
     }
     return config.model;
   };
   presentInputs.workingDirectory=[roost=roost]{
     return roost->cwd().string();};
-  presentInputs.permissionMode=[this]{return mode(appState());};
+  presentInputs.permissionMode=[this]{
+    static const Json none;
+    const auto context=store->getState()->fieldRef("toolPermissionContext");
+    const auto& value=value::property(context?*context:none,"mode");
+    return value.is_string()?value.get<std::string>():std::string("default");
+  };
   presentInputs.statusText=[this]{return statusText;};
   presentInputs.feature=[](const std::string&){return false;};
   presentInputs.log=[this](const std::string& value){log(value);};
