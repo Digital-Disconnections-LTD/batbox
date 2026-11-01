@@ -367,9 +367,10 @@ std::vector<std::string> splitBody(const std::string& body){
 // "↑↓ choose · enter apply": the first word of each part is the key.
 ftxui::Element hintRow(const std::string& hint,const StyleRoles& roles){
   ftxui::Elements parts;
+  const std::string separator=" · ";
   std::size_t start=0;
   while(start<=hint.size()){
-    const auto end=hint.find(" · ",start);
+    const auto end=hint.find(separator,start);
     const auto part=hint.substr(start,end==std::string::npos?std::string::npos:end-start);
     if(!parts.empty())parts.push_back(tone(ftxui::text(" · "),roles.faint,roles,true));
     const auto space=part.find(' ');
@@ -377,7 +378,7 @@ ftxui::Element hintRow(const std::string& hint,const StyleRoles& roles){
     if(space!=std::string::npos)
       parts.push_back(tone(ftxui::text(part.substr(space)),roles.muted,roles,true));
     if(end==std::string::npos)break;
-    start=end+3;
+    start=end+separator.size();
   }
   return ftxui::hbox(std::move(parts));
 }
@@ -411,7 +412,18 @@ ftxui::Element dialog(const ChromeServices& imports,const ViewState& view){
   const int inner=std::max(1,columns-(framed?4:0));
   int rowsLeft=maxRows-(framed?2:0);
 
-  // Choices: label rows, optional detail rows and section headings.
+  // Choices: label rows, optional detail rows and section headings. Short
+  // labels put their detail in an aligned second column.
+  int labelWidth=0,badgeWidth=0;
+  bool anyDetail=false;
+  for(std::size_t i=0;i<choiceCount;++i){
+    labelWidth=std::max(labelWidth,displayWidth(request.choices[i]));
+    if(i<request.choiceInfo.size()){
+      if(!request.choiceInfo[i].detail.empty())anyDetail=true;
+      badgeWidth=std::max(badgeWidth,displayWidth(request.choiceInfo[i].badge));
+    }
+  }
+  const bool columnsLayout=anyDetail&&labelWidth<=std::max(12,inner/3);
   std::vector<ChoiceRow> choiceRows;
   std::vector<std::size_t> labelRow(choiceCount,0);
   std::string section;
@@ -423,20 +435,35 @@ ftxui::Element dialog(const ChromeServices& imports,const ViewState& view){
       section=info.section;
     }
     const bool active=i==selected;
+    const auto label=value::encodeUtf8(request.choices[i]);
     ftxui::Elements cells{
-      tone(ftxui::text(active?"❯ ":"  "),roles.selection,roles)|ftxui::bold,
-      (active?tone(fitText(value::encodeUtf8(request.choices[i])),roles.selection,roles)|
-        ftxui::bold:tone(fitText(value::encodeUtf8(request.choices[i])),roles.text,roles))};
-    if(!info.badge.empty()){
+      tone(ftxui::text(active?"❯ ":"  "),roles.selection,roles)|ftxui::bold};
+    if(columnsLayout){
+      auto padded=label+std::string(static_cast<std::size_t>(
+        std::max(0,labelWidth-displayWidth(label))),' ');
+      cells.push_back(active?tone(ftxui::text(padded),roles.selection,roles)|ftxui::bold:
+        tone(ftxui::text(padded),roles.text,roles));
+    }else cells.push_back(active?tone(fitText(label),roles.selection,roles)|ftxui::bold:
+      tone(fitText(label),roles.text,roles));
+    if(columnsLayout&&badgeWidth>0){
+      // Badges get their own column so details stay aligned.
+      cells.push_back(ftxui::text("  "));
+      cells.push_back(tone(ftxui::text(info.badge+std::string(static_cast<std::size_t>(
+        std::max(0,badgeWidth-displayWidth(info.badge))),' ')),roles.mint,roles));
+    }else if(!info.badge.empty()){
       cells.push_back(ftxui::text("  "));
       cells.push_back(tone(ftxui::text(info.badge),roles.mint,roles));
+    }
+    if(columnsLayout&&!info.detail.empty()){
+      cells.push_back(ftxui::text("   "));
+      cells.push_back(tone(fitText(info.detail),roles.muted,roles,true));
     }
     auto row=ftxui::hbox(std::move(cells));
     const bool bar=active&&!isDefault(roles.selectionBg);
     if(bar)row=row|ftxui::bgcolor(roles.selectionBg);
     labelRow[i]=choiceRows.size();
     choiceRows.push_back({std::move(row),i});
-    if(!info.detail.empty()){
+    if(!columnsLayout&&!info.detail.empty()){
       auto detail=ftxui::hbox({ftxui::text("    "),
         tone(fitText(info.detail),roles.muted,roles,true)});
       if(bar)detail=detail|ftxui::bgcolor(roles.selectionBg);
@@ -447,9 +474,14 @@ ftxui::Element dialog(const ChromeServices& imports,const ViewState& view){
   const bool sensitive=request.kind==interactive::UiRequest::Kind::Form&&
     request.sensitiveInput;
   // Choices come first: the selected action must stay reachable on tiny screens.
+  // A long list on a roomy screen still leaves the request's first line, a
+  // gap and the key hints visible.
   const int choiceNeed=static_cast<int>(choiceRows.size());
-  int choiceBudget=std::min(choiceNeed,std::max(choiceCount?1:0,rowsLeft));
-  if(choiceBudget<choiceNeed&&choiceBudget<static_cast<int>(choiceCount)){
+  const bool hasBody=!request.body.empty()||!request.preview.is_null();
+  const int reserve=maxRows>=10?(hasBody?2:0)+(hint.empty()?0:2):0;
+  int choiceBudget=std::min(choiceNeed,std::max(choiceCount?1:0,
+    choiceNeed>rowsLeft-reserve?rowsLeft-reserve:rowsLeft));
+  if(maxRows<10&&choiceBudget<choiceNeed&&choiceBudget<static_cast<int>(choiceCount)){
     // Too tight for sections and details: fall back to bare labels.
     std::vector<ChoiceRow> labels;
     for(auto& row:choiceRows)if(row.choice&&labelRow[*row.choice]==
@@ -545,7 +577,7 @@ ftxui::Element dialog(const ChromeServices& imports,const ViewState& view){
   const auto border=roles.borderFocus;
   const auto edge=[&](std::string text){return tone(ftxui::text(std::move(text)),border,roles,true);};
   const auto label=truncateColumns(value::encodeUtf8(title),std::max(1,columns-9));
-  const int fill=std::max(0,columns-6-displayWidth(label));
+  const int fill=std::max(0,columns-7-displayWidth(label));
   std::string dashes;
   for(int i=0;i<fill;++i)dashes+="─";
   std::string bottom="╰";
@@ -554,8 +586,12 @@ ftxui::Element dialog(const ChromeServices& imports,const ViewState& view){
   ftxui::Elements frame;
   frame.push_back(ftxui::hbox({edge("╭─"),tone(ftxui::text(" ✦"),roles.mint,roles),
     tone(ftxui::text(" "+label+" "),roles.cream,roles)|ftxui::bold,edge(dashes+"╮")}));
-  frame.push_back(ftxui::hbox({edge("│ "),content|ftxui::size(ftxui::WIDTH,ftxui::EQUAL,inner),
-    edge(" │")}));
+  const auto side=[&]{
+    auto line=ftxui::separatorStyled(ftxui::ROUNDED);
+    return roles.monochrome?line|ftxui::dim:line|ftxui::color(border);
+  };
+  frame.push_back(ftxui::hbox({side(),ftxui::text(" "),
+    content|ftxui::size(ftxui::WIDTH,ftxui::EQUAL,inner),ftxui::text(" "),side()}));
   frame.push_back(edge(bottom));
   return ftxui::vbox(std::move(frame));
 }

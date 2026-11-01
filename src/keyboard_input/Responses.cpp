@@ -21,6 +21,14 @@ std::optional<Json> parseTerminalResponse(const std::string& s){
     if(match(da2,s,m))return Json{{"type","da2"},{"params",splitNumericParams(group(m,1))}};
     if(match(kitty,s,m))return Json{{"type","kittyKeyboard"},{"flags",value::parseInt10(group(m,1))}};
     if(match(cursor,s,m))return Json{{"type","cursorPosition"},{"row",value::parseInt10(group(m,1))},{"col",value::parseInt10(group(m,2))}};
+    // A plain CPR answers FTXUI's inline-mode position query. "ESC[1;<2-16>R"
+    // is also a modified F3 key, so that one shape stays a key.
+    static const glob::Regex16 report(u"^\x1b\\[(\\d+);(\\d+)R$");
+    if(match(report,s,m)){
+      const auto row=value::parseInt10(group(m,1)),column=value::parseInt10(group(m,2));
+      if(!(row==1&&column>=2&&column<=16))
+        return Json{{"type","cursorPosition"},{"row",row},{"col",column}};
+    }
     return {};
   }
   if(s.starts_with("\x1b]")){

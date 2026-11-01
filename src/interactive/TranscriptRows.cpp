@@ -48,9 +48,25 @@ void appendBlocks(PresentationState& state, const Json& content,
     } else if (type == "tool_use" || type == "server_tool_use" ||
                type == "mcp_tool_use") {
       auto text = string(block, "name");
-      if (text.empty()) text = "Tool";
-      if (const auto* input = member(block, "input"); input && !input->is_null())
-        text += " " + input->dump();
+      if (text.empty()) text = "Gadget";
+      // Name what the Gadget acts on rather than dumping its JSON input.
+      if (const auto* input = member(block, "input"); input && input->is_object()) {
+        std::string target;
+        for (const char* key : {"file_path", "path", "pattern", "command", "url",
+                                "query", "description", "skill"}) {
+          target = string(*input, key);
+          if (!target.empty()) break;
+        }
+        if (target.empty() && !input->empty()) target = input->dump();
+        const auto newline = target.find('\n');
+        if (newline != std::string::npos) target = target.substr(0, newline) + " …";
+        if (target.size() > 160) {
+          std::size_t cut = 159;
+          while (cut > 0 && (static_cast<unsigned char>(target[cut]) & 0xc0) == 0x80) --cut;
+          target = target.substr(0, cut) + "…";
+        }
+        if (!target.empty()) text += " " + target;
+      }
       append(state, TranscriptRow::Kind::Gadget, id, std::move(text));
     } else if (type == "tool_result" || type == "mcp_tool_result" ||
                type == "web_search_tool_result" ||

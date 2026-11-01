@@ -54,6 +54,9 @@ Json editPreview(std::string_view path,std::string_view before,std::string_view 
     std::size_t maxLines);
 Json writePreview(std::string_view path,std::string_view content,std::size_t maxLines);
 
+// The most visible text in an arbitrary Gadget value: strings as they are,
+// views by summary and lines, objects by their first text-like member.
+std::string visibleText(const Json& value);
 // Display path relative to the Roost (or "~" for the home directory).
 std::string displayPath(std::string_view path,std::string_view cwd,
     std::string_view home);

@@ -9,16 +9,26 @@
 namespace batbox::terminal_ftxui {
 using Kind = interactive::TranscriptRow::Kind;
 
+namespace {
+InlinePalette& inlinePalette() {
+  static InlinePalette palette;
+  return palette;
+}
+} // namespace
+
+void setInlinePalette(const InlinePalette& palette) { inlinePalette() = palette; }
+
 ftxui::Color colorFor(Kind kind) {
+  const auto& palette = inlinePalette();
   switch (kind) {
-    case Kind::User: return ftxui::Color::CyanLight;
-    case Kind::Assistant: return ftxui::Color::Default;
-    case Kind::Reasoning: return ftxui::Color::GrayDark;
-    case Kind::Gadget: return ftxui::Color::YellowLight;
-    case Kind::GadgetResult: return ftxui::Color::GrayLight;
-    case Kind::Progress: return ftxui::Color::GrayDark;
-    case Kind::System: return ftxui::Color::BlueLight;
-    case Kind::Error: return ftxui::Color::RedLight;
+    case Kind::User: return palette.user;
+    case Kind::Assistant: return palette.assistant;
+    case Kind::Reasoning: return palette.reasoning;
+    case Kind::Gadget: return palette.gadget;
+    case Kind::GadgetResult: return palette.gadgetResult;
+    case Kind::Progress: return palette.progress;
+    case Kind::System: return palette.system;
+    case Kind::Error: return palette.error;
   }
   return ftxui::Color::Default;
 }

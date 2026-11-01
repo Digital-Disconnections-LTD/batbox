@@ -392,4 +392,35 @@ std::string displayPath(std::string_view path,std::string_view cwd,
 std::string plural(std::size_t count,std::string_view one,std::string_view many){
   return std::to_string(count)+" "+std::string(count==1?one:many);
 }
+std::string visibleText(const Json& value){
+  if(value.is_null()||value.is_discarded())return {};
+  if(value.is_string())return value.get<std::string>();
+  if(value.is_boolean()||value.is_number())return value.dump();
+  if(isView(value)){
+    std::string text=stringField(value,"summary");
+    const auto& lines=value::property(value,"lines");
+    if(lines.is_array())for(const auto& line:lines)
+      if(line.is_string())text+=(text.empty()?"":"\n")+line.get<std::string>();
+    return text;
+  }
+  if(value.is_array()){
+    std::string out;
+    for(const auto& item:value){
+      auto part=visibleText(item);
+      if(part.empty())continue;
+      if(!out.empty())out+='\n';
+      out+=part;
+    }
+    return out;
+  }
+  for(const auto* key:{"text","content","stdout","stderr","message","description",
+      "summary","output","result"}){
+    const auto found=value.find(key);
+    if(found!=value.end()){
+      auto out=visibleText(*found);
+      if(!out.empty())return out;
+    }
+  }
+  return value.dump(2);
+}
 } // namespace batbox::interactive::gadget_views

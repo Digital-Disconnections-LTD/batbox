@@ -34,7 +34,5 @@ ftxui::Element projectGadgetResult(const Json& value,const GadgetViewStyle& styl
     int columns);
 // Header text after the Gadget name: one row, ellipsis when narrow.
 ftxui::Element projectGadgetInline(const Json& value,ftxui::Color color);
-// The most visible text in an arbitrary Gadget value.
-std::string visibleText(const Json& value);
 
 } // namespace batbox::interactive::gadget_views

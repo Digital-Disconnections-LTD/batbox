@@ -42,6 +42,18 @@ int main(){
     assert(answered);
     assert(typed(keys)=="hi");
   }
+  // Inline mode asks for the cursor position; the report is not typing.
+  for(const std::size_t chunk:{1,4,64}){
+    const auto keys=feed("\x1b[33;1R\x1b[2;1Rok",chunk);
+    std::size_t reports=0;
+    for(const auto& item:keys)
+      if(const auto response=std::get_if<keyboard_input::ParsedResponse>(&item))
+        if((*response->response)["type"]=="cursorPosition")++reports;
+    assert(reports==2);
+    assert(typed(keys)=="ok");
+  }
+  // "ESC[1;5R" is Ctrl+F3, not a position report.
+  assert(!keyboard_input::parseTerminalResponse("\x1b[1;5R"));
   const auto invalid=keyboard_input::parseTerminalResponse("\x1bP0$r\x1b\\");
   assert(invalid&&(*invalid)["type"]=="decrqss"&&(*invalid)["valid"]==false);
   const auto other=keyboard_input::parseTerminalResponse("\x1bP+r544e\x1b\\");

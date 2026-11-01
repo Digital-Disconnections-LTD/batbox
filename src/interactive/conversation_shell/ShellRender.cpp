@@ -45,10 +45,6 @@ public:
 private:
   int height_;
 };
-std::string repeatRule(int columns){
-  std::string value;for(int i=0;i<std::max(1,columns);++i)value+="▔";
-  return value;
-}
 std::string oneLine(std::string value,std::size_t width){
   const auto breakAt=value.find_first_of("\r\n");
   if(breakAt!=std::string::npos)value.resize(breakAt);
@@ -233,7 +229,8 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
     const int maximum=std::max(1,rows-(bounded?ruleRows:4));
     const int modalRows=std::min(maximum,heightOf(modal));
     ftxui::Elements overlay;
-    if(ruleRows)overlay.push_back(ftxui::text(repeatRule(view.columns)));
+    // A blank row separates the dialog from the transcript it covers.
+    if(ruleRows)overlay.push_back(ftxui::text(""));
     overlay.push_back(std::move(modal));
     base=std::make_shared<BottomOverlay>(std::move(base),
       fixed(ftxui::vbox(std::move(overlay))|

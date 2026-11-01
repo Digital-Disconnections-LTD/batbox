@@ -11,6 +11,8 @@
 #include "npm_wrap_ansi/Wrap.hpp"
 #include "runtime/Encoding.hpp"
 #include <chrono>
+#include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
@@ -42,6 +44,33 @@ Json groupView(const Json& value,bool running){
 double steadyMs(){
   return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
     std::chrono::steady_clock::now().time_since_epoch()).count());
+}
+// "2026-11-01T20:16:05.270Z" as a local clock time, with the date when it is
+// not today.
+std::string localClock(const std::string& iso){
+  int year=0,month=0,day=0,hour=0,minute=0;double second=0;
+  if(std::sscanf(iso.c_str(),"%d-%d-%dT%d:%d:%lf",&year,&month,&day,&hour,&minute,
+      &second)<5||month<1||month>12||day<1||day>31)return iso;
+  // Days from 1970-01-01 for a proleptic Gregorian date (Howard Hinnant).
+  const int y=year-(month<=2?1:0);
+  const int era=(y>=0?y:y-399)/400;
+  const int yoe=y-era*400;
+  const int doy=(153*(month+(month>2?-3:9))+2)/5+day-1;
+  const int doe=yoe*365+yoe/4-yoe/100+doy;
+  const long long days=static_cast<long long>(era)*146097+doe-719468;
+  const auto epoch=static_cast<std::time_t>(days*86400+hour*3600+minute*60+
+    static_cast<long long>(second));
+  std::tm local{},now{};
+  const auto current=std::time(nullptr);
+#ifdef _WIN32
+  if(localtime_s(&local,&epoch)||localtime_s(&now,&current))return iso;
+#else
+  if(!localtime_r(&epoch,&local)||!localtime_r(&current,&now))return iso;
+#endif
+  char text[32]={};
+  const bool today=local.tm_year==now.tm_year&&local.tm_yday==now.tm_yday;
+  if(!std::strftime(text,sizeof text,today?"%H:%M":"%b %d %H:%M",&local))return iso;
+  return text;
 }
 std::string seconds(double milliseconds){
   if(!(milliseconds>=0))return "0s";
@@ -462,7 +491,7 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   };
   out.otherBlock=[](const message_view::MessagePlan&,const message_view::BlockPlan& block)->std::optional<ftxui::Element>{return renderComponent(block.value());};
   out.otherMessage=[](const message_view::MessagePlan& plan)->std::optional<ftxui::Element>{return renderComponent(*plan.item.message);};
-  out.metadata.formatLocalTime=[](const std::string& value){return value;};
+  out.metadata.formatLocalTime=localClock;
   out.metadata.stringWidth=[width=width_](const std::string& text){return static_cast<int>(width->stringWidth(Json(text)));};
   out.metadataColor=subtle;
   return out;

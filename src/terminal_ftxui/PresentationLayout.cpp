@@ -1,5 +1,6 @@
 #include "terminal_ftxui/PresentationView.hpp"
 #include "interactive/TranscriptRows.hpp"
+#include "interactive/gadget_views/GadgetViewModel.hpp"
 #include "runtime/Encoding.hpp"
 #include "runtime/JsonValue.hpp"
 #include "terminal_ftxui/StyleProjection.hpp"
@@ -14,14 +15,14 @@ using Kind = interactive::TranscriptRow::Kind;
 
 std::string prefix(Kind kind) {
   switch (kind) {
-    case Kind::User: return "> ";
+    case Kind::User: return "❯ ";
     case Kind::Assistant: return "  ";
-    case Kind::Reasoning: return "… ";
-    case Kind::Gadget: return "⚙ ";
-    case Kind::GadgetResult: return "↳ ";
+    case Kind::Reasoning: return "∴ ";
+    case Kind::Gadget: return "● ";
+    case Kind::GadgetResult: return "⎿ ";
     case Kind::Progress: return "· ";
-    case Kind::System: return "─ ";
-    case Kind::Error: return "! ";
+    case Kind::System: return "· ";
+    case Kind::Error: return "✗ ";
   }
   return "  ";
 }
@@ -47,6 +48,22 @@ void appendChunk(std::vector<VisualLine>& lines, std::string_view chunk,
   for (std::size_t i = 0; i < glyphs.size(); ++i) {
     const bool wideLead = !glyphs[i].empty() && i + 1 < glyphs.size() &&
         glyphs[i + 1].empty();
+    if (!lines.empty() && !glyphs[i].empty() && glyphs[i] != " " &&
+        lines.back().cells.size() + (wideLead ? 2 : 1) > width) {
+      // Wrap at the last space so words stay whole; the space stays on the
+      // upper row, so joining soft-wrapped rows restores the text.
+      auto& cells = lines.back().cells;
+      std::size_t space = cells.size();
+      while (space > 0 && cells[space - 1] != " ") --space;
+      const auto tail = cells.size() - space;
+      if (space > 1 && tail > 0 && tail < width / 2) {
+        std::vector<std::string> moved(cells.begin() + static_cast<std::ptrdiff_t>(space),
+                                       cells.end());
+        cells.resize(space);
+        nextLine(lines, kind, selected);
+        lines.back().cells = std::move(moved);
+      }
+    }
     appendGlyph(lines, glyphs[i], wideLead, width, kind, selected);
   }
 }
@@ -78,10 +95,30 @@ std::vector<VisualLine> wrap(std::string_view text, std::string_view firstPrefix
   return lines;
 }
 
+// Gadget output can be a whole file; the inline view keeps the first rows.
+std::string visibleRowText(const interactive::TranscriptRow& row) {
+  if (row.kind == Kind::Error)
+    return interactive::gadget_views::sanitize(row.text);
+  if (row.kind != Kind::GadgetResult) return row.text;
+  const auto text = interactive::gadget_views::sanitize(row.text);
+  constexpr std::size_t shown = 8;
+  std::size_t lines = 1, cut = std::string::npos;
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    if (text[i] != '\n') continue;
+    if (lines == shown && cut == std::string::npos) cut = i;
+    ++lines;
+  }
+  if (!text.empty() && text.back() == '\n') --lines;
+  if (lines <= shown || cut == std::string::npos) return text;
+  const auto hidden = lines - shown;
+  return text.substr(0, cut) + "\n… +" + std::to_string(hidden) +
+      (hidden == 1 ? " line" : " lines");
+}
+
 void appendWrapped(std::vector<VisualLine>& destination,
                    const interactive::TranscriptRow& row, std::size_t width,
                    const std::string& rowId = {}) {
-  auto lines = wrap(value::encodeUtf8(row.text), prefix(row.kind), width, row.kind);
+  auto lines = wrap(value::encodeUtf8(visibleRowText(row)), prefix(row.kind), width, row.kind);
   for (std::size_t i = 0; i < lines.size(); ++i) {
     if (!rowId.empty()) lines[i].id = rowId + ":" + std::to_string(i);
     lines[i].transient = row.transient;
@@ -100,13 +137,9 @@ std::vector<VisualLine> inputLines(const interactive::InputState& input,
 std::vector<VisualLine> modalLines(const interactive::UiRequest& modal,
                                    std::size_t width) {
   std::vector<VisualLine> lines;
-  auto title = wrap(value::encodeUtf8(modal.title), "[ ", width, Kind::System);
-  if (!title.empty()) {
-    auto& last = title.back().cells;
-    if (last.size() < width) last.push_back("]");
-    lines.insert(lines.end(), std::make_move_iterator(title.begin()),
-                 std::make_move_iterator(title.end()));
-  }
+  auto title = wrap(value::encodeUtf8(modal.title), "✦ ", width, Kind::System);
+  lines.insert(lines.end(), std::make_move_iterator(title.begin()),
+               std::make_move_iterator(title.end()));
   if (!modal.body.empty()) {
     auto body = wrap(value::encodeUtf8(modal.body), "  ", width, Kind::System);
     lines.insert(lines.end(), std::make_move_iterator(body.begin()),
@@ -115,7 +148,7 @@ std::vector<VisualLine> modalLines(const interactive::UiRequest& modal,
   for (std::size_t i = 0; i < modal.choices.size(); ++i) {
     const bool selected = i == modal.selectedIndex;
     auto choice = wrap(value::encodeUtf8(modal.choices[i]),
-                       selected ? "› " : "  ", width, Kind::System, selected);
+                       selected ? "❯ " : "  ", width, Kind::System, selected);
     lines.insert(lines.end(), std::make_move_iterator(choice.begin()),
                  std::make_move_iterator(choice.end()));
   }
@@ -127,9 +160,9 @@ std::string status(const interactive::PresentationState& state) {
   if (!state.streamMode) return "Working…";
   if (*state.streamMode == "requesting") return "Connecting…";
   if (*state.streamMode == "thinking") return "Thinking…";
-  if (*state.streamMode == "responding") return "Responding…";
-  if (*state.streamMode == "tool-input") return "Preparing tool…";
-  if (*state.streamMode == "tool-use") return "Running tool…";
+  if (*state.streamMode == "responding") return "Writing…";
+  if (*state.streamMode == "tool-input") return "Preparing a Gadget…";
+  if (*state.streamMode == "tool-use") return "Running Gadgets…";
   return "Working…";
 }
 } // namespace
@@ -177,7 +210,7 @@ PresentationLayout layoutPresentation(const interactive::PresentationState& stat
     std::string text = gadget.contentBlock.is_object() &&
         gadget.contentBlock.contains("name") &&
         gadget.contentBlock["name"].is_string() ?
-        gadget.contentBlock["name"].get<std::string>() : "Tool";
+        gadget.contentBlock["name"].get<std::string>() : "Gadget";
     if (!gadget.unparsedGadgetInput.empty())
       text += " " + gadget.unparsedGadgetInput;
     appendWrapped(body, {Kind::Gadget, "", std::move(text), true, {}}, width);

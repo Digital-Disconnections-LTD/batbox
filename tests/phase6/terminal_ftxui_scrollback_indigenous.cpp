@@ -22,7 +22,7 @@ int main() {
   const ftxui::Dimensions dimensions{12, 4};
   auto rows = fx::advanceInlineScrollback(state, dimensions, cursor, true);
   assert(rows.size() == 2);
-  assert(rows[0].text == "\x1b[" + fx::colorFor(Kind::User).Print(false) + "m> first\x1b[39m");
+  assert(rows[0].text == "\x1b[" + fx::colorFor(Kind::User).Print(false) + "m❯ first\x1b[39m");
   assert(rows[1].text == "\x1b[" + fx::colorFor(Kind::Assistant).Print(false) + "m  second\x1b[39m");
   assert(rows[0].id != rows[1].id);
   assert(fx::layoutPresentation(state, 12, 4, &cursor.committed).transcriptRowCount == 3);

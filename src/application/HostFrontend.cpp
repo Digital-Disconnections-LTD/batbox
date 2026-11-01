@@ -12,6 +12,7 @@
 #include "cli/headless/PermissionControl.hpp"
 #include "application_config/EndpointStore.hpp"
 #include "interactive/presentation_providers/StyleRoles.hpp"
+#include "interactive/presentation_providers/CardPalettes.hpp"
 #include "interactive/presentation_providers/SystemTheme.hpp"
 #include "utils/tokens.hpp"
 #include <filesystem>
@@ -914,7 +915,10 @@ void Host::Impl::bindFrontend(){
           ++view.revision;
         }},
       [stash=systemTheme]{return stash->current();},
-      [this]{if(shell)shell->requestRedraw();}});
+      [this]{
+        if(theme)terminal_ftxui::setInlinePalette(ip::inlinePalette(*theme));
+        if(shell)shell->requestRedraw();}});
+  terminal_ftxui::setInlinePalette(ip::inlinePalette(*theme));
   application_presentation::Inputs presentInputs;
   presentInputs.theme=theme.get();
   presentInputs.homeDirectory=homeDirectory;

@@ -59,4 +59,13 @@ gadget_views::GadgetViewStyle gadgetViewStyle(const StyleRoles& roles,
   style.expandKey=std::move(expandKey);
   return style;
 }
+terminal_ftxui::InlinePalette inlinePalette(const ThemeState& state){
+  const auto& roles=styleRoles(state.currentTheme());
+  terminal_ftxui::InlinePalette palette;
+  palette.user=roles.userBar;palette.assistant=roles.text;
+  palette.reasoning=roles.thinking;palette.gadget=roles.brand;
+  palette.gadgetResult=roles.muted;palette.progress=roles.muted;
+  palette.system=roles.mint;palette.error=roles.statusErr;
+  return palette;
+}
 } // namespace batbox::interactive::presentation_providers
