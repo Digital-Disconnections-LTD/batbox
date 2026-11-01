@@ -293,7 +293,10 @@ void Host::Impl::bindFrontend(){
     if(shell)shell->messagesChanged();};
   restoreInputs.setConversationId=[this](const std::string& id){
     view.conversationId=id;++view.revision;
-    if(shell)shell->requestRedraw();};
+    if(shell)shell->requestRedraw();
+    // Bats from earlier runs of this Flight stay listable, openable and resumable.
+    if(bats)bats->seedSavedBats().then([this](const std::size_t*,const std::exception_ptr& error){
+      if(error)report(error);});};
   restoreInputs.setReplacementState=[this](
       std::shared_ptr<gadget_results::ContentReplacementState> state){
     if(!state)throw std::invalid_argument("Resume replacement state is empty");

@@ -150,6 +150,7 @@ void IndigenousBatApplication::dismissMission(const std::string& value){
     if(!bats::isPanelBatMission(value::property(field(state,"tasks"),*id)))return state;
     Json next=state;next["tasks"][*id]["evictAfter"]=0;return next;
   });
+  sweepSettledMissions();
 }
 Json IndigenousBatApplication::drainPendingMessages(const std::string& id){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent message drain requires owner");
@@ -205,68 +206,91 @@ void IndigenousBatApplication::finishBatJob(const std::string& id){
 }
 void IndigenousBatApplication::publishStream(const std::string& id,const Json& message){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent stream projection requires owner");
+  // Read the record through the live store reference; a stream delta must not
+  // pay for a whole-state snapshot when nobody is watching this Bat.
+  static const Json absent;
+  const auto tasks=inputs_.store->getState()->fieldRef("tasks");
+  const Json& mission=tasks?value::property(*tasks,id):absent;
+  if(!bats::isPanelBatMission(mission))return;
+  const bool streamEvent=field(message,"type")=="stream_event";
+  if(field(mission,"status")!="running"&&streamEvent)return;
+  const bool observed=field(mission,"retain")==true;
+  Json updated=Json::object();
+  if(const auto at=latestStreams_.find(id);at!=latestStreams_.end())updated=at->second;
+  Json recorded=Json::array();
+  interactive::StreamCallbacks callbacks;
+  callbacks.onMessage=[&](const Json& value){
+    if(observed&&bats::isRecordableBatMessage(value))recorded.push_back(value);
+  };
+  callbacks.onUpdateLength=[](const std::string&){};
+  callbacks.onSetStreamMode=[&](const std::string& mode){updated["streamMode"]=mode;};
+  callbacks.onStreamingText=[&](interactive::TextUpdate update){
+    const auto old=field(updated,"streamingText");
+    const auto next=update(old.is_string()?std::optional<std::string>(old.get<std::string>()):std::nullopt);
+    updated["streamingText"]=next?Json(*next):Json();
+  };
+  callbacks.onStreamingThinking=[&](interactive::ThinkingUpdate update){
+    std::optional<interactive::StreamingThinking> current;
+    const auto old=field(updated,"streamingThinking");
+    if(old.is_object()){
+      current=interactive::StreamingThinking{string(field(old,"thinking")),field(old,"isStreaming")==true,{}};
+      if(field(old,"streamingEndedAt").is_number())current->streamingEndedAt=field(old,"streamingEndedAt").get<double>();
+    }
+    const auto next=update(current);
+    updated["streamingThinking"]=Json();
+    if(next){
+      updated["streamingThinking"]={{"thinking",next->thinking},{"isStreaming",next->isStreaming}};
+      if(next->streamingEndedAt)updated["streamingThinking"]["streamingEndedAt"]=*next->streamingEndedAt;
+    }
+  };
+  callbacks.onStreamingGadgetUses=[&](interactive::GadgetUsesUpdate update){
+    std::vector<interactive::StreamingGadgetUse> current;
+    const auto old=field(updated,"streamingToolUses");
+    if(old.is_array())for(const auto& item:old)
+      current.push_back({field(item,"index"),field(item,"contentBlock"),string(field(item,"unparsedToolInput"))});
+    updated["streamingToolUses"]=Json::array();
+    for(const auto& item:update(current))updated["streamingToolUses"].push_back(
+      Json{{"index",item.index},{"contentBlock",item.contentBlock},{"unparsedToolInput",item.unparsedGadgetInput}});
+  };
+  interactive::StreamImports imports;
+  imports.connectorTextEnabled=[]{return false;};
+  imports.isConnectorTextBlock=[](const Json&){return false;};
+  imports.nowMs=[]{return static_cast<double>(platform::nowMillis());};
+  interactive::handleMessageFromStream(message,callbacks,imports);
+  const auto& event=field(message,"event");
+  if(streamEvent&&field(event,"type")=="content_block_start"&&
+      field(field(event,"content_block"),"type")=="thinking")
+    updated["streamingThinking"]={{"thinking",""},{"isStreaming",true}};
+  if(streamEvent&&field(field(event,"delta"),"type")=="thinking_delta"){
+    auto text=string(field(field(updated,"streamingThinking"),"thinking"));
+    text+=string(field(field(event,"delta"),"thinking"));
+    updated["streamingThinking"]={{"thinking",text},{"isStreaming",true}};
+  }
+  latestStreams_[id]=std::move(updated);
+  if(!observed)return;
+  const auto step=streamThrottle_.onEvent(id,platform::nowMillis(),
+    !streamEvent||!recorded.empty());
+  if(step.decision==StreamPublishThrottle::Decision::Now){flushStream(id,recorded);return;}
+  if(step.decision!=StreamPublishThrottle::Decision::Schedule)return;
+  inputs_.owner.setTimeout(static_cast<double>(std::max<std::int64_t>(1,step.delayMs)),
+    [weak=weak_from_this(),id]{
+      const auto self=weak.lock();if(!self)return;
+      self->streamThrottle_.timerFired(id);
+      if(!self->closing_)self->flushStream(id,Json::array());
+    });
+}
+void IndigenousBatApplication::flushStream(const std::string& id,const Json& recorded){
+  streamThrottle_.published(id,platform::nowMillis());
+  const auto stream=latestStreams_.find(id);
   setAppState([&](const Json& state){
     const auto& mission=value::property(field(state,"tasks"),id);
-    if(!bats::isPanelBatMission(mission))return state;
-    if(field(mission,"status")!="running"&&field(message,"type")=="stream_event")return state;
-    Json updated=mission;
-    if(const auto at=latestStreams_.find(id);at!=latestStreams_.end())
-      for(auto it=at->second.begin();it!=at->second.end();++it)updated[it.key()]=it.value();
-    interactive::StreamCallbacks callbacks;
-    callbacks.onMessage=[&](const Json& value){
-      if(field(mission,"retain")==true&&bats::isRecordableBatMessage(value))updated["messages"]=
-        bats::mergeBatTranscriptMessages(field(updated,"messages"),Json::array({value}));
-    };
-    callbacks.onUpdateLength=[](const std::string&){};
-    callbacks.onSetStreamMode=[&](const std::string& mode){updated["streamMode"]=mode;};
-    callbacks.onStreamingText=[&](interactive::TextUpdate update){
-      const auto old=field(updated,"streamingText");
-      const auto next=update(old.is_string()?std::optional<std::string>(old.get<std::string>()):std::nullopt);
-      updated["streamingText"]=next?Json(*next):Json();
-    };
-    callbacks.onStreamingThinking=[&](interactive::ThinkingUpdate update){
-      std::optional<interactive::StreamingThinking> current;
-      const auto old=field(updated,"streamingThinking");
-      if(old.is_object()){
-        current=interactive::StreamingThinking{string(field(old,"thinking")),field(old,"isStreaming")==true,{}};
-        if(field(old,"streamingEndedAt").is_number())current->streamingEndedAt=field(old,"streamingEndedAt").get<double>();
-      }
-      const auto next=update(current);
-      updated["streamingThinking"]=Json();
-      if(next){
-        updated["streamingThinking"]={{"thinking",next->thinking},{"isStreaming",next->isStreaming}};
-        if(next->streamingEndedAt)updated["streamingThinking"]["streamingEndedAt"]=*next->streamingEndedAt;
-      }
-    };
-    callbacks.onStreamingGadgetUses=[&](interactive::GadgetUsesUpdate update){
-      std::vector<interactive::StreamingGadgetUse> current;
-      const auto old=field(updated,"streamingToolUses");
-      if(old.is_array())for(const auto& item:old)
-        current.push_back({field(item,"index"),field(item,"contentBlock"),string(field(item,"unparsedToolInput"))});
-      updated["streamingToolUses"]=Json::array();
-      for(const auto& item:update(current))updated["streamingToolUses"].push_back(
-        Json{{"index",item.index},{"contentBlock",item.contentBlock},{"unparsedToolInput",item.unparsedGadgetInput}});
-    };
-    interactive::StreamImports imports;
-    imports.connectorTextEnabled=[]{return false;};
-    imports.isConnectorTextBlock=[](const Json&){return false;};
-    imports.nowMs=[]{return static_cast<double>(platform::nowMillis());};
-    interactive::handleMessageFromStream(message,callbacks,imports);
-    const auto& event=field(message,"event");
-    if(field(message,"type")=="stream_event"&&field(event,"type")=="content_block_start"&&
-        field(field(event,"content_block"),"type")=="thinking")
-      updated["streamingThinking"]={{"thinking",""},{"isStreaming",true}};
-    if(field(message,"type")=="stream_event"&&field(field(event,"delta"),"type")=="thinking_delta"){
-      auto text=string(field(field(updated,"streamingThinking"),"thinking"));
-      text+=string(field(field(event,"delta"),"thinking"));
-      updated["streamingThinking"]={{"thinking",text},{"isStreaming",true}};
-    }
-    Json projected=Json::object();
-    for(const auto* key:{"streamingText","streamingThinking","streamingToolUses","streamMode"})
-      if(updated.contains(key))projected[key]=updated[key];
-    latestStreams_[id]=std::move(projected);
-    if(field(mission,"retain")!=true||updated==mission)return state;
-    Json next=state;next["tasks"][id]=std::move(updated);return next;
+    if(!bats::isPanelBatMission(mission)||field(mission,"retain")!=true)return state;
+    Json next=state;auto& target=next["tasks"][id];
+    if(field(mission,"status")=="running"&&stream!=latestStreams_.end())
+      for(auto it=stream->second.begin();it!=stream->second.end();++it)target[it.key()]=it.value();
+    if(recorded.is_array()&&!recorded.empty())
+      target["messages"]=bats::mergeBatTranscriptMessages(field(target,"messages"),recorded);
+    return next;
   });
 }
 } // namespace batbox::application_bats

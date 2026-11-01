@@ -15,6 +15,7 @@ target_sources(batbox_flights PRIVATE
   src/flights/scanning/BoundaryCore.cpp src/flights/scanning/BoundaryReader.cpp
   src/flights/scanning/ChainFilter.cpp src/flights/scanning/MetadataScan.cpp)
 target_sources(batbox_flights PRIVATE src/flights/async_queue/Queue.cpp src/flights/async_queue/AsyncFileSystem.cpp)
+target_sources(batbox_flights PRIVATE src/flights/SavedBats.cpp)
 target_sources(batbox_flights PRIVATE
   src/flights/async_project/AsyncProject.cpp src/flights/async_project/MessageChain.cpp
   src/flights/async_project/Records.cpp src/flights/async_project/IndigenousStat.cpp)

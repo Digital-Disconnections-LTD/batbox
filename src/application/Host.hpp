@@ -12,6 +12,7 @@ public:
   int run();
 private:
   friend struct HostLifetimeProbe;
+  friend struct HostSavedBatsProbe;
   struct Impl;
   std::unique_ptr<Impl> impl_;
 };
