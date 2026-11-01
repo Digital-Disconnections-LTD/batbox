@@ -30,8 +30,12 @@ public:
       label_(std::move(label)),runs_(std::move(lines)),frame_(frame),
       labelColor_(labelColor),background_(background),dim_(dim),
       width_(std::max(minimumWidth,columns)){
+    lines_.reserve(runs_.size());
     for(const auto& line:runs_){
       GlyphLine glyphs;
+      std::size_t bytes=0;
+      for(const auto& run:line)bytes+=run.text.size();
+      glyphs.reserve(bytes);
       for(const auto& run:line){
         const auto split=ftxui::Utf8ToGlyphs(run.text);
         for(std::size_t i=0;i<split.size();++i){
@@ -59,7 +63,7 @@ public:
   }
   void Render(ftxui::Screen& screen)override{
     const int left=box_.x_min,right=box_.x_min+width_-1;
-    const auto wrapped=rows(width_);
+    const auto& wrapped=rows(width_);
     const auto paintFrame=[&](int x,int y,const std::string& glyph){
       auto& cell=screen.CellAt(x,y);
       cell.character=glyph;
@@ -83,7 +87,9 @@ public:
       }
       screen.CellAt(x,y).character=" ";
     }
+    static const GlyphLine none;
     for(const auto& row:wrapped){
+      const auto& line=row.line<lines_.size()?lines_[row.line]:none;
       ++y;
       paintFrame(left,y,"│");
       paintFrame(right,y,"│");
@@ -93,7 +99,8 @@ public:
         if(background_)cell.background_color=*background_;
       }
       int x=left+2;
-      for(const auto& glyph:row){
+      for(auto index=row.begin;index<row.end;++index){
+        const auto& glyph=line[index];
         auto& cell=screen.CellAt(x,y);
         cell.character=glyph.text;
         const auto& style=*glyph.style;
@@ -117,23 +124,34 @@ public:
   }
 private:
   static constexpr int minimumWidth=8;
-  std::vector<GlyphLine> rows(int width)const{
+  // One wrapped row: a glyph range of one source line. Layout and paint
+  // both ask for the rows of the same width, so they are computed once.
+  struct Row {std::size_t line=0,begin=0,end=0;};
+  const std::vector<Row>& rows(int width)const{
+    if(width==rowsWidth_)return rows_;
     const int inner=std::max(1,width-4);
-    std::vector<GlyphLine> result;
-    for(const auto& line:lines_){
-      result.emplace_back();
+    rows_.clear();
+    for(std::size_t index=0;index<lines_.size();++index){
+      const auto& line=lines_[index];
+      Row row{index,0,0};
       int used=0;
-      for(const auto& glyph:line){
-        if(used+glyph.width>inner){result.emplace_back();used=0;}
-        result.back().push_back(glyph);used+=glyph.width;
+      for(std::size_t at=0;at<line.size();++at){
+        if(used+line[at].width>inner){
+          row.end=at;rows_.push_back(row);row.begin=at;used=0;
+        }
+        used+=line[at].width;
       }
+      row.end=line.size();rows_.push_back(row);
     }
-    if(result.empty())result.emplace_back();
-    return result;
+    if(rows_.empty())rows_.push_back({});
+    rowsWidth_=width;
+    return rows_;
   }
   std::string label_;
   std::vector<std::vector<AnsiRun>> runs_;
   std::vector<GlyphLine> lines_;
+  mutable std::vector<Row> rows_;
+  mutable int rowsWidth_=-1;
   std::optional<ftxui::Color> frame_,labelColor_,background_;
   bool dim_=false,relayout_=true;
   int width_=minimumWidth;
@@ -156,18 +174,26 @@ std::string listNumber(int depth,int value){
 
 ftxui::Element projectCodeBlock(const Token& code,const FormatServices& services,
     const FormatServices::BlockStyle& style,int columns,bool dim){
-  auto text=code.text;
-  if(!text.empty()&&text.back()=='\n')text.pop_back();
+  // A streaming code block is rebuilt every frame; avoid copying its text
+  // more than the highlighter and the tab expansion need.
+  const bool trailingNewline=!code.text.empty()&&code.text.back()=='\n';
   const auto language=fenceLanguage(code.language);
-  std::string body=text;
+  std::string highlighted;
   if(services.highlight&&!language.empty()&&services.supportsLanguage&&
       services.supportsLanguage(language))
-    body=services.highlight(text,language);
+    highlighted=services.highlight(trailingNewline?
+      code.text.substr(0,code.text.size()-1):code.text,language);
+  else highlighted.assign(code.text,0,code.text.size()-(trailingNewline?1:0));
   // Tabs expand to four columns inside code so indentation stays visible.
+  const auto tabs=static_cast<std::size_t>(std::count(highlighted.begin(),highlighted.end(),'\t'));
   std::string expanded;
-  for(const auto ch:body){
-    if(ch=='\t')expanded+="    ";
-    else expanded+=ch;
+  if(tabs==0)expanded=std::move(highlighted);
+  else{
+    expanded.reserve(highlighted.size()+3*tabs);
+    for(const auto ch:highlighted){
+      if(ch=='\t')expanded+="    ";
+      else expanded+=ch;
+    }
   }
   return std::make_shared<CodeBlockNode>(language,parseAnsiLines(expanded),
     sgrColor(style.codeFrame),sgrColor(style.codeLabel),

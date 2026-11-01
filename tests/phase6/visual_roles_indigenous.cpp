@@ -237,6 +237,25 @@ void markdownBlocks(){
   check(drawn.find("────────────────────────────────────────")!=std::string::npos,
     "rules draw a line");
   check(drawn.find("\n\n\n\n")==std::string::npos,"blocks are separated by one blank row");
+  // Long code lines wrap inside the frame, wide glyphs stay whole, tabs
+  // expand, and an empty block still draws its frame.
+  const auto code=draw(renderer.render(
+    "```\nabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij\n"
+    "\t界界界\n```\n\n```\n```"),30,12);
+  check(code.find("│ abcdefghijklmnopqrstuvwxyz │")!=std::string::npos&&
+    code.find("│ 0123456789ABCDEFGHIJKLMNOP │")!=std::string::npos&&
+    code.find("│ QRSTUVWXYZabcdefghij")!=std::string::npos,
+    "long code lines wrap at the frame:\n"+code);
+  {
+    const auto row=code.find("│     界");
+    const auto end=row==std::string::npos?row:code.find('\n',row);
+    const auto line=row==std::string::npos?std::string{}:code.substr(row,end-row);
+    std::size_t glyphs=0;
+    for(auto at=line.find("界");at!=std::string::npos;at=line.find("界",at+1))++glyphs;
+    check(glyphs==3,"tabs expand and all wide glyphs stay on one row:\n"+code);
+  }
+  check(code.find("╰────────────────────────────╯")!=std::string::npos,
+    "code frames close:\n"+code);
   // A styled word followed by a long plain run wraps between words, not
   // where the style changes.
   const auto flowed=draw(md::projectAnsi("A \x1b[1mterminal UI\x1b[22m (TUI) is a user "
