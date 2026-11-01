@@ -142,11 +142,12 @@ interactive::submit::PoetrySubmitRequest ApplicationRuntime::poetryRequest(
   require(inputs_.owner.isOwnerThread(),"owner thread");
   return inputs_.makeSubmitRequest(text,input);
 }
-void ApplicationRuntime::publishMessageChanges(
-    const std::vector<interactive::MessageRef>& before){
+void ApplicationRuntime::publishMessageChanges(std::size_t beforeSize,
+    const interactive::MessageRef& beforeLast){
+  // Every list change made by applyStreamMessage (append, replace-last,
+  // erase) moves the size or the last element; stream deltas move neither.
   const auto& after=inputs_.presentation.messages;
-  if(before.size()==after.size()&&std::equal(before.begin(),before.end(),
-      after.begin()))return;
+  if(beforeSize==after.size()&&(after.empty()?!beforeLast:after.back()==beforeLast))return;
   messages_->setMessages(std::make_shared<interactive::TurnMessages>(
     after.begin(),after.end()));
 }
@@ -216,7 +217,9 @@ void ApplicationRuntime::recordTranscriptChanges(
 }
 void ApplicationRuntime::acceptStep(const query::AsyncEngineStep& step){
   if(!step.event)return;
-  const auto before=inputs_.presentation.messages;
+  const auto& messages=inputs_.presentation.messages;
+  const auto beforeSize=messages.size();
+  const auto beforeLast=messages.empty()?interactive::MessageRef{}:messages.back();
   interactive::StreamInput input{step.event,step.tombstoneTarget};
   if(streamSink_)streamSink_(std::move(input));
   else{
@@ -224,6 +227,6 @@ void ApplicationRuntime::acceptStep(const query::AsyncEngineStep& step){
       inputs_.presentationImports);
     requestRedraw();
   }
-  publishMessageChanges(before);
+  publishMessageChanges(beforeSize,beforeLast);
 }
 } // namespace batbox::application_runtime

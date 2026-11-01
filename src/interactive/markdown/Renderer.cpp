@@ -54,8 +54,18 @@ ftxui::Element Renderer::renderStreaming(StreamingState& state,
   if(advance>0)state.stablePrefix=stripped.substr(0,boundary+advance);
   const auto suffix=stripped.substr(state.stablePrefix.size());
   std::vector<ftxui::Element> elements;
-  if(!state.stablePrefix.empty())elements.push_back(render(state.stablePrefix,dim));
-  if(!suffix.empty())elements.push_back(render(suffix,dim));
+  if(!state.stablePrefix.empty()){
+    if(!state.prefixElement||state.prefixColumns!=columns_||state.prefixDim!=dim||
+        state.renderedPrefix!=state.stablePrefix){
+      state.prefixElement=render(state.stablePrefix,dim);
+      state.renderedPrefix=state.stablePrefix;
+      state.prefixColumns=columns_;state.prefixDim=dim;
+    }
+    elements.push_back(state.prefixElement);
+  }
+  // The suffix changes every frame; caching it would only evict settled text.
+  if(!suffix.empty())elements.push_back(grouped(tokensFor(stripPoetryXMLTags(suffix)),
+    services_,wrap_,columns_,dim));
   if(elements.size()==2)return ftxui::vbox({std::move(elements[0]),
     ftxui::text(""),std::move(elements[1])});
   return ftxui::vbox(std::move(elements));

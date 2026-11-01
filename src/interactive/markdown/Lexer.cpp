@@ -162,28 +162,53 @@ bool hasMarkdownSyntax(const std::string& input){
   }
   return false;
 }
-Tokens TokenStash::get(const std::string& content){
+namespace {
+std::size_t tokenBytes(const Tokens& tokens){
+  std::size_t total=tokens.capacity()*sizeof(Token);
+  for(const auto& token:tokens){
+    total+=token.raw.capacity()+token.text.capacity()+token.language.capacity()+
+      token.href.capacity()+tokenBytes(token.children)+tokenBytes(token.items);
+    for(const auto& cell:token.header)total+=tokenBytes(cell);
+    for(const auto& row:token.rows)for(const auto& cell:row)total+=tokenBytes(cell);
+    for(const auto& align:token.align)total+=align.capacity();
+  }
+  return total;
+}
+}
+Tokens tokensFor(const std::string& content){
+  if(hasMarkdownSyntax(content))return lex(content);
+  Token paragraph;paragraph.kind=Kind::Paragraph;
+  paragraph.raw=paragraph.text=content;
+  Token text;text.kind=Kind::Text;text.raw=text.text=content;
+  paragraph.children.push_back(std::move(text));
+  Tokens plain;plain.push_back(std::move(paragraph));
+  return plain;
+}
+const Tokens& TokenStash::get(const std::string& content){
   if(!hasMarkdownSyntax(content)){
-    Token paragraph;paragraph.kind=Kind::Paragraph;
-    paragraph.raw=paragraph.text=content;
-    Token text;text.kind=Kind::Text;text.raw=text.text=content;
-    paragraph.children.push_back(std::move(text));
-    Tokens plain;plain.push_back(std::move(paragraph));
-    return plain;
+    scratch_=tokensFor(content);
+    return scratch_;
   }
   if(auto found=byContent_.find(content);found!=byContent_.end()){
     entries_.splice(entries_.end(),entries_,found->second);
-    return found->second->second;
+    return found->second->tokens;
   }
   auto tokens=lex(content);
-  if(entries_.size()>=500){
-    byContent_.erase(entries_.front().first);
+  const auto bytes=content.capacity()+tokenBytes(tokens);
+  if(bytes>maxBytes_){
+    scratch_=std::move(tokens);
+    return scratch_;
+  }
+  while(!entries_.empty()&&(entries_.size()>=maxEntries||bytes_+bytes>maxBytes_)){
+    byContent_.erase(entries_.front().content);
+    bytes_-=entries_.front().bytes;
     entries_.pop_front();
   }
-  entries_.emplace_back(content,std::move(tokens));
+  entries_.push_back(Entry{content,std::move(tokens),bytes});
   auto entry=std::prev(entries_.end());
-  byContent_.emplace(entry->first,entry);
-  return entry->second;
+  byContent_.emplace(entry->content,entry);
+  bytes_+=bytes;
+  return entry->tokens;
 }
-void TokenStash::clear(){entries_.clear();byContent_.clear();}
+void TokenStash::clear(){entries_.clear();byContent_.clear();bytes_=0;scratch_.clear();}
 } // namespace batbox::interactive::markdown

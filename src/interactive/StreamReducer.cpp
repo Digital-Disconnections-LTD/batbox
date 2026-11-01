@@ -144,7 +144,8 @@ void handleMessageFromStream(const Json& message,
       const auto text = textField(delta, "text");
       required(c.onUpdateLength, "onUpdateLength");
       c.onUpdateLength(text);
-      if (c.onStreamingText)
+      if (c.appendStreamingText) c.appendStreamingText(text);
+      else if (c.onStreamingText)
         c.onStreamingText([text](const auto& current) {
           return std::optional<std::string>{current.value_or("") + text};
         });
@@ -156,6 +157,10 @@ void handleMessageFromStream(const Json& message,
       required(c.onUpdateLength, "onUpdateLength");
       c.onUpdateLength(fragment);
       required(c.onStreamingGadgetUses, "onStreamingToolUses");
+      if (c.appendGadgetInput) {
+        c.appendGadgetInput(index, fragment);
+        return;
+      }
       c.onStreamingGadgetUses([fragment, index](const auto& current) {
         auto found = current.end();
         for (auto it = current.begin(); it != current.end(); ++it) {
