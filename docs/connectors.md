@@ -13,7 +13,7 @@ Install and configure these services using their own guides. In your private
 ```json
 {
   "scrapling_command": "/absolute/path/to/scrapling",
-  "searxng_url": "http://127.0.0.1:8888"
+  "searxng_url": "http://127.0.0.1:8888/search"
 }
 ```
 
@@ -21,6 +21,10 @@ Install and configure these services using their own guides. In your private
 with the `mcp` argument, so it must have Scrapling’s MCP dependencies available.
 The current startup expects this helper even when your first request does not
 use the web. `scrapling` on PATH is the default.
+
+Set `searxng_url` to the complete search endpoint, including `/search`, rather
+than the instance homepage. The homepage can return an HTTP 308 redirect;
+Batbox expects a JSON search response from the configured URL.
 
 Use a SearXNG instance with JSON search responses enabled. Search terms go to
 that instance; fetching and browser requests go to their target sites. Saved
