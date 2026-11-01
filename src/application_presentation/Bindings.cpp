@@ -505,9 +505,11 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
     const auto now=static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::system_clock::now().time_since_epoch()).count())/1000.0;
     for(const auto& entry:entries){
-      payload.push_back(Json{{"param",entry.param},{"isResolved",entry.isResolved},
+      Json item={{"param",entry.param},{"isResolved",entry.isResolved},
         {"isError",entry.isError},{"isInProgress",entry.isInProgress},
-        {"progressMessages",entry.progressMessages}});
+        {"progressMessages",entry.progressMessages}};
+      if(entry.result&&entry.result->output)item["output"]=*entry.result->output;
+      payload.push_back(std::move(item));
       const bool active=!entry.isResolved&&!entry.isError;
       running=running||active;
       std::optional<double> started;

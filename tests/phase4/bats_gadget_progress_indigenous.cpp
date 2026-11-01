@@ -31,5 +31,18 @@ int main(){
   assert(text.find("Finished research · Completed")!=std::string::npos);
   assert(text.find("Failed research · Failed")!=std::string::npos);
   assert(text.find("PRIVATE_")==std::string::npos);
+  // A background launch resolves at once, so its card says Launched until
+  // the Bat's own notification reports how it ended.
+  Json launched=Json::array({Json{{"param",{{"input",{{"description","Background audit"}}}}},
+    {"isResolved",true},{"output",{{"status","async_launched"},{"agentId","PRIVATE_AGENT_ID"}}}},
+    Json{{"param",{{"input",{{"description","Foreground map"}}}}},{"isResolved",true},
+    {"output",{{"status","completed"}}}}});
+  const auto launchText=bats::groupedBatGadgetUseText(launched);
+  if(launchText.find("Background audit · Launched")==std::string::npos||
+      launchText.find("Foreground map · Completed")==std::string::npos||
+      launchText.find("Background audit · Completed")!=std::string::npos){
+    std::cerr<<"Background Bat launches must not read as completed:\n"<<launchText<<"\n";
+    return 1;
+  }
   std::cout<<"Bat progress displays activity and status without internal event data\n";
 }
