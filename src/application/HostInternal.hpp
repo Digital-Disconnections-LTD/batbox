@@ -139,6 +139,9 @@ struct Host::Impl {
   std::optional<std::pair<std::string,std::string>> editorNotification;
   std::shared_ptr<std::ofstream> logFile;
   std::shared_ptr<std::mutex> logMutex;
+  // Guarded by logMutex: a flush is already scheduled on the owner loop.
+  std::shared_ptr<bool> logFlushPending;
+  std::function<void()> scheduleLogFlush;
   bool closing=false;
   std::atomic_bool failed=false;
   void initialize();
@@ -172,6 +175,7 @@ struct Host::Impl {
   void shutdown();
   void requestExit();
   void log(std::string text)const;
+  void flushLog()const;
   void report(std::exception_ptr error);
   gadgets::Gadgets currentGadgets()const;
   Json appState()const;
