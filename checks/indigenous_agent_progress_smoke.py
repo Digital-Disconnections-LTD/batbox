@@ -97,7 +97,7 @@ def main(binary):
         config.mkdir()
         (config / "native-client.json").write_text(json.dumps({
             "model": "agent-fixture", "base_url": f"http://127.0.0.1:{server.server_port}",
-            "state_directory": str(root / "state"), "mcpServers": {}, "fullscreen": True,
+            "state_directory": str(root / "state"), "mcpServers": {}, "fullscreen": True, "auto_title": False,
             "context_window": 70000, "compact_at": 60000, "max_output_tokens": 2000,
             "permissions": {"defaultMode": "bypassPermissions"}, "thinking": False,
         }))

@@ -77,7 +77,7 @@ def run(binary, scrapling_fixture, artifacts=None):
         (config / "native-client.json").write_text(json.dumps({
             "model": "paste-fixture", "base_url": f"http://127.0.0.1:{server.server_port}",
             "scrapling_command": str(scrapling_fixture), "mcpServers": {},
-            "state_directory": str(root / "state"), "fullscreen": True,
+            "state_directory": str(root / "state"), "fullscreen": True, "auto_title": False,
         }))
         pid, master = pty.fork()
         if pid == 0:

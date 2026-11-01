@@ -28,7 +28,9 @@ to choose it. Gadget approvals follow your configured permission mode.
 | `/leader` | Return from a child conversation to the main conversation. |
 | `/memory` | Browse, edit, and refresh project and bat memory. |
 | `/mcp` | Manage connected gadget servers. |
-| `/resume` | Pick a saved conversation. |
+| `/resume` | Pick a saved Flight; type to filter. `/resume <slug or title>` jumps straight to one. |
+| `/continue` | Resume the most recent Flight for this directory and its worktrees. |
+| `/rename` | Name the current Flight; with no name, Batbox suggests one. |
 | `/compact` | Summarize the current conversation. |
 | `/monster` | Meet your terminal’s little resident. |
 | `/exit` | Close Batbox cleanly. |
@@ -86,8 +88,37 @@ favorite editor. Project instructions belong in `BATBOX.md` or `.batbox/rules/`.
 
 ## Pick up where you left off
 
-`/resume` opens saved conversations. At launch, `--continue` continues the most
-recent conversation for the roost, and `--resume FLIGHT` selects one.
+`/resume` lists your saved Flights, newest first. Each row shows the Flight's
+title, when it was last active, its git branch, the model, roughly how many
+messages it holds, and whether it ended cleanly or was interrupted, followed by
+its slug in parentheses (for example `dazzling-whistling-tide`). Start typing to
+filter by title, slug, branch or project; ↑↓ moves, Enter resumes and Esc
+cancels. Long lists show the first 50 matches, so keep typing to narrow them.
+**Show all projects** widens the list to every directory; choosing a Flight from
+another project switches the workspace to that directory in place.
+
+`/resume <words>` resumes directly when the slug, title or words match a single
+Flight, and lists the candidates when several do. `/continue` resumes the most
+recent Flight for this directory and its sibling git worktrees, skipping any
+transcript that cannot be read.
+
+Titles come from three places, in this order: a name you set with
+`/rename <name>`, a short title Batbox generates from your first prompt (or that
+`/rename` with no name suggests), and finally the first prompt itself. Title
+generation uses the Flight's current model and stays silent if the model server
+is unavailable.
+
+At launch:
+
+- `batbox -c` (`--continue`) resumes the most recent Flight here.
+- `batbox -r` (`--resume` with no value) opens the picker.
+- `batbox --resume dazzling-whistling-tide` resumes by slug, Flight id or title
+  words. An ambiguous value lists the matches instead of guessing.
+
+A resumed Flight keeps the model and permission mode it last used unless you
+pass `--model`, `--profile`, `--permission-mode` or `--yolo` at launch.
+`bypassPermissions` is never restored on its own; pass `--yolo` again if you
+want it.
 Fresh installations keep runtime data under `~/.batbox/state/`.
 On Windows, the same configuration root lives under `%USERPROFILE%\.batbox`.
 
