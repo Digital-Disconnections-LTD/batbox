@@ -240,5 +240,11 @@ void patchConfigSettings(const std::filesystem::path& path,const Json& edits,
   for(auto it=edits.begin();it!=edits.end();++it)document[it.key()]=it.value();
   writeDocument(path,document);
 }
+void removeConfigSetting(const std::filesystem::path& path,const std::string& key){
+  std::lock_guard lock(configWrites);
+  auto document=parseObject(path);
+  document.erase(key);
+  writeDocument(path,document);
+}
 
 }

@@ -23,5 +23,6 @@ void saveEndpoints(const std::filesystem::path& path,
   bool persistSelection=true,const std::filesystem::path& fallbackPath={});
 void patchConfigSettings(const std::filesystem::path& path,const Json& edits,
   const std::filesystem::path& fallbackPath={});
+void removeConfigSetting(const std::filesystem::path& path,const std::string& key);
 
 }

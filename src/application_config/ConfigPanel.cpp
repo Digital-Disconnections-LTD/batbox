@@ -291,6 +291,7 @@ user_input::CommandEntry makeConfigCommand(event_loop::Loop& owner,
     std::shared_ptr<application_compaction_settings::Policy> policy){
   auto mutableConfig=std::make_shared<application::Config>(std::move(config));
   Json descriptor={{"type","local-jsx"},{"name","config"},
+    {"immediate",true},
     {"aliases",Json::array({"settings"})},
     {"description","Manage API endpoints, models and request settings"}};
   return user_input::bindUiCommand(std::move(descriptor),router,

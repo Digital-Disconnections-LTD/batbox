@@ -1,7 +1,8 @@
 add_library(batbox_application_commands src/application_commands/Commands.cpp
   src/application_commands/CommandsMcp.cpp src/application_commands/MemoryPanel.cpp
   src/application_commands/PermissionCommand.cpp
-  src/application_commands/ProjectCommand.cpp src/application_usage/UsageCommand.cpp)
+  src/application_commands/ProjectCommand.cpp
+  src/application_commands/EffortCommand.cpp src/application_usage/UsageCommand.cpp)
 target_link_libraries(batbox_application_commands PUBLIC
   batbox_core_commands batbox_application_runtime batbox_application_model
   batbox_application_poetry batbox_application_flights

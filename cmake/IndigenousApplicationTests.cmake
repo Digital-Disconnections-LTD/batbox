@@ -32,6 +32,11 @@ target_link_libraries(batbox-indigenous-mcp-connections PRIVATE batbox_mcp_runti
 
 batbox_indigenous(phase6-application-usage-indigenous
   tests/phase6/application_usage_indigenous.cpp batbox_application_commands)
+if(UNIX)
+  add_test(NAME phase6-indigenous-effort-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/indigenous_effort_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-indigenous-effort-smoke PROPERTIES TIMEOUT 70)
+endif()
 batbox_indigenous(phase6-indigenous-lsp-grouped checks/indigenous_lsp_grouped.cpp batbox_indigenous_lsp)
 add_executable(batbox-indigenous-lsp-runtime checks/indigenous_lsp_runtime.cpp)
 target_link_libraries(batbox-indigenous-lsp-runtime PRIVATE batbox_indigenous_lsp)

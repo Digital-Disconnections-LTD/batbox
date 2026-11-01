@@ -40,6 +40,7 @@ struct Inputs {
   bool persistOnTurnComplete=true;
   std::function<bool(const std::string&)> feature;
   std::function<void(const std::string&)> log;
+  std::function<void(const std::string&)> showImmediateNotice;
   std::function<void(std::exception_ptr)> onError;
   std::function<void()> redraw,shutdown;
   std::function<std::shared_ptr<application_runtime::ApplicationRuntime>()> getRuntime;

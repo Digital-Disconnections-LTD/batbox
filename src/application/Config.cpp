@@ -362,6 +362,7 @@ InferenceProfile selectedInferenceProfile(const Config& config){
   profile.maxOutputTokens=config.maxOutputTokens;
   profile.thinking=true;
   profile.poetryStashing=true;
+  profile.effort=true;
   profile.sendDisabledThinking=true;
   return profile;
 }

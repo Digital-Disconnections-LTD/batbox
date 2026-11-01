@@ -33,6 +33,7 @@ AppStateRef getDefaultAppState(const DefaultAppStateServices& services){
   auto undefined=[&](const char* key){fields.setRef(key,{});};
 
   Json settings=services.getInitialSettings();
+  const Json initialEffort=value::property(settings,"effortLevel");
   if(settings.is_object()&&settings.contains("env"))
     state->settingsEnv=std::make_shared<Json>(settings.at("env"));
   set("settings",std::move(settings));
@@ -108,7 +109,10 @@ AppStateRef getDefaultAppState(const DefaultAppStateServices& services){
   set("skillImprovement",{{"suggestion",nullptr}});
   set("authVersion",0);
   set("initialMessage",nullptr);
-  undefined("effortValue");
+  if(initialEffort=="low"||initialEffort=="medium"||
+      initialEffort=="high"||initialEffort=="max")
+    set("effortValue",initialEffort);
+  else undefined("effortValue");
   state->activeOverlays=std::make_shared<runtime::OrderedStringSet>();
   set("activeOverlays",Json::object());
   set("fastMode",false);
