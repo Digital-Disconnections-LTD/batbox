@@ -182,6 +182,10 @@ private:
     PresentationState presentation;
     Json messages=Json::array();
     bool submitting=false;
+    // Display-only delivery state for follow-ups sent while the Bat runs.
+    std::string statusLine;
+    bool queued=false,delivered=false;
+    std::size_t deliveredAfter=0;
   };
   Imports imports_;
   std::optional<BatConversation> batConversation_;

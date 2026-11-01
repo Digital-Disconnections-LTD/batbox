@@ -12,6 +12,9 @@ std::string text(const Json& value,const char* name){
   const auto& item=value::property(value,name);
   return item.is_string()?item.get<std::string>():std::string{};
 }
+bool settled(const std::string& status){
+  return status=="completed"||status=="failed"||status=="killed";
+}
 }
 PresentationState& Shell::presentation(){
   return batConversation_?batConversation_->presentation:imports_.presentation;
@@ -107,20 +110,50 @@ void Shell::updateBatConversation(const Json& mission){
   if(conversation.label.empty())conversation.label=text(mission,"agentType");
   if(conversation.label.empty())conversation.label=conversation.id;
   conversation.status=text(mission,"status");
-  state.loading=conversation.status=="running"||conversation.status=="pending";
+  const bool running=conversation.status=="running"||conversation.status=="pending";
+  state.loading=running||conversation.submitting;
   const auto& raw=value::property(mission,"messages");
-  if(raw.is_array()&&raw!=conversation.messages){
+  const bool messagesChanged=raw.is_array()&&raw!=conversation.messages;
+  const auto rawCount=raw.is_array()?raw.size():conversation.messages.size();
+  // Follow-ups sent to a running Bat wait in pendingMessages until its next
+  // Gadget round drains them; show that wait and its delivery in the view.
+  const auto& pending=value::property(mission,"pendingMessages");
+  const auto waiting=pending.is_array()?pending.size():std::size_t{0};
+  if(waiting>0){conversation.queued=true;conversation.delivered=false;}
+  else if(conversation.queued){
+    conversation.queued=false;conversation.delivered=running;
+    conversation.deliveredAfter=rawCount;
+  }
+  if(conversation.delivered&&(!running||rawCount>conversation.deliveredAfter+1))
+    conversation.delivered=false;
+  std::string statusLine;
+  const auto resumeError=text(mission,"inputResumeError");
+  if(conversation.submitting&&!running)statusLine="Resuming this Bat…";
+  else if(waiting>0)statusLine=(waiting==1?std::string("1 message"):
+    std::to_string(waiting)+" messages")+" queued · delivered at the next Gadget round";
+  else if(conversation.delivered)statusLine="Queued message delivered · the Bat reads it this round";
+  else if(settled(conversation.status)&&!resumeError.empty())
+    statusLine="Could not resume this Bat: "+resumeError;
+  if(messagesChanged||statusLine!=conversation.statusLine){
     std::unordered_map<std::string,MessageRef> old;
     for(const auto& message:state.messages)if(message){
       const auto id=text(*message,"uuid");if(!id.empty())old.emplace(id,message);
     }
-    std::vector<MessageRef> messages;messages.reserve(raw.size());
-    for(const auto& message:raw){
+    const Json& source=raw.is_array()?raw:conversation.messages;
+    std::vector<MessageRef> messages;messages.reserve(source.size()+1);
+    for(const auto& message:source){
       const auto id=text(message,"uuid");const auto found=old.find(id);
       if(found!=old.end()&&*found->second==message)messages.push_back(found->second);
       else messages.push_back(std::make_shared<Json>(message));
     }
-    state.messages=std::move(messages);conversation.messages=raw;
+    if(!statusLine.empty())messages.push_back(std::make_shared<Json>(Json{
+      {"type","system"},{"subtype","informational"},{"level","notice"},
+      {"isMeta",false},{"content",statusLine},
+      {"uuid","bat-status:"+conversation.id},
+      {"timestamp",source.empty()?Json(""):value::property(source.back(),"timestamp")}}));
+    state.messages=std::move(messages);
+    if(raw.is_array())conversation.messages=raw;
+    conversation.statusLine=std::move(statusLine);
     rebuildTranscriptRows(state);++state.revision;
   }
   const auto& streaming=value::property(mission,"streamingText");
