@@ -110,7 +110,8 @@ ftxui::Element missionFooterAt(const Json& missions,int columns,int rows,
     if(text(mission,"type")=="local_agent"||glance.gadgetUses>0)
       detail+=" · "+std::to_string(glance.gadgetUses)+
         (glance.gadgetUses==1?" Gadget":" Gadgets");
-    if(!glance.gadget.empty())detail+=" · "+glance.gadget;
+    // A Gadget description can be a long path; keep room for the Bat's words.
+    if(!glance.gadget.empty())detail+=" · "+clipped(glance.gadget,36);
     if(!glance.lastText.empty())detail+=" · “"+glance.lastText+"”";
     lines.push_back(ftxui::hbox({ftxui::text("  ● ")|ftxui::color(color),
       ftxui::text(clipped(glance.label+" · "+detail,columns-4))}));

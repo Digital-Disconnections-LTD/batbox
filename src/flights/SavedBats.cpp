@@ -1,4 +1,5 @@
 #include "flights/SavedBats.hpp"
+#include "runtime/IndigenousPath.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -45,7 +46,7 @@ std::size_t countOccurrences(std::ifstream& input,const std::string& needle){
   return count;
 }
 std::optional<SavedBat> readSavedBat(const fs::path& transcript,const std::string& subdirectory){
-  const auto name=transcript.filename().string();
+  const auto name=runtime::pathToUtf8(transcript.filename());
   if(name.size()<=12||!name.starts_with("agent-")||!name.ends_with(".jsonl"))return std::nullopt;
   SavedBat bat;
   bat.id=name.substr(6,name.size()-12);bat.subdirectory=subdirectory;
@@ -140,7 +141,7 @@ std::vector<SavedBat> scanSavedBats(const fs::path& directory,std::size_t limit)
   visit(directory,"");
   for(fs::directory_iterator it(directory,error),end;!error&&it!=end;it.increment(error)){
     std::error_code kind;
-    if(it->is_directory(kind))visit(it->path(),it->path().filename().string());
+    if(it->is_directory(kind))visit(it->path(),runtime::pathToUtf8(it->path().filename()));
   }
   std::stable_sort(found.begin(),found.end(),[](const SavedBat& a,const SavedBat& b){
     return a.endTime>b.endTime;

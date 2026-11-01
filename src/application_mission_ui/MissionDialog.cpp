@@ -372,6 +372,8 @@ private:
     const auto glance=interactive::presentation_providers::batGlance(item.bat,now());
     request.body="Status: "+statusWord(item.status)+
       (glance.foreground?" (foreground)":"");
+    if(field(item.bat,"savedOnDisk")==true)
+      request.body+="\nSaved by an earlier run · Enter loads its transcript; a message resumes it";
     const auto name=stringField(item.bat,"name");
     if(!name.empty())request.body+="\nName: "+name;
     if(!item.label.empty())request.body+="\nDescription: "+shorten(item.label,200);
