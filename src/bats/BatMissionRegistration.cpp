@@ -41,6 +41,9 @@ void registerMission(const Json& mission,BatRegistrationServices& services){
                             "diskLoaded","pendingMessages"})
         copyIfPresent(merged,existing,key);
     }
+    // A resumed Bat keeps the name it was launched with.
+    if(existing.is_object()&&!merged.contains("name")&&field(existing,"name").is_string())
+      merged["name"]=existing["name"];
     Json next=previous;
     next["tasks"][id]=std::move(merged);
     return next;
@@ -90,6 +93,8 @@ RegisteredLocalBat registerAsyncBat(const BatRegistrationParams& params,
   mission["pendingMessages"]=Json::array();
   mission["retain"]=false;
   mission["diskLoaded"]=false;
+  if(!params.name.empty())mission["name"]=params.name;
+  if(!params.model.empty())mission["model"]=params.model;
   need(services.registerCleanup,"registerCleanup");
   result.unregisterCleanup=services.registerCleanup(
     [id=params.batId,state=services.state]{killAsyncBat(id,*state);});

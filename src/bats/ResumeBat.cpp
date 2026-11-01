@@ -144,7 +144,7 @@ ResumeResult resumeBatBackground(const ResumeParams& params,ResumeServices& serv
   need(services.registerAsyncBat,"registerAsyncAgent");
   const auto mission=services.registerAsyncBat(Json{{"agentId",params.batId},
     {"description",uiDescription},{"prompt",params.poetry},
-    {"selectedAgent",selectedBat},
+    {"selectedAgent",selectedBat},{"model",resolvedBatModel},
     {"toolUseId",field(params.gadgetUseContext.query.data,"toolUseId")}},rootSetAppState);
   const bool builtIn=services.isBuiltInBat(selectedBat);
   const Json metadata={{"prompt",params.poetry},{"resolvedAgentModel",resolvedBatModel},

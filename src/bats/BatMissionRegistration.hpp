@@ -4,6 +4,9 @@
 namespace batbox::bats {
 struct BatRegistrationParams {
   std::string batId,description,poetry;
+  // Display identity for the Bats list: the optional name the leader gave this
+  // Bat and the model it resolved to. Empty values are omitted from the record.
+  std::string name,model;
   Json selectedBat;
   std::optional<std::string> gadgetUseId;
   std::shared_ptr<std::stop_source> parentAbortOwner;
