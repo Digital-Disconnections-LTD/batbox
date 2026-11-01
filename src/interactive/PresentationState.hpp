@@ -25,6 +25,12 @@ struct TranscriptRow {
   std::string scrollbackId;
 };
 
+// Where one message's transcript rows end, as of the last rebuild.
+struct TranscriptRowSource {
+  std::weak_ptr<Json> message;
+  std::size_t rowEnd = 0;
+};
+
 struct InputState {
   std::string text;
   Json pastedContents=Json::object();
@@ -56,6 +62,10 @@ struct PresentationState {
   std::map<std::weak_ptr<Json>, std::uint64_t,
            std::owner_less<std::weak_ptr<Json>>> transcriptMessageTokens;
   std::uint64_t nextTranscriptMessageToken = 1;
+  // Parallel to `messages` at the last rebuild; rebuilds keep the rows of
+  // the unchanged leading messages and redo only the rest.
+  std::vector<TranscriptRowSource> transcriptRowSources;
+  std::uint64_t transcriptRowsEpoch = 0;
   std::vector<StreamingGadgetUse> streamingGadgetUses;
   std::optional<StreamingThinking> streamingThinking;
   std::optional<std::string> streamingText;
