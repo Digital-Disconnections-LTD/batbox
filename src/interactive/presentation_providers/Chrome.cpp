@@ -831,6 +831,8 @@ conversation_shell::ChromeProviders makeChromeProviders(ChromeServices imports){
   result.poetryDecor=[imports](const auto& view){return poetryDecor(imports,view);};
   result.renderSuggestions=[imports](const auto& items,std::size_t selected,
       const auto& view){return suggestionRows(items,selected,view,imports);};
+  result.searchHighlight=[imports]{
+    return styleRoles(imports.theme.currentTheme()).lantern;};
   return result;
 }
 } // namespace batbox::interactive::presentation_providers

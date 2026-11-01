@@ -27,8 +27,9 @@ std::vector<terminal_render::MatchPosition> scan(ftxui::Screen& screen,
 class OverlayNode final:public ftxui::Node {
 public:
   OverlayNode(ftxui::Element content,std::function<std::string()> query,
-      std::function<std::optional<PositionedMatches>()> current):Node({std::move(content)}),
-      query_(std::move(query)),current_(std::move(current)){}
+      std::function<std::optional<PositionedMatches>()> current,ftxui::Color highlight):
+      Node({std::move(content)}),query_(std::move(query)),current_(std::move(current)),
+      highlight_(highlight){}
   void SetBox(ftxui::Box box)override{box_=box;children_[0]->SetBox(box);}
   void Render(ftxui::Screen& screen)override{
     children_[0]->Render(screen);
@@ -45,13 +46,14 @@ public:
     if(row<visible.y_min||row>visible.y_max)return;
     for(int col=static_cast<int>(position.col);col<position.col+position.len;++col){
       if(col<visible.x_min||col>visible.x_max)continue;
-      auto& cell=screen.CellAt(col,row);cell.foreground_color=ftxui::Color::Yellow;
+      auto& cell=screen.CellAt(col,row);cell.foreground_color=highlight_;
       cell.background_color=ftxui::Color::Default;cell.inverted=true;cell.bold=true;cell.underlined=true;
     }
   }
 private:
   std::function<std::string()> query_;
   std::function<std::optional<PositionedMatches>()> current_;
+  ftxui::Color highlight_;
 };
 }
 std::vector<terminal_render::MatchPosition> scanElement(const ftxui::Element& element,
@@ -62,8 +64,9 @@ std::vector<terminal_render::MatchPosition> scanElement(const ftxui::Element& el
   return scan(screen,{0,columns-1,0,rows-1},query);
 }
 ftxui::Element withSearchOverlay(ftxui::Element content,std::function<std::string()> query,
-    std::function<std::optional<PositionedMatches>()> current){
+    std::function<std::optional<PositionedMatches>()> current,ftxui::Color highlight){
   if(!content||!query||!current)throw std::invalid_argument("Native search overlay providers required");
-  return std::make_shared<OverlayNode>(std::move(content),std::move(query),std::move(current));
+  return std::make_shared<OverlayNode>(std::move(content),std::move(query),std::move(current),
+    highlight);
 }
 } // namespace batbox::terminal_ftxui

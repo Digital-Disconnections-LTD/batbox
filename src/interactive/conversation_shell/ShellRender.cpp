@@ -208,7 +208,8 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
         const auto& current=*self->positions_;
         return terminal_ftxui::PositionedMatches{current.positions,
           current.rowOffset,static_cast<double>(current.currentIdx)};
-      });
+      },imports_.chrome.searchHighlight?imports_.chrome.searchHighlight():
+        ftxui::Color::Yellow);
   }
   ftxui::Elements stack;
   if(headerRows)stack.push_back(fixed(std::move(header),headerRows));

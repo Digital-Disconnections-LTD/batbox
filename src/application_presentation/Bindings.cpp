@@ -31,13 +31,15 @@ namespace gv=batbox::interactive::gadget_views;
 ftxui::Element renderComponent(const Json& value){
   return ftxui::paragraph(value::encodeUtf8(gv::sanitize(gv::visibleText(value))));
 }
-// Parallel Bats arrive as "N Bats" followed by one indented line per Bat.
-Json groupView(const Json& value,bool running){
+// Parallel Bats arrive as "N Bats" followed by one indented line per Bat;
+// running Bats gain their elapsed time.
+Json groupView(const Json& value,bool running,const std::vector<std::string>& suffixes){
   if(!value.is_string())return value;
   const auto lines=gv::splitLines(value.get<std::string>());
   if(lines.empty())return value;
   Json entries=Json::array();
-  for(std::size_t i=1;i<lines.size();++i)entries.push_back(value::trim(lines[i]));
+  for(std::size_t i=1;i<lines.size();++i)
+    entries.push_back(value::trim(lines[i])+(i-1<suffixes.size()?suffixes[i-1]:std::string{}));
   return Json{{gv::viewKey,"group"},{"title",lines.front()},{"entries",entries},
     {"running",running}};
 }
@@ -45,12 +47,11 @@ double steadyMs(){
   return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
     std::chrono::steady_clock::now().time_since_epoch()).count());
 }
-// "2026-11-01T20:16:05.270Z" as a local clock time, with the date when it is
-// not today.
-std::string localClock(const std::string& iso){
+// Seconds since the epoch for a UTC "2026-11-01T20:16:05.270Z" timestamp.
+std::optional<double> isoSeconds(const std::string& iso){
   int year=0,month=0,day=0,hour=0,minute=0;double second=0;
   if(std::sscanf(iso.c_str(),"%d-%d-%dT%d:%d:%lf",&year,&month,&day,&hour,&minute,
-      &second)<5||month<1||month>12||day<1||day>31)return iso;
+      &second)<5||month<1||month>12||day<1||day>31)return std::nullopt;
   // Days from 1970-01-01 for a proleptic Gregorian date (Howard Hinnant).
   const int y=year-(month<=2?1:0);
   const int era=(y>=0?y:y-399)/400;
@@ -58,8 +59,14 @@ std::string localClock(const std::string& iso){
   const int doy=(153*(month+(month>2?-3:9))+2)/5+day-1;
   const int doe=yoe*365+yoe/4-yoe/100+doy;
   const long long days=static_cast<long long>(era)*146097+doe-719468;
-  const auto epoch=static_cast<std::time_t>(days*86400+hour*3600+minute*60+
-    static_cast<long long>(second));
+  return static_cast<double>(days*86400+hour*3600+minute*60)+second;
+}
+// "2026-11-01T20:16:05.270Z" as a local clock time, with the date when it is
+// not today.
+std::string localClock(const std::string& iso){
+  const auto seconds=isoSeconds(iso);
+  if(!seconds)return iso;
+  const auto epoch=static_cast<std::time_t>(*seconds);
   std::tm local{},now{};
   const auto current=std::time(nullptr);
 #ifdef _WIN32
@@ -480,14 +487,27 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   }
   out.groupedGadgetUse=[](const gadgets::Gadget& gadget,const std::vector<cards_gadget_use::GroupedGadgetUseEntry>& entries,bool animate,const gadgets::Gadgets&){
     Json payload=Json::array();bool running=false;
+    std::vector<std::string> elapsed;
+    const auto now=static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count())/1000.0;
     for(const auto& entry:entries){
       payload.push_back(Json{{"param",entry.param},{"isResolved",entry.isResolved},
         {"isError",entry.isError},{"isInProgress",entry.isInProgress},
         {"progressMessages",entry.progressMessages}});
-      running=running||(!entry.isResolved&&!entry.isError);
+      const bool active=!entry.isResolved&&!entry.isError;
+      running=running||active;
+      std::optional<double> started;
+      if(active&&entry.progressMessages.is_array())for(const auto& message:entry.progressMessages){
+        const auto& stamp=value::property(message,"timestamp");
+        if(!stamp.is_string())continue;
+        if(const auto at=isoSeconds(stamp.get<std::string>());at&&(!started||*at<*started))
+          started=at;
+      }
+      elapsed.push_back(started?" · "+std::to_string(static_cast<long long>(
+        std::max(0.0,now-*started)))+"s":std::string{});
     }
     return gadget.renderGroupedGadgetUse?groupView(gadget.renderGroupedGadgetUse(payload,
-      Json{{"shouldAnimate",animate}}),running):Json();
+      Json{{"shouldAnimate",animate}}),running,elapsed):Json();
   };
   out.otherBlock=[](const message_view::MessagePlan&,const message_view::BlockPlan& block)->std::optional<ftxui::Element>{return renderComponent(block.value());};
   out.otherMessage=[](const message_view::MessagePlan& plan)->std::optional<ftxui::Element>{return renderComponent(*plan.item.message);};

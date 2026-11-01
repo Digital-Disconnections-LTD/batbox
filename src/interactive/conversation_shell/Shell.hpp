@@ -65,6 +65,8 @@ struct ChromeProviders {
   // Optional suggestion rows; the shell draws plain rows without it.
   std::function<ftxui::Element(const std::vector<application_completion::Suggestion>&,
     std::size_t selected,const ViewState&)> renderSuggestions;
+  // The current transcript search match.
+  std::function<ftxui::Color()> searchHighlight;
 };
 struct Imports {
   event_loop::Loop& owner;
