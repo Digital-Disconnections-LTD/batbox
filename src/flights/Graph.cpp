@@ -43,7 +43,11 @@ std::optional<Json> findLatestMessage(const Json& messages,const std::function<b
   std::optional<Json> latest;double maximum=-std::numeric_limits<double>::infinity();
   for(const auto& message:messages) {
     if(!predicate(message))continue;
-    const auto time=services.parseTimestamp(message.at("timestamp").get<std::string>());
+    // A missing or malformed timestamp sorts oldest instead of failing the
+    // whole load; the chain is still rebuilt from parentUuid links.
+    const auto& stamp=value::property(message,"timestamp");
+    const auto time=stamp.is_string()?services.parseTimestamp(stamp.get<std::string>()):
+      std::numeric_limits<double>::lowest();
     if(time>maximum){maximum=time;latest=message;}
   }
   return latest;
@@ -88,7 +92,10 @@ Json recoverOrphanedParallelGadgetResults(const MessageMap& messages,const Json&
         if(!seen.contains(result.at("uuid").get<std::string>()))orphanedResults.push_back(result);
     }
     if(orphanedSiblings.empty() && orphanedResults.empty())continue;
-    const auto compare=[&](const Json& a,const Json& b){return services.localeCompare(a.at("timestamp"),b.at("timestamp"))<0;};
+    const auto stampOf=[](const Json& value)->std::string{
+      const auto& stamp=value::property(value,"timestamp");
+      return stamp.is_string()?stamp.get<std::string>():std::string();};
+    const auto compare=[&](const Json& a,const Json& b){return services.localeCompare(stampOf(a),stampOf(b))<0;};
     std::stable_sort(orphanedSiblings.begin(),orphanedSiblings.end(),compare);
     std::stable_sort(orphanedResults.begin(),orphanedResults.end(),compare);
     orphanedSiblings.insert(orphanedSiblings.end(),orphanedResults.begin(),orphanedResults.end());
