@@ -29,6 +29,10 @@ private:
   struct CollapsedEntry {
     cards_collapsed::CollapsedState state;
     std::shared_ptr<cards_collapsed::MinHintDisplay> hint;
+    // Materialized group, kept while the prepared list (and so the
+    // synthetic group message) is unchanged between frames.
+    std::weak_ptr<Json> materializedFrom;
+    Json materialized;
   };
   RetainedViews(event_loop::Loop& loop,std::function<double()> nowMs,
     std::function<void()> requestRedraw);

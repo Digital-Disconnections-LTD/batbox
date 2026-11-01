@@ -72,6 +72,11 @@ std::string expected(const ix::MessageRefs& messages, const ix::MessageListSetti
   std::optional<ix::SliceAnchor> anchor;
   return fingerprint(ix::prepareMessageList(messages, s, anchor));
 }
+std::shared_ptr<ix::PreparedMessageList> rebuiltBeforeClear(ix::MessageListMemo& memo,
+    const ix::MessageRefs& messages, const ix::MessageListSettings& s,
+    std::optional<ix::SliceAnchor>& anchor) {
+  return memo.prepare(messages, s, anchor);
+}
 } // namespace
 
 int main() {
@@ -206,6 +211,20 @@ int main() {
   assert(c1 != c2 && memo.preparations() == preparationsBefore + 2);
   auto direct = ix::prepareMessageList(messages, capped, freshAnchor);
   assert(fingerprint(*c2) == fingerprint(direct));
+
+  // Row planning reads plain items through the shared message and groups
+  // through a materialized copy equal to materializeRenderItem.
+  for (const auto& item : *rebuiltBeforeClear(memo, messages, s, anchor)->renderable) {
+    const auto view = ix::materializedView(item);
+    if (item.members.empty() && !item.collapsedItems) assert(view == item.message);
+    assert(*view == ix::materializeRenderItem(item));
+  }
+  const ix::RenderItem group(message({{"type", "grouped_tool_use"}, {"uuid", "g"},
+      {"toolName", "Read"}}), {messages[1], messages[4]}, {messages[2], messages[5]},
+      messages[1]);
+  const auto groupView = ix::materializedView(group);
+  assert(groupView != group.message && *groupView == ix::materializeRenderItem(group));
+  assert(groupView->at("messages").size() == 2);
 
   memo.clear();
   auto rebuilt = memo.prepare(messages, s, anchor);
