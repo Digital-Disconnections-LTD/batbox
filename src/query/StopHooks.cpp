@@ -95,10 +95,11 @@ Json handleStopHooks(const Json& messagesForQuery,const Json& assistantMessages,
   std::optional<bool> stopHookActive,StopHookServices& services,const Yield& yield){
   using namespace stop_internal;
   need(yield,"yield");need(services.feature,"feature");
-  const Json fullMessages=concatMessages(messagesForQuery,assistantMessages);
-  const Json stopContext={{"messages",fullMessages},{"systemPrompt",params.systemPoetry},
+  const Json stopContext={{"messages",concatMessages(messagesForQuery,assistantMessages)},
+    {"systemPrompt",params.systemPoetry},
     {"userContext",params.userContext},{"systemContext",params.systemContext},
     {"toolUseContext",context.data},{"querySource",params.querySource}};
+  const Json& fullMessages=stopContext.at("messages");
   if(params.querySource=="repl_main_thread"||params.querySource=="sdk"){
     need(services.createStashSafeParams,"createCacheSafeParams");
     need(services.saveStashSafeParams,"saveCacheSafeParams");

@@ -273,7 +273,13 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
       owner,get);
     need(full,"active agent context");
     execution::Context current=full->query;
-    current.data=field(context,"toolUseContext");
+    // The snapshot keeps the conversation once, as forkContextMessages.
+    current.data=Json::object();
+    const auto& live=field(context,"toolUseContext");
+    if(live.is_object())for(auto it=live.begin();it!=live.end();++it)
+      current.data[it.key()]=it.key()=="messages"&&it.value().is_array()?
+        Json::array():it.value();
+    else current.data=live;
     *pendingSnapshot=bats::makeStashSafeSnapshot(full,
       field(context,"systemPrompt"),field(context,"userContext"),
       field(context,"systemContext"),current,field(context,"messages"));

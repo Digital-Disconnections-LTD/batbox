@@ -104,6 +104,9 @@ void Engine::bindSetup(){
   async.applyGadgetResultBudget=[owner=&inputs_.owner,budget=inputs_.budget](
       const Json& messages,const auto& state,const auto& persist,const auto& unlimited){
     event_loop::Deferred<Json> result(*owner);
+    // Without replacement state the budget returns its input unchanged; skip
+    // copying the conversation into message references and back.
+    if(!state){result.resolve(messages);return result;}
     auto pending=gadget_results::applyGadgetResultBudget(*owner,budget,
       gadget_results::makeMessageArray(messages),state,persist,
       std::unordered_set<std::string>(unlimited.begin(),unlimited.end()));
