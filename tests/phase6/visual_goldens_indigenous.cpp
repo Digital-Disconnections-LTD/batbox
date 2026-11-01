@@ -62,6 +62,7 @@ struct Fixture {
   gadgets::Gadget read,edit,bash;
   gadgets::Gadgets active;
   std::shared_ptr<ap::Bundle> bundle;
+  std::string status;
   explicit Fixture(const std::string& name,std::string cwd="/home/bat/roost",
       std::string model="night-owl-7b"):
       shell(loop,state,(options.interactive=false,options)),
@@ -100,7 +101,7 @@ struct Fixture {
     inputs.workingDirectory=[cwd]{return cwd;};
     inputs.homeDirectory=[]{return std::string("/home/bat");};
     inputs.permissionMode=[]{return std::string("plan");};
-    inputs.statusText=[]{return std::string{};};
+    inputs.statusText=[this]{return status;};
     inputs.gitBranch=[]{return std::string("night-shift");};
     inputs.contextUsage=[]()->std::optional<double>{return 0.42;};
     inputs.nowMs=[]{return 1234.0;};
@@ -312,6 +313,16 @@ int main(int argc,char** argv){
       check(welcome.text.find("…/BATBO…")==std::string::npos&&
         welcome.text.find("…/batbox ")==std::string::npos,
         "welcome card must not cut the Roost path mid-name:\n"+welcome.text);
+    }
+    {
+      // A Bat view keeps a transient notice apart from its follow-up hints.
+      Fixture bat("batbox-dark");
+      bat.status="Ctrl+B to run in background";
+      auto view=bat.view(120,24);
+      view.batId="bat-1";view.batLabel="test-audit";view.batStatus="running";
+      const auto row=golden::render(bat.shell.chrome.renderStatus(view),120,1);
+      check(contains(row,"Ctrl+B to run in background · Follow-up → Bat"),
+        "Bat status row must separate the notice from its hints");
     }
     if(!passed)return 1;
     std::cout<<"Batbox visual goldens match across four themes\n";
