@@ -55,7 +55,7 @@ gadgets::Gadget IndigenousBatApplication::makeSendMessageGadget(){
   gadget.renderGadgetUseMessage=[](const Json& input,const Json&){
     return Json(string(field(input,"summary"))+" → "+string(field(input,"to")));
   };
-  gadget.renderGadgetResultMessage=[](const Json&,const Json& data,const Json&){return field(data,"message");};
+  gadget.renderGadgetResultMessage=[](const Json& data,const Json&,const Json&){return field(data,"message");};
   gadget.renderGadgetUseErrorMessage=[](const Json& value,const Json&){return value;};
   gadget.renderGadgetUseRejectedMessage=gadget.renderGadgetUseErrorMessage;
   gadget.call=[weak](const Json& input,const gadgets::GadgetCallContext& context,

@@ -163,6 +163,18 @@ struct HostSavedBatsProbe {
     unsubscribe();
   }
 
+  static void sendMessageResult(Host::Impl& impl){
+    check(bool(impl.bats),"The host must own a Bat application");
+    const auto gadget=impl.bats->makeSendMessageGadget();
+    check(bool(gadget.renderGadgetResultMessage),"SendMessage needs a result renderer");
+    const Json output={{"success",true},
+      {"message","Message queued for delivery to reviewer at its next tool round."}};
+    const Json progress=Json::array({Json{{"message","progress must not be shown"}}});
+    const auto shown=gadget.renderGadgetResultMessage(output,progress,Json::object());
+    check(shown==output.at("message"),
+      "SendMessage must render its result output, not its progress: "+shown.dump());
+  }
+
   static void run(){
     const auto original=std::filesystem::current_path();
     const auto root=std::filesystem::temp_directory_path()/
@@ -188,6 +200,7 @@ struct HostSavedBatsProbe {
         commandNames(impl);
         savedBats(impl);
         streamThrottle(impl);
+        sendMessageResult(impl);
       }catch(...){finish();throw;}
       finish();
     }catch(...){
@@ -202,7 +215,8 @@ struct HostSavedBatsProbe {
 int main(){
   try{
     batbox::application::HostSavedBatsProbe::run();
-    std::cout<<"Bats commands resolve, saved Bats seed and open, and Bat streams publish throttled\n";
+    std::cout<<"Bats commands resolve, saved Bats seed and open, Bat streams publish throttled, "
+      "and SendMessage shows its result\n";
     return 0;
   }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 }
