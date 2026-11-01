@@ -190,6 +190,8 @@ golden::Frame permissionScene(Fixture& fixture){
   application_permissions::PermissionProvider::Inputs inputs(fixture.loop);
   inputs.ui=ui;
   inputs.persistAllowRule=[](const std::string&){};
+  inputs.workingDirectory=[]{return std::string("/home/bat/roost");};
+  inputs.homeDirectory=[]{return std::string("/home/bat");};
   auto provider=application_permissions::PermissionProvider::create(std::move(inputs));
   auto decision=provider->check("Edit",{{"file_path","/home/bat/roost/src/lexer.cpp"},
     {"old_string","  return {pos};\n"},{"new_string","  // Keep the span.\n  return {pos, span()};\n"}},
@@ -271,6 +273,9 @@ int main(int argc,char** argv){
       check(contains(permission,"Allow Edit?")&&contains(permission,"Allow once")&&
         contains(permission,"Saves Edit(/home/bat/roost/src/lexer.cpp)"),
         theme+": permission dialog must name the rule it saves");
+      check(contains(permission,"│ src/lexer.cpp")&&
+        permission.text.find("│ /home/bat/roost/src/lexer.cpp")==std::string::npos,
+        theme+": permission dialog must name the file relative to the Roost");
       check(contains(permission,"-   return {pos};")&&contains(permission,"+   // Keep the span."),
         theme+": permission dialog must preview the edit");
       const auto input=inputScene(fixture);

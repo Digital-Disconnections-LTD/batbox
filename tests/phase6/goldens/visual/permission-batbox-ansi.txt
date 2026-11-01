@@ -1,5 +1,5 @@
 ╭─ ✦ Allow Edit? ──────────────────────────────────────────────────────────────╮
-│ /home/bat/roost/src/lexer.cpp                                                │
+│ src/lexer.cpp                                                                │
 │                                                                              │
 │ -   return {pos};                                                            │
 │ +   // Keep the span.                                                        │

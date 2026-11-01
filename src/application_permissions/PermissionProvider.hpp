@@ -18,6 +18,9 @@ public:
     std::shared_ptr<interactive::CommandUi> ui;
     bool interactive=true;
     std::function<void(const std::string&)> persistAllowRule;
+    // The Roost and home directory; file requests show their path relative
+    // to them. Unset, the dialog shows the path as the Gadget received it.
+    std::function<std::string()> workingDirectory,homeDirectory;
     explicit Inputs(event_loop::Loop& loop):owner(loop){}
   };
   static std::shared_ptr<PermissionProvider> create(Inputs inputs);

@@ -19,6 +19,13 @@ std::string commandFor(const std::string& gadget,const Json& input){
   }
   return "";
 }
+// File Gadgets ask about the path itself, so the dialog can shorten it.
+bool pathContent(const std::string& gadget,const Json& input,const std::string& content){
+  if(content.empty()||gadget=="Bash"||gadget=="Agent"||gadget=="WebFetch")return false;
+  for(const char* key:{"file_path","path"})
+    if(asString(field(input,key))==content)return true;
+  return false;
+}
 bool matchesContent(const std::string& pattern,const std::string& content){
   const auto rule=application_shell::parsePermissionRule(pattern);
   if(rule.type==application_shell::ShellRule::Type::Exact)return content==rule.content;
@@ -216,6 +223,13 @@ void PermissionProvider::showNext(){
   request.id="permission-"+pending->rule;
   request.title="Allow "+pending->gadget+"?";
   request.body=pending->content.empty()?pending->gadget:pending->content;
+  if(pathContent(pending->gadget,pending->input,pending->content)&&inputs_.workingDirectory){
+    try{
+      const auto home=inputs_.homeDirectory?inputs_.homeDirectory():std::string{};
+      request.body=interactive::gadget_views::displayPath(pending->content,
+        inputs_.workingDirectory(),home);
+    }catch(const std::exception&){request.body=pending->content;}
+  }
   request.bodyPreviewLines=3;
   request.choices={"Allow once",
     inputs_.persistAllowRule?"Always allow this rule":"Allow this rule for this session",

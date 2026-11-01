@@ -2,6 +2,8 @@ batbox_indigenous(phase6-conversation-shell-indigenous
   tests/phase6/conversation_shell_indigenous.cpp batbox_conversation_shell)
 batbox_indigenous(phase6-permission-provider-indigenous
   tests/phase6/permission_provider_indigenous.cpp batbox_application_permissions)
+batbox_indigenous(phase6-permission-dialog-path-indigenous
+  tests/phase6/permission_dialog_path_indigenous.cpp batbox_application_permissions)
 batbox_indigenous(phase6-startup-presentation-indigenous
   tests/phase6/interactive_presentation_providers_probe.cpp batbox_conversation_shell)
 batbox_indigenous(phase6-application-runtime-indigenous

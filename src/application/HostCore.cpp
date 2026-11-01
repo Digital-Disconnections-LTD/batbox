@@ -9,6 +9,9 @@
 #include "runtime/IndigenousPath.hpp"
 #include "interactive/background/NotificationAttachments.hpp"
 #include "gadgets/Gadget.hpp"
+#ifdef _WIN32
+#include "runtime/IndigenousUnicode.hpp"
+#endif
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -211,6 +214,17 @@ void Host::Impl::initialize(){
       log("MCP "+server+": "+message);},true);
   application_permissions::PermissionProvider::Inputs permissionInputs(owner);
   permissionInputs.interactive=!config.print;
+  permissionInputs.workingDirectory=[roost=roost]{return runtime::pathToUtf8(roost->cwd());};
+  permissionInputs.homeDirectory=[]{
+#ifdef _WIN32
+    auto home=runtime::environmentUtf8("USERPROFILE");
+    if(home.empty())home=runtime::environmentUtf8("HOME");
+#else
+    const char* value=std::getenv("HOME");
+    std::string home=value?value:"";
+#endif
+    return home;
+  };
   permission=application_permissions::PermissionProvider::create(
     std::move(permissionInputs));
   bindRoostProviders();
