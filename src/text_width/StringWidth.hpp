@@ -6,6 +6,8 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <mutex>
 namespace batbox::text_width {
 struct EmojiRegex {
   std::function<void()> reset;
@@ -30,6 +32,11 @@ public:
   double stringWidthUtf8(std::string_view text)const;
   double stringWidthJavaScript(const Json& text)const;
 private:
+  double measure(const std::string& text)const;
+  // Short non-ASCII labels ("◆ plan", "⎇ main") are measured every frame and
+  // the full algorithm allocates per grapheme, so their widths are kept.
+  struct ShortWidths;
+  std::shared_ptr<ShortWidths> shortWidths_;
   Services services_;
   std::shared_ptr<EmojiRegex> emoji_;
   BunWidth bun_;

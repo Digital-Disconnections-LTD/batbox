@@ -2,7 +2,13 @@
 #include "text_width/CodePoints.hpp"
 #include <optional>
 namespace batbox::text_width {
-StringWidth::StringWidth(Services services):services_(std::move(services)),emoji_(services_.emojiRegex()),bun_(services_.resolveBunStringWidth()){}
+struct StringWidth::ShortWidths {
+  static constexpr std::size_t maxBytes=64,maxEntries=4096;
+  std::mutex mutex;
+  std::unordered_map<std::string,double> widths;
+};
+StringWidth::StringWidth(Services services):shortWidths_(std::make_shared<ShortWidths>()),
+  services_(std::move(services)),emoji_(services_.emojiRegex()),bun_(services_.resolveBunStringWidth()){}
 double StringWidth::stringWidth(const Json& text)const{
   return bun_?bun_(text,bunOptions_):stringWidthJavaScript(text);
 }
@@ -25,8 +31,24 @@ double StringWidth::stringWidthUtf8(std::string_view text)const{
 }
 double StringWidth::stringWidthJavaScript(const Json& value)const{
   if(!value.is_string()||value.get_ref<const std::string&>().empty())return 0;
-  if(const auto width=asciiWidth(value.get_ref<const std::string&>()))return *width;
-  auto str=value.get<std::string>();const auto units=value::utf16CodeUnits(str);
+  const auto& text=value.get_ref<const std::string&>();
+  if(const auto width=asciiWidth(text))return *width;
+  const bool shortText=text.size()<=ShortWidths::maxBytes;
+  if(shortText){
+    std::lock_guard lock(shortWidths_->mutex);
+    if(const auto found=shortWidths_->widths.find(text);found!=shortWidths_->widths.end())
+      return found->second;
+  }
+  const auto width=measure(text);
+  if(shortText){
+    std::lock_guard lock(shortWidths_->mutex);
+    if(shortWidths_->widths.size()>=ShortWidths::maxEntries)shortWidths_->widths.clear();
+    shortWidths_->widths.emplace(text,width);
+  }
+  return width;
+}
+double StringWidth::measure(const std::string& text)const{
+  auto str=text;const auto units=value::utf16CodeUnits(str);
   bool pure=true;
   for(const auto code:units)if(code>=127||code==0x1b){pure=false;break;}
   if(pure){double width=0;for(const auto code:units)if(code>0x1f)++width;return width;}
