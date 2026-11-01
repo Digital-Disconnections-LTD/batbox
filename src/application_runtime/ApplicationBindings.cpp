@@ -54,6 +54,25 @@ void ApplicationRuntime::bindQuery(){
     std::move(inputs_.execution));
   turn_->feature=inputs_.feature;
   execution_->feature=inputs_.feature;
+  if(inputs_.createInterruptionMessage){
+    const auto completed=turn_->mrOnTurnComplete;
+    if(!completed)throw std::invalid_argument("Turn-complete callback required");
+    turn_->mrOnTurnComplete=[weak,completed](
+        const interactive::TurnMessagesRef& messages,bool aborted){
+      auto self=weak.lock();
+      if(self&&aborted&&self->activeAbort_&&
+          self->interruptedTurn_.lock()==self->activeAbort_){
+        self->interruptedTurn_.reset();
+        const auto notice=self->inputs_.createInterruptionMessage();
+        self->messages_->setMessages([notice](const auto& previous){
+          auto next=std::make_shared<interactive::TurnMessages>(*previous);
+          next->push_back(notice);return next;
+        });
+        return completed(self->messages_->messages(),aborted);
+      }
+      return completed(messages,aborted);
+    };
+  }
   turn_->enqueue=[weak](const Json& command){
     if(auto self=weak.lock())self->queue_->enqueue(command);
   };

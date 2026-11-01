@@ -49,6 +49,7 @@ struct Inputs {
   std::function<void(const interactive::InteractiveQueryContext&)>
     onQueryContextCreated;
   std::function<void(const interactive::TurnRequest&)> onTurnRequested;
+  std::function<interactive::TurnMessageRef()> createInterruptionMessage;
   std::function<void(interactive::submit::SubmitServices&)> bindSubmitProviders;
   std::function<void(interactive::repl_runtime::RuntimeServices&)> bindRuntimeProviders;
   std::function<interactive::submit::PoetrySubmitRequest(
@@ -141,6 +142,7 @@ private:
   std::shared_ptr<interactive::submit::SubmitServices> submit_;
   std::shared_ptr<interactive::repl_runtime::Runtime> runtime_;
   std::shared_ptr<interactive::TurnAbort> activeAbort_;
+  std::weak_ptr<interactive::TurnAbort> interruptedTurn_;
   std::function<void(interactive::StreamInput)> streamSink_;
   std::function<void(std::optional<interactive::UiRequest>)> modalSink_;
   std::function<void()> redrawSink_;
