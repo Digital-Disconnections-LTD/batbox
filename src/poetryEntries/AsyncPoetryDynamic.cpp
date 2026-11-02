@@ -34,6 +34,8 @@ void Run::dynamic(){
     if(services.kairosFeature||services.kairosBriefFeature)
       dynamic.push_back(systemPoetrySection("brief",ComputeAsyncSection([self]()->AsyncSectionResult{
         need(self->services.briefSection,"briefSection");return self->services.briefSection();})));
+    sectionNames.clear();
+    for(const auto& section:dynamic)sectionNames.push_back(section.name);
     services.sections->resolveSystemPoetrySections(dynamic).then(
       [self](const std::vector<SectionValue>* values,const std::exception_ptr& error){
         if(error)self->result.reject(error);else self->finish(*values);

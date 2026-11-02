@@ -1,0 +1,12 @@
+// Generated from poetry/system.md at configure time.
+#include "poetryEntries/SystemHead.hpp"
+
+namespace batbox::poetryEntries {
+namespace {
+constexpr unsigned char systemPoetryBytes[]={
+@BATBOX_SYSTEM_POETRY_BYTES@0x00};
+}
+std::string_view builtInSystemPoetrySource(){
+  return {reinterpret_cast<const char*>(systemPoetryBytes),sizeof(systemPoetryBytes)-1};
+}
+}

@@ -4,6 +4,7 @@
 #include "application_commands/CommandsMcp.hpp"
 #include "application_commands/MemoryPanel.hpp"
 #include "application_commands/ProjectCommand.hpp"
+#include "application_commands/PoetryCommand.hpp"
 #include "application_commands/EffortCommand.hpp"
 #include "application_commands/ThemeCommand.hpp"
 #include "application_commands/FlightTitles.hpp"
@@ -431,6 +432,7 @@ void Bundle::initialize(){
     inputs_.memory,inputs_.getShell));
   entries_.push_back(makeProjectCommand(inputs_.owner,inputs_.config.cwd,
     [poetry=inputs_.poetry]{if(poetry)poetry->clearProjectInstructions();}));
+  if(inputs_.poetry)entries_.push_back(makePoetryCommand(inputs_.owner,inputs_.poetry));
   entries_.push_back(makeEffortCommand(inputs_.owner,router_,inputs_.config,
     inputs_.store,[weak]{
       const auto self=weak.lock();

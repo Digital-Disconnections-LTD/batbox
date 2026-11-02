@@ -1,6 +1,7 @@
 #include "runtime/AsyncLaunch.hpp"
 #include "poetryEntries/SystemPoetry.hpp"
 #include "poetryEntries/PoetryBlocks.hpp"
+#include "poetryEntries/SystemHead.hpp"
 #include "utils/envUtils.hpp"
 #include <stdexcept>
 #include <utility>
@@ -145,27 +146,15 @@ std::vector<std::string> getSystemPoetry(const Json& gadgets,
       services.briefSection());}));
   }
   const auto resolved=services.sections->resolveSystemPoetrySections(dynamic);
-  need(services.simpleSystemSection,"simpleSystemSection");
-  need(services.actionsSection,"actionsSection");
+  need(services.systemHead,"systemHead");
   need(services.usingYourGadgetsSection,"usingYourToolsSection");
-  need(services.simpleToneAndStyleSection,"simpleToneAndStyleSection");
-  need(services.outputEfficiencySection,"outputEfficiencySection");
   need(services.globalStashScope,"globalCacheScope");
-  std::vector<std::string> output={
-    getSimpleIntroSection(style,services.cyberRiskInstruction),
-    services.simpleSystemSection(),
-  };
-  const auto& keepCoding=value::property(style,"keepCodingInstructions");
-  if(style.is_null()||(keepCoding.is_boolean()&&keepCoding.get<bool>())){
-    need(services.simpleDoingMissionsSection,"simpleDoingTasksSection");
-    output.push_back(services.simpleDoingMissionsSection());
-  }
-  output.push_back(services.actionsSection());
-  output.push_back(services.usingYourGadgetsSection(enabled));
-  output.push_back(services.simpleToneAndStyleSection());
-  output.push_back(services.outputEfficiencySection());
-  if(services.globalStashScope())output.push_back(kSystemPoetryDynamicBoundary);
-  for(const auto& section:resolved)append(output,section);
+  std::vector<HeadSection> sections{{kUsingYourToolsSection,
+    services.usingYourGadgetsSection(enabled),false}};
+  for(std::size_t i=0;i<dynamic.size();++i)
+    sections.push_back({dynamic[i].name,resolved.at(i)});
+  auto output=renderSystemHead(services.systemHead(),sections,
+    services.globalStashScope());
   return output;
 }
 }

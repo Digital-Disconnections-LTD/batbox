@@ -50,16 +50,12 @@ Json run(const Json& input){
     return settings;};
   services.proactiveActive=[&]{events.push_back("proactiveActive");
     return flag(input,"proactiveActive");};
-  services.simpleSystemSection=[&]{events.push_back("system");return std::string("SYSTEM");};
-  services.simpleDoingMissionsSection=[&]{events.push_back("doing");return std::string("DOING");};
-  services.actionsSection=[&]{events.push_back("actions");return std::string("ACTIONS");};
+  services.systemHead=[&]{events.push_back("head");
+    return str(input,"head","HEAD\n\n{{section:using_your_tools}}");};
   services.usingYourGadgetsSection=[&](const poetryEntries::GadgetNames& names){
     events.push_back("using");std::string result="USING:";
     std::size_t i=0;for(const auto& name:names){if(i++)result+=',';result+=name;}
     return result;};
-  services.simpleToneAndStyleSection=[&]{events.push_back("tone");return std::string("TONE");};
-  services.outputEfficiencySection=[&]{events.push_back("efficiency");
-    return std::string("EFFICIENCY");};
   services.flightSpecificGuidanceSection=[&](const poetryEntries::GadgetNames&,
     const Json&)->std::optional<std::string>{
     events.push_back("session");

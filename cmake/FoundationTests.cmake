@@ -9,7 +9,7 @@ endforeach()
 batbox_phase4_probe(context batbox_context)
 batbox_phase4_probe(context_async batbox_context)
 batbox_indigenous(phase4-context-async-indigenous tests/phase4/context_async_indigenous.cpp "batbox_context;batbox_process")
-foreach(section IN ITEMS poetry_sections poetry_blocks poetry_env system_poetry poetry_guidance poetry_static bat_poetry)
+foreach(section IN ITEMS poetry_sections poetry_blocks poetry_env system_poetry poetry_guidance bat_poetry)
   batbox_phase4_probe(${section} batbox_poetryEntries)
 endforeach()
 batbox_phase4_probe(poetry_async_sections batbox_poetryEntries)
@@ -17,6 +17,10 @@ add_executable(batbox-system-poetry-async-probe tests/phase4/system_poetry_async
 target_link_libraries(batbox-system-poetry-async-probe PRIVATE batbox_poetryEntries)
 
 batbox_phase4_probe(system_poetry_async_trace batbox_poetryEntries)
+batbox_indigenous(phase4-system-poetry-head-indigenous
+  tests/phase4/system_poetry_head_indigenous.cpp batbox_poetryEntries)
+target_compile_definitions(batbox-phase4-system-poetry-head-indigenous PRIVATE
+  BATBOX_SYSTEM_POETRY_FILE="${CMAKE_SOURCE_DIR}/poetry/system.md")
 batbox_probe(exec_file batbox_process phase3)
 batbox_indigenous(phase3-exec-file-indigenous tests/phase3/exec_file_indigenous.cpp batbox_process)
 foreach(section IN ITEMS git_fs git_fs_safety git_fs_path git_config git_config_async git_root)

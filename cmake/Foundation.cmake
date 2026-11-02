@@ -14,13 +14,23 @@ add_library(batbox_context src/context/ContextDate.cpp src/context/ContextSettin
   src/context/AsyncSystemContext.cpp src/context/AsyncUserContext.cpp)
 target_link_libraries(batbox_context PUBLIC batbox_instructions batbox_event_loop)
 target_compile_options(batbox_context PRIVATE -Wall -Wextra -Wpedantic)
+# The default system prompt is poetry/system.md, embedded as bytes so the
+# binary never reads it at run time.
+set(BATBOX_SYSTEM_POETRY_SOURCE ${CMAKE_SOURCE_DIR}/poetry/system.md)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${BATBOX_SYSTEM_POETRY_SOURCE})
+file(READ ${BATBOX_SYSTEM_POETRY_SOURCE} BATBOX_SYSTEM_POETRY_HEX HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," BATBOX_SYSTEM_POETRY_BYTES "${BATBOX_SYSTEM_POETRY_HEX}")
+string(REGEX REPLACE "((0x..,){24})" "\\1\n" BATBOX_SYSTEM_POETRY_BYTES "${BATBOX_SYSTEM_POETRY_BYTES}")
+configure_file(src/poetryEntries/SystemPoetryDefault.cpp.in
+  ${CMAKE_BINARY_DIR}/generated/poetryEntries/SystemPoetryDefault.cpp @ONLY)
 add_library(batbox_poetryEntries
   src/poetryEntries/BatPoetry.cpp src/poetryEntries/EnvironmentBasics.cpp src/poetryEntries/EnvironmentRender.cpp
   src/poetryEntries/GuidanceCore.cpp src/poetryEntries/GuidanceFeatures.cpp src/poetryEntries/GuidanceFlight.cpp
   src/poetryEntries/GuidanceGadgets.cpp src/poetryEntries/PoetryBindings.cpp src/poetryEntries/PoetryBlocks.cpp
-  src/poetryEntries/Sections.cpp src/poetryEntries/StaticActions.cpp src/poetryEntries/StaticDoingMissions.cpp
-  src/poetryEntries/StaticOutput.cpp src/poetryEntries/StaticProactive.cpp src/poetryEntries/StaticSystem.cpp
-  src/poetryEntries/StaticTone.cpp src/poetryEntries/SystemPoetry.cpp src/poetryEntries/AsyncSections.cpp
+  src/poetryEntries/Sections.cpp src/poetryEntries/StaticProactive.cpp
+  src/poetryEntries/SystemHead.cpp src/poetryEntries/SystemPoetryFile.cpp
+  ${CMAKE_BINARY_DIR}/generated/poetryEntries/SystemPoetryDefault.cpp
+  src/poetryEntries/SystemPoetry.cpp src/poetryEntries/AsyncSections.cpp
   src/poetryEntries/AsyncPoetryStart.cpp src/poetryEntries/AsyncPoetryProactive.cpp
   src/poetryEntries/AsyncPoetryDynamic.cpp src/poetryEntries/AsyncPoetryFinish.cpp
   src/poetryEntries/EffectiveSystemPoetry.cpp)

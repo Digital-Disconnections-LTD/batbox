@@ -3,13 +3,17 @@
 #include "application/SetupWebScript.hpp"
 #include "application_config/EndpointStore.hpp"
 #include "application_connectors/Status.hpp"
+#include "poetryEntries/SystemHead.hpp"
+#include "poetryEntries/SystemPoetryFile.hpp"
 #include "providers/LocalDiscovery.hpp"
 #include "providers/Onboarding.hpp"
 #include "runtime/IndigenousPath.hpp"
+#include "utils/envUtils.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -221,6 +225,81 @@ int addProvider(const std::vector<std::string>& arguments){
     <<"Saved to "<<runtime::pathToUtf8(config.configPath)<<" (private, mode 0600)\n";
   return 0;
 }
+int poetryUsage(std::ostream& out,int status){
+  out<<"Usage: batbox poetry             Print the system prompt head and where it comes from\n"
+    "       batbox poetry export [--force]\n"
+    "                                 Write the built-in system prompt to system.md in the\n"
+    "                                 configuration folder to customise it\n";
+  return status;
+}
+std::filesystem::path poetryDirectory(){
+  return configurationDirectory(configLocation({}));
+}
+int showPoetry(){
+  const auto source=poetryEntries::loadSystemPoetry(poetryDirectory());
+  std::cerr<<"System poetry (system prompt): "<<poetryEntries::describeSystemPoetry(source)<<"\n";
+  if(!source.fromFile&&!source.path.empty()&&source.problem.empty())
+    std::cerr<<"Customise it: batbox poetry export, then edit "
+      <<poetryEntries::displayPath(source.path)<<"\n";
+  for(const auto& warning:poetryEntries::systemPoetryWarnings(source))
+    std::cerr<<"Warning: "<<warning<<"\n";
+  if(const char* simple=std::getenv("BATBOX_SIMPLE");simple&&isEnvTruthy(Json(simple)))
+    std::cerr<<"Note: BATBOX_SIMPLE is set, so Flights use the short built-in prompt instead.\n";
+  std::cerr<<"\n";
+  std::cout<<source.head<<"\n";
+  return 0;
+}
+int exportPoetry(const std::vector<std::string>& arguments){
+  bool force=false;
+  for(const auto& argument:arguments){
+    if(argument=="--force")force=true;
+    else if(argument=="--help"||argument=="-h")return poetryUsage(std::cout,0);
+    else{std::cerr<<"batbox poetry export: unknown option \""<<argument<<"\"\n";return poetryUsage(std::cerr,2);}
+  }
+  const auto directory=poetryDirectory();
+  const auto path=poetryEntries::systemPoetryPath(directory);
+  if(path.empty())throw std::runtime_error("No configuration folder: set HOME or BATBOX_CONFIG_DIR");
+  std::error_code error;
+  if(std::filesystem::exists(path,error)&&!force){
+    std::cerr<<"batbox poetry export: "<<poetryEntries::displayPath(path)
+      <<" already exists; pass --force to replace it with the built-in system prompt\n";
+    return 1;
+  }
+  std::filesystem::create_directories(directory,error);
+  if(error)throw std::runtime_error("Cannot create "+runtime::pathToUtf8(directory)+": "+error.message());
+  const auto source=poetryEntries::builtInSystemPoetrySource();
+  auto temporary=path;temporary+=".tmp";
+  {
+    std::ofstream output(temporary,std::ios::binary|std::ios::trunc);
+    output.write(source.data(),static_cast<std::streamsize>(source.size()));
+    output.close();
+    if(!output){
+      std::filesystem::remove(temporary,error);
+      throw std::runtime_error("Cannot write "+runtime::pathToUtf8(temporary));
+    }
+  }
+  std::filesystem::rename(temporary,path,error);
+  if(error){
+    std::error_code ignored;std::filesystem::remove(temporary,ignored);
+    throw std::runtime_error("Cannot write "+runtime::pathToUtf8(path)+": "+error.message());
+  }
+  std::cout<<"Wrote the built-in system prompt to "<<poetryEntries::displayPath(path)
+    <<" ("<<source.size()<<" bytes). Edit it; Batbox uses it from the next request.\n";
+  return 0;
+}
+int runPoetry(const std::vector<std::string>& arguments){
+  try{
+    if(arguments.empty())return showPoetry();
+    if(arguments.front()=="export")return exportPoetry({arguments.begin()+1,arguments.end()});
+    if(arguments.front()=="--help"||arguments.front()=="-h"||arguments.front()=="help")
+      return poetryUsage(std::cout,0);
+    std::cerr<<"batbox poetry: unknown argument \""<<arguments.front()<<"\"\n";
+    return poetryUsage(std::cerr,2);
+  }catch(const std::exception& error){
+    std::cerr<<"batbox poetry: "<<error.what()<<"\n";
+    return 1;
+  }
+}
 int setupWeb(const std::vector<std::string>& arguments){
 #ifdef _WIN32
   (void)arguments;
@@ -265,6 +344,11 @@ int runDoctor(const std::vector<std::string>& arguments){
       <<(config.selectedProfile.starts_with(id+"::")?" · active":"")<<"\n";
   if(config.endpoints.empty()&&!config.model.empty())
     std::cout<<"  "<<config.model<<" at "<<config.baseUrl<<"\n";
+  // A system.md problem is a warning: Batbox falls back or sends the text as written.
+  const auto poetry=poetryEntries::loadSystemPoetry(configurationDirectory(config));
+  std::cout<<"\nSystem prompt\n  System poetry: "<<poetryEntries::describeSystemPoetry(poetry)<<"\n";
+  for(const auto& warning:poetryEntries::systemPoetryWarnings(poetry))
+    std::cout<<"  warning: "<<warning<<"\n";
   if(!ok)std::cout<<"\nSome checks need attention. Batbox still runs; the "
     "affected Gadgets report themselves unavailable.\n";
   return ok?0:1;
@@ -311,6 +395,7 @@ bool requestsVersion(const std::vector<std::string>& arguments){
 std::optional<int> runSubcommand(const std::vector<std::string>& arguments){
   if(arguments.empty())return std::nullopt;
   if(arguments.front()=="providers")return runProviders({arguments.begin()+1,arguments.end()});
+  if(arguments.front()=="poetry")return runPoetry({arguments.begin()+1,arguments.end()});
   if(arguments.front()=="setup"){
     if(arguments.size()<2||arguments[1]!="web"){
       std::cerr<<"Usage: batbox setup web [--dry-run] [--upgrade] [--uninstall] [--port N] [--help]\n";
@@ -349,6 +434,9 @@ std::string subcommandHelp(){
     "  batbox doctor | --doctor       Check web helpers, MCP servers and model servers\n"
     "  batbox providers [show <id>]   List the provider catalog and local model servers\n"
     "  batbox providers add <id> [--key-env VAR | --key -] [--base-url URL] [--model ID]\n"
-    "                                 Save a provider as an endpoint without the TUI\n";
+    "                                 Save a provider as an endpoint without the TUI\n"
+    "  batbox poetry [export [--force]]\n"
+    "                                 Show the system prompt (poetry) and its source, or\n"
+    "                                 export the built-in one to system.md to customise it\n";
 }
 } // namespace batbox::application

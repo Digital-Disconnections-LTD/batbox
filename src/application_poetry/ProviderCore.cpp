@@ -34,7 +34,7 @@ Json environmentSnapshot(){
 }
 Provider::Provider(event_loop::Loop& owner,Inputs inputs):owner_(owner),
     inputs_(std::move(inputs)),poetrySections_(owner),contextStash_(owner),
-    discoveryStash_(owner){
+    discoveryStash_(owner),systemPoetryFile_(application::configurationDirectory(inputs_.config)){
   if(!owner_.isOwnerThread())
     throw std::logic_error("Prompt provider requires owner loop");
   if(inputs_.config.cwd.empty()||inputs_.config.stateDirectory.empty())
@@ -129,6 +129,19 @@ void Provider::refreshMemoryFilesIfChanged(){
     memoryPaths_=std::move(current);
     if(!first){clearProjectInstructions();clearPoetrySections();}
   }
+}
+const poetryEntries::SystemPoetrySource& Provider::systemPoetrySource(){
+  if(!owner_.isOwnerThread())throw std::logic_error("System prompt file requires owner loop");
+  if(!systemPoetryFile_.refresh())return systemPoetryFile_.source();
+  const auto& source=systemPoetryFile_.source();
+  if(inputs_.logDiagnostic){
+    if(source.fromFile)inputs_.logDiagnostic("system poetry","using "+
+      poetryEntries::describeSystemPoetry(source),std::nullopt);
+    for(const auto& warning:poetryEntries::systemPoetryWarnings(source))
+      inputs_.logDiagnostic("system poetry",warning+" ("+(source.fromFile?
+        poetryEntries::displayPath(source.path):std::string("built-in"))+")",std::nullopt);
+  }
+  return source;
 }
 void Provider::clearPoetrySections(){
   poetrySections_.clearSystemPoetrySections([this]{

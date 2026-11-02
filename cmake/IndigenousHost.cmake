@@ -23,7 +23,7 @@ configure_file(src/application/SetupWebScript.hpp.in
 add_library(batbox_subcommands STATIC src/application/Subcommands.cpp)
 target_include_directories(batbox_subcommands PRIVATE ${CMAKE_BINARY_DIR}/generated)
 target_link_libraries(batbox_subcommands PUBLIC batbox_application_config
-  batbox_application_connectors batbox_providers)
+  batbox_application_connectors batbox_providers batbox_poetryEntries)
 target_compile_options(batbox_subcommands PRIVATE -Wall -Wextra)
 add_executable(batbox src/application/main.cpp)
 target_link_libraries(batbox PRIVATE batbox_indigenous_host batbox_subcommands)

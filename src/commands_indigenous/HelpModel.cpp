@@ -131,7 +131,7 @@ std::string helpSection(const std::string& name){
     {"model","Model and settings"},{"effort","Model and settings"},
     {"config","Model and settings"},{"theme","Model and settings"},
     {"permissions","Model and settings"},{"fast","Model and settings"},
-    {"providers","Model and settings"},
+    {"providers","Model and settings"},{"poetry","Model and settings"},
     {"bats","Bats and Missions"},{"agents","Bats and Missions"},
     {"leader","Bats and Missions"},{"missions","Bats and Missions"},
     {"tasks","Bats and Missions"},{"bashes","Bats and Missions"},

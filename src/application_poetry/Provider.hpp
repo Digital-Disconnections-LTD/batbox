@@ -10,6 +10,7 @@
 #include "process/ExecFileNoThrow.hpp"
 #include "poetryEntries/AsyncSystemPoetry.hpp"
 #include "poetryEntries/Guidance.hpp"
+#include "poetryEntries/SystemPoetryFile.hpp"
 
 namespace batbox::application_poetry {
 struct Inputs {
@@ -40,6 +41,8 @@ public:
   event_loop::Deferred<context::MemoryFiles> memoryFiles();
   instructions::MemoryPathServices memoryPathServices();
   void refreshMemoryFilesIfChanged();
+  // The static head for the next request: system.md when usable, else built-in.
+  const poetryEntries::SystemPoetrySource& systemPoetrySource();
   Json enhanceBatPoetry(const Json& poetry,const std::string& model,
     const Json& additionalDirectories,const Json& enabledGadgets);
   void clearPoetrySections();
@@ -75,6 +78,7 @@ private:
   std::unique_ptr<git::GitBasics> gitBasics_;
   process::ExecImports execImports_;
   std::optional<std::string> stashedBatboxMdContent_;
+  poetryEntries::SystemPoetryFile systemPoetryFile_;
   std::map<std::string,std::string> memoryFileStamps_;
   std::vector<std::string> observedInstructionFiles_;
   std::optional<event_loop::Deferred<std::string>> projectRecoveryStash_;

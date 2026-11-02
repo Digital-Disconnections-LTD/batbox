@@ -12,6 +12,7 @@ struct Run : std::enable_shared_from_this<Run> {
   std::string environment;
   GadgetNames enabled;
   std::vector<std::string> output;
+  std::vector<std::string> sectionNames;
   Run(event_loop::Loop& loop,AsyncSystemPoetryInput in,AsyncSystemPoetryServices svc)
     :owner(loop.dispatcher()),input(std::move(in)),services(std::move(svc)),result(loop){}
   void start();

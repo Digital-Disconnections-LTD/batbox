@@ -52,16 +52,4 @@ std::optional<std::string> getMcpInstructionsSection(const Json& clients){
   if(!clients.is_array()||clients.empty())return std::nullopt;
   return getMcpInstructions(clients);
 }
-std::string getSimpleIntroSection(const Json& outputStyleConfig,
-  const std::string& cyberRiskInstruction){
-  const std::string phrase=outputStyleConfig.is_null()
-    ?"with software engineering tasks."
-    :"according to your \"Output Style\" below, which describes how you should respond to user queries.";
-  return "\nYou are an interactive agent that helps users "+phrase+
-    " Use the instructions below and the tools available to you to assist the user.\n\n"+
-    cyberRiskInstruction+"\nIMPORTANT: You must NEVER generate or guess URLs for "
-    "the user unless you are confident that the URLs are for helping the user "
-    "with programming. You may use URLs provided by the user in their messages "
-    "or local files.";
-}
 }

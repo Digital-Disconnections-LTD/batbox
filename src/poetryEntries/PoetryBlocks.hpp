@@ -11,6 +11,4 @@ std::optional<std::string> getLanguageSection(
 std::optional<std::string> getOutputStyleSection(const Json& config);
 std::optional<std::string> getMcpInstructions(const Json& clients);
 std::optional<std::string> getMcpInstructionsSection(const Json& clients);
-std::string getSimpleIntroSection(const Json& outputStyleConfig,
-  const std::string& cyberRiskInstruction);
 }

@@ -1,7 +1,7 @@
 add_library(batbox_application_commands src/application_commands/Commands.cpp
   src/application_commands/CommandsMcp.cpp src/application_commands/MemoryPanel.cpp
   src/application_commands/PermissionCommand.cpp
-  src/application_commands/ProjectCommand.cpp
+  src/application_commands/ProjectCommand.cpp src/application_commands/PoetryCommand.cpp
   src/application_commands/EffortCommand.cpp src/application_commands/ThemeCommand.cpp
   src/application_commands/ConnectorsCommand.cpp
   src/application_commands/ProvidersCommand.cpp

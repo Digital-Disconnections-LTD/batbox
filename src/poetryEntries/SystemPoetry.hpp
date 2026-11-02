@@ -31,9 +31,10 @@ struct SystemPoetryInputs {
   std::function<bool()> proactiveActive,mcpInstructionsDeltaEnabled,
     globalStashScope;
   std::string cyberRiskInstruction;
-  std::function<std::string()> simpleSystemSection,simpleDoingMissionsSection,
-    actionsSection,simpleToneAndStyleSection,outputEfficiencySection,
-    systemRemindersSection;
+  // Prepared static head: the built-in poetry/system.md or the user's
+  // system.md, with {{section:NAME}} placeholders still in place.
+  std::function<std::string()> systemHead;
+  std::function<std::string()> systemRemindersSection;
   std::function<std::string(const GadgetNames&)> usingYourGadgetsSection;
   std::function<std::optional<std::string>(const GadgetNames&,const Json&)>
     flightSpecificGuidanceSection;

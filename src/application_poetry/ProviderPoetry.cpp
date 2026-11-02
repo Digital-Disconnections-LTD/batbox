@@ -166,8 +166,8 @@ poetryEntries::AsyncSystemPoetryServices Provider::poetryServices(){
   service.globalStashScope=[] {return false;};
   service.sections=std::shared_ptr<poetryEntries::AsyncSectionStash>(
     &poetrySections_,[](poetryEntries::AsyncSectionStash*){});
-  poetryEntries::bindGuidance(service,guidance(),
-    "use /help to find the feedback channel.","AskUserQuestion");
+  poetryEntries::bindGuidance(service,guidance());
+  service.systemHead=[this]{return systemPoetrySource().head;};
   service.getSkillGadgetCommands=[this](const std::string&){
     event_loop::Deferred<poetryEntries::PoetryObject> output(owner_);
     try{

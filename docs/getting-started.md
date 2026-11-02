@@ -166,8 +166,29 @@ batbox --prompt "Tell me what this project does. Don't edit anything yet."
 
 A prompt on the command line always goes through `-p` or `--prompt`. The first
 word after `batbox` is otherwise a command: `setup web`, `doctor`, `providers`,
-`help` or `version`. Anything else, such as `batbox update`, prints the usage
+`poetry`, `help` or `version`. Anything else, such as `batbox update`, prints the usage
 and exits without contacting your model.
+
+## Customising the system prompt
+
+Batbox's system prompt (its poetry) is plain Markdown. To make it your own:
+
+```sh
+batbox poetry export   # copies the built-in prompt to ~/.batbox/system.md
+batbox poetry          # shows the prompt in use and its source
+```
+
+Edit `~/.batbox/system.md`; the next request uses it, no restart needed.
+`/poetry` shows the source and a preview inside the app, and `batbox doctor`
+reports it. The per-Flight parts drop in with placeholders:
+`{{section:using_your_tools}}`, `{{section:session_guidance}}`,
+`{{section:memory}}`, `{{section:env_info_simple}}`, `{{section:language}}`,
+`{{section:output_style}}`, `{{section:mcp_instructions}}`,
+`{{section:scratchpad}}`, `{{section:frc}}`,
+`{{section:summarize_tool_results}}`, or `{{sections}}` for all the rest.
+Anything you leave out is appended at the end. Delete or empty the file to go
+back to the built-in prompt. [Make your Roost comfortable](indigenous-configuration.md#customising-the-system-prompt)
+has the details.
 
 ## If takeoff is bumpy
 

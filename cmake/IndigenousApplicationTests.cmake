@@ -27,6 +27,8 @@ add_test(NAME phase6-application-model-http COMMAND ${Python3_EXECUTABLE}
   $<TARGET_FILE:batbox-application-model-http>)
 batbox_indigenous(phase6-application-poetry-indigenous
   tests/phase6/application_poetry_indigenous.cpp batbox_application_poetry)
+batbox_indigenous(phase6-system-poetry-file-indigenous
+  tests/phase6/system_poetry_file_indigenous.cpp batbox_application_commands)
 batbox_indigenous(phase6-application-presentation-indigenous
   tests/phase6/application_presentation_indigenous.cpp batbox_application_presentation)
 add_executable(batbox-indigenous-mcp-connections tests/phase6/mcp_connections_indigenous.cpp)
@@ -44,6 +46,9 @@ if(UNIX)
   add_test(NAME phase6-cli-arguments-smoke COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/checks/cli_arguments_smoke.py $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-cli-arguments-smoke PROPERTIES TIMEOUT 90)
+  add_test(NAME phase6-system-poetry-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/system_poetry_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-system-poetry-smoke PROPERTIES TIMEOUT 120)
 endif()
 batbox_indigenous(phase6-indigenous-lsp-grouped checks/indigenous_lsp_grouped.cpp batbox_indigenous_lsp)
 add_executable(batbox-indigenous-lsp-runtime checks/indigenous_lsp_runtime.cpp)

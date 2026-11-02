@@ -29,8 +29,6 @@ Json run(const Json& input){
     poetryEntries::getMcpInstructions(value::property(input,"clients")))}};
   if(operation=="mcpSection")return {{"result",optional(
     poetryEntries::getMcpInstructionsSection(value::property(input,"clients")))}};
-  if(operation=="intro")return {{"result",poetryEntries::getSimpleIntroSection(
-    value::property(input,"config"),"CYBER INSTRUCTION")}};
   throw std::invalid_argument("Unknown operation");
 }
 }
