@@ -228,7 +228,8 @@ std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& s
   shell.chrome=ip::makeChromeProviders({*self->inputs_.theme,self->inputs_.shortcuts,
     self->inputs_.modelLabel,self->inputs_.workingDirectory,
     self->inputs_.permissionMode,self->inputs_.statusText,
-    self->inputs_.gitBranch,self->inputs_.contextUsage,self->inputs_.homeDirectory});
+    self->inputs_.gitBranch,self->inputs_.contextUsage,self->inputs_.homeDirectory,
+    self->inputs_.notice});
   shell.editorMetrics=interactive::text_input::indigenousMetricsServices(self->intl_,self->width_,self->wrap_);
   shell.editorOptions.columns=self->state_->viewport.columns;
   return self;

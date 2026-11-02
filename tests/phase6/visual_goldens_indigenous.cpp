@@ -2,6 +2,7 @@
 // uses the production providers: presentation bindings, chrome, the
 // permission provider and the default Gadget view builders.
 #include "GoldenFrame.hpp"
+#include "application_commands/ConnectorsCommand.hpp"
 #include "application_gadgets/DefaultInputs.hpp"
 #include "application_permissions/PermissionProvider.hpp"
 #include "application_presentation/Bindings.hpp"
@@ -63,7 +64,7 @@ struct Fixture {
   gadgets::Gadgets active;
   std::shared_ptr<ap::Bundle> bundle;
   explicit Fixture(const std::string& name,std::string cwd="/home/bat/roost",
-      std::string model="night-owl-7b"):
+      std::string model="night-owl-7b",std::string notice={}):
       shell(loop,state,(options.interactive=false,options)),
       theme({[name]{return name;},[](const std::string&){},
         []{return std::string("dark");},[]{}},name){
@@ -105,6 +106,7 @@ struct Fixture {
     inputs.contextUsage=[]()->std::optional<double>{return 0.42;};
     inputs.nowMs=[]{return 1234.0;};
     inputs.colors=name!="monochrome";
+    if(!notice.empty())inputs.notice=[notice]{return notice;};
     bundle=ap::Bundle::bind(shell,std::move(inputs));
   }
   conversation_shell::ViewState view(int columns,int rows){
@@ -312,6 +314,34 @@ int main(int argc,char** argv){
       check(welcome.text.find("…/BATBO…")==std::string::npos&&
         welcome.text.find("…/batbox ")==std::string::npos,
         "welcome card must not cut the Roost path mid-name:\n"+welcome.text);
+    }
+    {
+      // Missing web helpers add one line to the welcome card; /connectors
+      // lists each helper with its state and fix.
+      Fixture web("batbox-dark","/home/bat/roost","night-owl-7b",
+        "Web search and fetch are not set up · run: batbox setup web");
+      const auto welcome=welcomeScene(web);
+      check(contains(welcome,"Web search and fetch are not set up · run: batbox setup web")&&
+        contains(welcome,"night-owl-7b"),"welcome card must show the web helper notice");
+      namespace ac=application_connectors;
+      const std::vector<ac::HelperCheck> helpers{
+        {"Scrapling","missing","\"scrapling\" not found",
+          "batbox setup web, or set scrapling_command to the scrapling executable",false},
+        {"SearXNG","reachable",
+          "http://127.0.0.1:8888/search (~/.batbox/searxng/settings.yml) · JSON on · 12 results",
+          "",true}};
+      const std::vector<ac::HelperCheck> servers{
+        ac::mcpServerCheck("docs","connected",""),
+        ac::mcpServerCheck("tickets","failed","Connection closed")};
+      web.state.modal=application_commands::connectorsRequest(helpers,servers);
+      auto view=web.view(80,24);
+      const auto dialog=golden::render(web.shell.chrome.renderModal(view),80,22);
+      web.state.modal.reset();
+      check(contains(dialog,"Connectors")&&contains(dialog,"Web helpers")&&
+        contains(dialog,"Scrapling")&&contains(dialog,"missing")&&
+        contains(dialog,"MCP servers")&&contains(dialog,"tickets")&&
+        contains(dialog,"Set up now"),"connectors dialog lacks helpers, servers or setup");
+      passed=golden::compare(directory,"connectors-batbox-dark",dialog)&&passed;
     }
     if(!passed)return 1;
     std::cout<<"Batbox visual goldens match across four themes\n";

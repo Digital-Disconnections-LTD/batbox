@@ -23,6 +23,8 @@ struct ChromeServices {
   std::function<std::string()> gitBranch;
   std::function<std::optional<double>()> contextUsage;
   std::function<std::string()> homeDirectory;
+  // One muted line under the welcome facts, such as missing web helpers.
+  std::function<std::string()> notice;
 };
 
 conversation_shell::ChromeProviders makeChromeProviders(ChromeServices services);

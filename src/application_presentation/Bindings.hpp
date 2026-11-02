@@ -22,6 +22,8 @@ struct Inputs {
   std::function<std::string(const std::string&)> displayPath;
   // Optional status-row context.
   std::function<std::string()> gitBranch,homeDirectory;
+  // Optional one-line welcome-card notice, such as missing web helpers.
+  std::function<std::string()> notice;
   std::function<std::optional<double>()> contextUsage;
   // Paint clock in milliseconds for spinners; a steady clock by default.
   std::function<double()> nowMs;

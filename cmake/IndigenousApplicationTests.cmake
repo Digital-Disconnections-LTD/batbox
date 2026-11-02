@@ -63,7 +63,7 @@ add_executable(batbox-phase6-visual-goldens-indigenous
   tests/phase6/visual_goldens_indigenous.cpp)
 target_link_libraries(batbox-phase6-visual-goldens-indigenous PRIVATE
   batbox_application_presentation batbox_application_gadgets
-  batbox_application_permissions)
+  batbox_application_permissions batbox_application_commands)
 add_test(NAME phase6-visual-goldens-indigenous
   COMMAND batbox-phase6-visual-goldens-indigenous
   ${CMAKE_SOURCE_DIR}/tests/phase6/goldens/visual)

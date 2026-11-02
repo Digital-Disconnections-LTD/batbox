@@ -1,4 +1,5 @@
 #include "application/HostInternal.hpp"
+#include "application_connectors/Status.hpp"
 #include "application_commands/FlightTitles.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
 #include "interactive/text_input/TextEditorIndigenous.hpp"
@@ -971,6 +972,8 @@ void Host::Impl::bindFrontend(){
   application_presentation::Inputs presentInputs;
   presentInputs.theme=theme.get();
   presentInputs.homeDirectory=homeDirectory;
+  presentInputs.notice=[notice=application_connectors::webNotice(
+      application_connectors::webAvailability(config))]{return notice;};
   presentInputs.gitBranch=[roost=roost,cached=std::make_shared<std::pair<double,std::string>>(-1e9,"")]{
     // HEAD changes rarely; read it at most every two seconds while painting.
     const auto now=static_cast<double>(platform::nowMillis());

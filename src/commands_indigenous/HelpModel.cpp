@@ -138,7 +138,8 @@ std::string helpSection(const std::string& name){
     {"context","Roost and context"},{"status","Roost and context"},
     {"cost","Roost and context"},{"mcp","Roost and context"},
     {"skills","Roost and context"},{"init","Roost and context"},
-    {"hooks","Roost and context"},{"doctor","Roost and context"}};
+    {"hooks","Roost and context"},{"doctor","Roost and context"},
+    {"connectors","Roost and context"}};
   const auto found=sections.find(name);
   return found==sections.end()?"More":found->second;
 }
