@@ -185,6 +185,8 @@ private:
           view.choices.push_back(server.confirmed?server.name:server.name+" (unidentified)");
           info.section="Found on this machine";
           info.badge=countText(server.models.size(),"model","models");
+          for(const auto& [id,endpoint]:endpoints_)
+            if(endpoint.baseUrl==server.baseUrl){info.badge="configured";break;}
           info.detail=host(server.baseUrl)+(server.models.empty()?"":
             " · "+modelsSummary(server.models));
           break;
