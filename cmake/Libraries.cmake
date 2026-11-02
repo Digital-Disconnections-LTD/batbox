@@ -208,3 +208,4 @@ include(cmake/CoreCommands.cmake)
 
 # Scoped context is shared by low-level timer/future adapters and the owner loop.
 target_sources(batbox_core PRIVATE src/event_loop/AsyncContext.cpp)
+include(cmake/CloudProviders.cmake)

@@ -16,6 +16,7 @@ The project license does not replace those terms.
 | Bidirectional text | [bidi-js notice](src/terminal_output/LICENSE.bidi-js.txt) |
 | Throttling | [Lodash MIT](src/lodash_throttle/LICENSE.lodash-es) |
 | Terminal colors and rendering data | [Chalk](src/terminal_color/LICENSE.chalk.txt), [cli-boxes](src/terminal_render/LICENSE.cli-boxes.txt), [indent-string](src/terminal_render/LICENSE.indent-string.txt) |
+| AWS SigV4 signing test vectors (test fixtures only) | [Apache-2.0](tests/fixtures/sigv4/LICENSE), [NOTICE](tests/fixtures/sigv4/NOTICE), from [aws-c-auth revision 3d29adcecf5c032131acee9f4125a636d2aaea6a](https://github.com/awslabs/aws-c-auth/tree/3d29adcecf5c032131acee9f4125a636d2aaea6a/tests/aws-signing-test-suite/v4) |
 | Additional adapted helpers | Preserved notices in [third_party/notices](third_party/notices/) and [third_party/licenses](third_party/licenses/) |
 
 SDK adaptations in `src/transport/` use algorithms from
