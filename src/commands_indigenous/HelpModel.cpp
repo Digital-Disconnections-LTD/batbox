@@ -181,7 +181,10 @@ user_input::CommandEntry makeHelpCommand(
           });
           // Keys sit after the commands; choosing one simply closes help.
           const std::vector<std::pair<std::string,std::string>> keys={
-            {"esc","Interrupt the model, or return from a Bat"},
+            {"esc","Interrupt the model, or go back one level from a Bat"},
+            {"alt+↓ / alt+↑","Move through the Bats in Active Missions"},
+            {"alt+←","Go home to the main Flight (empty input)"},
+            {"ctrl+t","Fold or unfold the Active Missions list"},
             {"ctrl+o","Transcript with full Gadget output"},
             {"ctrl+r","Search poetry history"},
             {"ctrl+b","Send running work to the background"},

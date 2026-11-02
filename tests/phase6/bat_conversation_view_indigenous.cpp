@@ -5,7 +5,9 @@
 #include "history/References.hpp"
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
+#include <chrono>
 #include <iostream>
+#include <thread>
 #include <stdexcept>
 
 using namespace batbox;
@@ -138,9 +140,20 @@ int main(){
   std::optional<event_loop::Deferred<event_loop::Unit>> pendingSubmit;
   imports.openControlCommand=[&](const std::string& name,const std::string& args){
     controls.emplace_back(name,args);return controlsOpen;};
-  imports.observeBatMission=[&](const std::string&){
-    event_loop::Deferred<Json> result(loop);result.resolve(mission);return result;};
-  imports.batMissionSnapshot=[&](const std::string&)->std::optional<Json>{return mission;};
+  // bat-2 was launched by bat-1; bat-3 is a second top-level Bat.
+  Json others={
+    {"bat-2",{{"type","local_agent"},{"agentType","general-purpose"},{"status","running"},
+      {"description","Check lexer"},{"parentBatId","bat-1"},{"startTime",20},
+      {"messages",Json::array({row("b1","Lexer notes")})}}},
+    {"bat-3",{{"type","local_agent"},{"agentType","general-purpose"},{"status","running"},
+      {"description","Write docs"},{"startTime",5},
+      {"messages",Json::array({row("c1","Docs notes")})}}}};
+  const auto lookup=[&](const std::string& id){return id=="bat-1"?mission:others.at(id);};
+  imports.missionSnapshot=[&]{
+    Json all=others;all["bat-1"]=mission;all["bat-1"]["startTime"]=10;return all;};
+  imports.observeBatMission=[&](const std::string& id){
+    event_loop::Deferred<Json> result(loop);result.resolve(lookup(id));return result;};
+  imports.batMissionSnapshot=[&](const std::string& id)->std::optional<Json>{return lookup(id);};
   imports.submitBatMessage=[&](const std::string&,const std::string& text){
     sent.push_back(text);pendingSubmit.emplace(loop);return *pendingSubmit;};
   imports.releaseBatMission=[](const std::string&){};
@@ -198,8 +211,10 @@ int main(){
   const auto type=[&](const std::string& text){
     shell->onRawInput("\x05\x15");shell->onRawInput(text);shell->onRawInput("\r");loop.runReady();};
   shell->onRawInput("\x14");loop.runReady();
-  check(controls.size()==1&&controls.back().first=="bats",
-    "Ctrl+T in the leader must open the Bats list");
+  check(controls.empty()&&shell->viewState().missionsCollapsed,
+    "Ctrl+T in the leader collapses the Missions list");
+  shell->onRawInput("\x14");loop.runReady();
+  check(!shell->viewState().missionsCollapsed,"Ctrl+T again expands it");
   shell->openBatConversation("bat-1");loop.runReady();paint();
   check(shell->activeBatId()=="bat-1"&&shell->presentation().messages.size()==1,
     "Opening a Bat shows its conversation");
@@ -211,10 +226,11 @@ int main(){
       "A Bat view shows the brand once, in its header:\n"+frame);
   }
   shell->onRawInput("\x14");loop.runReady();
-  check(controls.size()==2&&controls.back().first=="bats",
-    "Ctrl+T inside a Bat must open the Bats list to switch Bats");
+  check(controls.empty()&&shell->viewState().missionsCollapsed&&shell->activeBatId()=="bat-1",
+    "Ctrl+T inside a Bat collapses the list and stays in the Bat");
+  shell->onRawInput("\x14");loop.runReady();
   type("/bats");
-  check(controls.size()==3&&controls.back()==std::pair<std::string,std::string>{"bats",""},
+  check(controls.size()==1&&controls.back()==std::pair<std::string,std::string>{"bats",""},
     "/bats inside a Bat opens the Bats list");
   type("/agents reviewer");
   check(controls.back()==std::pair<std::string,std::string>{"agents","reviewer"},
@@ -260,7 +276,60 @@ int main(){
   mission["status"]="completed";mission["inputResumeError"]="capacity reached";paint();
   check(lastText()=="Could not resume this Bat: capacity reached",
     "A failed resume is shown in the Bat view");
+
+  // Alt+Up/Down walk the Missions list; the input is home.
+  mission["status"]="running";mission.erase("inputResumeError");
+  shell->returnToLeader();loop.runReady();paint();
+  const auto press=[&](const std::string& bytes){
+    shell->onRawInput(bytes);loop.runReady();paint();};
+  const auto lone=[&](const std::string& bytes){
+    // Past the lone-Escape timeout, so the Escape stands alone.
+    shell->onRawInput(bytes);
+    std::this_thread::sleep_for(std::chrono::milliseconds(80));loop.runReady();paint();};
+  const auto at=[&]{return shell->activeBatId().value_or("home");};
+  const auto status=[&]{
+    auto line=ftxui::Screen::Create(ftxui::Dimension::Fixed(120),ftxui::Dimension::Fixed(1));
+    auto view=shell->viewState();view.columns=120;
+    ftxui::Render(line,chrome.renderStatus(view));
+    std::string text;
+    for(int x=0;x<120;++x){const auto& glyph=line.PixelAt(x,0).character;text+=glyph.empty()?" ":glyph;}
+    return text;
+  };
+  check(at()=="home"&&status().find("Alt+↓ Bats · Ctrl+T list")!=std::string::npos,
+    "Home names the way into the Bats:\n"+status());
+  press("\x1b[1;3B");
+  check(at()=="bat-1","Alt+Down from home opens the top Bat, found "+at());
+  press("\x1b[1;3B");
+  check(at()=="bat-2"&&shell->presentation().messages.size()==1,
+    "Alt+Down reaches the sub-Bat under its parent, found "+at());
+  check(shell->viewState().batTrail==std::vector<std::string>{"Review parser","Check lexer"}&&
+    status().find("Flight › Review parser › Check lexer · Alt+↑↓ move · Alt+← home · Ctrl+T list")!=
+      std::string::npos,"Breadcrumb names the way down:\n"+status());
+  press("\x1b[1;3B");press("\x1b[1;3B");
+  check(at()=="bat-3","Alt+Down stops at the last Bat, found "+at());
+  press("\x1b[1;3A");
+  check(at()=="bat-2","Alt+Up moves to the previous Bat, found "+at());
+  lone("\x1b");
+  check(at()=="bat-1","Esc climbs one level to the parent Bat, found "+at());
+  press("\x1b[1;3B");press("\x1b" "b");
+  check(at()=="home","Alt+Left (ESC b) goes home from a sub-Bat, found "+at());
+  press("\x1b[1;3B");press("\x1b[1;3A");
+  check(at()=="home","Alt+Up from the top Bat goes home, found "+at());
+  press("\x1b\x1b[B");
+  check(at()=="bat-1","ESC ESC [B (Option as Meta) is Alt+Down, found "+at());
+  shell->onRawInput("two words");loop.runReady();
+  press("\x1b[1;3D");
+  check(at()=="bat-1"&&shell->presentation().input.caretUtf16==4,
+    "With text in the input Alt+Left jumps a word and stays in the Bat");
+  shell->onRawInput("\x05\x15");loop.runReady();
+  press("\x1b[1;3D");
+  check(at()=="home","Alt+Left with an empty input goes home");
+  lone("\x1b");press("\x1b[B");
+  check(at()=="home","Esc then a later Down must not move into a Bat");
+  lone("\x1b");press("\x1b[A");
+  check(at()=="home","Esc then a later Up must stay home");
   shell->stop();
-  std::cout<<"Bat conversation view: Ctrl+T, control commands, queued and resuming states\n";
+  std::cout<<"Bat conversation view: Missions list toggle, Alt navigation, control commands, "
+    "queued and resuming states\n";
   return 0;
 }

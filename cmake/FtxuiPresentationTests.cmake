@@ -30,6 +30,11 @@ if(UNIX)
       ${CMAKE_SOURCE_DIR}/checks/indigenous_transcript_copy_smoke.py
       $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-transcript-copy-pty PROPERTIES TIMEOUT 180)
+  add_test(NAME phase6-bat-switch-pty
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/checks/indigenous_bat_switch_smoke.py
+      $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-bat-switch-pty PROPERTIES TIMEOUT 180)
   add_test(NAME phase6-escape-interrupt-pty
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/checks/indigenous_escape_interrupt_smoke.py

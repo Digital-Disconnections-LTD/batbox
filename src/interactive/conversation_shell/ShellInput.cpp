@@ -1,4 +1,5 @@
 #include "interactive/conversation_shell/Shell.hpp"
+#include "interactive/presentation_providers/MissionFooter.hpp"
 #include "termio/Csi.hpp"
 #include "history/References.hpp"
 #include "npm_wrap_ansi/Internal.hpp"
@@ -16,6 +17,10 @@ bool named(const keyboard_input::KeyRef& key,const char* name){
 }
 bool plain(const keyboard_input::KeyRef& key){
   return !key->ctrl&&!key->meta&&!key->super;
+}
+// Alt arrives as meta (ESC [ 1 ; 3 X, ESC b) or as an ESC prefix (option).
+bool alt(const keyboard_input::KeyRef& key){
+  return (key->meta||key->option)&&!key->ctrl&&!key->super;
 }
 bool repeated(const std::string& value,char letter){
   return !value.empty()&&std::all_of(value.begin(),value.end(),
@@ -106,11 +111,18 @@ void Shell::onParsedInput(const keyboard_input::ParsedInput& input){
       }
       if(pillScreenRow_&&row==*pillScreenRow_){jumpToBottom();return;}
       if(missionScreenRow_&&row>=*missionScreenRow_&&
-          row<=*missionScreenRow_+static_cast<int>(footerMissionIds_.size())&&
-          imports_.openBackgroundMission){
+          row<=*missionScreenRow_+static_cast<int>(footerMissionIds_.size())){
         const auto index=row-*missionScreenRow_-1;
-        imports_.openBackgroundMission(index<0?std::string{}:
-          footerMissionIds_[static_cast<std::size_t>(index)]);return;
+        const auto id=index<0?std::string{}:footerMissionIds_[static_cast<std::size_t>(index)];
+        const auto bats=imports_.missionSnapshot&&imports_.observeBatMission?
+          presentation_providers::footerBatIds(presentation_providers::
+            backgroundFooterMissions(imports_.missionSnapshot(),activeBatId())):
+          std::vector<std::string>{};
+        if(!id.empty()&&std::find(bats.begin(),bats.end(),id)!=bats.end()){
+          if(activeBatId()!=id)openBatConversation(id);
+          return;
+        }
+        if(imports_.openBackgroundMission){imports_.openBackgroundMission(id);return;}
       }
     }
     imports_.input.onMouse(*mouse);return;
@@ -164,10 +176,20 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
   if(searchOpen_){onSearchKey(key);return;}
   if(named(key,"escape")&&!transcript_&&!batConversation_&&
       imports_.interruptTurn&&imports_.interruptTurn())return;
-  if(batConversation_&&!cursor_&&!transcript_){
-    if((named(key,"left")&&key->meta)||
-        (named(key,"escape")&&presentation().input.text.empty())){
+  const bool historySearching=!batConversation_&&historyNavigator_&&
+    historyNavigator_->searching();
+  if(!transcript_&&!cursor_&&!historySearching&&alt(key)){
+    if(named(key,"down")){stepBat(1);return;}
+    if(named(key,"up")){stepBat(-1);return;}
+    // With text in the input, Alt+Left keeps its word-left meaning.
+    if(named(key,"left")&&(batConversation_||pendingBatId_)&&
+        presentation().input.text.empty()){
       returnToLeader();return;
+    }
+  }
+  if(batConversation_&&!cursor_&&!transcript_){
+    if(named(key,"escape")&&presentation().input.text.empty()){
+      backFromBat();return;
     }
     if(named(key,"c")&&key->ctrl){
       if(!presentation().input.text.empty()){
@@ -185,11 +207,8 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
     if(changed)requestRedraw();
     return;
   }
-  if(!transcript_&&named(key,"t")&&key->ctrl&&
-      !(historyNavigator_&&historyNavigator_->searching())){
-    if(!imports_.openControlCommand||!imports_.openControlCommand("bats",""))
-      transcriptStatus("The Bats list is unavailable while a dialog is open");
-    return;
+  if(!transcript_&&named(key,"t")&&key->ctrl&&!historySearching){
+    missionsCollapsed_=!missionsCollapsed_;requestRedraw();return;
   }
   if(!batConversation_&&historyNavigator_&&!transcript_&&named(key,"r")&&key->ctrl){
     suggestions_.clear();++completionGeneration_;

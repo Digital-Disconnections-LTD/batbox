@@ -3,6 +3,9 @@
 #include <ftxui/dom/elements.hpp>
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <map>
+#include <set>
 #include <vector>
 
 namespace batbox::interactive::presentation_providers {
@@ -71,40 +74,139 @@ BatGlance batGlance(const Json& mission,long long nowMs){
   glance.lastText=text(progress,"lastText");
   return glance;
 }
-Json backgroundFooterMissions(const Json& missions){
-  std::vector<Json> rows;
+namespace {
+bool batMission(const Json& mission){
+  return text(mission,"type")=="local_agent"&&text(mission,"agentType")!="main-session";
+}
+bool newerFirst(const Json& a,const Json& b){
+  const bool left=text(a,"status")=="running",right=text(b,"status")=="running";
+  if(left!=right)return left;
+  return number(a,"startTime")>number(b,"startTime");
+}
+std::string rowId(const Json& row){return text(row,"id");}
+}
+std::optional<std::string> parentBatId(const Json& missions,const std::string& id){
+  const auto& mission=value::property(missions,id.c_str());
+  const auto parent=text(mission,"parentBatId");
+  if(parent.empty()||parent==id||!batMission(value::property(missions,parent.c_str())))
+    return std::nullopt;
+  return parent;
+}
+Json backgroundFooterMissions(const Json& missions,const std::optional<std::string>& current){
+  std::set<std::string> keep;
+  if(current&&missions.is_object()){
+    // The open Bat and the Bats above it stay listed so the highlight and the
+    // way back to them survive a Bat settling.
+    for(auto id=std::optional(*current);id&&keep.insert(*id).second;)
+      id=parentBatId(missions,*id);
+  }
+  std::map<std::string,Json> bats;
+  std::vector<Json> others;
   if(missions.is_object())for(auto it=missions.begin();it!=missions.end();++it){
     const auto& mission=it.value();
-    if(!active(text(mission,"status"))||text(mission,"agentType")=="main-session")continue;
+    if(text(mission,"agentType")=="main-session")continue;
+    const bool listed=keep.contains(it.key())&&batMission(mission);
+    if(!listed&&!active(text(mission,"status")))continue;
     // Foreground shells already render inline; foreground Bats run for minutes
     // and stay listed so their progress is visible from the leader view.
     if(value::property(mission,"isBackgrounded")==false&&
         text(mission,"type")!="local_agent")continue;
-    auto row=mission;row["id"]=it.key();rows.push_back(std::move(row));
+    auto row=mission;row["id"]=it.key();
+    if(batMission(mission))bats.emplace(it.key(),std::move(row));
+    else others.push_back(std::move(row));
   }
-  std::stable_sort(rows.begin(),rows.end(),[](const Json& a,const Json& b){
-    const bool left=text(a,"status")=="running",right=text(b,"status")=="running";
-    if(left!=right)return left;
-    return number(a,"startTime")>number(b,"startTime");
-  });
-  Json active=Json::array();
-  for(auto& row:rows)active.push_back(std::move(row));
-  return active;
+  std::map<std::string,std::vector<const Json*>> children;
+  std::vector<const Json*> roots;
+  for(const auto& [id,row]:bats){
+    const auto parent=text(row,"parentBatId");
+    if(!parent.empty()&&parent!=id&&bats.contains(parent))children[parent].push_back(&row);
+    else roots.push_back(&row);
+  }
+  const auto order=[](std::vector<const Json*>& list){
+    std::stable_sort(list.begin(),list.end(),[](const Json* a,const Json* b){
+      return newerFirst(*a,*b);});
+  };
+  Json result=Json::array();
+  std::set<std::string> placed;
+  std::function<void(const Json*,int)> place=[&](const Json* row,int depth){
+    const auto id=rowId(*row);
+    if(!placed.insert(id).second)return;
+    auto copy=*row;copy["depth"]=depth;result.push_back(std::move(copy));
+    auto found=children.find(id);
+    if(found==children.end())return;
+    auto list=found->second;order(list);
+    for(const auto* child:list)place(child,depth+1);
+  };
+  order(roots);
+  for(const auto* root:roots)place(root,0);
+  // A parent link that loops never reaches a root; list those Bats flat.
+  for(const auto& [id,row]:bats)if(!placed.contains(id))place(&row,0);
+  std::stable_sort(others.begin(),others.end(),newerFirst);
+  for(auto& row:others)result.push_back(std::move(row));
+  return result;
 }
-std::size_t visibleFooterMissions(const Json& missions,int rows){
-  return std::min(missions.size(),static_cast<std::size_t>(
-    std::clamp(rows/4-1,1,4)));
+std::vector<std::string> footerBatIds(const Json& rows){
+  std::vector<std::string> ids;
+  if(rows.is_array())for(const auto& row:rows)
+    if(batMission(row))ids.push_back(rowId(row));
+  return ids;
 }
-ftxui::Element missionFooterAt(const Json& missions,int columns,int rows,
-    ftxui::Color color,long long nowMs){
+std::vector<std::string> batTrail(const Json& rows,const std::string& id){
+  std::map<std::string,const Json*> byId;
+  if(rows.is_array())for(const auto& row:rows)if(batMission(row))byId.emplace(rowId(row),&row);
+  std::vector<std::string> trail;
+  std::set<std::string> seen;
+  for(auto at=byId.find(id);at!=byId.end()&&seen.insert(at->first).second;
+      at=byId.find(text(*at->second,"parentBatId"))){
+    auto label=batGlance(*at->second,0).label;
+    trail.push_back(label.empty()?at->first:label);
+  }
+  std::reverse(trail.begin(),trail.end());
+  return trail;
+}
+FooterWindow footerWindow(const Json& rows,int terminalRows,bool collapsed,
+    const std::optional<std::string>& current){
+  FooterWindow window;
+  const auto count=rows.is_array()?rows.size():std::size_t{0};
+  const auto capacity=static_cast<std::size_t>(std::clamp(terminalRows/4-1,0,5));
+  window.collapsed=collapsed||capacity<2;
+  if(window.collapsed||count==0)return window;
+  std::size_t selected=0;
+  if(current)for(std::size_t i=0;i<count;++i)if(rowId(rows[i])==*current){selected=i;break;}
+  window.begin=selected>=capacity?selected-capacity+1:0;
+  window.end=std::min(count,window.begin+capacity);
+  return window;
+}
+ftxui::Element missionFooterAt(const Json& missions,const FooterOptions& options){
   ftxui::Elements lines;
-  if(missions.empty())return ftxui::vbox(std::move(lines));
-  lines.push_back(ftxui::text(clipped("Active Missions ("+
-    std::to_string(missions.size())+") · Ctrl+T Bats · /missions",columns))|
+  if(!missions.is_array()||missions.empty())return ftxui::vbox(std::move(lines));
+  const int columns=std::max(1,options.columns);
+  const auto color=options.color;
+  std::size_t running=0;
+  std::string currentLabel;
+  for(const auto& mission:missions){
+    if(active(text(mission,"status")))++running;
+    if(options.current&&rowId(mission)==*options.current)
+      currentLabel=batGlance(mission,options.nowMs).label;
+  }
+  const auto window=footerWindow(missions,options.terminalRows,options.collapsed,
+    options.current);
+  const auto title="Active Missions ("+std::to_string(running)+")";
+  if(window.collapsed){
+    ftxui::Elements parts{ftxui::text(title)|ftxui::color(color)|ftxui::dim};
+    if(!currentLabel.empty()){
+      parts.push_back(ftxui::text(" · ")|ftxui::color(color)|ftxui::dim);
+      parts.push_back(ftxui::text(clipped("in: "+currentLabel,
+        std::max(3,columns-static_cast<int>(value::stringLength(title))-3)))|ftxui::color(color)|ftxui::bold);
+    }
+    return ftxui::hbox(std::move(parts));
+  }
+  lines.push_back(ftxui::text(clipped(title+" · Ctrl+T collapse · /missions",columns))|
     ftxui::color(color)|ftxui::dim);
-  for(std::size_t i=0;i<visibleFooterMissions(missions,rows);++i){
+  for(std::size_t i=window.begin;i<window.end;++i){
     const auto& mission=missions[i];
-    const auto glance=batGlance(mission,nowMs);
+    const auto glance=batGlance(mission,options.nowMs);
+    const bool here=options.current&&rowId(mission)==*options.current;
     std::string detail=glance.foreground?"foreground":glance.status;
     if(!glance.elapsed.empty())detail+=" · "+glance.elapsed;
     if(text(mission,"type")=="local_agent"||glance.gadgetUses>0)
@@ -113,13 +215,19 @@ ftxui::Element missionFooterAt(const Json& missions,int columns,int rows,
     // A Gadget description can be a long path; keep room for the Bat's words.
     if(!glance.gadget.empty())detail+=" · "+clipped(glance.gadget,36);
     if(!glance.lastText.empty())detail+=" · “"+glance.lastText+"”";
-    lines.push_back(ftxui::hbox({ftxui::text("  ● ")|ftxui::color(color),
-      ftxui::text(clipped(glance.label+" · "+detail,columns-4))}));
+    const auto depth=static_cast<int>(std::clamp(number(mission,"depth"),0LL,8LL));
+    const std::string indent=depth>0?std::string(static_cast<std::size_t>(2*(depth-1)),' ')+"└ ":"";
+    const int used=4+static_cast<int>(value::stringLength(indent));
+    auto marker=ftxui::text(here?"▸ ":"  ")|ftxui::color(color);
+    auto row=ftxui::text(clipped(glance.label+" · "+detail,std::max(3,columns-used)));
+    if(here){marker=marker|ftxui::bold;row=row|ftxui::bold;}
+    lines.push_back(ftxui::hbox({std::move(marker),ftxui::text(indent)|ftxui::dim,
+      ftxui::text("● ")|ftxui::color(color),std::move(row)}));
   }
   return ftxui::vbox(std::move(lines));
 }
-ftxui::Element missionFooter(const Json& missions,int columns,int rows,
-    ftxui::Color color){
-  return missionFooterAt(missions,columns,rows,color,platform::nowMillis());
+ftxui::Element missionFooter(const Json& missions,FooterOptions options){
+  options.nowMs=platform::nowMillis();
+  return missionFooterAt(missions,options);
 }
 }

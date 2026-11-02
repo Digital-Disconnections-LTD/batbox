@@ -23,6 +23,13 @@ void appendTextKeys(std::vector<ParsedInput>& keys,const std::string& text){
   if(start<text.size())keys.push_back(std::make_shared<ParsedKey>(
     parseKeypress(text.substr(start))));
 }
+// Terminals that send Alt as an ESC prefix (Terminal.app with Option as Meta)
+// write ESC ESC [ A for Alt+Up; the tokenizer splits off the first ESC. Both
+// halves arrive within the lone-Escape timeout, so they are one keypress.
+bool unmodifiedArrow(const std::string& value){
+  return value.size()==3&&value[0]=='\x1b'&&(value[1]=='['||value[1]=='O')&&
+    value[2]>='A'&&value[2]<='D';
+}
 }
 ParseResult parseMultipleKeypresses(const KeyParseState& previous,const Input& input){
   const auto json=std::get_if<Json>(&input);
@@ -32,8 +39,15 @@ ParseResult parseMultipleKeypresses(const KeyParseState& previous,const Input& i
   const auto tokenizer=previous.tokenizer?previous.tokenizer:std::make_shared<termio::Tokenizer>(true);
   const auto tokens=isFlush?tokenizer->flush():tokenizer->feed(inputString);
   ParseResult result;bool inPaste=previous.mode=="IN_PASTE";auto pasteBuffer=previous.pasteBuffer;
-  for(const auto& token:tokens){
+  for(std::size_t index=0;index<tokens.size();++index){
+    const auto& token=tokens[index];
     if(token.type=="sequence"){
+      if(!inPaste&&token.value=="\x1b"&&index+1<tokens.size()&&
+          tokens[index+1].type=="sequence"&&unmodifiedArrow(tokens[index+1].value)){
+        result.keys.push_back(std::make_shared<ParsedKey>(
+          parseKeypress(token.value+tokens[++index].value)));
+        continue;
+      }
       if(token.value==termio::PASTE_START){inPaste=true;pasteBuffer="";}
       else if(token.value==termio::PASTE_END){result.keys.push_back(std::make_shared<ParsedKey>(createPasteKey(pasteBuffer)));inPaste=false;pasteBuffer="";}
       else if(inPaste)pasteBuffer+=token.value;

@@ -1,0 +1,3 @@
+Flight › Audit the parser › Check the lexer · Alt+↑↓ move · Alt+← home · Ctrl+T list
+# styles
+0:0-42 fg=- bg=- b

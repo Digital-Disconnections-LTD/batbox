@@ -10,6 +10,7 @@
 #include "interactive/conversation_shell/PoetryViewport.hpp"
 #include "interactive/gadget_views/GadgetViewProjection.hpp"
 #include "interactive/message_view/RetainedViews.hpp"
+#include "interactive/presentation_providers/MissionFooter.hpp"
 #include "interactive/presentation_providers/StyleRoles.hpp"
 #include <ftxui/screen/terminal.hpp>
 #include <chrono>
@@ -353,6 +354,47 @@ ProvidersScenes providersScenes(Fixture& fixture){
   fixture.status.clear();
   return scenes;
 }
+// Three Bats, one launched by another, and a background shell. The fixture
+// clock reads 1234 ms, so elapsed times stay fixed.
+Json missionFixture(){
+  const auto bat=[](const std::string& description,long long start,long long gadgets,
+      const std::string& activity,const std::string& said){
+    return Json{{"type","local_agent"},{"agentType","general-purpose"},{"status","running"},
+      {"description",description},{"startTime",start},{"isBackgrounded",true},
+      {"progress",{{"toolUseCount",gadgets},{"lastText",said},
+        {"lastActivity",{{"toolName","Read"},{"activityDescription",activity}}}}}};
+  };
+  Json missions={
+    {"bat-audit",bat("Audit the parser",3,4,"Reading src/parser.cpp","Two spans drift")},
+    {"bat-lexer",bat("Check the lexer",30,2,"Searching for Span","Offsets look right")},
+    {"bat-notes",bat("Draft release notes",2,1,"Reading CHANGELOG.md","")},
+    {"shell-watch",{{"type","local_bash"},{"status","running"},{"description","npm test --watch"},
+      {"isBackgrounded",true},{"startTime",1}}}};
+  missions["bat-lexer"]["parentBatId"]="bat-audit";
+  return missions;
+}
+struct MissionScenes {golden::Frame expanded,collapsed,breadcrumb,home;};
+MissionScenes missionScenes(Fixture& fixture){
+  const auto missions=missionFixture();
+  const auto& chrome=fixture.shell.chrome;
+  auto view=fixture.view(100,24);
+  view.batId="bat-lexer";view.batLabel="Check the lexer";view.batStatus="running";
+  view.backgroundMissions=ip::backgroundFooterMissions(missions,view.batId);
+  view.batTrail=ip::batTrail(view.backgroundMissions,*view.batId);
+  const auto bottom=[&](const conversation_shell::ViewState& state,int rows){
+    return golden::render(ftxui::vbox({chrome.renderMissions(state),chrome.renderStatus(state)}),
+      state.columns,rows);
+  };
+  MissionScenes scenes;
+  scenes.expanded=bottom(view,6);
+  scenes.breadcrumb=golden::render(chrome.renderStatus(view),100,1);
+  view.missionsCollapsed=true;
+  scenes.collapsed=bottom(view,2);
+  auto home=fixture.view(120,24);
+  home.backgroundMissions=ip::backgroundFooterMissions(missions);
+  scenes.home=bottom(home,6);
+  return scenes;
+}
 } // namespace
 
 int main(int argc,char** argv){
@@ -433,11 +475,30 @@ int main(int argc,char** argv){
       check(providers.notice=="Added openrouter · qwen/qwen3-coder · /model to switch",
         theme+": saved notice "+providers.notice);
       check(contains(providers.saved,"Added openrouter"),theme+": saved notice in the status row");
+      const auto missions=missionScenes(fixture);
+      check(contains(missions.expanded,"Active Missions (4) · Ctrl+T collapse · /missions")&&
+        contains(missions.expanded,"  ● Audit the parser · running · 1s · 4 Gadgets")&&
+        contains(missions.expanded,"▸ └ ● Check the lexer · running · 1s · 2 Gadgets")&&
+        contains(missions.expanded,"  ● npm test --watch · running"),
+        theme+": expanded Missions list lacks its tree or highlight");
+      check(contains(missions.expanded,
+          "Flight › Audit the parser › Check the lexer · Alt+↑↓ move · Alt+← home · Ctrl+T list"),
+        theme+": Bat breadcrumb missing under the list");
+      check(contains(missions.collapsed,"Active Missions (4) · in: Check the lexer")&&
+        missions.collapsed.text.find("Audit the parser · running")==std::string::npos,
+        theme+": collapsed list must be one line naming the open Bat");
+      check(contains(missions.breadcrumb,"Flight › Audit the parser › Check the lexer"),
+        theme+": breadcrumb banner");
+      check(contains(missions.home,"3 Bats running · Alt+↓ Bats · Ctrl+T list")&&
+        missions.home.text.find("▸")==std::string::npos&&
+        missions.home.text.find("Flight ›")==std::string::npos,
+        theme+": home marks no row and names the way into the Bats");
       for(const auto& [scene,frame]:std::vector<std::pair<std::string,golden::Frame>>{
           {"welcome",welcome},{"transcript",transcript},{"gadgets",gadgets},
           {"permission",permission},{"input",input},{"providers-list",providers.list},
           {"providers-key",providers.key},{"providers-models",providers.models},
-          {"providers-saved",providers.saved}})
+          {"providers-saved",providers.saved},{"missions-expanded",missions.expanded},
+          {"missions-collapsed",missions.collapsed},{"missions-breadcrumb",missions.breadcrumb}})
         passed=golden::compare(directory,scene+"-"+theme,frame)&&passed;
     }
     {
@@ -458,8 +519,8 @@ int main(int argc,char** argv){
       auto view=bat.view(120,24);
       view.batId="bat-1";view.batLabel="test-audit";view.batStatus="running";
       const auto row=golden::render(bat.shell.chrome.renderStatus(view),120,1);
-      check(contains(row,"Ctrl+B to run in background · Follow-up → Bat"),
-        "Bat status row must separate the notice from its hints");
+      check(contains(row,"Ctrl+B to run in background · Flight › test-audit"),
+        "Bat status row must separate the notice from its breadcrumb");
     }
     {
       // Missing web helpers add one line to the welcome card; /connectors

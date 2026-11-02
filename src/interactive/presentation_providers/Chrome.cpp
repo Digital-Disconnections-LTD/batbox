@@ -87,9 +87,13 @@ ftxui::Element footer(const ChromeServices& imports,const ViewState& view){
       std::string(view.searchQuery)+" "+count,subtle));
   }else{
     if(view.batId){
-      parts.push_back(colored(std::string(parts.empty()?"":" · ")+
-        "Follow-up → Bat · /leader, Esc or Alt+← to return · Ctrl+T Bats",
-        themeColor(theme,"suggestion")));
+      // The breadcrumb names where follow-ups go; Esc climbs one level.
+      std::string trail="Flight";
+      for(const auto& title:view.batTrail)trail+=" › "+truncateColumns(title,28);
+      if(view.batTrail.empty())trail+=" › "+truncateColumns(view.batLabel,28);
+      parts.push_back(colored(std::string(parts.empty()?"":" · ")+trail,
+        themeColor(theme,"suggestion"))|ftxui::bold);
+      parts.push_back(colored(" · Alt+↑↓ move · Alt+← home · Ctrl+T list",subtle));
       if(view.batStatus=="completed"||view.batStatus=="killed"||view.batStatus=="failed")
         parts.push_back(colored(" · sending resumes this Bat",subtle));
       return ftxui::hbox(std::move(parts));
@@ -220,9 +224,11 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
           percent>=95?roles.statusErr:percent>=80?roles.statusWarn:roles.muted,false,
           percent<80});
       }
-      if(const auto bats=runningBats(view.backgroundMissions))
+      if(const auto bats=runningBats(view.backgroundMissions)){
         right.push_back({std::to_string(bats)+(bats==1?" Bat running":" Bats running"),
           roles.brand});
+        right.push_back({"Alt+↓ Bats · Ctrl+T list",roles.muted,false,true});
+      }
       right.push_back({shortcut(imports,"app:toggleTranscript","Global","ctrl+o")+
         " transcript",roles.muted,false,true});
     }
@@ -823,8 +829,13 @@ conversation_shell::ChromeProviders makeChromeProviders(ChromeServices imports){
   result.renderModal=[imports](const auto& view){return dialog(imports,view);};
   result.renderPill=[imports](const auto& view){return pill(imports,view);};
   result.renderMissions=[imports](const auto& view){
-    return missionFooter(view.backgroundMissions,view.columns,view.rows,
-      themeColor(imports.theme.currentTheme(),"suggestion"));
+    FooterOptions options;
+    options.columns=view.columns;options.terminalRows=view.rows;
+    options.color=themeColor(imports.theme.currentTheme(),"suggestion");
+    options.current=view.batId;options.collapsed=view.missionsCollapsed;
+    if(!imports.nowMillis)return missionFooter(view.backgroundMissions,std::move(options));
+    options.nowMs=imports.nowMillis();
+    return missionFooterAt(view.backgroundMissions,options);
   };
   result.renderLogo=[imports]{return logo(imports);};
   result.renderWelcome=[imports](const auto& view){return welcome(imports,view);};

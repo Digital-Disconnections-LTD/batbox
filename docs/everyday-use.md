@@ -24,7 +24,7 @@ to choose it. Gadget approvals follow your configured permission mode.
 | `/effort` | Show or set the model server's reasoning effort. |
 | `/context` | See context usage and adjust automatic compaction. |
 | `/status` | Check the current flight, model, and usage. |
-| `/bats` | Watch every Bat's progress, open its conversation, or message it (Ctrl+T). |
+| `/bats` | Watch every Bat's progress, open its conversation, or message it. |
 | `/missions` | See running Bats, background shells, and the Mission board. |
 | `/leader` | Return from a child conversation to the main conversation. |
 | `/memory` | Browse, edit, and refresh project and bat memory. |
@@ -46,7 +46,7 @@ its original request. A configured model must support effort for the command to
 set a level. This setting does not change Batbox's separate thinking token
 budget. `/config` also opens during an active turn.
 
-Open `/bats` (or press Ctrl+T, from the leader or from inside a Bat) to see every
+Open `/bats` (from the leader or from inside a Bat) to see every
 Bat with its status, runtime, Gadget count, tokens, current Gadget, and the last
 line it wrote. Enter opens a Bat's conversation, `i` or → shows its details
 (poetry, recent Gadgets, model, errors), `x` stops it, and `d` dismisses a settled
@@ -56,12 +56,18 @@ shows its saved transcript.
 Inside a Bat's conversation you follow its poetry, reasoning, gadgets, and
 replies, and send follow-ups directly. A message to a running Bat shows as queued
 until its next Gadget round delivers it; a message to a settled Bat resumes its
-existing history. `/bats` switches to another Bat, and `/leader`, Alt+←, or Esc
-with an empty input returns to your main conversation.
+existing history. `/bats` switches to another Bat, and `/leader` returns to your
+main conversation.
 
 Ctrl+B from the leader view can background a foreground child. The Active
-Missions footer lists running Bats, foreground or background, with their runtime,
-Gadget count, and latest line; click a row to open it. Custom Bat poetry live in
+Missions list under the input box shows running Bats, foreground or background,
+with their runtime, Gadget count, and latest line; a sub-Bat sits indented under
+the Bat that launched it. Alt+↓ and Alt+↑ step through the Bats, Alt+← (with an
+empty input) goes straight home to the main Flight, and Esc goes back one level.
+Click a row to open it, or press Ctrl+T to fold the list to one line. The Bat
+you are in is marked with `▸`, and the status row turns into a breadcrumb such as
+`Flight › Audit the parser · Alt+↑↓ move · Alt+← home · Ctrl+T list`. See
+[Keyboard shortcuts](keyboard.md) for terminal setup. Custom Bat poetry live in
 `~/.batbox/agents/` or your project’s `.batbox/agents/`.
 Agent progress shows each task's status and latest tool. Foreground agents return
 their final results before the leader continues; progress events are display

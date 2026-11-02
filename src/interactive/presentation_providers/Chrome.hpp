@@ -25,6 +25,8 @@ struct ChromeServices {
   std::function<std::string()> homeDirectory;
   // One muted line under the welcome facts, such as missing web helpers.
   std::function<std::string()> notice;
+  // Clock for Mission elapsed times; the system clock when empty.
+  std::function<long long()> nowMillis;
 };
 
 conversation_shell::ChromeProviders makeChromeProviders(ChromeServices services);

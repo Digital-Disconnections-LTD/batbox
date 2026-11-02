@@ -1,5 +1,6 @@
 #include "interactive/conversation_shell/Shell.hpp"
 #include "interactive/TranscriptRows.hpp"
+#include "interactive/presentation_providers/MissionFooter.hpp"
 #include "history/References.hpp"
 #include "runtime/JsonValue.hpp"
 #include <algorithm>
@@ -43,10 +44,12 @@ void Shell::openBatConversation(const std::string& id){
   if(!imports_.observeBatMission||!imports_.batMissionSnapshot)
     throw std::runtime_error("Bat conversations are unavailable");
   const auto generation=++batOpenGeneration_;
+  pendingBatId_=id;
   auto weak=weak_from_this();
   auto pending=imports_.observeBatMission(id);
   pending.then([weak,id,generation](const Json* mission,const std::exception_ptr& error){
     auto self=weak.lock();if(!self)return;
+    if(generation==self->batOpenGeneration_)self->pendingBatId_.reset();
     if(error){
       if((!self->batConversation_||self->batConversation_->id!=id)&&self->imports_.releaseBatMission)
         self->imports_.releaseBatMission(id);
@@ -84,8 +87,8 @@ void Shell::openBatConversation(const std::string& id){
   });
 }
 void Shell::returnToLeader(){
-  ++batOpenGeneration_;
-  if(!batConversation_)return;
+  ++batOpenGeneration_;pendingBatId_.reset();
+  if(!batConversation_){requestRedraw();return;}
   batDrafts_[batConversation_->id]=batConversation_->presentation.input;
   if(imports_.releaseBatMission)imports_.releaseBatMission(batConversation_->id);
   batConversation_.reset();
@@ -93,6 +96,29 @@ void Shell::returnToLeader(){
   driver_->setMode(baseMode_);
   if(!leaderAtBottom_&&leaderScrollTop_)viewport_->scrollTo(*leaderScrollTop_);
   leaderScrollTop_.reset();syncFocus();requestRedraw();
+}
+void Shell::stepBat(int direction){
+  if(!imports_.missionSnapshot||!imports_.observeBatMission)return;
+  const auto from=pendingBatId_?pendingBatId_:activeBatId();
+  const auto ids=presentation_providers::footerBatIds(
+    presentation_providers::backgroundFooterMissions(imports_.missionSnapshot(),from));
+  const auto at=from?std::find(ids.begin(),ids.end(),*from):ids.end();
+  if(direction>0){
+    // From home the first Bat; the last Bat stays put.
+    if(at==ids.end()){if(!ids.empty())openBatConversation(ids.front());return;}
+    if(std::next(at)!=ids.end())openBatConversation(*std::next(at));
+    return;
+  }
+  if(!from)return;
+  if(at==ids.end()||at==ids.begin()){returnToLeader();return;}
+  openBatConversation(*std::prev(at));
+}
+void Shell::backFromBat(){
+  if(!batConversation_)return;
+  const auto parent=imports_.missionSnapshot?presentation_providers::parentBatId(
+    imports_.missionSnapshot(),batConversation_->id):std::nullopt;
+  if(parent)openBatConversation(*parent);
+  else returnToLeader();
 }
 void Shell::refreshBatConversation(){
   if(!batConversation_)return;

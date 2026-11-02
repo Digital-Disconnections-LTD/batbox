@@ -16,6 +16,7 @@
 #include <optional>
 #include <deque>
 #include <string_view>
+#include <vector>
 
 namespace batbox::interactive::conversation_shell {
 struct TranscriptExportRun;
@@ -32,6 +33,9 @@ struct ViewState {
   Json backgroundMissions=Json::array();
   std::optional<std::string> batId;
   std::string batLabel,batStatus;
+  // Titles from the top-level Bat down to the open one.
+  std::vector<std::string> batTrail;
+  bool missionsCollapsed=false;
   bool remembering=false;
   unsigned activityFrame=0;
   unsigned welcomeFrame=welcomeAnimationFrames;
@@ -205,6 +209,8 @@ private:
   void updateBatConversation(const Json& mission);
   bool submitBatPoetry(const std::string& text);
   void resetConversationNavigation();
+  void stepBat(int direction);
+  void backFromBat();
   struct BatConversation {
     std::string id,label,status;
     PresentationState presentation;
@@ -219,6 +225,9 @@ private:
   std::optional<BatConversation> batConversation_;
   std::unordered_map<std::string,InputState> batDrafts_;
   std::size_t batOpenGeneration_=0;
+  // The Bat most recently asked for; Alt+Up/Down step from it while it opens.
+  std::optional<std::string> pendingBatId_;
+  bool missionsCollapsed_=false;
   std::optional<double> leaderScrollTop_;
   bool leaderAtBottom_=true;
   std::shared_ptr<repl_runtime::Runtime> runtime_;

@@ -225,12 +225,16 @@ std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& s
     return self->markdown_->renderStreaming(self->streaming_,text,dim);
   };
   shell.liveRetainedViews=[self]{return self->retainedServices();};
+  // Mission elapsed times read the wall clock unless a pinned clock is given.
+  std::function<long long()> missionClock;
+  if(self->inputs_.nowMs)missionClock=[clock=self->inputs_.nowMs]{
+    return static_cast<long long>(clock());};
   shell.chrome=ip::makeChromeProviders({*self->inputs_.theme,self->inputs_.shortcuts,
     self->inputs_.modelDisplay?self->inputs_.modelDisplay:self->inputs_.modelLabel,
     self->inputs_.workingDirectory,
     self->inputs_.permissionMode,self->inputs_.statusText,
     self->inputs_.gitBranch,self->inputs_.contextUsage,self->inputs_.homeDirectory,
-    self->inputs_.notice});
+    self->inputs_.notice,std::move(missionClock)});
   shell.editorMetrics=interactive::text_input::indigenousMetricsServices(self->intl_,self->width_,self->wrap_);
   shell.editorOptions.columns=self->state_->viewport.columns;
   return self;

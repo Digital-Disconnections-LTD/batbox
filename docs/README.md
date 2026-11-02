@@ -8,6 +8,7 @@ Start with [your first Flight](getting-started.md), then get comfortable with
 | Connect a model | [Getting started](getting-started.md) |
 | Pick a provider or local server | [Providers](providers.md) |
 | Commands, Bats, memory, and saved Flights | [Everyday use](everyday-use.md) |
+| Keys, and moving between Bats | [Keyboard shortcuts](keyboard.md) |
 | Files and preferences | [Configuration](indigenous-configuration.md) |
 | Named model routes | [Model profiles](indigenous-model-profiles.md) |
 | Server kinds, Chat Completions servers and quirks | [Providers](providers.md) |

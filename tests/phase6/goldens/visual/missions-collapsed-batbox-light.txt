@@ -1,0 +1,7 @@
+Active Missions (4) · in: Check the lexer
+Flight › Audit the parser › Check the lexer · Alt+↑↓ move · Alt+← home · Ctrl+T list
+# styles
+0:0-21 fg=38;2;112;64;186 bg=- d
+0:22-40 fg=38;2;112;64;186 bg=- b
+1:0-42 fg=38;2;112;64;186 bg=- b
+1:43-83 fg=38;2;108;100;128 bg=-

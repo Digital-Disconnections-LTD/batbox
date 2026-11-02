@@ -203,15 +203,79 @@ int main(){
     const auto footerRows=providers::backgroundFooterMissions(missions());
     check(footerRows.size()==2&&footerRows[0].at("id")=="bat-foreground",
       "Footer must list both running Bats, newest first, and skip the leader");
-    auto footer=providers::missionFooterAt(footerRows,100,24,ftxui::Color::Default,now);
-    auto screen=ftxui::Screen::Create(ftxui::Dimension::Fixed(100),ftxui::Dimension::Fixed(3));
-    ftxui::Render(screen,footer);
-    const auto rendered=screen.ToString();
-    for(const char* part:{"Active Missions (2) · Ctrl+T Bats · /missions",
+    const auto render=[](const Json& rows,const providers::FooterOptions& options,int height){
+      auto screen=ftxui::Screen::Create(ftxui::Dimension::Fixed(options.columns),
+        ftxui::Dimension::Fixed(height));
+      ftxui::Render(screen,providers::missionFooterAt(rows,options));
+      std::string plain;const auto styled=screen.ToString();
+      for(std::size_t i=0;i<styled.size();++i){
+        if(styled[i]!='\x1b'){plain+=styled[i];continue;}
+        while(i<styled.size()&&!(styled[i]>='@'&&styled[i]<='~'&&styled[i]!='['))++i;
+      }
+      return plain;
+    };
+    providers::FooterOptions options;options.columns=100;options.terminalRows=24;options.nowMs=now;
+    const auto rendered=render(footerRows,options,3);
+    for(const char* part:{"Active Missions (2) · Ctrl+T collapse · /missions",
         "Foreground scan · foreground · 5s · 1 Gadget","reviewer · running · 2m 5s · 3 Gadgets",
         "“Reading the parser now”"})
       check(contains(rendered,part),std::string("Footer missing '")+part+"':\n"+rendered);
     check(!contains(rendered,"/Missions"),"Footer must not advertise the unresolvable /Missions");
+    check(!contains(rendered,"▸"),"At home no Mission row is highlighted:\n"+rendered);
+
+    // Sub-Bats sit under the Bat that launched them; a settled open Bat and
+    // the Bats above it stay listed so the highlight has somewhere to be.
+    auto tree=missions();
+    tree["bat-child"]={{"type","local_agent"},{"status","running"},
+      {"description","Check the lexer"},{"agentType","general-purpose"},
+      {"parentBatId","bat-reviewer"},{"startTime",now-1000}};
+    tree["bat-grandchild"]={{"type","local_agent"},{"status","completed"},
+      {"description","Count tokens"},{"agentType","general-purpose"},
+      {"parentBatId","bat-child"},{"startTime",now-900},{"endTime",now-100}};
+    tree["shell-1"]={{"type","local_bash"},{"status","running"},
+      {"description","npm test"},{"isBackgrounded",true},{"startTime",now}};
+    tree["bat-loop-a"]={{"type","local_agent"},{"status","running"},
+      {"description","Loop A"},{"parentBatId","bat-loop-b"},{"startTime",now-50}};
+    tree["bat-loop-b"]={{"type","local_agent"},{"status","running"},
+      {"description","Loop B"},{"parentBatId","bat-loop-a"},{"startTime",now-60}};
+    const auto nested=providers::backgroundFooterMissions(tree,std::string("bat-grandchild"));
+    std::vector<std::string> order;std::vector<long long> depths;
+    for(const auto& row:nested){
+      order.push_back(row.at("id").get<std::string>());
+      depths.push_back(row.contains("depth")?row.at("depth").get<long long>():-1);
+    }
+    check(order==std::vector<std::string>{"bat-foreground","bat-reviewer","bat-child",
+        "bat-grandchild","bat-loop-a","bat-loop-b","shell-1"}&&
+      depths==std::vector<long long>{0,0,1,2,0,1,-1},
+      "Bats must list as a tree before shells, with loops flattened: "+nested.dump());
+    check(providers::footerBatIds(nested)==std::vector<std::string>{"bat-foreground",
+        "bat-reviewer","bat-child","bat-grandchild","bat-loop-a","bat-loop-b"},
+      "Only Bat rows are navigable");
+    check(providers::batTrail(nested,"bat-grandchild")==std::vector<std::string>{
+        "reviewer","Check the lexer","Count tokens"},"Trail runs from the top Bat down");
+    check(providers::parentBatId(tree,"bat-grandchild")==std::optional<std::string>("bat-child")&&
+      !providers::parentBatId(tree,"bat-reviewer"),"Parent lookup");
+    check(providers::backgroundFooterMissions(tree).size()==nested.size()-1,
+      "A settled Bat leaves the list once it is no longer open");
+
+    options.current="bat-grandchild";options.terminalRows=40;
+    const auto highlighted=render(nested,options,7);
+    check(contains(highlighted,"  ● reviewer · running")&&
+      contains(highlighted,"  └ ● Check the lexer · running")&&
+      contains(highlighted,"▸   └ ● Count tokens · completed")&&
+      contains(highlighted,"Active Missions (6)"),
+      "Nested rows indent under their parent and the open Bat is marked:\n"+highlighted);
+    const auto window=providers::footerWindow(nested,40,false,std::string("bat-loop-b"));
+    check(!window.collapsed&&window.begin==1&&window.end==6,
+      "The window scrolls to keep the open Bat in view");
+    check(providers::footerWindow(nested,40,false,std::nullopt).begin==0&&
+      providers::footerWindow(nested,40,false,std::nullopt).end==5,"At most five rows show");
+    check(providers::footerWindow(nested,11,false,std::nullopt).collapsed,
+      "A short terminal collapses the list");
+    options.collapsed=true;
+    const auto collapsed=render(nested,options,1);
+    check(contains(collapsed,"Active Missions (6) · in: Count tokens")&&
+      !contains(collapsed,"reviewer"),"Collapsed list names the open Bat:\n"+collapsed);
 
     const auto glance=providers::batGlance(missions().at("bat-done"),now);
     check(glance.label=="Summarize history"&&glance.elapsed=="1m 0s"&&

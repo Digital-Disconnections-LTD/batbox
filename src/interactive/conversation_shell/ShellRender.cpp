@@ -60,13 +60,16 @@ const ViewState Shell::viewState()const{
       editor_->view(presentation().input),navigation_->searchQuery(),
     searchCount_,searchCurrent_,newMessageCount_,view.columns,view.rows,
     transcript_,searchOpen_,pill};
-  if(imports_.missionSnapshot)result.backgroundMissions=
-    presentation_providers::backgroundFooterMissions(imports_.missionSnapshot());
   if(batConversation_){
     result.batId=batConversation_->id;
     result.batLabel=batConversation_->label;
     result.batStatus=batConversation_->status;
   }
+  if(imports_.missionSnapshot)result.backgroundMissions=
+    presentation_providers::backgroundFooterMissions(imports_.missionSnapshot(),result.batId);
+  if(result.batId)result.batTrail=presentation_providers::batTrail(
+    result.backgroundMissions,*result.batId);
+  result.missionsCollapsed=missionsCollapsed_;
   result.remembering=remembering_;
   result.activityFrame=activityFrame_;
   result.welcomeFrame=welcomeFrame_;
@@ -179,13 +182,15 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   const int bodyRows=std::max(1,rows-headerRows-footerRows-poetryRows-
     suggestionRows-historySearchRows-stickyRows-pillRows-missionRows);
   stickyScreenRow_=showSticky?std::optional<int>(headerRows):std::nullopt;
-  pillScreenRow_=pillRows?std::optional<int>(rows-poetryRows-1-
-    (statusBelow?footerRows:0)):std::nullopt;
-  missionScreenRow_=missionRows?std::optional<int>(headerRows+stickyRows+bodyRows+
-    suggestionRows+historySearchRows):std::nullopt;
+  // The Missions list sits between the input and the status row.
+  const int belowPoetry=missionRows+(statusBelow?footerRows:0);
+  pillScreenRow_=pillRows?std::optional<int>(rows-poetryRows-1-belowPoetry):std::nullopt;
+  missionScreenRow_=missionRows?std::optional<int>(rows-belowPoetry):std::nullopt;
   footerMissionIds_.clear();
-  for(std::size_t i=0;i<view.backgroundMissions.size()&&
-      i<static_cast<std::size_t>(std::max(0,missionRows-1));++i)
+  const auto window=presentation_providers::footerWindow(view.backgroundMissions,
+    view.rows,view.missionsCollapsed,view.batId);
+  for(auto i=window.begin;i<window.end&&
+      footerMissionIds_.size()<static_cast<std::size_t>(std::max(0,missionRows-1));++i)
     footerMissionIds_.push_back(view.backgroundMissions[i].at("id").get<std::string>());
   view.bodyRows=bodyRows;view.bodyScreenRow=headerRows+stickyRows;
   welcomeVisible_=plan.showLogo&&imports_.chrome.renderWelcome&&!transcript_;
@@ -217,10 +222,10 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   if(suggestionRows)stack.push_back(fixed(std::move(suggestions),
     suggestionRows));
   if(historySearchRows)stack.push_back(fixed(std::move(historySearch),1));
-  if(missionRows)stack.push_back(fixed(std::move(missions),missionRows));
   if(footerRows&&!statusBelow)stack.push_back(fixed(std::move(footer),footerRows));
   if(pillRows)stack.push_back(fixed(std::move(pill),pillRows));
   if(poetryRows)stack.push_back(fixed(std::move(poetry),poetryRows));
+  if(missionRows)stack.push_back(fixed(std::move(missions),missionRows));
   if(footerRows&&statusBelow)stack.push_back(fixed(std::move(footer),footerRows));
   auto base=ftxui::vbox(std::move(stack));
   if(presentation().modal){
