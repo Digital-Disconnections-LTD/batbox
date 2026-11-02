@@ -108,7 +108,7 @@ class WindowsPackageNotices(unittest.TestCase):
                          "gadgets/install-windows.ps1"):
             path = source / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("Fixture project record\n")
+            path.write_bytes(b"Fixture project record\n")
         output = self.base / "batbox.zip"
         arguments = ["package_indigenous.py", "--binary", str(binary), "--source", str(source),
                      "--runtime-root", str(self.runtime), "--output", str(output),
