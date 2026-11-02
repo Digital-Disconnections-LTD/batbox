@@ -1019,7 +1019,8 @@ void Host::Impl::bindFrontend(){
   presentInputs.notice=[this,providerNotice,web=application_connectors::webNotice(
       application_connectors::webAvailability(config))]{
     // Once an endpoint profile is in use the provider hint has done its job.
-    const auto& selected=value::property(store->getState()->snapshot(),"mainLoopModel");
+    const auto state=store->getState()->snapshot();
+    const auto& selected=value::property(state,"mainLoopModel");
     const bool connected=selected.is_string()&&
       selected.get<std::string>().find("::")!=std::string::npos;
     if(providerNotice->empty()||connected)return web;
