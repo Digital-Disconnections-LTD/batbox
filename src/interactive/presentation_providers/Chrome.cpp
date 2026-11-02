@@ -23,6 +23,7 @@ using ViewState=conversation_shell::ViewState;
 using terminal_ftxui::displayWidth;
 using terminal_ftxui::fitText;
 using terminal_ftxui::truncateColumns;
+using terminal_ftxui::wrapColumns;
 ftxui::Element empty(){return ftxui::vbox(ftxui::Elements{});}
 ftxui::Element colored(std::string text,ftxui::Color color){
   return ftxui::text(value::encodeUtf8(text))|ftxui::color(color);
@@ -345,34 +346,6 @@ ftxui::Element suggestionRows(const std::vector<application_completion::Suggesti
   return ftxui::vbox(std::move(rows));
 }
 
-// Word wrap at display columns; words wider than a row are split.
-std::vector<std::string> wrapWords(const std::string& line,int width){
-  std::vector<std::string> rows;
-  if(width<=0)return {line};
-  std::string current;
-  int used=0;
-  std::size_t start=0;
-  const auto flush=[&]{rows.push_back(current);current.clear();used=0;};
-  while(start<=line.size()){
-    const auto end=line.find(' ',start);
-    auto word=line.substr(start,end==std::string::npos?std::string::npos:end-start);
-    int wordWidth=displayWidth(word);
-    while(wordWidth>width){
-      if(used>0)flush();
-      const auto head=truncateColumns(word,width,"");
-      rows.push_back(head);
-      word=word.substr(head.size());
-      wordWidth=displayWidth(word);
-    }
-    if(used>0&&used+1+wordWidth>width)flush();
-    if(used>0){current+=' ';++used;}
-    current+=word;used+=wordWidth;
-    if(end==std::string::npos)break;
-    start=end+1;
-  }
-  if(!current.empty()||rows.empty())rows.push_back(current);
-  return rows;
-}
 std::vector<std::string> splitBody(const std::string& body){
   std::vector<std::string> lines;
   std::size_t cursor=0;
@@ -528,7 +501,7 @@ ftxui::Element dialog(const ChromeServices& imports,const ViewState& view){
     if(bounded){
       if(bodyRows.size()>=*request.bodyPreviewLines){bodyHidden=true;break;}
       bodyRows.push_back(line);
-    }else for(auto& part:wrapWords(line,inner))bodyRows.push_back(std::move(part));
+    }else for(auto& part:wrapColumns(line,inner))bodyRows.push_back(std::move(part));
   }
   ftxui::Element preview;
   int previewRows=0;

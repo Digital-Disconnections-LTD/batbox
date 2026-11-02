@@ -1,4 +1,5 @@
 #include "application/HostInternal.hpp"
+#include "application/ErrorReport.hpp"
 #include "application_commands/FlightTitles.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
 #include "interactive/text_input/TextEditorIndigenous.hpp"
@@ -130,8 +131,12 @@ std::shared_ptr<application_commands::Bundle> Host::Impl::makeCommands(){
       const auto resolved=bats->resolveMissionId(value);
       if(!resolved){statusText="No Bat found: "+value;++view.revision;shell->requestRedraw();return;}
       shell->openBatConversation(*resolved);
-    }catch(const std::exception& error){
-      statusText=error.what();++view.revision;shell->requestRedraw();
+    }catch(...){
+      const auto failure=describeError(std::current_exception());
+      log(errorLogLine(failure,"Bats"));
+      statusText=failure.internal?"Could not open the Bat · details in native.log":
+        statusLine(failure.what);
+      ++view.revision;shell->requestRedraw();
     }
   };
   commandInputs.backgroundBatMission=[bats=bats](const std::string& id){
@@ -145,7 +150,7 @@ std::shared_ptr<application_commands::Bundle> Host::Impl::makeCommands(){
   commandInputs.updateWatchPaths=[this](std::vector<std::string> paths){
     if(fileWatcher)fileWatcher->updateWatchPaths(std::move(paths));};
   commandInputs.log=[this](const std::string& value){log(value);};
-  commandInputs.onError=[this](std::exception_ptr error){report(error);};
+  commandInputs.onError=[this](std::exception_ptr error){report(error,"commands");};
   commandInputs.requestExit=[this]{
     // Let the local command's Promise continuations publish its final messages
     // before the normal shutdown path closes input dispatch.
@@ -237,7 +242,7 @@ void Host::Impl::rebindRoost(
     fileWatcher->onCwdChanged(runtime::pathToUtf8(previous.cwd),
       runtime::pathToUtf8(next.cwd)).then(
         [this](const event_loop::Unit*,const std::exception_ptr& error){
-          if(error)report(error);});
+          if(error)report(error,"file watcher");});
   }
   bindBackend();
   bindMcpRuntime();
@@ -335,7 +340,7 @@ void Host::Impl::bindFrontend(){
     if(shell)shell->requestRedraw();
     // Bats from earlier runs of this Flight stay listable, openable and resumable.
     if(bats)bats->seedSavedBats().then([this](const std::size_t*,const std::exception_ptr& error){
-      if(error)report(error);});};
+      if(error)report(error,"saved Bats");});};
   restoreInputs.setReplacementState=[this](
       std::shared_ptr<gadget_results::ContentReplacementState> state){
     if(!state)throw std::invalid_argument("Resume replacement state is empty");
@@ -376,7 +381,7 @@ void Host::Impl::bindFrontend(){
     if(fileHistory)fileHistory->restoreStateFromLog(snapshots);};
   restoreInputs.writeOutput=[this](const std::string& value){
     statusText=value;++view.revision;if(shell)shell->requestRedraw();};
-  restoreInputs.logError=[this](std::exception_ptr error){report(error);};
+  restoreInputs.logError=[this](std::exception_ptr error){report(error,"resume");};
   restoreInputs.transitionPermissionMode=[this](
       const std::string& from,const std::string& to){
     if(!flightTransitions)return;
@@ -424,7 +429,7 @@ void Host::Impl::bindFrontend(){
   frontendInputs.showImmediateNotice=[this](const std::string& value){
     statusText=value;++view.revision;
     if(shell)shell->requestRedraw();};
-  frontendInputs.onError=[this](std::exception_ptr error){report(error);};
+  frontendInputs.onError=[this](std::exception_ptr error){report(error,"prompt input");};
   frontendInputs.redraw=[this]{if(shell)shell->requestRedraw();};
   frontendInputs.shutdown=[this]{requestExit();};
   frontendInputs.getRuntime=[this]{return runtime;};
@@ -783,7 +788,7 @@ void Host::Impl::bindFrontend(){
     cliInputs.requestExit=[this](bool lastResultError){
       if(lastResultError)failed.store(true);
       requestExit();};
-    cliInputs.report=[this](std::exception_ptr error){report(error);};
+    cliInputs.report=[this](std::exception_ptr error){report(error,"headless CLI");};
     cli=application_cli::Adapter::create(std::move(cliInputs));
     bindings.onTurnRequested=[this](const interactive::TurnRequest& request){
       cli->onTurnRequested(request);
@@ -915,7 +920,7 @@ void Host::Impl::bindFrontend(){
   shellInputs.logForDebugging=[this](const std::string& value){log(value);};
   shellInputs.terminalProgressEnabled=[] {return false;};
   shellInputs.setTerminalProgress=[](std::optional<interactive::message_list_view::ProgressState>){};
-  shellInputs.onDetachedError=[this](std::exception_ptr error){report(error);};
+  shellInputs.onDetachedError=[this](std::exception_ptr error){report(error,"conversation runtime");};
   shellInputs.editorCallbacks.invert=[](const std::string& value){return value;};
   shellInputs.editorCallbacks.onChange=[this](const std::string& text){
     view.input.text=text;};
@@ -959,8 +964,11 @@ void Host::Impl::bindFrontend(){
       [savedTheme]{return savedTheme;},
       [this,settingsPath=configurationDirectory(config)/"settings.json"](const std::string& value){
         try{application_config::patchConfigSettings(settingsPath,Json{{"theme",value}});}
-        catch(const std::exception& error){
-          statusText=std::string("Could not save the theme: ")+error.what();
+        catch(...){
+          const auto failure=describeError(std::current_exception());
+          log(errorLogLine(failure,"theme settings"));
+          statusText=failure.internal?"Could not save the theme · details in native.log":
+            "Could not save the theme: "+statusLine(failure.what);
           ++view.revision;
         }},
       [stash=systemTheme]{return stash->current();},
@@ -1032,7 +1040,7 @@ void Host::Impl::bindFrontend(){
     const auto& value=value::property(context?*context:none,"mode");
     return value.is_string()?value.get<std::string>():std::string("default");
   };
-  presentInputs.statusText=[this]{return statusText;};
+  presentInputs.statusText=[this]{return statusLine(statusText);};
   presentInputs.feature=[](const std::string&){return false;};
   presentInputs.log=[this](const std::string& value){log(value);};
   presentation=application_presentation::Bundle::bind(

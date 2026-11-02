@@ -1,6 +1,7 @@
 #include "application/HostInternal.hpp"
 #include "application/ModelBinding.hpp"
 #include "application/Async.hpp"
+#include "application/ErrorReport.hpp"
 #include "application_mcp_elicitation/ModelBinding.hpp"
 #include "runtime/Platform.hpp"
 #include "flights/ProjectDirectories.hpp"
@@ -111,17 +112,19 @@ void Host::Impl::flushLog()const{
   std::lock_guard lock(*logMutex);
   logFile->flush();
 }
-void Host::Impl::report(std::exception_ptr error){
-  const auto value=errorText(error);
-  if(!value.empty()){log(value);flushLog();}
-  if(value.empty())return;
+void Host::Impl::report(std::exception_ptr error,std::string_view origin){
+  const auto described=describeError(error);
+  const auto status=statusErrorText(described,origin);
+  if(status.empty())return;
+  const auto detail=errorLogLine(described,origin);
+  log(detail);flushLog();
   failed.store(true);
-  const auto show=[this,value]{
+  const auto show=[this,status,detail,internal=described.internal]{
     if(closing)return;
-    statusText="Error: "+value;
+    statusText=status;
     ++view.revision;
     if(shell)shell->requestRedraw();
-    if(config.print)std::cerr<<"Batbox: "<<value<<'\n';
+    if(config.print)std::cerr<<"Batbox: "<<(internal?detail:status.substr(7))<<'\n';
   };
   if(owner.isOwnerThread())show();
   else owner.postMission(show);
@@ -205,7 +208,7 @@ void Host::Impl::initialize(){
   application_flights::Inputs flightInputs(owner);
   flightInputs.config=config;flightInputs.roost=roost;
   flightInputs.flightId=flightId;
-  flightInputs.logError=[this](std::exception_ptr error){report(error);};
+  flightInputs.logError=[this](std::exception_ptr error){report(error,"Flight storage");};
   flightInputs.commandNames=[] {return std::set<std::string>{};};
   flight=application_flights::Flight::create(std::move(flightInputs));
   bindFileHistory();
@@ -213,7 +216,7 @@ void Host::Impl::initialize(){
   mediaInputs.stateDirectory=config.stateDirectory;
   mediaInputs.flightId=[flight=flight]{return flight->id();};
   mediaInputs.log=[this](const std::string& value){log(value);};
-  mediaInputs.onError=[this](std::exception_ptr error){report(error);};
+  mediaInputs.onError=[this](std::exception_ptr error){report(error,"media");};
   mediaInputs.terminalName=[] {
     const char* name=std::getenv("TERM");return name&&*name?std::string(name):std::string{};};
   media=application_media::Bundle::create(std::move(mediaInputs));
@@ -223,7 +226,7 @@ void Host::Impl::initialize(){
     return roost->projectRoot().string();};
   historyInputs.flightId=[flight=flight]{return flight->id();};
   historyInputs.log=[this](const std::string& value){log(value);};
-  historyInputs.onError=[this](std::exception_ptr error){report(error);};
+  historyInputs.onError=[this](std::exception_ptr error){report(error,"prompt history");};
   historyInputs.skipPoetryHistory=[] {return false;};
   history=application_history::Bundle::create(std::move(historyInputs));
   bindStorage();
@@ -260,7 +263,7 @@ void Host::Impl::bindStorage(){
   paths.getFlightId=[flight=flight]{return flight->id();};
   paths.getProjectDir=[directories](const std::string& cwd){
     return directories->getProjectDir(cwd);};
-  paths.logError=[this](std::exception_ptr error){report(error);};
+  paths.logError=[this](std::exception_ptr error){report(error,"Gadget result storage");};
   paths.debug=[this](const std::string& value){log(value);};
   storage=gadget_results::indigenousStorageImports(owner,std::move(paths));
 }
@@ -272,7 +275,7 @@ void Host::Impl::bindFileHistory(){
   inputs.nonInteractive=config.print;
   inputs.configuredEnabled=[enabled=config.fileCheckpointingEnabled]{
     return enabled.value_or(true);};
-  inputs.logError=[this](std::exception_ptr error){report(error);};
+  inputs.logError=[this](std::exception_ptr error){report(error,"file history");};
   fileHistory=application_file_history::History::create(std::move(inputs));
 }
 void Host::Impl::bindRoostProviders(){
@@ -316,7 +319,7 @@ void Host::Impl::bindRoostProviders(){
   poetryInputs.recoveryActivity=[this,generation](bool active){
     if(roster==generation.lock()&&shell)shell->setRemembering(active);
   };
-  poetryInputs.logError=[this](std::exception_ptr error){report(error);};
+  poetryInputs.logError=[this](std::exception_ptr error){report(error,"project instructions");};
   poetryInputs.logDiagnostic=[this](const std::string& scope,
       const std::string& value,const std::optional<Json>&){log(scope+": "+value);};
   poetry=std::make_shared<application_poetry::Provider>(owner,std::move(poetryInputs));
@@ -339,7 +342,7 @@ void Host::Impl::bindRoostProviders(){
       const std::optional<std::string>&){log("Shell task: "+text);};
   shellInputs.onMissionTerminated=[this](const shell_missions::MissionRecord& mission){
     log("Shell task terminated: "+mission.id);};
-  shellInputs.onBackgroundError=[this](std::exception_ptr error){report(error);};
+  shellInputs.onBackgroundError=[this](std::exception_ptr error){report(error,"background shell");};
   managedShell=application_shell::makeHost(std::move(shellInputs));
   application_hooks::Inputs hookInputs;
   hookInputs.config=config;hookInputs.flightId=flightId;
@@ -444,7 +447,7 @@ int Host::run(){
   auto submitInitial=[&host]{
     const auto poetry=host.poetry;
     poetry->projectRecovery().then([&host,poetry](const std::string*,
-        const std::exception_ptr& error){if(error&&!host.closing)host.report(error);});
+        const std::exception_ptr& error){if(error&&!host.closing)host.report(error,"project recovery");});
     if(host.config.print){
       if(!host.cli)throw std::logic_error("Headless CLI adapter is unavailable");
       host.cli->start();return;
@@ -465,7 +468,7 @@ int Host::run(){
     host.hooks->run("SessionStart",std::move(detail),"startup").then(
       [&host,submitInitial](const std::vector<Json>* events,
           const std::exception_ptr& error){
-        if(error)host.report(error);
+        if(error)host.report(error,"SessionStart hooks");
         if(events){
           const auto collected=host.hooks->collectFlightStart(*events);
           auto values=std::make_shared<interactive::TurnMessages>(
@@ -497,7 +500,7 @@ int Host::run(){
       host.restore->find(*host.config.resumeFlight):host.restore->latest();
     loaded.then([&host,submitInitial](const std::optional<Json>* log,
         const std::exception_ptr& error){
-      if(error){host.report(error);if(host.config.print)host.requestExit();return;}
+      if(error){host.report(error,"resume");if(host.config.print)host.requestExit();return;}
       if(!log||!*log){
         host.report(std::make_exception_ptr(std::runtime_error(
           host.config.resumeFlight?"No saved Flight matches \""+
@@ -517,7 +520,7 @@ int Host::run(){
         [&host,submitInitial](const event_loop::Unit*,
             const std::exception_ptr& restoreError){
           if(restoreError){
-            host.report(restoreError);
+            host.report(restoreError,"resume");
             if(host.config.print)host.requestExit();
           }else submitInitial();
         });

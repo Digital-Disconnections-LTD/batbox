@@ -2,7 +2,7 @@ add_library(batbox_indigenous_host STATIC
   src/application/HostCore.cpp
   src/application/HostBackend.cpp src/application/HostFrontend.cpp
   src/application/ModelBinding.cpp src/application/HostMaintenance.cpp
-  src/application/HostShutdown.cpp)
+  src/application/HostShutdown.cpp src/application/ErrorReport.cpp)
 target_link_libraries(batbox_indigenous_host PUBLIC
   batbox_profiler
   batbox_application_config batbox_application_model
