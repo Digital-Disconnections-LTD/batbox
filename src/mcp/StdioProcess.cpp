@@ -25,7 +25,6 @@ extern char** environ;
 #endif
 namespace batbox::mcp {
 namespace {
-constexpr std::size_t maxStderrBytes=64*1024;
 constexpr std::size_t maxInstructions=2048;
 bool sensitiveName(std::string name){
   std::transform(name.begin(),name.end(),name.begin(),[](unsigned char c){

@@ -1,6 +1,8 @@
 // Offline MCP fixture for platform smoke checks. No browser or account is used.
 // It advertises a real Scrapling tool set: --tools=0.4.7 (the default, `get`),
 // --tools=0.4.15 (`make_request`) or --tools=unknown (no plain fetch tool).
+// --banner prints the lines Scrapling 0.3's first start writes to stdout
+// while browserforge downloads its model files.
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <iostream>
@@ -35,10 +37,16 @@ Json textResult(const std::string& text, bool error = false) {
 
 int main(int argc, char** argv) {
   std::string set = "0.4.7";
+  bool banner = false;
   for (int index = 1; index < argc; ++index) {
     const std::string argument = argv[index];
     if (argument.rfind("--tools=", 0) == 0) set = argument.substr(8);
+    if (argument == "--banner") banner = true;
   }
+  if (banner)
+    std::cout << "Downloading model definition files...\n"
+                 "headers-order.json            OK!\n"
+                 "\x1b[33mfingerprint-network.zip       OK!\x1b[0m\n" << std::flush;
   const auto names = toolNames(set);
   int lists = 0;
   for (std::string line; std::getline(std::cin, line);) {

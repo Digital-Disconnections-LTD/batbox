@@ -162,19 +162,66 @@ def outdated(base):
                      env=environment(home, PATH=f"{tools / 'bin-0.4.7'}:/usr/bin:/bin")).stdout
     check("already installed" in current and "Scrapling 0.4.7" in current,
           "a current Scrapling was not kept:\n" + current)
+    installer = tools / "installer"
+    installer.mkdir()
+    (installer / "pipx").write_text("#!/bin/sh\nexit 0\n")
+    (installer / "pipx").chmod(0o755)
+    upgraded = script(home, "--dry-run", "--scrapling-only", "--no-browsers", "--upgrade",
+                      env=environment(home, PATH=f"{tools / 'bin-0.4.7'}:{installer}:/usr/bin:/bin")).stdout
+    check("upgrading" in upgraded and "(Scrapling 0.4.7) to the newest release" in upgraded and
+          "would run: pipx install --force scrapling[ai]>=0.3" in upgraded and
+          "already installed" not in upgraded, "--upgrade kept the installed Scrapling:\n" + upgraded)
+    broken_python = tools / "python-broken"
+    broken_python.write_text("#!/bin/sh\nexit 1\n")
+    broken_python.chmod(0o755)
+    broken_bin = tools / "bin-broken"
+    broken_bin.mkdir()
+    (broken_bin / "scrapling").write_text(f"#!{broken_python}\n")
+    (broken_bin / "scrapling").chmod(0o755)
+    broken = script(home, "--dry-run", "--scrapling-only", "--no-browsers",
+                    env=environment(home, PATH=f"{broken_bin}:{installer}:/usr/bin:/bin")).stdout
+    check("cannot load Scrapling's MCP server" in broken and
+          "would run: pipx install --force scrapling[ai]>=0.3" in broken,
+          "a Scrapling whose MCP server cannot load was kept:\n" + broken)
+    searxng = script(home, "--dry-run", "--searxng-only", "--upgrade", "--port", "18998").stdout
+    check("pinned commit 54ca1d9cfb08 from 2026-10-25" in searxng and
+          "would download" in searxng and "already present" not in searxng,
+          "--upgrade did not reinstall the pinned SearXNG:\n" + searxng)
+    both = script(home, "--upgrade", "--uninstall", success=False)
+    check("cannot be combined" in both.stderr, "--upgrade --uninstall was accepted:\n" + both.stderr)
+
+
+GOOD_SEARCH = (200, "application/json",
+               json.dumps({"results": [{"title": "t", "url": "https://example.invalid"}]}))
+
+
+def doctor_line(output, name):
+    lines = output.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith(("  [ok]  " + name + ":", "  [--]  " + name + ":")):
+            following = lines[index + 1] if index + 1 < len(lines) else ""
+            return line + ("\n" + following if following.startswith("        fix: ") else "")
+    raise AssertionError(f"doctor printed no {name} line:\n{output}")
 
 
 def doctor(base, binary):
-    state = {"status": 200}
+    state = {"search": GOOD_SEARCH, "version": "2026.10.25+54ca1d9cf"}
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
             pass
 
         def do_GET(self):
-            body = json.dumps({"results": [{"title": "t", "url": "https://example.invalid"}]})
-            self.send_response(state["status"])
-            self.send_header("Content-Type", "application/json")
+            if self.path.startswith("/config"):
+                if state["version"] is None:
+                    status, kind, body = 404, "text/html", "<h1>Not Found</h1>"
+                else:
+                    status, kind = 200, "application/json"
+                    body = json.dumps({"brand": {}, "version": state["version"]})
+            else:
+                status, kind, body = state["search"]
+            self.send_response(status)
+            self.send_header("Content-Type", kind)
             self.end_headers()
             self.wfile.write(body.encode())
 
@@ -198,11 +245,59 @@ def doctor(base, binary):
             "mcpServers": {"tool": {"command": "sh"}}}))
         run = lambda *args: subprocess.run([str(binary), *args], env=environment(home),
                                            text=True, capture_output=True, timeout=30)
+        url = f"http://127.0.0.1:{server.server_port}/search"
         healthy = run("doctor")
         check(healthy.returncode == 0, "healthy doctor failed:\n" + healthy.stdout + healthy.stderr)
         check(healthy.stdout.count("[ok]") == 3 and "9.9" in healthy.stdout and
               "fetch uses get" in healthy.stdout and "1 results" in healthy.stdout,
               "healthy doctor output:\n" + healthy.stdout)
+        check(doctor_line(healthy.stdout, "SearXNG") ==
+              f'  [ok]  SearXNG: ready · {url} (searxng_url) · SearXNG 2026.10.25+54ca1d9cf · '
+              '1 results for "batbox"', "ready line:\n" + healthy.stdout)
+        state["version"] = None
+        unversioned = run("doctor")
+        check(unversioned.returncode == 0 and doctor_line(unversioned.stdout, "SearXNG") ==
+              f'  [ok]  SearXNG: ready · {url} (searxng_url) · 1 results for "batbox"',
+              "ready line without /config:\n" + unversioned.stdout)
+        state["version"] = "2026.10.25+54ca1d9cf"
+        state["search"] = (200, "application/json", json.dumps({
+            "query": "batbox", "number_of_results": None, "suggestions": None, "results": [
+                {"url": "https://a.example", "title": None, "content": None, "engine": None,
+                 "publishedDate": None}, {"title": "no url"}, None]}))
+        nulls = run("doctor")
+        check(nulls.returncode == 0 and doctor_line(nulls.stdout, "SearXNG").endswith(
+              '· SearXNG 2026.10.25+54ca1d9cf · 1 results for "batbox"'),
+              "null fields failed the doctor:\n" + nulls.stdout)
+        mismatches = {
+            "not json": ((200, "text/html", "<html><body>Sign in</body></html>"),
+                         f'  [--]  SearXNG: shape mismatch · {url} (searxng_url) · expected a JSON '
+                         'body, got HTTP 200 (text/html): "<html><body>Sign in</body></html>"\n'
+                         '        fix: check that searxng_url names a SearXNG /search endpoint with '
+                         'json in search.formats, or run: batbox setup web'),
+            "no results": ((200, "application/json", json.dumps({"query": "batbox", "answers": []})),
+                           f'  [--]  SearXNG: shape mismatch · {url} (searxng_url) · expected a JSON '
+                           'object with a "results" array, got an object without "results" (keys: '
+                           'query, answers)\n        fix: this SearXNG answers in a shape Batbox does '
+                           'not read; run: batbox setup web for the tested version, or check that '
+                           'searxng_url names a SearXNG /search endpoint'),
+            "no url": ((200, "application/json", json.dumps({"results": [{"link": "https://a.example"}]})),
+                       f'  [--]  SearXNG: shape mismatch · {url} (searxng_url) · expected each result '
+                       'to have a "url" string, got 1 result without one (first result: keys link)\n'
+                       '        fix: this SearXNG answers in a shape Batbox does not read; run: batbox '
+                       'setup web for the tested version, or check that searxng_url names a SearXNG '
+                       '/search endpoint'),
+            "server error": ((502, "text/plain", "Bad Gateway"),
+                             f'  [--]  SearXNG: shape mismatch · {url} (searxng_url) · expected HTTP 200 '
+                             'with JSON search results, got HTTP 502 (text/plain): "Bad Gateway"\n'
+                             '        fix: check that searxng_url names the /search endpoint of a '
+                             'running SearXNG, or run: batbox setup web'),
+        }
+        for name, (answer, expected) in mismatches.items():
+            state["search"] = answer
+            result = run("doctor")
+            check(result.returncode == 1 and doctor_line(result.stdout, "SearXNG") == expected,
+                  f"{name} doctor line:\n" + result.stdout)
+        state["search"] = GOOD_SEARCH
         advertised.write_text(json.dumps(["browser_open", "browser_fetch"]))
         incompatible = run("doctor")
         check(incompatible.returncode == 1 and "Scrapling: incompatible" in incompatible.stdout and
@@ -211,10 +306,17 @@ def doctor(base, binary):
               "fix: batbox setup web" in incompatible.stdout,
               "incompatible doctor output:\n" + incompatible.stdout)
         advertised.write_text(json.dumps(SCRAPLING_047_TOOLS))
-        state["status"] = 403
+        state["search"] = (403, "text/html; charset=utf-8",
+                           "<!DOCTYPE html><html><head><title>403 Forbidden</title></head></html>")
         blocked = run("--doctor")
         check(blocked.returncode == 1 and "JSON off" in blocked.stdout and "search.formats" in
               blocked.stdout, "403 doctor output:\n" + blocked.stdout)
+        check(doctor_line(blocked.stdout, "SearXNG") ==
+              f'  [--]  SearXNG: JSON off · {url} (searxng_url) · expected HTTP 200 with JSON search '
+              'results, got HTTP 403 (text/html; charset=utf-8): "<!DOCTYPE html><html><head><title>'
+              '403 Forbidden</title></head></html>"\n        fix: SearXNG answers 403 when '
+              'search.formats in its settings.yml lacks json; add json there and restart it, or run: '
+              'batbox setup web', "403 doctor line:\n" + blocked.stdout)
         empty = base / "empty doctor home"
         empty.mkdir()
         bare = subprocess.run([str(binary), "doctor"], env=environment(empty, PATH="/usr/bin:/bin"),

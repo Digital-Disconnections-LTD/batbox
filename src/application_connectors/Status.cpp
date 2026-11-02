@@ -2,6 +2,7 @@
 #include "application_connectors/Bootstrap.hpp"
 #include "connectors/Executable.hpp"
 #include "connectors/Scrapling.hpp"
+#include "connectors/Searxng.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/JsonValue.hpp"
 #include <curl/curl.h>
@@ -163,17 +164,59 @@ SearxngProbe probeSearxng(const std::string& url,std::chrono::milliseconds timeo
   if(result!=CURLE_OK){probe.error=curl_easy_strerror(result);return probe;}
   probe.reachable=true;
   curl_easy_getinfo(http.get(),CURLINFO_RESPONSE_CODE,&probe.status);
-  if(probe.status==403){probe.error="JSON output is disabled (HTTP 403)";return probe;}
-  if(probe.status<200||probe.status>=300){
-    probe.error="HTTP "+std::to_string(probe.status);return probe;}
-  try{
-    const auto response=value::parse(payload);
-    if(response.is_object()&&response.contains("results")&&response.at("results").is_array()){
-      probe.json=true;probe.results=response.at("results").size();return probe;
-    }
-  }catch(...){}
-  probe.error="the response is not SearXNG JSON";
+  char* type=nullptr;
+  curl_easy_getinfo(http.get(),CURLINFO_CONTENT_TYPE,&type);
+  try{probe.results=searxngResults(url,probe.status,type?type:"",payload).size();}
+  catch(const SearxngResponseError& error){
+    probe.error=error.problem.detail;probe.fix=error.problem.fix;return probe;
+  }
+  probe.json=true;
+  probe.version=searxngVersion(url);
   return probe;
+}
+
+std::string searxngConfigUrl(const std::string& searchUrl){
+  std::unique_ptr<CURLU,decltype(&curl_url_cleanup)> parsed(curl_url(),curl_url_cleanup);
+  if(!parsed||curl_url_set(parsed.get(),CURLUPART_URL,searchUrl.c_str(),0)!=CURLUE_OK)return {};
+  char* raw=nullptr;
+  std::string path="/";
+  if(curl_url_get(parsed.get(),CURLUPART_PATH,&raw,0)==CURLUE_OK&&raw){path=raw;curl_free(raw);}
+  if(path.ends_with("/search"))path.resize(path.size()-6);
+  else if(!path.ends_with('/'))path+='/';
+  path+="config";
+  if(curl_url_set(parsed.get(),CURLUPART_PATH,path.c_str(),0)!=CURLUE_OK||
+      curl_url_set(parsed.get(),CURLUPART_QUERY,nullptr,0)!=CURLUE_OK||
+      curl_url_set(parsed.get(),CURLUPART_FRAGMENT,nullptr,0)!=CURLUE_OK)return {};
+  raw=nullptr;
+  if(curl_url_get(parsed.get(),CURLUPART_URL,&raw,0)!=CURLUE_OK||!raw)return {};
+  std::string result=raw;curl_free(raw);
+  return result;
+}
+
+std::string searxngVersion(const std::string& searchUrl,std::chrono::milliseconds timeout){
+  const auto target=searxngConfigUrl(searchUrl);
+  if(target.empty())return {};
+  std::unique_ptr<CURL,decltype(&curl_easy_cleanup)> http(curl_easy_init(),curl_easy_cleanup);
+  if(!http)return {};
+  std::string payload;
+  curl_easy_setopt(http.get(),CURLOPT_URL,target.c_str());
+  curl_easy_setopt(http.get(),CURLOPT_USERAGENT,"batbox-doctor");
+  curl_easy_setopt(http.get(),CURLOPT_NOSIGNAL,1L);
+  curl_easy_setopt(http.get(),CURLOPT_CONNECTTIMEOUT_MS,static_cast<long>(timeout.count()));
+  curl_easy_setopt(http.get(),CURLOPT_TIMEOUT_MS,static_cast<long>(timeout.count()));
+  curl_easy_setopt(http.get(),CURLOPT_MAXFILESIZE,4L*1024*1024);
+  curl_easy_setopt(http.get(),CURLOPT_WRITEFUNCTION,receive);
+  curl_easy_setopt(http.get(),CURLOPT_WRITEDATA,&payload);
+  if(curl_easy_perform(http.get())!=CURLE_OK)return {};
+  long status=0;
+  curl_easy_getinfo(http.get(),CURLINFO_RESPONSE_CODE,&status);
+  if(status!=200)return {};
+  try{
+    const auto version=field(value::parse(payload),"version");
+    if(version.empty()||version.size()>64)return {};
+    for(const unsigned char c:version)if(c<0x21||c>0x7e)return {};
+    return version;
+  }catch(...){return {};}
 }
 
 std::optional<std::string> scraplingVersion(const std::filesystem::path& executable){
@@ -233,6 +276,13 @@ HelperCheck checkScrapling(const WebAvailability& availability,
     }
     if(!probe->started){
       check.state="not starting";
+      if(probe->error.find("mcp.server.fastmcp")!=std::string::npos){
+        check.detail+=" · its MCP server imports mcp.server.fastmcp, which the mcp 2 package "
+          "removed; Scrapling before 0.4.13 needs mcp < 2";
+        check.fix="batbox setup web --upgrade (installs the newest Scrapling), or install "
+          "'mcp<2' into this Scrapling's environment";
+        return check;
+      }
       check.detail+=" · "+probe->error;
       check.fix="batbox setup web, or set scrapling_command to a scrapling with its MCP "
         "server (scrapling[ai])";
@@ -264,8 +314,9 @@ HelperCheck checkSearxng(const WebAvailability& availability,const SearxngProbe&
   else source="default, nothing configured";
   check.detail=target.url+" ("+source+")";
   if(probe.json){
-    check.ok=true;check.state="reachable";
-    check.detail+=" · JSON on · "+std::to_string(probe.results)+" results for \"batbox\"";
+    check.ok=true;check.state="ready";
+    if(!probe.version.empty())check.detail+=" · SearXNG "+probe.version;
+    check.detail+=" · "+std::to_string(probe.results)+" results for \"batbox\"";
     return check;
   }
   if(!probe.reachable){
@@ -276,9 +327,9 @@ HelperCheck checkSearxng(const WebAvailability& availability,const SearxngProbe&
       "start that instance (batbox setup web installs one as a user service), or fix searxng_url";
     return check;
   }
-  check.state=probe.status==403?"JSON off":"not SearXNG JSON";
+  check.state=probe.status==403?"JSON off":"shape mismatch";
   check.detail+=" · "+probe.error;
-  check.fix=probe.status==403?
+  check.fix=!probe.fix.empty()?probe.fix:probe.status==403?
     "add json to search.formats in the instance's settings.yml, then restart it":
     "point searxng_url at the full /search endpoint of a SearXNG instance";
   return check;

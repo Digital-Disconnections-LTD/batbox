@@ -8,13 +8,18 @@
 set -euo pipefail
 
 # SearXNG has no versioned releases; this pins upstream master from 2026-10-25
-# ("[fix] tagesschau: remove from general category (#6882)").
+# ("[fix] tagesschau: remove from general category (#6882)"). Maintainers bump
+# it after checks/web_helper_drift.py passes against the new commit; users get
+# it with --upgrade. Batbox never follows SearXNG master on its own.
 SEARXNG_COMMIT=54ca1d9cfb08674f66261d7f351b063558dfcc62
+SEARXNG_COMMIT_DATE=2026-10-25
 SEARXNG_VERSION=2026.10.25+54ca1d9cf
 SEARXNG_ARCHIVE="https://github.com/searxng/searxng/archive/${SEARXNG_COMMIT}.tar.gz"
 SETTINGS_MARKER='# Written by batbox setup web.'
 # Batbox fetches pages with Scrapling's MCP tool make_request (0.4.15 on) or
-# get (0.3 to 0.4.14); 0.3 is the first release with an MCP server.
+# get (0.3 to 0.4.14); 0.3 is the first release with an MCP server. Releases
+# before 0.4.13 allow mcp 2, whose removal of mcp.server.fastmcp stops their
+# server, so a fresh install takes the newest release.
 SCRAPLING_MINIMUM=0.3
 SERVICE_LABEL=com.batbox.searxng
 SYSTEMD_UNIT=batbox-searxng.service
@@ -22,6 +27,7 @@ SYSTEMD_UNIT=batbox-searxng.service
 port=8888
 dry_run=false
 uninstall=false
+upgrade=false
 force=false
 want_scrapling=true
 want_searxng=true
@@ -38,6 +44,9 @@ Installs Scrapling (pipx or uv) and a local SearXNG service. No Docker.
   --dry-run            Print the plan and change nothing
   --uninstall          Stop and remove the SearXNG service, its virtual
                        environment and its settings (Scrapling is left alone)
+  --upgrade            Reinstall Scrapling at its newest release and SearXNG
+                       at the commit this Batbox pins, rebuilding its virtual
+                       environment (run it after upgrading Batbox)
   --port N             SearXNG port (default 8888)
   --scrapling-only     Only set up Scrapling
   --searxng-only       Only set up SearXNG
@@ -58,6 +67,7 @@ while (($#)); do
   case "$1" in
     --dry-run) dry_run=true ;;
     --uninstall) uninstall=true ;;
+    --upgrade) upgrade=true ;;
     --force) force=true ;;
     --port) (($# >= 2)) || fail '--port needs a number'; port=$2; shift ;;
     --port=*) port=${1#--port=} ;;
@@ -75,6 +85,7 @@ while (($#)); do
 done
 if ! [[ $port =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then fail "invalid port: $port"; fi
 $want_scrapling || $want_searxng || fail 'nothing to do: both helpers were excluded'
+$upgrade && $uninstall && fail '--upgrade and --uninstall cannot be combined'
 [[ -n ${HOME:-} && $HOME = /* ]] || fail 'HOME must be an absolute directory'
 
 os=$(uname -s)
@@ -213,13 +224,17 @@ $dry_run && say 'Dry run: nothing will be changed.'
 
 # ---------------------------------------------------------------- Scrapling
 scrapling_path=''
-# Prints the Scrapling version when the executable's Python has Scrapling and
-# its MCP dependencies.
+# Prints the Scrapling version when the executable's Python can import
+# Scrapling's command line and MCP server modules. Old releases print model
+# downloads on stdout during that import, so only the version reaches stdout.
 scrapling_mcp_version() {
   local interpreter
   interpreter=$(head -n 1 "$1" 2>/dev/null | sed -n 's/^#![[:space:]]*//p' | awk '{print $1}')
   [[ -n $interpreter && -x $interpreter ]] || return 1
-  "$interpreter" -I -c 'import importlib.metadata as m, scrapling, mcp; print(m.version("scrapling"))' 2>/dev/null
+  "$interpreter" -I -c 'import sys
+out, sys.stdout = sys.stdout, sys.stderr
+import importlib.metadata as m, scrapling.cli, scrapling.core.ai
+out.write(m.version("scrapling") + "\n")' 2>/dev/null
 }
 # True when dotted version $1 is at least $2, comparing numeric fields.
 version_at_least() {
@@ -242,13 +257,19 @@ install_scrapling() {
   local spec="scrapling[ai]>=$SCRAPLING_MINIMUM"
   existing=$(command -v scrapling 2>/dev/null || true)
   if [[ -n $existing ]] && version=$(scrapling_mcp_version "$existing"); then
-    if version_at_least "$version" "$SCRAPLING_MINIMUM"; then
+    if $upgrade; then
+      say "  upgrading $existing (Scrapling $version) to the newest release"
+      force_install=(--force)
+    elif version_at_least "$version" "$SCRAPLING_MINIMUM"; then
       scrapling_path=$existing
       say "  already installed: $existing (Scrapling $version, MCP server available)"
     else
       say "  $existing is Scrapling $version; Batbox needs Scrapling $SCRAPLING_MINIMUM or later"
       force_install=(--force)
     fi
+  elif [[ -n $existing ]]; then
+    say "  $existing cannot load Scrapling's MCP server (an import fails; old releases break with mcp 2); reinstalling"
+    force_install=(--force)
   fi
   if [[ -z $scrapling_path ]]; then
     if have pipx; then installer=pipx
@@ -266,7 +287,7 @@ install_scrapling() {
       $dry_run || bin_dir=$(pipx environment --value PIPX_BIN_DIR 2>/dev/null || true)
       [[ -n $bin_dir ]] || bin_dir="${PIPX_BIN_DIR:-$HOME/.local/bin}"
     else
-      run uv tool install ${force_install[@]+"${force_install[@]}"} "$spec"
+      run uv tool install ${force_install[@]+"${force_install[@]}" --upgrade} "$spec"
       $dry_run || bin_dir=$(uv tool dir --bin 2>/dev/null || true)
       [[ -n $bin_dir ]] || bin_dir="${UV_TOOL_BIN_DIR:-$HOME/.local/bin}"
     fi
@@ -373,7 +394,9 @@ install_searxng_code() {
   if have curl; then fetch='curl -fsSL -o'
   elif have wget; then fetch='wget -q -O'
   else fail 'curl or wget is needed to download SearXNG'; fi
-  if [[ -f $source_dir/.batbox-commit && $(cat "$source_dir/.batbox-commit") = "$SEARXNG_COMMIT" ]]; then
+  say "  SearXNG $SEARXNG_VERSION (pinned commit ${SEARXNG_COMMIT:0:12} from $SEARXNG_COMMIT_DATE)"
+  if ! $upgrade && [[ -f $source_dir/.batbox-commit &&
+        $(cat "$source_dir/.batbox-commit") = "$SEARXNG_COMMIT" ]]; then
     say "  source: $source_dir (commit ${SEARXNG_COMMIT:0:12}, already present)"
   else
     say "  downloading SearXNG ${SEARXNG_COMMIT:0:12}"
@@ -400,7 +423,7 @@ EOF
       rm -rf "$download"
     fi
   fi
-  if [[ -x $venv/bin/searxng-run && -f $venv/.batbox-commit &&
+  if ! $upgrade && [[ -x $venv/bin/searxng-run && -f $venv/.batbox-commit &&
         $(cat "$venv/.batbox-commit") = "$SEARXNG_COMMIT" ]]; then
     say "  virtual environment: $venv (up to date)"
     return

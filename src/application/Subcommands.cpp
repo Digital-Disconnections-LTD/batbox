@@ -313,7 +313,7 @@ std::optional<int> runSubcommand(const std::vector<std::string>& arguments){
   if(arguments.front()=="providers")return runProviders({arguments.begin()+1,arguments.end()});
   if(arguments.front()=="setup"){
     if(arguments.size()<2||arguments[1]!="web"){
-      std::cerr<<"Usage: batbox setup web [--dry-run] [--uninstall] [--port N] [--help]\n";
+      std::cerr<<"Usage: batbox setup web [--dry-run] [--upgrade] [--uninstall] [--port N] [--help]\n";
       return 2;
     }
     return setupWeb({arguments.begin()+2,arguments.end()});
@@ -344,7 +344,7 @@ std::optional<int> runSubcommand(const std::vector<std::string>& arguments){
 
 std::string subcommandHelp(){
   return "\nCommands:\n"
-    "  batbox setup web [--dry-run|--uninstall|--port N]\n"
+    "  batbox setup web [--dry-run|--upgrade|--uninstall|--port N]\n"
     "                                 Install Scrapling and a local SearXNG service (no Docker)\n"
     "  batbox doctor | --doctor       Check web helpers, MCP servers and model servers\n"
     "  batbox providers [show <id>]   List the provider catalog and local model servers\n"

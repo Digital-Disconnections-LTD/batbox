@@ -32,7 +32,116 @@ bool domainMatches(const std::string& hostname, std::string domain) {
 bool matchesAny(const std::string& hostname, const Json& domains) {
   return domains.is_array() && std::any_of(domains.begin(), domains.end(), [&](const auto& d) {return domainMatches(hostname, d.template get<std::string>());});
 }
+constexpr std::size_t excerptCharacters = 120;
+// The first characters of a body on one line, cut on a UTF-8 boundary.
+std::string excerpt(const std::string& body) {
+  std::string text;
+  std::size_t characters = 0, index = 0;
+  bool space = false;
+  while (index < body.size() && characters < excerptCharacters) {
+    const auto c = static_cast<unsigned char>(body[index]);
+    if (c < 0x20 || c == 0x7f || c == ' ') {
+      space = !text.empty();
+      ++index;
+      continue;
+    }
+    std::size_t length = c < 0x80 ? 1 : (c >> 5) == 0x6 ? 2 : (c >> 4) == 0xe ? 3 : (c >> 3) == 0x1e ? 4 : 0;
+    bool valid = length > 0 && index + length <= body.size();
+    for (std::size_t k = 1; valid && k < length; ++k)
+      valid = (static_cast<unsigned char>(body[index + k]) & 0xc0) == 0x80;
+    if (valid && length == 2 && c == 0xc2 && static_cast<unsigned char>(body[index + 1]) < 0xa0) {
+      space = !text.empty();
+      index += 2;
+      continue;
+    }
+    if (space) {
+      if (characters + 1 >= excerptCharacters) break;
+      text += ' '; ++characters; space = false;
+    }
+    if (valid) text.append(body, index, length);
+    else { text += "\xEF\xBF\xBD"; length = 1; }
+    index += length;
+    ++characters;
+  }
+  if (text.empty()) return "an empty body";
+  bool more = false;
+  for (; index < body.size() && !more; ++index) {
+    const auto c = static_cast<unsigned char>(body[index]);
+    more = c >= 0x20 && c != 0x7f && c != ' ';
+  }
+  return "\"" + text + (more ? "...\"" : "\"");
+}
+std::string answer(long status, const std::string& contentType, const std::string& body) {
+  return "HTTP " + std::to_string(status) + " (" +
+    (contentType.empty() ? std::string("no content type") : contentType) + "): " + excerpt(body);
+}
+std::string jsonKind(const Json& value) {
+  if (value.is_object()) return "an object";
+  if (value.is_array()) return "an array";
+  if (value.is_string()) return "a string";
+  if (value.is_boolean()) return "a boolean";
+  if (value.is_number()) return "a number";
+  return "null";
+}
+std::string keyList(const Json& object) {
+  std::string keys;
+  std::size_t listed = 0;
+  for (auto it = object.begin(); it != object.end(); ++it) {
+    if (listed == 8) { keys += ", ..."; break; }
+    keys += (listed++ ? ", " : "") + it.key();
+  }
+  return keys.empty() ? "none" : keys;
+}
+const char* const shapeFix = "this SearXNG answers in a shape Batbox does not read; run: batbox setup web "
+  "for the tested version, or check that searxng_url names a SearXNG /search endpoint";
 } // namespace
+SearxngResponseError::SearxngResponseError(const std::string& endpoint, SearxngProblem found)
+  : std::runtime_error("SearXNG at " + endpoint + ": " + found.detail + ". Fix: " + found.fix),
+    problem(std::move(found)) {}
+
+Json searxngResults(const std::string& endpoint, long status, const std::string& contentType,
+    const std::string& body) {
+  using Kind = SearxngProblem::Kind;
+  if (status != 200) {
+    if (status == 403) throw SearxngResponseError(endpoint, {Kind::JsonOff,
+      "expected HTTP 200 with JSON search results, got " + answer(status, contentType, body),
+      "SearXNG answers 403 when search.formats in its settings.yml lacks json; add json there "
+      "and restart it, or run: batbox setup web"});
+    throw SearxngResponseError(endpoint, {Kind::HttpStatus,
+      "expected HTTP 200 with JSON search results, got " + answer(status, contentType, body),
+      status >= 300 && status < 400
+        ? "set searxng_url to the full /search endpoint (the homepage redirects), or run: batbox setup web"
+        : "check that searxng_url names the /search endpoint of a running SearXNG, or run: batbox setup web"});
+  }
+  Json response;
+  try { response = value::parse(body); }
+  catch (...) {
+    throw SearxngResponseError(endpoint, {Kind::NotJson,
+      "expected a JSON body, got " + answer(status, contentType, body),
+      "check that searxng_url names a SearXNG /search endpoint with json in search.formats, "
+      "or run: batbox setup web"});
+  }
+  if (!response.is_object() || !response.contains("results") || !response.at("results").is_array()) {
+    std::string found;
+    if (!response.is_object()) found = jsonKind(response);
+    else if (!response.contains("results")) found = "an object without \"results\" (keys: " + keyList(response) + ")";
+    else found = "\"results\" as " + jsonKind(response.at("results"));
+    throw SearxngResponseError(endpoint, {Kind::NoResults,
+      "expected a JSON object with a \"results\" array, got " + found, shapeFix});
+  }
+  const auto& rows = response.at("results");
+  Json usable = Json::array();
+  for (const auto& row : rows)
+    if (row.is_object() && row.contains("url") && row.at("url").is_string()) usable.push_back(row);
+  if (usable.empty() && !rows.empty()) {
+    const auto& first = rows.front();
+    throw SearxngResponseError(endpoint, {Kind::NoUrl,
+      "expected each result to have a \"url\" string, got " + std::to_string(rows.size()) +
+      (rows.size() == 1 ? " result" : " results") + " without one (first result: " +
+      (first.is_object() ? "keys " + keyList(first) : jsonKind(first)) + ")", shapeFix});
+  }
+  return usable;
+}
 Searxng::Searxng(std::string url) : endpoint(std::move(url)) {
   static const auto initialized = curl_global_init(CURL_GLOBAL_DEFAULT);
   if (initialized != CURLE_OK) throw std::runtime_error("HTTP initialization failed");
@@ -72,26 +181,19 @@ Json Searxng::search(const Json& input, const std::string& gadgetUseId, std::chr
   if (result != CURLE_OK) throw std::runtime_error(std::string("SearXNG request failed: ") + curl_easy_strerror(result));
   long status = 0;
   curl_easy_getinfo(http.get(), CURLINFO_RESPONSE_CODE, &status);
-  if (status == 403) throw std::runtime_error("SearXNG at " + endpoint +
-    " refused JSON output (HTTP 403). Add json to search.formats in its settings.yml, "
-    "or run: batbox setup web");
-  if (status < 200 || status >= 300) throw std::runtime_error("SearXNG at " + endpoint +
-    " returned HTTP " + std::to_string(status) +
-    (status >= 300 && status < 400 ? "; set searxng_url to the full /search endpoint" : ""));
-  Json response;
-  try { response = value::parse(payload); } catch (...) { response = nullptr; }
-  if (!response.is_object() || !response.contains("results") || !response.at("results").is_array())
-    throw std::runtime_error("SearXNG at " + endpoint + " did not return JSON search results; "
-      "searxng_url must name the /search endpoint of an instance with JSON output enabled");
+  char* type = nullptr;
+  curl_easy_getinfo(http.get(), CURLINFO_CONTENT_TYPE, &type);
+  const auto rows = searxngResults(endpoint, status, type ? type : "", payload);
   Json hits = Json::array();
   const auto& allowed = value::property(input, "allowed_domains");
   const auto& blocked = value::property(input, "blocked_domains");
-  for (const auto& row : response.at("results")) {
+  for (const auto& row : rows) {
     const auto resultUrl = row.at("url").get<std::string>();
     const auto hostname = host(resultUrl);
     if (allowed.is_array() && !allowed.empty() && !matchesAny(hostname, allowed)) continue;
     if (matchesAny(hostname, blocked)) continue;
-    hits.push_back({{"title", row.value("title", "")}, {"url", resultUrl}});
+    const auto& title = value::property(row, "title");
+    hits.push_back({{"title", title.is_string() ? title.get<std::string>() : std::string()}, {"url", resultUrl}});
   }
   const double duration = std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
   return {{"query", query}, {"results", Json::array({{{"tool_use_id", gadgetUseId}, {"content", hits}}})}, {"durationSeconds", duration}};

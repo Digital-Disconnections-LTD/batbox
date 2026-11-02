@@ -33,6 +33,19 @@ content and final URL. When the server offers neither, the call fails with a
 message such as `Scrapling 0.2.9 has no tool named make_request or get (it
 offers: ...); Batbox needs Scrapling >= 0.3. Run: batbox setup web`.
 
+Scrapling 0.3 is the oldest release Batbox supports, and there is no upper
+bound. Two upstream changes are worth knowing:
+
+- Releases before 0.4.13 accept the `mcp` 2 package, which removed the
+  `mcp.server.fastmcp` module their server imports. Installed fresh today, they
+  pull in `mcp` 2 and their MCP server does not start. `batbox setup web`
+  therefore installs the newest release, and `batbox doctor` names this case
+  with its fix (`batbox setup web --upgrade`, or `mcp<2` in Scrapling's
+  environment).
+- On its first start, Scrapling 0.3.x prints its model downloads on stdout.
+  Batbox skips stdout lines that are not JSON, so the first WebFetch works.
+  Those lines appear with the server's stderr if Scrapling then fails.
+
 ## `batbox setup web`
 
 The command runs the bundled `gadgets/setup-web.sh` with bash on macOS or Linux.
@@ -41,6 +54,7 @@ It never uses Docker, asks no questions, and is safe to re-run.
 ```sh
 batbox setup web --dry-run     # print the plan, change nothing
 batbox setup web               # install both helpers
+batbox setup web --upgrade     # reinstall both at the versions this Batbox wants
 batbox setup web --uninstall   # remove the SearXNG service and its files
 ```
 
@@ -51,8 +65,9 @@ write, keeping a `.bak`), and `--write-scrapling-command PATH`.
 
 What it does for Scrapling:
 
-1. Keeps an existing `scrapling` on PATH if its Python has the MCP extras and
-   it is Scrapling 0.3 or later.
+1. Keeps an existing `scrapling` on PATH if its Python can import Scrapling's
+   command line and MCP server modules and it is Scrapling 0.3 or later. With
+   `--upgrade`, or when that import fails, it reinstalls instead.
 2. Otherwise runs `pipx install 'scrapling[ai]>=0.3'`, or `uv tool install
    'scrapling[ai]>=0.3'` when pipx is missing, adding `--force` to replace an
    older Scrapling. With neither, it prints how to install pipx (`brew install
@@ -65,8 +80,8 @@ What it does for Scrapling:
 
 What it does for SearXNG:
 
-1. Downloads SearXNG at a pinned upstream commit (named at the top of the
-   script) into `~/.local/share/batbox/searxng/src` and installs it into a
+1. Downloads SearXNG at a pinned upstream commit into
+   `~/.local/share/batbox/searxng/src` and installs it into a
    virtual environment at `~/.local/share/batbox/searxng/venv`, following
    SearXNG's own non-container steps. `$XDG_DATA_HOME` replaces
    `~/.local/share` when set.
@@ -81,6 +96,15 @@ What it does for SearXNG:
      `~/.config/systemd/user/`, enabled with `systemctl --user enable`. Read its
      log with `journalctl --user -u batbox-searxng.service`.
 4. Waits for the port, runs one JSON search, and prints the result count.
+
+SearXNG has no versioned releases, so the script pins a master commit:
+currently `54ca1d9cfb08` from 2026-10-25 (SearXNG `2026.10.25+54ca1d9cf`),
+named at the top of `gadgets/setup-web.sh`. Batbox never follows SearXNG master
+on its own. When a Batbox release moves the pin, run
+`batbox setup web --upgrade`. It downloads the new commit, rebuilds the
+virtual environment (also picking up newer dependency releases), restarts the
+service and reinstalls Scrapling at its newest release. Re-running without
+`--upgrade` also moves to a new pin, but leaves a current install alone.
 
 Batbox finds this instance through the settings file, so SearXNG needs no
 change to `native-client.json`. `--uninstall` stops and removes the service,
@@ -104,7 +128,53 @@ setup command; run it in a terminal, then restart Batbox.
 and exits 0 when every check passes, 1 otherwise. It starts `scrapling mcp`
 once to list its tools, then stops it, and flags a Scrapling that offers no
 fetch tool Batbox can use as `incompatible`. It only reads your MCP server
-commands, and it contacts SearXNG with one search.
+commands, and it contacts SearXNG with one search plus a request for `/config`
+(limited to 2 seconds) to show the instance's version:
+
+```text
+  [ok]  SearXNG: ready · http://127.0.0.1:8888/search (searxng_url) · SearXNG 2026.10.25+54ca1d9cf · 12 results for "batbox"
+  [--]  SearXNG: JSON off · http://127.0.0.1:8888/search (searxng_url) · expected HTTP 200 with JSON search results, got HTTP 403 (text/html; charset=utf-8): "<!DOCTYPE html>..."
+        fix: SearXNG answers 403 when search.formats in its settings.yml lacks json; add json there and restart it, or run: batbox setup web
+  [--]  SearXNG: shape mismatch · http://127.0.0.1:8888/search (searxng_url) · expected a JSON object with a "results" array, got an object without "results" (keys: query, answers)
+        fix: this SearXNG answers in a shape Batbox does not read; run: batbox setup web for the tested version, or check that searxng_url names a SearXNG /search endpoint
+```
+
+## What Batbox reads from SearXNG
+
+WebSearch requests `<searxng_url>?q=...&format=json` and needs HTTP 200, a JSON
+object, and a `results` array whose entries have a string `url`. It also uses
+`title` when it is a string. Every other field (`content`, `engine`,
+`publishedDate`, `number_of_results`, `suggestions`, ...) is optional, and
+nulls are fine. Entries without a `url` are skipped; when none has one, the
+format has changed. In that case, and for any other answer, the tool error
+and `batbox doctor` say what was expected and what came back: the status, the
+content type, the first 120 characters of the body, or the missing field.
+
+## Keeping up with upstream
+
+`.github/workflows/web-helper-drift.yml` runs every Monday (and on demand)
+with `checks/web_helper_drift.py`. It tests the newest `main` build at both
+ends of the supported range:
+
+- **newest**: SearXNG master and the newest Scrapling;
+- **pinned**: the pinned SearXNG commit and Scrapling 0.3, with dependencies
+  as of 0.3's release (what its users have).
+
+Each end gets `batbox doctor` (both helpers `ready`), a fetch of
+https://example.com through the Scrapling connector, and a real search.
+On failure the workflow opens an issue titled "Web helper drift detected", or
+comments on the open one. To try a candidate pin locally (needs `uv` and
+`git`; everything stays in a temporary directory):
+
+```sh
+cmake --build build/indigenous-checks --target batbox batbox-connectors
+python3 checks/web_helper_drift.py --batbox build/indigenous-checks/batbox \
+  --connectors build/indigenous-checks/batbox-connectors --searxng <commit>
+```
+
+`--scrapling <version>` or `--scrapling-command <path>` choose the Scrapling
+for that run. To move the pin, update `SEARXNG_COMMIT`, `SEARXNG_COMMIT_DATE`
+and `SEARXNG_VERSION` in `gadgets/setup-web.sh` and this page together.
 
 ## Your own instances
 
@@ -131,7 +201,8 @@ SearXNG is chosen in this order:
    search runs.
 
 The instance must have JSON output enabled (`search.formats` includes `json`);
-otherwise SearXNG answers HTTP 403 and `/connectors` says so.
+otherwise SearXNG answers HTTP 403 and `/connectors` and `batbox doctor` say
+so.
 
 Search terms go to your SearXNG instance; fetch and browser requests go to the
 target sites. Saved browser state can contain authentication data, so keep it

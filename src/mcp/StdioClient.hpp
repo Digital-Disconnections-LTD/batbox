@@ -72,6 +72,7 @@ class StdioClient:public std::enable_shared_from_this<StdioClient> {
   Json capabilities_=Json::object(),serverInfo_=Json::object();
   ClientHandlers handlers_;
   std::stop_source requestLifetime_;
+  static constexpr std::size_t maxStderrBytes=64*1024;
   mutable std::mutex stderrMutex_;
   std::string stderrTail_;
   bool stderrTruncated_=false;

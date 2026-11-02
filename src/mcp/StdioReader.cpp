@@ -126,7 +126,9 @@ void StdioClient::readLoop(){
     while(connected_){
       auto line=indigenousProcess_->readLine(std::chrono::steady_clock::time_point::max());
       if(line.empty()||line=="\r")continue;
-      handleMessage(value::parse(line));
+      Json message;
+      try{message=value::parse(line);}catch(const std::exception&){continue;}
+      handleMessage(message);
     }
   }catch(...){
     connected_=false;
@@ -148,7 +150,20 @@ void StdioClient::readLoop(){
         auto line=buffered.substr(0,newline);
         buffered.erase(0,newline+1);
         if(line.empty()||line=="\r")continue;
-        handleMessage(value::parse(line));
+        Json message;
+        // Some servers print banners or download progress on stdout; skip
+        // the line and keep it with stderr for diagnostics.
+        try{message=value::parse(line);}
+        catch(const std::exception&){
+          std::lock_guard lock(stderrMutex_);
+          stderrTail_+="stdout: "+line+"\n";
+          if(stderrTail_.size()>maxStderrBytes){
+            stderrTail_.erase(0,stderrTail_.size()-maxStderrBytes);
+            stderrTruncated_=true;
+          }
+          continue;
+        }
+        handleMessage(message);
       }
     }
   }catch(...){

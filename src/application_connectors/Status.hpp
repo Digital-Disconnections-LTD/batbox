@@ -50,10 +50,20 @@ struct SearxngProbe {
   long status=0;
   std::size_t results=0;
   std::string error;
+  // The instance's version from /config, when it answers in time.
+  std::string version;
+  // Set when the answer did not have the shape Batbox reads.
+  std::string fix;
 };
-// One JSON search for "batbox" against the endpoint. Blocking.
+// One JSON search for "batbox" against the endpoint, checked against the shape
+// WebSearch reads, then /config for the version. Blocking.
 SearxngProbe probeSearxng(const std::string& url,
   std::chrono::milliseconds timeout=std::chrono::seconds(5));
+// The /config URL beside a /search endpoint.
+std::string searxngConfigUrl(const std::string& searchUrl);
+// The "version" stock SearXNG reports at /config; empty when absent or slow.
+std::string searxngVersion(const std::string& searchUrl,
+  std::chrono::milliseconds timeout=std::chrono::seconds(2));
 // Read from the installed package metadata beside the executable; no process runs.
 std::optional<std::string> scraplingVersion(const std::filesystem::path& executable);
 // The version of the Scrapling that scrapling_command resolves to, if readable.
