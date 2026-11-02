@@ -18,6 +18,8 @@ std::size_t parsePositive(const std::string& value);
 std::size_t movedIndex(std::size_t current,std::size_t begin,
   std::size_t visible,std::size_t total,std::size_t local);
 std::string credential(const Endpoint& endpoint);
+// "openai-chat · preset openrouter", "vertex · region us-east5 · project p-1".
+std::string providerSummary(const Endpoint& endpoint);
 application_model::ModelProfile runtimeProfile(const std::string& id,
   const Endpoint& endpoint,const std::string& model);
 class Panel final:public std::enable_shared_from_this<Panel> {

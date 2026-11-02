@@ -5,6 +5,13 @@
 #include <set>
 
 namespace batbox::application_config {
+std::string providerSummary(const Endpoint& endpoint){
+  auto summary=endpoint.provider.empty()?std::string("anthropic"):endpoint.provider;
+  if(!endpoint.preset.empty()&&endpoint.preset!=summary)summary+=" · preset "+endpoint.preset;
+  if(!endpoint.region.empty())summary+=" · region "+endpoint.region;
+  if(!endpoint.project.empty())summary+=" · project "+endpoint.project;
+  return summary;
+}
 void Panel::showHome(){
     page_=returnPage_=Page::Home;
     std::vector<std::string> ids;
@@ -56,7 +63,9 @@ void Panel::showDetail(){
     const auto& endpoint=endpoints_.at(endpointId_);
     interactive::UiRequest view;view.kind=interactive::UiRequest::Kind::Select;
     view.id="endpoint-detail";view.title="◆  "+endpoint.label;
-    view.body=endpoint.baseUrl+"\nMessages  "+endpoint.messagesPath+
+    view.body=(endpoint.baseUrl.empty()?"URL from region":endpoint.baseUrl)+
+      "\nProvider  "+providerSummary(endpoint)+
+      "\nMessages  "+endpoint.messagesPath+
       "  ·  auth "+endpoint.authHeader+
       "  ·  key "+(endpoint.authToken.empty()&&endpoint.apiKeyEnv.empty()?"unset":"••••")+
       "\nLimits  "+std::to_string(endpoint.contextWindow)+" context / "+
@@ -64,7 +73,7 @@ void Panel::showDetail(){
       "\nCapabilities  thinking "+(endpoint.thinking?"on":"off")+
       " · cache "+(endpoint.poetryStashing?"on":"off")+
       " · adaptive "+(endpoint.adaptiveThinking?"on":"off")+
-      "\nDiscovery  "+modelsUrl(endpoint)+
+      "\nDiscovery  "+providers::listingTarget(endpoint)+
       "\nKeys remain hidden.";
     view.hint="↑↓ choose · enter open · r refresh · m add model · esc back";
     if(!notice_.empty())view.body+="\n"+notice_;
@@ -163,7 +172,7 @@ void Panel::refresh(){
     busy_=true;page_=Page::Progress;
     interactive::UiRequest view;view.kind=interactive::UiRequest::Kind::Progress;
     view.id="endpoint-discovery";view.title="Discovering models";
-    view.body="GET "+modelsUrl(endpoint)+"\nWaiting for a model list…";
+    view.body=providers::listingTarget(endpoint)+"\nWaiting for a model list…";
     publish(std::move(view),[](const auto&){});
     auto self=shared_from_this();
     application::runInWorker<DiscoveryResult>(owner_,[endpoint]{return discoverModels(endpoint);})

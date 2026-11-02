@@ -16,6 +16,9 @@ struct Inputs {
   std::function<gadgets::Gadgets()> gadgets;
   std::function<Json()> commands;
   std::function<std::string()> modelLabel,workingDirectory,permissionMode,statusText;
+  // Optional model text for the status row and welcome card, such as
+  // "openrouter · qwen/qwen3-coder"; modelLabel (the profile id) otherwise.
+  std::function<std::string()> modelDisplay;
   std::function<bool(const std::string&)> feature;
   std::function<void(const std::string&)> log;
   std::function<std::optional<std::string>(int)> storedImagePath;

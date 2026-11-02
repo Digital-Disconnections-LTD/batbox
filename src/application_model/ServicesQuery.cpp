@@ -1,8 +1,7 @@
 #include "application_model/Internal.hpp"
-#include "providers/cloud/CloudClients.hpp"
+#include "providers/WireClients.hpp"
 #include "runtime/Platform.hpp"
 #include "transport/WireClient.hpp"
-#include "transport/openai_chat/OpenAIChatClient.hpp"
 #include "transport/RawHttp.hpp"
 #include <algorithm>
 #include <cctype>
@@ -10,27 +9,6 @@
 #include <utility>
 
 namespace batbox::application_model {
-namespace {
-// The profile's provider kind picks the wire client; everything above this
-// seam stays Anthropic-shaped.
-std::shared_ptr<transport::WireClient> makeWireClient(const ModelProfile& profile,
-    transport::ClientConfig config){
-  if(profile.provider==transport::kProviderAnthropic)
-    return std::make_shared<transport::AnthropicMessagesClient>(std::move(config));
-  if(profile.provider==transport::kProviderOpenAIChat)
-    return std::make_shared<transport::openai_chat::OpenAIChatClient>(std::move(config),
-      transport::chatQuirks(profile.quirks));
-  if(providers::cloud::isCloudKind(profile.provider)){
-    auto token=config.authToken;
-    if(token.empty()&&config.headers.contains("x-api-key")&&config.headers["x-api-key"].is_string())
-      token=config.headers["x-api-key"].get<std::string>();
-    return providers::cloud::makeCloudClient({profile.provider,profile.region,profile.project,{},token},std::move(config));
-  }
-  transport::validateProviderKind(profile.provider);
-  throw std::invalid_argument("Provider "+profile.provider+
-    " is not available in this build of Batbox");
-}
-}
 model::QueryServices LocalServiceBuilder::makeServices(){
   model::QueryServices service;
   auto& local=host;
@@ -129,27 +107,17 @@ model::QueryServices LocalServiceBuilder::makeServices(){
       :(runtimeToken?*runtimeToken:local.imports_.authTokenForModel
         ?local.imports_.authTokenForModel(modelName)
         :local.imports_.authToken());
-    if(profile.authHeader=="authorization")config.authToken=token;
-    else if(profile.authHeader=="x-api-key"){
-      config.authToken.clear();
-      if(!token.empty())config.headers["x-api-key"]=token;
-      bool hasVersion=false;
-      for(auto it=config.headers.begin();it!=config.headers.end();++it){
-        auto name=it.key();
-        std::transform(name.begin(),name.end(),name.begin(),
-          [](unsigned char value){return static_cast<char>(std::tolower(value));});
-        if(name=="anthropic-version")hasVersion=true;
-      }
-      if(!hasVersion&&profile.provider==transport::kProviderAnthropic)
-        config.headers["anthropic-version"]="2023-06-01";
-    }else config.authToken.clear();
+    providers::applyAuth(config,profile.provider,profile.authHeader,token);
     {
       std::lock_guard lock(local.mutex_);
       config.disableKeepAlive=local.state_.keepAliveDisabled;
     }
     if(local.imports_.configureClientNetwork)
       local.imports_.configureClientNetwork(config);
-    return makeWireClient(profile,std::move(config));
+    // The profile's provider kind picks the wire client; everything above this
+    // seam stays Anthropic-shaped.
+    return providers::makeWireClient({profile.provider,profile.quirks,profile.region,
+      profile.project,{}},std::move(config));
   };
   service.normalizeFallbackContent=service.reducer.normalizeContent;
   service.getAssistantMessageFromError=[errors=errors,messages=messages](

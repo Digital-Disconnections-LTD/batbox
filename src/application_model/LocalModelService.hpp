@@ -55,6 +55,9 @@ struct ModelProfile {
   std::string project;
   Json quirks=Json::object();
 };
+// "openrouter · qwen/qwen3-coder" when the profile came from a catalog preset
+// or speaks a non-Anthropic kind; the profile id otherwise.
+std::string displayModelLabel(const std::string& profileId,const ModelProfile* profile);
 struct Config {
   transport::ClientConfig client;
   std::string mainModel,smallModel,visionModel;

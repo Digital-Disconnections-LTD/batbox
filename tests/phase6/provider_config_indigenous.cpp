@@ -172,6 +172,23 @@ void loadedProfiles(const std::filesystem::path& root){
   const auto legacy=application::loadConfig({"--config",runtime::pathToUtf8(legacyPath)});
   assert(application::selectedInferenceProfile(legacy).provider=="anthropic");
 }
+// Status row, welcome card and /status name the preset or kind beside the
+// wire model and keep the profile id for plain Anthropic endpoints.
+void displayLabels(){
+  application::EndpointRecord routed;
+  routed.baseUrl="https://openrouter.ai/api";routed.provider="openai-chat";
+  routed.preset="openrouter";routed.contextWindow=1000;routed.maxOutputTokens=100;
+  const auto routedProfile=runtimeProfile("openrouter::qwen/qwen3-coder",routed,"qwen/qwen3-coder");
+  assert(application_model::displayModelLabel("openrouter::qwen/qwen3-coder",&routedProfile)==
+    "openrouter · qwen/qwen3-coder");
+  auto bare=routed;bare.preset.clear();
+  const auto bareProfile=runtimeProfile("chat::qwen",bare,"qwen");
+  assert(application_model::displayModelLabel("chat::qwen",&bareProfile)=="openai-chat · qwen");
+  auto plain=routed;plain.preset.clear();plain.provider="anthropic";
+  const auto plainProfile=runtimeProfile("main::model",plain,"model");
+  assert(application_model::displayModelLabel("main::model",&plainProfile)=="main::model");
+  assert(application_model::displayModelLabel("not connected",nullptr)=="not connected");
+}
 void isolate(const std::filesystem::path& root){
 #ifdef _WIN32
   _putenv_s("BATBOX_CONFIG_DIR",runtime::pathToUtf8(root).c_str());
@@ -191,5 +208,6 @@ int main(){
   kindsAndQuirks();
   endpointRoundTrip(root.path);
   loadedProfiles(root.path);
+  displayLabels();
   return 0;
 }

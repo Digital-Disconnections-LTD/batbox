@@ -226,7 +226,8 @@ std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& s
   };
   shell.liveRetainedViews=[self]{return self->retainedServices();};
   shell.chrome=ip::makeChromeProviders({*self->inputs_.theme,self->inputs_.shortcuts,
-    self->inputs_.modelLabel,self->inputs_.workingDirectory,
+    self->inputs_.modelDisplay?self->inputs_.modelDisplay:self->inputs_.modelLabel,
+    self->inputs_.workingDirectory,
     self->inputs_.permissionMode,self->inputs_.statusText,
     self->inputs_.gitBranch,self->inputs_.contextUsage,self->inputs_.homeDirectory,
     self->inputs_.notice});

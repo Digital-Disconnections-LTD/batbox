@@ -14,7 +14,8 @@ void Panel::showEdit(){
     page_=returnPage_=Page::Edit;
     interactive::UiRequest view;view.kind=interactive::UiRequest::Kind::Select;
     view.id="endpoint-edit";view.title="◆  EDIT  /  "+editing_.label;
-    view.body="Changes take effect after Save. Tokens remain hidden.\n"
+    view.body="Provider  "+providerSummary(editing_)+" (read-only)\n"
+      "Changes take effect after Save. Tokens remain hidden.\n"
       "Context and output limits are operator supplied; discovery gives IDs only.";
     if(!notice_.empty())view.body+="\n"+notice_;
     view.choices={"Label  "+editing_.label,"Base URL  "+editing_.baseUrl,

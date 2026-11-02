@@ -1,7 +1,5 @@
 #include "application_config/Discovery.hpp"
-#include "application_config/EndpointStore.hpp"
-#include "providers/cloud/CloudClients.hpp"
-#include <cstdlib>
+#include "transport/Errors.hpp"
 #include <set>
 
 namespace batbox::application_config {
@@ -20,47 +18,21 @@ DiscoveryResult modelIds(const Json& data){
   }
   return result;
 }
-// Bedrock lists through its signed control plane; Vertex returns the endpoint's or the built-in list.
-DiscoveryResult discoverCloudModels(const application::EndpointRecord& endpoint,const std::string& token){
-  transport::ClientConfig network;
-  network.baseUrl=endpoint.baseUrl;
-  network.headers=endpoint.headers;
-  network.connectTimeout=std::chrono::seconds(5);
-  try{
-    auto client=providers::cloud::makeCloudClient(
-      {endpoint.provider,endpoint.region,endpoint.project,endpoint.models,
-       endpoint.authHeader=="none"?std::string{}:token},std::move(network));
-    return modelIds(client->listModels());
+}
+DiscoveryResult discoverModels(const application::EndpointRecord& endpoint,
+    providers::ListModels list){
+  if(!list)list=[](const application::EndpointRecord& target){
+    return providers::listEndpointModels(target,std::chrono::seconds(12));};
+  try{return modelIds(list(endpoint));}
+  catch(const transport::APIConnectionError&){
+    return {{},"Could not reach this endpoint's model list",false};
+  }catch(const transport::APIError& error){
+    if(error.status&&(*error.status<200||*error.status>=300))
+      return {{},"Model discovery returned HTTP "+std::to_string(*error.status)+
+        (*error.status==401||*error.status==403?": the server rejected the key":""),false};
+    return {{},std::string("Model discovery failed: ")+error.what(),false};
   }catch(const std::exception& error){
     return {{},std::string("Model discovery failed: ")+error.what(),false};
   }
-}
-}
-DiscoveryResult discoverModels(const application::EndpointRecord& endpoint,
-    mcp::http::Fetch fetch){
-  std::string token=endpoint.authToken;
-  if(token.empty()&&!endpoint.apiKeyEnv.empty()){
-    const auto* value=std::getenv(endpoint.apiKeyEnv.c_str());
-    if(value)token=value;
-  }
-  if(providers::cloud::isCloudKind(endpoint.provider))return discoverCloudModels(endpoint,token);
-  mcp::http::Request request;
-  request.url=modelsUrl(endpoint);
-  request.method="GET";
-  request.followRedirects=false;
-  request.timeout=std::chrono::seconds(12);
-  request.connectTimeout=std::chrono::seconds(5);
-  request.headers=endpoint.headers;
-  request.headers["accept"]="application/json";
-  if(endpoint.authHeader=="authorization"&&!token.empty())
-    request.headers["authorization"]="Bearer "+token;
-  else if(endpoint.authHeader=="x-api-key"&&!token.empty())
-    request.headers["x-api-key"]=token;
-  try{
-    const auto response=fetch(request);
-    if(!response.ok())return {{},"Model discovery returned HTTP "+
-      std::to_string(response.status),false};
-    return modelIds(response.json());
-  }catch(...){return {{},"Could not reach or parse this endpoint's model list",false};}
 }
 }

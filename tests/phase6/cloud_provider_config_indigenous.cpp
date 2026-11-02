@@ -95,8 +95,8 @@ void discoveryAndClients(){
   vertex.label="Vertex";vertex.provider="vertex";vertex.project="p";vertex.region="global";
   vertex.models={"claude-opus-5-5","claude-sonnet-5-5"};
   vertex.contextWindow=1000;vertex.maxOutputTokens=100;
-  const auto listed=discoverModels(vertex,[](const mcp::http::Request&)->mcp::http::Response{
-    throw std::logic_error("cloud discovery must not use the generic models URL");});
+  // Discovery goes through the Vertex client, which lists the endpoint's models without a request.
+  const auto listed=discoverModels(vertex);
   assert(listed.success&&listed.models==vertex.models);
   vertex.models.clear();
   assert(discoverModels(vertex).models.front()=="claude-opus-5-5");

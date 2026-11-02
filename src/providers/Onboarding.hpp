@@ -2,6 +2,7 @@
 #include "application/Config.hpp"
 #include "mcp/http/Http.hpp"
 #include "providers/Catalog.hpp"
+#include "providers/WireClients.hpp"
 #include <chrono>
 #include <filesystem>
 #include <functional>
@@ -47,11 +48,14 @@ struct ConnectionResult {
   std::vector<std::string> models;
   std::string message;
 };
-// Lists models; never sends a chat request. Bedrock and Vertex are signed per
-// request and are not tested here.
+// Lists models through the endpoint's own wire client (WireClient::listModels)
+// for every kind; never sends a chat request.
 ConnectionResult testConnection(const application::EndpointRecord& endpoint,
-  mcp::http::Fetch fetch=mcp::http::fetch,
-  std::chrono::milliseconds timeout=std::chrono::seconds(8));
+  ListModels list={},std::chrono::milliseconds timeout=std::chrono::seconds(8));
+// The region in a standard Bedrock or Vertex AI host
+// (bedrock-runtime.us-west-2.amazonaws.com, us-east5-aiplatform.googleapis.com);
+// empty for any other URL.
+std::string cloudRegion(const std::string& kind,const std::string& baseUrl);
 
 struct SaveResult {
   std::string endpointId,profile;

@@ -250,10 +250,18 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
   const int leftBudget=std::max(0,columns-rightWidth-(right.empty()?0:2)-2);
   const auto badge=modeBadge(imports.permissionMode(),roles);
   std::vector<Segment> left{{badge.text,badge.color,badge.strong,!badge.strong}};
-  const auto model=imports.modelLabel();
+  auto model=imports.modelLabel();
   const auto home=imports.homeDirectory?imports.homeDirectory():std::string{};
   auto directory=homePath(imports.workingDirectory(),home);
   const auto branch=imports.gitBranch?imports.gitBranch():std::string{};
+  // A provider prefix ("openrouter · qwen/qwen3-coder") is the first detail to go.
+  if(const auto split=model.find(" · ");split!=std::string::npos){
+    std::vector<Segment> full=left;
+    full.push_back({model,{}});
+    if(!directory.empty())full.push_back({tailPath(directory,24),{}});
+    if(!branch.empty())full.push_back({"⎇ "+branch,{}});
+    if(segmentsWidth(full,3)>leftBudget)model=model.substr(split+3);
+  }
   // Give up detail in order: the Roost's leading directories, the branch
   // name's tail, the branch, the Roost, then the model name's tail.
   const auto fixedWidth=[&](bool withDirectory,bool withBranch,int branchWidth){
@@ -632,7 +640,11 @@ std::vector<ftxui::Element> welcomeCard(const ChromeServices& imports,
     fact.text=tailPath(directory,std::max(8,displayWidth(fact.text)-
       (segmentsWidth(facts,3)-width)),2);
   }
-  // Then the branch goes, then the Roost, keeping the model and mode.
+  // Then a provider prefix on the model, the branch, and the Roost go,
+  // keeping the model and mode.
+  if(!model.empty()&&segmentsWidth(facts,3)>width)
+    if(const auto split=model.find(" · ");split!=std::string::npos)
+      facts.front().text=model.substr(split+3);
   if(branchFact&&segmentsWidth(facts,3)>width)
     facts.erase(facts.begin()+static_cast<std::ptrdiff_t>(*branchFact));
   if(roostFact&&facts.size()>1&&segmentsWidth(facts,3)>width)

@@ -1,5 +1,6 @@
 #include "providers/Onboarding.hpp"
 #include "application_config/EndpointStore.hpp"
+#include "transport/Errors.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
 #endif
@@ -19,6 +20,11 @@ std::string origin(const std::string& url){
 bool loopback(const std::string& url){
   const auto host=origin(url);
   return host.starts_with("127.0.0.1")||host.starts_with("localhost")||host.starts_with("[::1]");
+}
+std::string firstLine(std::string text){
+  if(const auto end=text.find_first_of("\r\n");end!=std::string::npos)text.resize(end);
+  if(text.size()>200)text=text.substr(0,199)+"…";
+  return text;
 }
 }
 
@@ -83,6 +89,7 @@ application::EndpointRecord buildEndpoint(const CatalogProvider& provider,const 
   endpoint.modelsPath=provider.modelsPath;
   endpoint.headers=provider.headers.is_object()?provider.headers:Json::object();
   endpoint.provider=provider.kind;endpoint.preset=provider.id;
+  endpoint.region=cloudRegion(provider.kind,endpoint.baseUrl);
   if(provider.kind=="openai-chat"&&provider.quirks.is_object())endpoint.quirks=provider.quirks;
   const bool hasKey=!setup.key.empty()||!setup.keyEnv.empty();
   endpoint.authHeader=provider.authHeader;
@@ -124,57 +131,78 @@ std::string uniqueEndpointId(const std::map<std::string,application::EndpointRec
   }
 }
 
+std::string cloudRegion(const std::string& kind,const std::string& baseUrl){
+  const auto host=origin(baseUrl);
+  const auto valid=[](const std::string& region){
+    return !region.empty()&&region.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-")==
+      std::string::npos;
+  };
+  if(kind==transport::kProviderBedrock){
+    const std::string suffix=".amazonaws.com";
+    for(const char* name:{"bedrock-runtime.","bedrock-runtime-fips."}){
+      const std::string prefix=name;
+      if(host.starts_with(prefix)&&host.ends_with(suffix)&&
+          host.size()>prefix.size()+suffix.size()){
+        const auto region=host.substr(prefix.size(),host.size()-prefix.size()-suffix.size());
+        if(valid(region))return region;
+      }
+    }
+    return {};
+  }
+  if(kind==transport::kProviderVertex){
+    if(host=="aiplatform.googleapis.com")return "global";
+    const std::string suffix="-aiplatform.googleapis.com";
+    if(host.ends_with(suffix)&&host.size()>suffix.size()){
+      const auto region=host.substr(0,host.size()-suffix.size());
+      if(valid(region))return region;
+    }
+  }
+  return {};
+}
+
 ConnectionResult testConnection(const application::EndpointRecord& endpoint,
-    mcp::http::Fetch fetch,std::chrono::milliseconds timeout){
+    ListModels list,std::chrono::milliseconds timeout){
   ConnectionResult result;
-  if(endpoint.provider=="bedrock"||endpoint.provider=="vertex"){
-    result.message="Bedrock and Vertex sign each request with cloud credentials; "
-      "Batbox checks them on the first request.";
-    return result;
-  }
-  mcp::http::Request request;
-  try{request.url=application_config::modelsUrl(endpoint);}
-  catch(const std::exception& error){result.message=error.what();return result;}
-  request.method="GET";request.followRedirects=false;
-  request.timeout=timeout;request.connectTimeout=std::min(timeout,
-    std::chrono::milliseconds(5000));
-  request.headers=endpoint.headers.is_object()?endpoint.headers:Json::object();
-  request.headers["accept"]="application/json";
-  std::string token=endpoint.authToken;
-  if(token.empty()&&!endpoint.apiKeyEnv.empty())
-    if(const auto value=processEnvironment()(endpoint.apiKeyEnv))token=*value;
-  if(endpoint.authHeader=="authorization"&&!token.empty())
-    request.headers["authorization"]="Bearer "+token;
-  else if(endpoint.authHeader=="x-api-key"&&!token.empty()){
-    request.headers["x-api-key"]=token;
-    if(!request.headers.contains("anthropic-version"))
-      request.headers["anthropic-version"]="2023-06-01";
-  }
-  const auto host=origin(request.url);
-  mcp::http::Response response;
-  try{response=fetch(request);}
-  catch(const std::exception&){
-    result.message="Could not connect to "+host+(loopback(request.url)?
-      ". Is the server running?":". Check the base URL and your network.");
-    return result;
-  }
-  result.reached=true;result.status=response.status;
-  if(response.status==401||response.status==403){
-    result.message="The server rejected the key (HTTP "+std::to_string(response.status)+
-      "). Check the key or its environment variable.";
-    return result;
-  }
-  if(response.status==404){
-    result.message="No model list at "+request.url+" (HTTP 404). The server may still "
-      "answer requests; pick a model from the catalog.";
-    return result;
-  }
-  if(!response.ok()){
-    result.message="HTTP "+std::to_string(response.status)+" from "+request.url;
-    return result;
+  if(!list)list=[timeout](const application::EndpointRecord& target){
+    return listEndpointModels(target,timeout);};
+  const bool bedrock=endpoint.provider==transport::kProviderBedrock;
+  const bool vertex=endpoint.provider==transport::kProviderVertex;
+  std::string url,host=bedrock?"Amazon Bedrock":vertex?"Vertex AI":"";
+  if(host.empty()){
+    try{url=application_config::modelsUrl(endpoint);}
+    catch(const std::exception& error){result.message=error.what();return result;}
+    host=origin(url);
   }
   Json body;
-  try{body=response.json();}catch(...){}
+  try{body=list(endpoint);}
+  catch(const transport::APIConnectionError&){
+    result.message="Could not connect to "+host+(!url.empty()&&loopback(url)?
+      ". Is the server running?":". Check the base URL and your network.");
+    return result;
+  }catch(const transport::APIError& error){
+    result.status=static_cast<int>(error.status.value_or(0));
+    result.reached=result.status!=0;
+    const auto status=std::to_string(result.status);
+    auto detail=firstLine(error.what());
+    if(detail.starts_with(status+" "))detail.erase(0,status.size()+1);
+    if(result.status==401||result.status==403)
+      result.message=url.empty()?host+" did not accept your credentials (HTTP "+status+"): "+
+        detail:"The server rejected the key (HTTP "+status+
+        "). Check the key or its environment variable.";
+    else if(result.status==404&&!url.empty())
+      result.message="No model list at "+url+" (HTTP 404). The server may still "
+        "answer requests; pick a model from the catalog.";
+    else if(result.status>=200&&result.status<300)
+      result.message="The server answered but sent no model list.";
+    else if(result.status!=0)
+      result.message="HTTP "+status+" from "+(url.empty()?host:url);
+    else result.message=detail;
+    return result;
+  }catch(const std::exception& error){
+    result.message=firstLine(error.what());
+    return result;
+  }
+  result.reached=true;result.status=200;
   if(!body.is_object()||!body.contains("data")||!body.at("data").is_array()){
     result.message="The server answered but sent no model list.";
     return result;
@@ -188,8 +216,10 @@ ConnectionResult testConnection(const application::EndpointRecord& endpoint,
     if(result.models.size()>=10000)break;
   }
   result.ok=true;
-  result.message="Connected to "+host+" · "+std::to_string(result.models.size())+
+  const auto count=std::to_string(result.models.size())+
     (result.models.size()==1?" model":" models");
+  result.message=vertex?"Vertex AI has no model list call; Batbox checks your Google "
+    "credentials on the first request · "+count:"Connected to "+host+" · "+count;
   return result;
 }
 

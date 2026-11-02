@@ -406,9 +406,7 @@ private:
       provider_.messagesPath+". Edit it for a self-hosted or regional server.";
     if(!provider_.note.empty())view.body+="\n"+provider_.note;
     if(!notice_.empty())view.body+="\n"+notice_;
-    view.hint=provider_.kind=="bedrock"||provider_.kind=="vertex"?
-      "type to edit · enter continue · ctrl+u clear · esc back":
-      "type to edit · enter test connection · ctrl+u clear · esc back";
+    view.hint="type to edit · enter test connection · ctrl+u clear · esc back";
     publish(std::move(view));
   }
   void baseUrlAction(const interactive::UiAction& action){
@@ -431,14 +429,6 @@ private:
     if(providers::needsBaseUrlEdit(value)){
       notice_="Replace the {placeholder} part of the URL first";showBaseUrl();return;}
     setup_.baseUrl=value;notice_.clear();
-    if(provider_.kind=="bedrock"||provider_.kind=="vertex"){
-      providers::ConnectionResult skipped;
-      skipped.message=provider_.kind=="bedrock"?
-        "Bedrock requests are signed with your AWS credentials when they are sent.":
-        "Vertex requests use your Google credentials when they are sent.";
-      liveResult_=skipped;setup_.liveModels.clear();
-      showModels();return;
-    }
     beginTest();
   }
 
@@ -452,8 +442,7 @@ private:
     EndpointRecord endpoint;
     try{endpoint=draft();}
     catch(const std::exception& error){notice_=error.what();showBaseUrl();return;}
-    testUrl_.clear();
-    try{testUrl_=application_config::modelsUrl(endpoint);}catch(...){}
+    testTarget_=providers::listingTarget(endpoint);
     testing_=true;spinner_=0;++testGeneration_;
     showTesting();
     auto self=shared_from_this();
@@ -486,7 +475,7 @@ private:
     interactive::UiRequest view;
     view.kind=interactive::UiRequest::Kind::Progress;
     view.id="providers-testing";view.title=title("Testing connection");
-    view.body=std::string(frames[spinner_%10])+" GET "+testUrl_+
+    view.body=std::string(frames[spinner_%10])+" "+testTarget_+
       "\nListing models only; no chat request is sent.";
     view.hint="esc back";
     publish(std::move(view));
@@ -714,7 +703,7 @@ private:
   std::vector<std::string> configuredIds_;
   std::vector<Row> rows_;
   std::vector<std::pair<KeyChoice,std::string>> keyChoices_;
-  std::string filter_,modelFilter_,input_,editingId_,savedKey_,savedKeyEnv_,testUrl_;
+  std::string filter_,modelFilter_,input_,editingId_,savedKey_,savedKeyEnv_,testTarget_;
   std::size_t listIndex_=0,keyIndex_=0,modelIndex_=0,failedIndex_=0,spinner_=0;
   std::uint64_t testGeneration_=0;
   CatalogProvider provider_;

@@ -1079,6 +1079,14 @@ void Host::Impl::bindFrontend(){
     }
     return config.model;
   };
+  presentInputs.modelDisplay=[this,label=presentInputs.modelLabel]{
+    const auto id=label();
+    if(!model)return id;
+    const auto& profiles=model->config().profiles;
+    const auto found=profiles.find(id);
+    return application_model::displayModelLabel(id,
+      found==profiles.end()?nullptr:&found->second);
+  };
   presentInputs.workingDirectory=[roost=roost]{
     return roost->cwd().string();};
   presentInputs.permissionMode=[this]{

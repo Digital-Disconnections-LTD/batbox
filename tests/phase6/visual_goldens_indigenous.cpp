@@ -489,6 +489,20 @@ int main(int argc,char** argv){
         contains(dialog,"Set up now"),"connectors dialog lacks helpers, servers or setup");
       passed=golden::compare(directory,"connectors-batbox-dark",dialog)&&passed;
     }
+    {
+      // The model names its provider where there is room and gives the
+      // prefix up first when the row is tight.
+      Fixture routed("batbox-dark","/home/bat/roost","openrouter · qwen/qwen3-coder");
+      const auto welcome=welcomeScene(routed);
+      check(contains(welcome,"openrouter · qwen/qwen3-coder"),
+        "welcome card must name the provider beside the model:\n"+welcome.text);
+      const auto wide=golden::render(routed.shell.chrome.renderStatus(routed.view(120,24)),120,1);
+      check(contains(wide,"openrouter · qwen/qwen3-coder")&&contains(wide,"~/roost"),
+        "wide status row must name the provider:\n"+wide.text);
+      const auto narrow=golden::render(routed.shell.chrome.renderStatus(routed.view(56,24)),56,1);
+      check(contains(narrow,"qwen/qwen3-coder")&&!contains(narrow,"openrouter"),
+        "narrow status row must drop the provider before the model:\n"+narrow.text);
+    }
     if(!passed)return 1;
     std::cout<<"Batbox visual goldens match across four themes\n";
   }catch(const std::exception& error){

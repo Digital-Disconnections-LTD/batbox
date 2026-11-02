@@ -1,5 +1,7 @@
 #include "application_config/ConfigPanelInternal.hpp"
 #include "application_config/Discovery.hpp"
+#include "providers/WireClients.hpp"
+#include "transport/Errors.hpp"
 #include "application_config/EndpointStore.hpp"
 #include "application/Config.hpp"
 #include "application_model/LocalModelService.hpp"
@@ -175,23 +177,25 @@ int main(){
     .sendDisabledThinking);
   application::Config implicit;implicit.model="seed";
   assert(application::selectedInferenceProfile(implicit).sendDisabledThinking);
-  std::string requestedUrl,authorization;
-  const auto fake=[&](const mcp::http::Request& request){
-    requestedUrl=request.url;
-    authorization=request.headers.at("x-api-key").get<std::string>();
-    mcp::http::Response response;response.status=200;
-    response.body=R"({"data":[{"id":"alpha"},{"id":"beta"},{"id":"alpha"},{"other":"skip"}]})";
-    return response;
-  };
-  const auto found=discoverModels(endpoint,fake);
+  // Discovery goes through the endpoint's wire client; the listing it makes
+  // carries the same auth headers and URL a request would.
+  const auto listing=providers::endpointConfig(endpoint);
+  assert(transport::modelsUrl(listing.baseUrl,listing.modelsPath)==modelsUrl(endpoint));
+  assert(listing.headers.at("x-api-key")==endpoint.authToken&&listing.authToken.empty());
+  assert(listing.headers.at("anthropic-version")=="2023-06-01");
+  const auto found=discoverModels(endpoint,[](const application::EndpointRecord&){
+    return Json::parse(R"({"data":[{"id":"alpha"},{"id":"beta"},{"id":"alpha"},{"other":"skip"}]})");});
   assert(found.success&&found.models==std::vector<std::string>({"alpha","beta"}));
-  assert(requestedUrl==modelsUrl(endpoint)&&authorization==endpoint.authToken);
-  assert(discoverModels(endpoint,[](const auto&){mcp::http::Response r;
-    r.status=503;return r;}).error=="Model discovery returned HTTP 503");
-  assert(discoverModels(endpoint,[](const auto&){mcp::http::Response r;
-    r.status=200;r.body=R"({"data":[]})";return r;}).models.empty());
-  assert(!discoverModels(endpoint,[](const auto&)->mcp::http::Response{
-    throw std::runtime_error("offline");}).success);
+  assert(discoverModels(endpoint,[](const application::EndpointRecord&)->Json{
+    throw transport::APIError(503,nullptr,Json::object(),"busy");}).error==
+    "Model discovery returned HTTP 503");
+  assert(discoverModels(endpoint,[](const application::EndpointRecord&)->Json{
+    throw transport::APIError(401,nullptr,Json::object(),"no");}).error==
+    "Model discovery returned HTTP 401: the server rejected the key");
+  assert(discoverModels(endpoint,[](const application::EndpointRecord&){
+    return Json::parse(R"({"data":[]})");}).models.empty());
+  assert(!discoverModels(endpoint,[](const application::EndpointRecord&)->Json{
+    throw transport::APIConnectionError("offline");}).success);
   saveEndpoints(path,{{"local",endpoint}},"seed",Json::object(),false);
   {std::ifstream file(path);assert(!Json::parse(file).contains("profile"));}
   application::Config loaded;
@@ -236,8 +240,11 @@ int main(){
   assert(visible&&visible->id=="endpoint-home");
   action({interactive::UiAction::Kind::Activate,0,{}});
   assert(visible&&visible->id=="endpoint-detail");
+  assert(visible->body.find("\nProvider  anthropic\n")!=std::string::npos);
+  assert(visible->body.find("Discovery  GET http://127.0.0.1:8000/v1/models")!=std::string::npos);
   action({interactive::UiAction::Kind::Activate,3,{}});
   assert(visible&&visible->id=="endpoint-edit");
+  assert(visible->body.starts_with("Provider  anthropic (read-only)\n"));
   action({interactive::UiAction::Kind::Activate,5,{}});
   assert(visible&&visible->id=="endpoint-input");
   const std::string typed(14,'x');
@@ -261,5 +268,31 @@ int main(){
   loop.run();
   assert(readEndpoints(path)->at("local").authToken==typed);
   assert(service->config().profiles.contains(profileId("local","alpha")));
+
+  // Cloud endpoints show their kind, region and project; the URL comes from the region.
+  Endpoint vertex;
+  vertex.label="Vertex";vertex.provider="vertex";vertex.preset="google-vertex-anthropic";
+  vertex.region="us-east5";vertex.project="night-shift";
+  vertex.models={"claude-sonnet-5-5@default"};vertex.contextWindow=1000;vertex.maxOutputTokens=100;
+  assert(providerSummary(vertex)==
+    "vertex · preset google-vertex-anthropic · region us-east5 · project night-shift");
+  auto cloudConfig=panelConfig;cloudConfig.endpoints={{"vertex",vertex}};
+  cloudConfig.configPath=temporary.path/"cloud-client.json";
+  saveEndpoints(cloudConfig.configPath,cloudConfig.endpoints,"seed",Json::object(),false);
+  auto cloudPanel=std::make_shared<Panel>(loop,std::make_shared<application::Config>(cloudConfig),
+    service,store,std::function<std::shared_ptr<interactive::conversation_shell::Shell>()>{},
+    [](interactive::CommandCompletion){},
+    [&](std::optional<interactive::UiRequest> next,
+        interactive::CommandUi::Action nextAction){
+      visible=std::move(next);action=std::move(nextAction);},
+    [](std::string){assert(false);});
+  cloudPanel->start();loop.run();
+  action({interactive::UiAction::Kind::Activate,0,{}});
+  assert(visible&&visible->id=="endpoint-detail");
+  assert(visible->body.starts_with("URL from region\nProvider  vertex · preset google-vertex-anthropic"));
+  assert(visible->body.find("Discovery  Vertex AI in us-east5")!=std::string::npos);
+  action({interactive::UiAction::Kind::Activate,3,{}});
+  assert(visible&&visible->id=="endpoint-edit");
+  assert(visible->body.find("region us-east5 · project night-shift (read-only)")!=std::string::npos);
   return 0;
 }

@@ -3,6 +3,8 @@
 #include "application_config/EndpointStore.hpp"
 #include "providers/Catalog.hpp"
 #include "providers/Onboarding.hpp"
+#include "providers/WireClients.hpp"
+#include "transport/Errors.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -129,29 +131,65 @@ int main(){
     check(reread&&reread->at("ollama").preset=="ollama","endpoint store reads the preset back");
     std::filesystem::remove_all(directory);
 
-    // Connection test messages, without any network.
+    // Connection test messages, without any network: the listing seam is
+    // WireClient::listModels, injected here.
     application::EndpointRecord probe=ollama;
-    const auto respond=[](int status,std::string body){
-      return [status,body](const mcp::http::Request&){
-        mcp::http::Response response;response.status=status;response.body=body;return response;};
+    const auto listing=[](std::string body){
+      return [body](const application::EndpointRecord&){return Json::parse(body);};
     };
-    auto result=bp::testConnection(probe,respond(200,R"({"data":[{"id":"a"},{"id":"b"},{"id":"a"}]})"));
-    check(result.ok&&result.models==std::vector<std::string>({"a","b"}),"live model list");
-    result=bp::testConnection(probe,respond(401,"{}"));
+    const auto refusing=[](long status){
+      return [status](const application::EndpointRecord&)->Json{
+        throw transport::APIError(status,nullptr,Json::object(),"refused");};
+    };
+    auto result=bp::testConnection(probe,listing(R"({"data":[{"id":"a"},{"id":"b"},{"id":"a"}]})"));
+    check(result.ok&&result.models==std::vector<std::string>({"a","b"})&&
+      result.message=="Connected to 127.0.0.1:11434 · 2 models","live model list: "+result.message);
+    result=bp::testConnection(probe,refusing(401));
     check(!result.ok&&result.message.find("rejected the key")!=std::string::npos,"401 message");
-    result=bp::testConnection(probe,respond(404,"{}"));
+    result=bp::testConnection(probe,refusing(404));
     check(!result.ok&&result.message.find("HTTP 404")!=std::string::npos,"404 message");
-    result=bp::testConnection(probe,[](const mcp::http::Request&)->mcp::http::Response{
-      throw std::runtime_error("refused");});
+    result=bp::testConnection(probe,[](const application::EndpointRecord&)->Json{
+      throw transport::APIConnectionError("refused");});
     check(!result.reached&&result.message=="Could not connect to 127.0.0.1:11434. Is the server running?",
       "offline message: "+result.message);
-    application::EndpointRecord keyedProbe=anthropic;
-    bp::testConnection(keyedProbe,[](const mcp::http::Request& request){
-      check(request.url=="https://api.anthropic.com/v1/models","Anthropic models URL "+request.url);
-      check(request.headers.at("x-api-key")=="sk-test"&&
-        request.headers.at("anthropic-version")=="2023-06-01","Anthropic listing headers");
-      mcp::http::Response response;response.status=200;response.body=R"({"data":[]})";
-      return response;});
+    result=bp::testConnection(probe,listing(R"({"object":"list"})"));
+    check(!result.ok&&result.message=="The server answered but sent no model list.","no data array");
+    // The live listing gets the same auth a request sends.
+    const auto keyedConfig=bp::endpointConfig(anthropic);
+    check(transport::modelsUrl(keyedConfig.baseUrl,keyedConfig.modelsPath)==
+      "https://api.anthropic.com/v1/models","Anthropic models URL");
+    check(keyedConfig.headers.at("x-api-key")=="sk-test"&&
+      keyedConfig.headers.at("anthropic-version")=="2023-06-01"&&keyedConfig.authToken.empty(),
+      "Anthropic listing headers");
+    bp::Setup chatKey;chatKey.model="llama-3.3-70b-versatile";chatKey.key="gsk-test";
+    const auto groqConfig=bp::endpointConfig(bp::buildEndpoint(*catalog.find("groq"),chatKey));
+    check(groqConfig.authToken=="gsk-test"&&!groqConfig.headers.contains("anthropic-version"),
+      "openai-chat listing uses a bearer token");
+    check(bp::endpointConfig(ollama).authToken.empty(),"no key for a keyless local server");
+    check(bp::listingTarget(ollama)=="GET http://127.0.0.1:11434/v1/models","listing target");
+
+    // Bedrock and Vertex endpoints carry the region from the catalog URL and
+    // go through the same listing; Vertex answers without a request.
+    check(bp::cloudRegion("bedrock","https://bedrock-runtime.eu-west-3.amazonaws.com")=="eu-west-3"&&
+      bp::cloudRegion("vertex","https://us-east5-aiplatform.googleapis.com")=="us-east5"&&
+      bp::cloudRegion("vertex","https://aiplatform.googleapis.com")=="global"&&
+      bp::cloudRegion("bedrock","https://bedrock.example.com").empty()&&
+      bp::cloudRegion("openai-chat","https://bedrock-runtime.us-east-1.amazonaws.com").empty(),
+      "cloud regions from URLs");
+    bp::Setup cloudSetup;cloudSetup.model="claude-sonnet-5-5@default";
+    const auto vertex=bp::buildEndpoint(*catalog.find("google-vertex-anthropic"),cloudSetup);
+    check(vertex.provider=="vertex"&&vertex.region=="us-east5","Vertex region "+vertex.region);
+    result=bp::testConnection(vertex);
+    check(result.ok&&!result.models.empty()&&result.models.front()=="claude-sonnet-5-5@default"&&
+      result.message.find("Vertex AI has no model list call")==0,"Vertex listing: "+result.message);
+    cloudSetup.model="us.anthropic.claude-sonnet-5-5-v1:0";
+    const auto bedrock=bp::buildEndpoint(*catalog.find("amazon-bedrock"),cloudSetup);
+    check(bedrock.provider=="bedrock"&&bedrock.region=="us-east-1"&&
+      bp::listingTarget(bedrock)=="Amazon Bedrock in us-east-1 (signed with your AWS credentials)",
+      "Bedrock endpoint");
+    result=bp::testConnection(bedrock,refusing(403));
+    check(!result.ok&&result.message=="Amazon Bedrock did not accept your credentials (HTTP 403): refused",
+      "Bedrock credentials message: "+result.message);
     std::cout<<"provider catalog: "<<catalog.providers.size()<<" providers, "
       <<bp::catalogBytes()<<" bytes\n";
   }catch(const std::exception& error){

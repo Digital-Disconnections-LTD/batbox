@@ -33,6 +33,15 @@ def main(binary):
             if self.path != "/v1/models":
                 self.send_error(404)
                 return
+            if self.headers.get("Authorization") == "Bearer gsk-wrong":
+                body = json.dumps({"error": {"message": "Invalid API Key",
+                                             "type": "invalid_request_error"}}).encode()
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             body = json.dumps({"data": [{"id": "cli-coder"}, {"id": "cli-tiny"}]}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -107,6 +116,22 @@ def main(binary):
                   row["quirks"]["max_tokens_field"] == "max_tokens", "groq row " + json.dumps(row))
             check("gsk-from-env" not in json.dumps(document()), "an environment key was stored")
 
+            # The connection test lists models through the openai-chat client
+            # with the bearer key, and names a rejected key without retrying.
+            tested = run("add", "groq", "--base-url", url, "--id", "groq-local",
+                         extra={"GROQ_API_KEY": "gsk-good"})
+            check(tested.returncode == 0 and
+                  "Connection: Connected to 127.0.0.1" in tested.stdout and
+                  "· 2 models" in tested.stdout, "groq test: " + tested.stdout + tested.stderr)
+            check(("/v1/models", "Bearer gsk-good") in seen, "openai-chat listing sent the key")
+            check(document()["endpoints"]["groq-local"]["models"][:2] == ["cli-coder", "cli-tiny"],
+                  "live models saved")
+            rejected = run("add", "groq", "--base-url", url, "--id", "groq-bad",
+                           "--model", "cli-coder", extra={"GROQ_API_KEY": "gsk-wrong"})
+            check(rejected.returncode == 0 and "Connection check: The server rejected the key "
+                  "(HTTP 401)" in rejected.stdout, "401 wording: " + rejected.stdout)
+            check(seen.count(("/v1/models", "Bearer gsk-wrong")) == 1, "a 401 must not retry")
+
             for refused, needle in (("perplexity", "not supported yet"),
                                     ("github-copilot", "coming soon"),
                                     ("no-such-provider", "no provider")):
@@ -129,6 +154,11 @@ def main(binary):
             check("Model servers on this machine" in doctor.stdout and
                   "Model endpoints" in doctor.stdout and "groq" in doctor.stdout,
                   "doctor: " + doctor.stdout)
+            rows = {line.split()[0]: line for line in doctor.stdout.splitlines()
+                    if line.startswith("  ") and line.split()}
+            check("· openai-chat ·" in rows.get("groq", "") and
+                  "· anthropic ·" in rows.get("llama.cpp", ""),
+                  "doctor rows name the provider kind: " + doctor.stdout)
             check(("/v1/models", None) in seen, "the connection test listed models")
     finally:
         server.shutdown()

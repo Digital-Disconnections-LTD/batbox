@@ -1,7 +1,6 @@
 #pragma once
 #include "application/Config.hpp"
-#include "mcp/http/Http.hpp"
-#include <functional>
+#include "providers/WireClients.hpp"
 #include <string>
 #include <vector>
 
@@ -11,8 +10,9 @@ struct DiscoveryResult {
   std::string error;
   bool success=false;
 };
-// Blocking HTTP; call from a worker. The injectable fetch makes offline and
-// unusual compatible-server responses testable without a live inference server.
+// Blocking; call from a worker. The endpoint's own wire client lists the
+// models, so every provider kind answers in its own way. The injectable list
+// makes offline and unusual replies testable without a live server.
 DiscoveryResult discoverModels(const application::EndpointRecord& endpoint,
-  mcp::http::Fetch fetch=mcp::http::fetch);
+  providers::ListModels list={});
 }

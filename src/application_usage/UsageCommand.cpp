@@ -382,9 +382,15 @@ std::string renderStatus(const Sources& sources,int width,bool verbose){
   std::ostringstream out;
   if(verbose)out<<"## Batbox Status\n\n";
   if(sources.flightId)out<<"Session: "<<sources.flightId()<<'\n';
-  out<<"Model: "<<model;
-  if(selected&&!selected->wireModel.empty()&&selected->wireModel!=model)
-    out<<" ("<<selected->wireModel<<")";
+  // "Model: openrouter · qwen/qwen3-coder (openrouter::qwen/qwen3-coder)" for a
+  // preset or non-Anthropic endpoint; "Model: id (wire model)" otherwise.
+  if(const auto display=application_model::displayModelLabel(model,selected);display!=model)
+    out<<"Model: "<<display<<" ("<<model<<")";
+  else{
+    out<<"Model: "<<model;
+    if(selected&&!selected->wireModel.empty()&&selected->wireModel!=model)
+      out<<" ("<<selected->wireModel<<")";
+  }
   out<<"\nEndpoint: "<<endpointLabel(sources,model)<<'\n';
   if(const auto notice=application_connectors::webNotice(
       application_connectors::webAvailability(sources.config));!notice.empty())

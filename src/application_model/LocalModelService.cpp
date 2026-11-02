@@ -8,6 +8,12 @@
 #include <utility>
 
 namespace batbox::application_model {
+std::string displayModelLabel(const std::string& profileId,const ModelProfile* profile){
+  if(!profile||profile->wireModel.empty())return profileId;
+  const std::string source=!profile->preset.empty()?profile->preset:
+    profile->provider!=transport::kProviderAnthropic?profile->provider:std::string{};
+  return source.empty()?profileId:source+" · "+profile->wireModel;
+}
 namespace {
 template<class Callback>void require(const Callback& callback,const char* name){
   if(!callback)throw std::invalid_argument(
