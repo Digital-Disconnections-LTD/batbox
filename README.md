@@ -114,11 +114,27 @@ own, pull up a pumpkin. Here is what we are building around:
 - **A little joy in the terminal.** A bat and ghost greet you, then scroll away
   with the conversation. Poetry, Partners, and Missions give the work some life.
 
-Compared with [OpenCode](https://opencode.ai/), Batbox's clearest distinction is
-its C++20 application and focused Messages-compatible backend workflow.
-OpenCode offers a broader provider catalog and terminal, desktop, and IDE
-interfaces. Batbox is a good fit if this stack, direct backend configuration,
-and community direction match the way you want to work.
+### Why Batbox exists
+
+Batbox started on a handful of tiny VPSs with a little bit of RAM each. I was
+running my agents through a hosted CLI harness, and it worked, but it was a
+heavy guest: more memory than drawing a chat in a terminal should ever need,
+and my code, my prompts, and my habits were flying off to someone else's
+servers the whole time. The little boxes deserved better. They needed a harness
+that was fast, small, and quiet, and that kept what happened on them, on them.
+
+So the core loop of Batbox is built differently from
+[OpenCode](https://opencode.ai/) and the other open-source harnesses. There is
+one C++20 binary and nothing underneath it: no Node, no Bun, no Electron, no
+runtime to feed. It redraws only what changed, idles at almost no CPU, and
+keeps a long Flight in a fraction of the memory. Smart and compact, like the
+bat on the banner.
+
+And there is no telemetry and no sharing. Not a switch, not an opt-out, not a
+promise in a privacy policy: there is simply nothing in the code that phones
+home. Your Flights stay on your machine, and your model endpoint is the only
+place your words go. If you want a bat that fits on a cheap VPS, hums along on
+a sliver of RAM, and can be read end to end in an evening, this is the one.
 
 ## A little web magic ✨
 
