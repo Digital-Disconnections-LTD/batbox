@@ -2,6 +2,10 @@
 #include "interactive/presentation_providers/ThemeData.hpp"
 #include <ftxui/screen/terminal.hpp>
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <atomic>
 #include <cctype>
 #include <map>
@@ -42,6 +46,46 @@ ftxui::Color pick(const RawTheme& theme,const char* role,
   if(auto value=parse(std::string("role.")+role))return *value;
   for(const auto* key:fallbacks)if(auto value=parse(key))return *value;
   return ftxui::Color::Default;
+}
+
+using Rgb=std::array<double,3>;
+std::optional<Rgb> rgb(const RawTheme& theme,const char* key){
+  const auto found=theme.find(key);
+  int r=0,g=0,b=0;
+  if(found==theme.end()||
+      std::sscanf(found->second.c_str(),"rgb(%d,%d,%d)",&r,&g,&b)!=3)return {};
+  return Rgb{double(std::clamp(r,0,255)),double(std::clamp(g,0,255)),
+    double(std::clamp(b,0,255))};
+}
+double luminance(const Rgb& color){
+  double result=0;
+  const double weights[]={0.2126,0.7152,0.0722};
+  for(int i=0;i<3;++i){
+    const double c=color[i]/255.0;
+    result+=weights[i]*(c<=0.03928?c/12.92:std::pow((c+0.055)/1.055,2.4));
+  }
+  return result;
+}
+double contrast(const Rgb& a,const Rgb& b){
+  const auto x=luminance(a),y=luminance(b);
+  return (std::max(x,y)+0.05)/(std::min(x,y)+0.05);
+}
+// Older palettes define diffAddedWord as a word highlight, not as ink for a
+// tinted row, so on their row color it can all but vanish. Keep the hue and
+// move it toward the theme's text until it reads on the row.
+std::optional<ftxui::Color> legibleDiffInk(const RawTheme& theme,const char* ink,
+    const char* row){
+  const auto from=rgb(theme,ink),background=rgb(theme,row),text=rgb(theme,"text");
+  if(!from||!background||!text)return {};
+  for(int step=0;step<=20;++step){
+    const double t=step/20.0;
+    Rgb mixed;
+    for(int i=0;i<3;++i)mixed[i]=std::round((*from)[i]+((*text)[i]-(*from)[i])*t);
+    if(contrast(mixed,*background)>=4.5||step==20)
+      return ftxui::Color::RGB(static_cast<std::uint8_t>(mixed[0]),
+        static_cast<std::uint8_t>(mixed[1]),static_cast<std::uint8_t>(mixed[2]));
+  }
+  return {};
 }
 
 StyleRoles resolve(const std::string& name){
@@ -110,6 +154,10 @@ StyleRoles resolve(const std::string& name){
   roles.modePlan=pick(theme,"modePlan",{"planMode"});
   roles.modeAccept=pick(theme,"modeAccept",{"autoAccept"});
   roles.modeYolo=pick(theme,"modeYolo",{"error"});
+  if(!roles.basic&&!theme.contains("role.diffAdd")){
+    if(const auto ink=legibleDiffInk(theme,"diffAddedWord","diffAdded"))roles.diffAdd=*ink;
+    if(const auto ink=legibleDiffInk(theme,"diffRemovedWord","diffRemoved"))roles.diffDel=*ink;
+  }
   if(roles.basic){
     // A 16-color palette cannot express subtle panel tints.
     roles.userPanel=roles.codeBg=roles.inlineCodeBg=roles.diffAddBg=

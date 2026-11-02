@@ -13,7 +13,10 @@
 #include "terminal_ftxui/TextFit.hpp"
 #include <ftxui/screen/screen.hpp>
 #include <ftxui/screen/terminal.hpp>
+#include <cmath>
+#include <cstdio>
 #include <filesystem>
+#include <tuple>
 #include <iostream>
 #include <random>
 #include <stdexcept>
@@ -49,6 +52,24 @@ template<class T>T await(event_loop::Loop& loop,event_loop::Deferred<T> pending)
   if(failure)std::rethrow_exception(failure);
   if(!value)throw std::runtime_error("Command did not settle");
   return *value;
+}
+
+double luminance(const ftxui::Color& color){
+  int r=0,g=0,b=0;
+  check(std::sscanf(color.Print(false).c_str(),"38;2;%d;%d;%d",&r,&g,&b)==3,
+    "expected a truecolor role, got "+color.Print(false));
+  double result=0;
+  const double weights[]={0.2126,0.7152,0.0722};
+  const int channels[]={r,g,b};
+  for(int i=0;i<3;++i){
+    const double c=channels[i]/255.0;
+    result+=weights[i]*(c<=0.03928?c/12.92:std::pow((c+0.055)/1.055,2.4));
+  }
+  return result;
+}
+double contrast(const ftxui::Color& a,const ftxui::Color& b){
+  const auto x=luminance(a),y=luminance(b);
+  return (std::max(x,y)+0.05)/(std::min(x,y)+0.05);
 }
 
 void colorDepth(){
@@ -105,6 +126,20 @@ void themes(){
     mono.statusErr==ftxui::Color::Default,"monochrome paints no color");
   const auto& classic=ip::styleRoles("dark");
   check(classic.brand==ip::themeColor("dark","brand"),"classic themes derive roles");
+  // Diff rows paint ink on a tint; every theme must keep both readable.
+  for(const auto& name:ip::themeNames()){
+    const auto& roles=ip::styleRoles(name);
+    if(roles.basic||roles.monochrome)continue;
+    for(const auto& [ink,row,label]:{std::tuple{roles.diffAdd,roles.diffAddBg,"added"},
+        std::tuple{roles.diffDel,roles.diffDelBg,"removed"}}){
+      if(ip::isDefault(row))continue;
+      check(contrast(ink,row)>=4.5,name+": "+label+" diff lines are unreadable on their tint ("+
+        std::to_string(contrast(ink,row))+":1)");
+    }
+  }
+  check(!(ip::styleRoles("dark-daltonized").diffAdd==ip::styleRoles("dark-daltonized").text)&&
+    !(ip::styleRoles("dark-daltonized").diffDel==ip::styleRoles("dark-daltonized").text),
+    "color-blind diff ink keeps its hue");
   check(ip::sgr(ftxui::Color::Default).empty(),"default color emits no SGR");
   check(ip::sgr(ftxui::Color::RGB(1,2,3))=="\x1b[38;2;1;2;3m","truecolor SGR");
   check(ip::sgr(ftxui::Color::RGB(1,2,3),true)=="\x1b[48;2;1;2;3m","background SGR");

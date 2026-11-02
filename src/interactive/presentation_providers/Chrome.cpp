@@ -86,7 +86,8 @@ ftxui::Element footer(const ChromeServices& imports,const ViewState& view){
       std::string(view.searchQuery)+" "+count,subtle));
   }else{
     if(view.batId){
-      parts.push_back(colored("Follow-up → Bat · /leader, Esc or Alt+← to return · Ctrl+T Bats",
+      parts.push_back(colored(std::string(parts.empty()?"":" · ")+
+        "Follow-up → Bat · /leader, Esc or Alt+← to return · Ctrl+T Bats",
         themeColor(theme,"suggestion")));
       if(view.batStatus=="completed"||view.batStatus=="killed"||view.batStatus=="failed")
         parts.push_back(colored(" · sending resumes this Bat",subtle));

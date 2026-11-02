@@ -141,7 +141,12 @@ std::string groupedBatGadgetUseText(const Json& entries){
     const auto& input=value::property(value::property(entry,"param"),"input");
     const auto& description=value::property(input,"description");
     text+="\n  "+(description.is_string()?description.get<std::string>():"Agent task")+" · ";
+    // A background launch resolves at once; its result is the launch, not
+    // the Bat's outcome, which arrives later as a notification.
+    const auto& status=value::property(value::property(entry,"output"),"status");
     if(value::property(entry,"isError")==true)text+="Failed";
+    else if(status=="async_launched"||status=="remote_launched"||status=="teammate_spawned")
+      text+="Launched";
     else if(value::property(entry,"isResolved")==true)text+="Completed";
     else if(value::property(entry,"isInProgress")==true||
         (value::property(entry,"progressMessages").is_array()&&

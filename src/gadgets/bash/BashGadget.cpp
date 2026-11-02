@@ -196,8 +196,10 @@ gadgets::Gadget makeBashGadget(Services services){
   };
   gadget.getActivityDescription=[shared](const Json& input)->Json{
     const auto command=stringField(input,"command");if(command.empty())return "Running command";
+    // The model writes descriptions as sentences ("Run the test suite").
     const auto description=stringField(input,"description");
-    return "Running "+(description.empty()?shared->truncateSummary(command,shared->gadgetSummaryMaxLength):description);
+    if(!description.empty())return description;
+    return "Running "+shared->truncateSummary(command,shared->gadgetSummaryMaxLength);
   };
   gadget.validateInput=[shared](const Json& input,const Json&){
     std::promise<gadgets::ValidationResult> value;
