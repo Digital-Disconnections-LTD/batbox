@@ -134,9 +134,10 @@ python3 checks/indigenous_platform_smoke.py build/indigenous/batbox --mission-bo
 ```
 
 It checks streaming, Unicode file paths, file reading, shell expansion, and Mission
-persistence. The fixture uses its own temporary configuration. Pass
-`--scrapling-fixture build/indigenous-checks/batbox-scrapling-fixture` to use the
-offline helper built by the checks preset; otherwise Scrapling must be on PATH.
+persistence. The fixture uses its own temporary configuration. Scrapling is not
+needed: Batbox starts it only when WebFetch first runs. Pass
+`--scrapling-fixture build/indigenous-checks/batbox-scrapling-fixture` to point
+`scrapling_command` at the offline helper built by the checks preset.
 
 ## Packaging
 
