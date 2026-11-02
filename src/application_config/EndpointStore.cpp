@@ -1,5 +1,6 @@
 #include "application_config/EndpointStore.hpp"
 #include "runtime/IndigenousPath.hpp"
+#include "transport/WireClient.hpp"
 #include <algorithm>
 #include <chrono>
 #include <fstream>
@@ -87,16 +88,7 @@ std::string profileId(const std::string& endpointId,const std::string& modelId){
   return endpointId+"::"+modelId;
 }
 std::string modelsUrl(const application::EndpointRecord& endpoint){
-  if(!endpoint.modelsPath.empty()){
-    if(endpoint.modelsPath.front()!='/')throw std::invalid_argument("Models path must begin with /");
-    auto base=baseBeforeMessages(endpoint);
-    if(base.ends_with("/v1")&&endpoint.modelsPath.starts_with("/v1/"))
-      base.resize(base.size()-3);
-    return base+endpoint.modelsPath;
-  }
-  auto base=baseBeforeMessages(endpoint);
-  if(base.ends_with("/v1"))return base+"/models";
-  return base+"/v1/models";
+  return transport::modelsUrl(baseBeforeMessages(endpoint),endpoint.modelsPath);
 }
 void validateEndpoint(const std::string& id,const application::EndpointRecord& endpoint){
   if(id.empty()||id.find("::")!=std::string::npos||id.find_first_of("\n\r\t")!=std::string::npos)
@@ -114,6 +106,10 @@ void validateEndpoint(const std::string& id,const application::EndpointRecord& e
   if(authority.empty())throw std::invalid_argument("Endpoint URL needs a host");
   if(authority.find('@')!=std::string::npos)
     throw std::invalid_argument("Put credentials in the authentication field, not the URL");
+  transport::validateProviderKind(endpoint.provider);
+  if(endpoint.preset.find_first_of("\r\n")!=std::string::npos)
+    throw std::invalid_argument("Endpoint preset must be one line");
+  transport::validateQuirks(endpoint.quirks);
   if(endpoint.messagesPath.empty()||endpoint.messagesPath.front()!='/')
     throw std::invalid_argument("Messages path must begin with /");
   if(endpoint.messagesPath.find_first_of("\r\n")!=std::string::npos)
@@ -142,8 +138,12 @@ application::InferenceProfile inferenceProfile(const application::EndpointRecord
   application::InferenceProfile profile;
   profile.model=model;profile.baseUrl=baseBeforeMessages(endpoint);
   profile.messagesPath=endpoint.messagesPath;
-  if(profile.baseUrl.ends_with("/v1")&&profile.messagesPath=="/v1/messages")
-    profile.messagesPath="/messages";
+  if(profile.baseUrl.ends_with("/v1")&&(profile.messagesPath=="/v1/messages"||
+      profile.messagesPath=="/v1/chat/completions"))
+    profile.messagesPath=profile.messagesPath.substr(3);
+  profile.modelsPath=endpoint.modelsPath;
+  profile.provider=endpoint.provider;profile.preset=endpoint.preset;
+  profile.quirks=endpoint.quirks;
   profile.authToken=endpoint.authToken;profile.apiKeyEnv=endpoint.apiKeyEnv;
   profile.authHeader=endpoint.authHeader;profile.headers=endpoint.headers;
   profile.contextWindow=endpoint.contextWindow;
@@ -163,7 +163,12 @@ void loadEndpoints(application::Config& config,const Json& source){
     const auto& row=it.value();application::EndpointRecord endpoint;
     endpoint.label=field(row,"label",it.key());
     endpoint.baseUrl=field(row,"base_url");
-    endpoint.messagesPath=field(row,"messages_path","/v1/messages");
+    endpoint.provider=field(row,"provider",std::string(transport::kProviderAnthropic));
+    endpoint.preset=field(row,"preset");
+    if(row.contains("quirks"))endpoint.quirks=row.at("quirks");
+    endpoint.messagesPath=field(row,"messages_path",
+      transport::isProviderKind(endpoint.provider)?
+        transport::defaultMessagesPath(endpoint.provider):std::string("/v1/messages"));
     endpoint.modelsPath=field(row,"models_path");
     endpoint.authToken=field(row,"auth_token");
     endpoint.apiKeyEnv=field(row,"api_key_env");
@@ -199,6 +204,9 @@ Json endpointDocument(const std::map<std::string,application::EndpointRecord>& e
       {"structured_outputs",endpoint.structuredOutputs},
       {"effort",endpoint.effort},
       {"send_disabled_thinking",endpoint.sendDisabledThinking}};
+    if(endpoint.provider!=transport::kProviderAnthropic)rows[id]["provider"]=endpoint.provider;
+    if(!endpoint.preset.empty())rows[id]["preset"]=endpoint.preset;
+    if(endpoint.quirks.is_object()&&!endpoint.quirks.empty())rows[id]["quirks"]=endpoint.quirks;
     if(!endpoint.modelsPath.empty())rows[id]["models_path"]=endpoint.modelsPath;
     if(!endpoint.authToken.empty())rows[id]["auth_token"]=endpoint.authToken;
     if(!endpoint.apiKeyEnv.empty())rows[id]["api_key_env"]=endpoint.apiKeyEnv;

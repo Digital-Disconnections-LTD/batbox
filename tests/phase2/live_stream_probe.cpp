@@ -1,6 +1,7 @@
 #include "model/LiveStream.hpp"
 #include "model/LiveStreamAdapter.hpp"
 #include "transport/Errors.hpp"
+#include "transport/WireClient.hpp"
 #include <chrono>
 #include <iostream>
 
@@ -13,7 +14,7 @@ int main(int argc,char** argv) {
   config.messagesPath=argv[2];
   config.requestTimeout=std::chrono::seconds(8);
   config.streamIdleTimeout=std::chrono::seconds(6);
-  batbox::transport::Client client(config);
+  batbox::transport::AnthropicMessagesClient client(config);
   const std::string mode=argv[3];
   if(mode=="reduce" || mode=="partial") {
     auto opened=batbox::model::openLiveStream(client,Json{{"model","batbox-model"},{"stream",true}},{});

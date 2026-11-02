@@ -92,7 +92,7 @@ AsyncModelCursor makeOwnerSegmentQueryModelCursor(event_loop::Loop& loop,
       services.createClient=[dispatcher,owner,stop,priorClient,requestAwaits]{
         auto pending=invokeOwnerSegment(dispatcher,stop,[&]{
           if(requestAwaits.createClient)return requestAwaits.createClient();
-          event_loop::Deferred<std::shared_ptr<transport::Client>> ready(*owner);
+          event_loop::Deferred<std::shared_ptr<transport::WireClient>> ready(*owner);
           ready.resolve(priorClient());
           return ready;
         });

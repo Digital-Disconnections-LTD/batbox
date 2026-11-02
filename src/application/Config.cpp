@@ -3,6 +3,7 @@
 #include "app_state/PermissionModeBridge.hpp"
 #include "app_state/provider/PermissionHelpers.hpp"
 #include "runtime/IndigenousPath.hpp"
+#include "transport/WireClient.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
 #endif
@@ -105,7 +106,21 @@ void applyConfig(Config& config,const Json& value){
         if(row.contains(name))output=row.at(name).get<std::string>();
       };
       field("model",profile.model);field("base_url",profile.baseUrl);
+      field("provider",profile.provider);field("preset",profile.preset);
+      try{transport::validateProviderKind(profile.provider);}
+      catch(const std::invalid_argument& error){
+        throw std::invalid_argument("Profile "+it.key()+": "+error.what());
+      }
+      profile.messagesPath=transport::defaultMessagesPath(profile.provider);
       field("messages_path",profile.messagesPath);
+      field("models_path",profile.modelsPath);
+      if(row.contains("quirks")){
+        profile.quirks=row.at("quirks");
+        try{transport::validateQuirks(profile.quirks);}
+        catch(const std::invalid_argument& error){
+          throw std::invalid_argument("Profile "+it.key()+": "+error.what());
+        }
+      }
       field("auth_token",profile.authToken);
       field("api_key_helper",profile.apiKeyHelper);
       field("api_key_env",profile.apiKeyEnv);

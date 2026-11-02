@@ -55,7 +55,8 @@ add_library(batbox_transport
   src/transport/Messages.cpp
   src/transport/Errors.cpp src/transport/Headers.cpp
   src/transport/SSE.cpp src/transport/Client.cpp)
-target_sources(batbox_transport PRIVATE src/transport/RetryAdapter.cpp)
+target_sources(batbox_transport PRIVATE src/transport/RetryAdapter.cpp
+  src/transport/RawHttp.cpp src/transport/WireClient.cpp)
 target_include_directories(batbox_transport PUBLIC src)
 target_link_libraries(batbox_transport PUBLIC batbox_core CURL::libcurl)
 target_compile_options(batbox_transport PRIVATE -Wall -Wextra -Wpedantic)

@@ -168,7 +168,7 @@ int main(int argc,char** argv){
    config.baseUrl=base;config.messagesPath=path;
    config.requestTimeout=std::chrono::seconds(8);
    config.streamIdleTimeout=std::chrono::seconds(6);
-   return std::make_shared<batbox::transport::Client>(config);
+   return std::make_shared<batbox::transport::AnthropicMessagesClient>(config);
  };
  services.normalizeFallbackContent=[&](const Json& content){
    if(ownerMode&&!loop.isOwnerThread())throw std::logic_error("fallback content off owner");
@@ -219,7 +219,7 @@ int main(int argc,char** argv){
    if(delayedClientMode){
      const auto createClient=services.createClient;
      requestAwaits.createClient=[&loop,&ownerHeartbeats,createClient]{
-       batbox::event_loop::Deferred<std::shared_ptr<batbox::transport::Client>>
+       batbox::event_loop::Deferred<std::shared_ptr<batbox::transport::WireClient>>
          pending(loop);
        loop.setTimeout(5,[&ownerHeartbeats]{++ownerHeartbeats;},true);
        loop.setTimeout(20,[pending,createClient]()mutable{

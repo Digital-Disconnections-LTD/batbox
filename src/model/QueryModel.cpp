@@ -105,7 +105,7 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
   (void)paramsFromContext(initialContext);
 
   StreamingAttemptState attemptState;
-  std::shared_ptr<transport::Client> currentClient;
+  std::shared_ptr<transport::WireClient> currentClient;
   std::shared_ptr<OpenedStream> opened;
   std::optional<Json> fallbackMessage;
   bool completed = false;

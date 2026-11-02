@@ -4,7 +4,7 @@
 
 namespace batbox::model {
 
-OpenedStream openLiveStream(transport::Client& client, const Json& streamingParams,
+OpenedStream openLiveStream(transport::WireClient& client, const Json& streamingParams,
                             std::stop_token signal,
                             const std::optional<std::string>&) {
   // Retain server-provided request IDs without adding a correlation header.

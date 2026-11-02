@@ -1,6 +1,6 @@
 #pragma once
 
-#include "transport/Client.hpp"
+#include "transport/WireClient.hpp"
 #include <condition_variable>
 #include <deque>
 #include <exception>
@@ -17,7 +17,7 @@ namespace batbox::model {
 // next() exposes parsed events and subsequent body failures in arrival order.
 class LiveStream {
  public:
-  LiveStream(transport::Client& client, Json body, std::stop_token userSignal = {});
+  LiveStream(transport::WireClient& client, Json body, std::stop_token userSignal = {});
   ~LiveStream();
   LiveStream(const LiveStream&) = delete;
   LiveStream& operator=(const LiveStream&) = delete;
@@ -27,7 +27,7 @@ class LiveStream {
   bool aborted() const;
  private:
   void produce();
-  transport::Client& client_;
+  transport::WireClient& client_;
   Json body_;
   std::stop_source cancel_;
   std::unique_ptr<std::stop_callback<std::function<void()>>> userCancel_;

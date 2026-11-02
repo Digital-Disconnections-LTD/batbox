@@ -58,7 +58,7 @@ int main(){
   services.reducer.timestamp=[](){return std::string("now");};
   services.reducer.calculateUSDCost=[](const std::string&,const Json&){return 0.0;};
   services.reducer.addToTotalFlightCost=[](double,const Json&,const std::string&){return 0.0;};
-  services.createClient=[]()->std::shared_ptr<transport::Client>{
+  services.createClient=[]()->std::shared_ptr<transport::WireClient>{
     throw std::logic_error("client created before builder");};
   services.normalizeFallbackContent=[](const Json& content){return content;};
   services.getAssistantMessageFromError=[](const api_errors::Failure&,const std::string&){
