@@ -820,7 +820,9 @@ void Host::Impl::bindFrontend(){
     });return result;
   };
   if(config.providerSetup&&!config.print)
-    bindings.onTurnRequested=[this](const interactive::TurnRequest&){
+    bindings.onTurnRequested=[this](const interactive::TurnRequest& request){
+      // Local commands such as /exit and /help never reach a model.
+      if(!request.shouldQuery)return;
       const auto state=store->getState()->snapshot();
       std::string current;
       for(const auto* field:{"mainLoopModelForSession","mainLoopModel"}){

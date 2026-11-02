@@ -187,7 +187,59 @@ def main(binary):
             problems.append(f"requests {[r['path'] for r in requests]}")
         if problems:
             raise SystemExit("; ".join(problems))
-    print("first run: --print hint, picker on launch, refusal, llama.cpp saved and used")
+    exit_before_connecting(binary)
+    print("first run: --print hint, picker on launch, refusal, llama.cpp saved and used, "
+          "clean /exit before connecting")
+
+
+def exit_before_connecting(binary):
+    """Esc closes the first-run picker and /exit, a local command, ends with status 0."""
+    with tempfile.TemporaryDirectory(prefix="batbox-first-run-exit-") as temporary:
+        root = Path(temporary)
+        (root / "project").mkdir()
+        (root / "settings.json").write_text(json.dumps({
+            "state_directory": str(root / "state"), "mcpServers": {}, "auto_title": False}))
+        env = {key: value for key, value in os.environ.items() if not key.startswith("BATBOX_")}
+        env.update(TERM="xterm-256color", BATBOX_CONFIG_DIR=str(root), HOME=str(root))
+        pid, master = pty.fork()
+        if pid == 0:
+            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 110, 0, 0))
+            os.execve(str(binary), [str(binary), "--cwd", str(root / "project")], env)
+        output = bytearray()
+        status = None
+        deadline = time.monotonic() + 40
+        stage = 0
+        try:
+            while status is None and time.monotonic() < deadline:
+                if select.select([master], [], [], 0.05)[0]:
+                    try:
+                        output.extend(os.read(master, 65536))
+                    except OSError as error:
+                        if error.errno != errno.EIO:
+                            raise
+                finished, result = os.waitpid(pid, os.WNOHANG)
+                if finished:
+                    status = result
+                    break
+                text = re.sub(rb"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07", b"", bytes(output))
+                if stage == 0 and b"Connect a model server" in text:
+                    time.sleep(0.3)
+                    os.write(master, b"\x1b")
+                    stage, mark, closed_at = 1, len(text), time.monotonic()
+                elif stage == 1 and (b"Give your model a destination" in text[mark:] or
+                                     time.monotonic() - closed_at > 3):
+                    time.sleep(0.3)
+                    os.write(master, b"/exit\r")
+                    stage = 2
+        finally:
+            if status is None:
+                os.kill(pid, 9)
+                os.waitpid(pid, 0)
+        if stage != 2 or status is None or os.waitstatus_to_exitcode(status) != 0:
+            raise SystemExit(f"/exit before connecting: stage {stage}, status {status}")
+        log = root / "state" / "native.log"
+        if log.exists() and "No model is connected yet" in log.read_text():
+            raise SystemExit("/exit before connecting was refused as a model turn")
 
 
 if __name__ == "__main__":
