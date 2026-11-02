@@ -1,4 +1,5 @@
 #include "connectors/Scrapling.hpp"
+#include "connectors/Executable.hpp"
 #include "process/IndigenousJsonlProcess.hpp"
 #include <cerrno>
 #include <climits>
@@ -73,8 +74,28 @@ void ready(int fd, short event, std::chrono::steady_clock::time_point deadline,s
 }
 #endif
 } // namespace
-Scrapling::Scrapling(const std::vector<std::string>& command, std::chrono::milliseconds wait) : timeout(wait) {
+Scrapling::Scrapling(const std::vector<std::string>& argv, std::chrono::milliseconds wait) : timeout(wait), command(argv) {
   if (command.empty()) throw std::invalid_argument("Set a Scrapling MCP server executable");
+}
+void Scrapling::ensureRunning(std::stop_token signal) {
+  if (stopped) throw std::runtime_error("Scrapling is shutting down");
+#ifdef _WIN32
+  if (indigenousProcess && started) return;
+#else
+  if (child > 0 && input >= 0 && output >= 0 && ::waitpid(child, nullptr, WNOHANG) == 0) return;
+#endif
+  close();
+  start(signal);
+}
+void Scrapling::start(std::stop_token signal) {
+  checkConnectorAbort(signal);
+  if (!connectors::findExecutable(command.front()))
+    throw std::runtime_error("Scrapling is not installed: \""+command.front()+
+      "\" was not found. Web fetch is unavailable; run: batbox setup web "
+      "(or set scrapling_command in native-client.json)");
+  buffered.clear();
+  { std::lock_guard lock(diagnosticMutex); diagnosticTail.clear(); diagnosticTruncated=false; }
+  stopDiagnostic=false;
 #ifdef _WIN32
   indigenousProcess=std::make_unique<process::IndigenousJsonlProcess>(command);
 #else
@@ -114,16 +135,20 @@ Scrapling::Scrapling(const std::vector<std::string>& command, std::chrono::milli
   diagnosticReader=std::thread([this]{readDiagnostics();});
 #endif
   try {
+    started=true;
     auto initialized = request("initialize", {{"protocolVersion", "2025-03-26"}, {"capabilities", Json::object()},
-      {"clientInfo", {{"name", "batbox"}, {"version", "0.0.1"}}}});
+      {"clientInfo", {{"name", "batbox"}, {"version", "0.0.1"}}}},signal,
+      std::min<std::chrono::milliseconds>(timeout,std::chrono::seconds(60)));
     if (!initialized.contains("protocolVersion")) throw std::runtime_error("Scrapling initialization returned no protocol version");
     send({{"jsonrpc", "2.0"}, {"method", "notifications/initialized"}}, std::chrono::steady_clock::now()+timeout);
+  } catch(const ConnectorAbortError&) {
+    close(); throw;
   } catch(const std::exception& error) {
     const std::string reason=error.what();
     close();
     const auto diagnostic=stderrDiagnostic();
-    if(!diagnostic.empty())throw std::runtime_error(reason+"; server stderr: "+diagnostic);
-    throw std::runtime_error(reason);
+    if(!diagnostic.empty())throw std::runtime_error("Scrapling could not start: "+reason+"; server stderr: "+diagnostic);
+    throw std::runtime_error("Scrapling could not start: "+reason);
   } catch (...) { close(); throw; }
 }
 Scrapling::~Scrapling() { close(); }
@@ -175,6 +200,7 @@ std::string Scrapling::stderrDiagnostic()const{
   return value::decodeUtf8(result);
 }
 void Scrapling::close() noexcept {
+  started=false;
 #ifdef _WIN32
   if(indigenousProcess)indigenousProcess->close();
 #else
@@ -241,9 +267,10 @@ Json Scrapling::receive(std::chrono::steady_clock::time_point deadline,std::stop
   }
 #endif
 }
-Json Scrapling::request(const std::string& method, const Json& params,std::stop_token signal) {
+Json Scrapling::request(const std::string& method, const Json& params,std::stop_token signal,
+    std::optional<std::chrono::milliseconds> limit) {
   checkConnectorAbort(signal);
-  const auto deadline = std::chrono::steady_clock::now()+timeout;
+  const auto deadline = std::chrono::steady_clock::now()+limit.value_or(timeout);
   const auto id = ++nextId;
   send({{"jsonrpc","2.0"},{"id",id},{"method",method},{"params",params}},deadline,signal);
   try {while (true) {
@@ -283,9 +310,12 @@ std::unique_lock<std::timed_mutex> Scrapling::acquire(std::stop_token signal) {
   checkConnectorAbort(signal);
   return lock;
 }
-Json Scrapling::listGadgets(std::stop_token signal) { auto lock=acquire(signal); return request("tools/list",Json::object(),signal); }
+Json Scrapling::listGadgets(std::stop_token signal) {
+  auto lock=acquire(signal); ensureRunning(signal);
+  return request("tools/list",Json::object(),signal);
+}
 Json Scrapling::callGadget(const std::string& name, const Json& arguments,std::stop_token signal) {
-  auto lock=acquire(signal);
+  auto lock=acquire(signal); ensureRunning(signal);
   return request("tools/call",{{"name",name},{"arguments",arguments}},signal);
 }
 Json Scrapling::fetch(const std::string& url,std::stop_token signal) { return callGadget("make_request",{{"url",url},{"extraction_type","markdown"}},signal); }

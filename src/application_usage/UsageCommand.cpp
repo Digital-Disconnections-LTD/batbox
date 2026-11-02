@@ -1,4 +1,5 @@
 #include "application_usage/UsageCommand.hpp"
+#include "application_connectors/Status.hpp"
 #include "bats/ForkedBat.hpp"
 #include "formatting/Format.hpp"
 #include "application_engine/AutoPolicy.hpp"
@@ -385,6 +386,9 @@ std::string renderStatus(const Sources& sources,int width,bool verbose){
   if(selected&&!selected->wireModel.empty()&&selected->wireModel!=model)
     out<<" ("<<selected->wireModel<<")";
   out<<"\nEndpoint: "<<endpointLabel(sources,model)<<'\n';
+  if(const auto notice=application_connectors::webNotice(
+      application_connectors::webAvailability(sources.config));!notice.empty())
+    out<<"Web helpers: "<<notice<<" (details: /connectors)\n";
   if(sources.view){
     const auto last=lastUsage(sources);
     if(last.is_object()){

@@ -1,4 +1,5 @@
 #include "application_commands/Commands.hpp"
+#include "application_commands/ConnectorsCommand.hpp"
 #include "application_commands/CommandsMcp.hpp"
 #include "application_commands/MemoryPanel.hpp"
 #include "application_commands/ProjectCommand.hpp"
@@ -516,6 +517,12 @@ void Bundle::initialize(){
   if(inputs_.mcpRuntime)
     entries_.push_back(makeMcpCommand(router_,inputs_.mcpRuntime,
       inputs_.mcpAuthUi));
+  {
+    ConnectorsInputs connectors;
+    connectors.config=inputs_.config;connectors.mcpRuntime=inputs_.mcpRuntime;
+    connectors.interactive=!inputs_.config.print;
+    entries_.push_back(makeConnectorsCommand(inputs_.owner,router_,std::move(connectors)));
+  }
   if(inputs_.mcpRuntime)for(const auto& server:
       inputs_.mcpRuntime->manager()->snapshot()){
     if(server.type!="connected"||!server.commands.is_array())continue;

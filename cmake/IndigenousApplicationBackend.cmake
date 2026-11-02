@@ -40,7 +40,8 @@ target_link_libraries(batbox_application_shell PUBLIC batbox_shell batbox_shell_
   batbox_gadget_results batbox_glob batbox_event_loop)
 target_compile_options(batbox_application_shell PRIVATE -Wall -Wextra -Wpedantic)
 
-add_library(batbox_application_connectors src/application_connectors/Bootstrap.cpp)
+add_library(batbox_application_connectors src/application_connectors/Bootstrap.cpp
+  src/application_connectors/Status.cpp)
 target_link_libraries(batbox_application_connectors PUBLIC batbox_application_config
   batbox_connectors batbox_mcp batbox_event_loop)
 target_compile_options(batbox_application_connectors PRIVATE -Wall -Wextra -Wpedantic)

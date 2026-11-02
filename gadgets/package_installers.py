@@ -1,11 +1,11 @@
-"""Include the local installer matching a release package's platform."""
+"""Include the local installer, and on POSIX the web helper setup, for a release package."""
 from pathlib import Path
 import shutil
 
 
 def stage_installers(source: Path, stage: Path, platform: str) -> None:
     names = (["install-windows.ps1"] if platform == "windows" else
-             ["install-posix.sh", "install-linux.sh", "install-macos.sh"])
+             ["install-posix.sh", "install-linux.sh", "install-macos.sh", "setup-web.sh"])
     destination = stage / "gadgets"
     destination.mkdir(parents=True, exist_ok=True)
     for name in names:

@@ -11,7 +11,7 @@ Batbox keeps user configuration in `~/.batbox/` on Linux and macOS, or
 | `skills/<name>/SKILL.md` | Reusable skills. |
 | `mcp.json` | MCP server connections. |
 | `BATBOX.md` and `rules/` | Instructions and project conventions. |
-| `searxng/settings.yml` | Optional local SearXNG endpoint discovery. |
+| `searxng/settings.yml` | Optional local SearXNG settings; Batbox reads its port. `batbox setup web` writes it. |
 
 A Bat definition is Markdown with frontmatter and poetry in its body:
 
