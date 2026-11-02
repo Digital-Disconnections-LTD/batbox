@@ -130,13 +130,21 @@ std::optional<double> getRateLimitResetDelayMs(const ErrorRecord& error, Depende
   return std::min(delayMs,PERSISTENT_RESET_CAP_MS);
 }
 double getMaxRetries(const RetryOptions& options, const Dependencies& deps) {
-  return options.maxRetries.value_or(getDefaultMaxRetries(deps));
+  const double configured=options.maxRetries.value_or(getDefaultMaxRetries(deps));
+  if (deps.maxRetriesCap && envString(deps,"BATBOX_MAX_RETRIES").empty())
+    return std::min(configured,*deps.maxRetriesCap);
+  return configured;
 }
 }
 bool shouldRetry(const ErrorRecord& error, Dependencies& deps) {
   // Rate-limit behavior comes from actual responses and retry policy.
   if (isPersistentRetryEnabled(deps) && internal::isTransientCapacityError(error)) return true;
   if (internal::envTruthy(deps,"BATBOX_REMOTE") && (error.status==401 || error.status==403)) return true;
+  // A rejected credential does not change between attempts.
+  if (error.status==401 || error.status==403) {
+    if (error.status==401 && deps.clearApiKeyHelperStash) deps.clearApiKeyHelperStash();
+    return false;
+  }
   if (internal::contains(error.message,"\"type\":\"overloaded_error\"")) return true;
   if (parseMaxTokensContextOverflowError(error,deps)) return true;
   const auto retryHeader=internal::headerGet(error.headers,deps.wire.shouldRetry);

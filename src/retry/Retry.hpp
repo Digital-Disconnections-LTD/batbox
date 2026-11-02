@@ -49,6 +49,11 @@ struct Dependencies {
   bool unattendedRetryFeature = false;
   bool bashClassifierFeature = false;
   bool disableKeepAliveOnStaleConnection = false;
+  // Short ladder for servers that answer quickly or not at all (local
+  // servers, translated providers): at most this many retries, unless
+  // BATBOX_MAX_RETRIES is set, and no wait longer than maxRetryDelayMs.
+  std::optional<double> maxRetriesCap;
+  std::optional<double> maxRetryDelayMs;
   std::function<Json()> getClient;
   std::function<Json(const Json&, double, const RetryContext&)> operation;
   std::function<void(const Json&)> yield;
