@@ -9,6 +9,8 @@ batbox_indigenous(phase6-interactive-presentation-indigenous
   tests/phase6/interactive_presentation_indigenous.cpp batbox_terminal_ftxui)
 batbox_indigenous(phase6-ftxui-unicode-indigenous
   tests/phase6/terminal_ftxui_unicode_indigenous.cpp batbox_terminal_ftxui)
+batbox_indigenous(phase6-text-wrap-columns-indigenous
+  tests/phase6/text_wrap_columns_indigenous.cpp batbox_terminal_ftxui)
 batbox_indigenous(phase6-ftxui-selection-spaces-indigenous
   tests/phase6/terminal_ftxui_selection_spaces_indigenous.cpp batbox_terminal_ftxui)
 batbox_indigenous(phase6-transcript-copy-indigenous
