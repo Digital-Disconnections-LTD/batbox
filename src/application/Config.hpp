@@ -13,6 +13,8 @@ struct InferenceProfile {
   // provider is the wire kind (anthropic, openai-chat, bedrock, vertex);
   // preset is the catalog id the endpoint came from; quirks tune openai-chat.
   std::string provider="anthropic",preset;
+  // Bedrock and Vertex: region (both) and project (Vertex).
+  std::string region,project;
   Json quirks=Json::object();
   Json headers=Json::object();
   std::size_t contextWindow=280000,maxOutputTokens=50000;
@@ -26,6 +28,7 @@ struct EndpointRecord {
   std::string label,baseUrl,messagesPath="/v1/messages",modelsPath;
   std::string authToken,apiKeyEnv,authHeader="authorization";
   std::string provider="anthropic",preset;
+  std::string region,project;
   Json quirks=Json::object();
   Json headers=Json::object();
   std::vector<std::string> models;

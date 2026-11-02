@@ -3,6 +3,7 @@
 #include "app_state/PermissionModeBridge.hpp"
 #include "app_state/provider/PermissionHelpers.hpp"
 #include "runtime/IndigenousPath.hpp"
+#include "providers/cloud/CloudKinds.hpp"
 #include "transport/WireClient.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
@@ -107,6 +108,7 @@ void applyConfig(Config& config,const Json& value){
       };
       field("model",profile.model);field("base_url",profile.baseUrl);
       field("provider",profile.provider);field("preset",profile.preset);
+      field("region",profile.region);field("project",profile.project);
       try{transport::validateProviderKind(profile.provider);}
       catch(const std::invalid_argument& error){
         throw std::invalid_argument("Profile "+it.key()+": "+error.what());
@@ -318,7 +320,8 @@ Config loadConfig(const std::vector<std::string>& arguments){
     if(requestedContext)selected.contextWindow=*requestedContext;
     if(requestedOutput)selected.maxOutputTokens=*requestedOutput;
     config.model=config.selectedProfile;
-    config.baseUrl=selected.baseUrl;
+    if(!selected.baseUrl.empty()||!providers::cloud::isCloudKind(selected.provider))
+      config.baseUrl=selected.baseUrl;
     config.authToken=selected.authToken;
     config.apiKeyHelper=selected.apiKeyHelper;
     config.contextWindow=selected.contextWindow;
@@ -344,7 +347,8 @@ Config loadConfig(const std::vector<std::string>& arguments){
     throw std::invalid_argument("--replay-user-messages requires stream-json input and output");
   if(!config.mcpServers.is_object()||!config.permissions.is_object())throw std::invalid_argument("MCP servers and permissions must be JSON objects");
   for(const auto& [name,profile]:config.profiles){
-    if(profile.model.empty()||profile.baseUrl.empty()||profile.messagesPath.empty()||
+    if(profile.model.empty()||(profile.baseUrl.empty()&&!providers::cloud::isCloudKind(profile.provider))||
+       profile.messagesPath.empty()||
        profile.messagesPath.front()!='/')
       throw std::invalid_argument("Profile needs model, base_url, and absolute messages_path: "+name);
     if(profile.authHeader!="authorization"&&profile.authHeader!="x-api-key"&&

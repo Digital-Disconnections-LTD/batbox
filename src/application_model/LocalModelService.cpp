@@ -1,6 +1,7 @@
 #include "application_model/Internal.hpp"
 #include "query/SimpleQueriesBinding.hpp"
 #include "runtime/Platform.hpp"
+#include "providers/cloud/CloudKinds.hpp"
 #include "transport/WireClient.hpp"
 #include <future>
 #include <stdexcept>
@@ -34,7 +35,7 @@ void validate(const Config& config,const Imports& imports){
     if(profile.id!=name||profile.contextTokens<=0||
        profile.maxOutputTokens<=0)
       throw std::invalid_argument("Invalid local model profile: "+name);
-    if(profile.client&&(profile.client->baseUrl.empty()||
+    if(profile.client&&((profile.client->baseUrl.empty()&&!providers::cloud::isCloudKind(profile.provider))||
        profile.client->messagesPath.empty()))
       throw std::invalid_argument("Missing Messages path for profile: "+name);
     if(profile.authHeader!="authorization"&&profile.authHeader!="x-api-key"&&
@@ -102,7 +103,8 @@ void LocalModelService::upsertRuntimeProfile(ModelProfile profile,std::string au
   if(!owner_.isOwnerThread())throw std::logic_error("Runtime model changes require owner loop");
   if(profile.id.empty()||profile.wireModel.empty()||profile.contextTokens<=0||
       profile.maxOutputTokens<=0||!profile.client||
-      profile.client->baseUrl.empty()||profile.client->messagesPath.empty())
+      (profile.client->baseUrl.empty()&&!providers::cloud::isCloudKind(profile.provider))||
+      profile.client->messagesPath.empty())
     throw std::invalid_argument("Incomplete runtime model profile");
   if(profile.authHeader!="authorization"&&profile.authHeader!="x-api-key"&&
       profile.authHeader!="none")
