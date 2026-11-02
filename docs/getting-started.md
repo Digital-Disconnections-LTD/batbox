@@ -1,8 +1,9 @@
 # Your first flight 🦇
 
-You need a Batbox package for your operating system and a model server that
-supports **Anthropic Messages streaming**. A server offering only OpenAI chat
-completions is not enough for this client.
+You need a Batbox package for your operating system and a model server. Batbox
+talks to **Anthropic Messages** servers natively and to **OpenAI-compatible**
+servers through its translator, and it ships with a catalog of 238 providers,
+from OpenCode Zen and OpenRouter to a llama.cpp server on your own machine.
 
 ## Unpack and get comfortable
 
@@ -46,7 +47,15 @@ which one you have. If you also used the package installer, remove
 
 ## Connect your model
 
-Batbox reads `native-client.json` from your home directory’s `.batbox` folder:
+Start `batbox`. With nothing configured, the provider picker opens by itself:
+choose a server it found on your machine or a provider from the catalog, give it
+a key (or let Batbox use one from your environment), test the connection and
+pick a model. Run `/providers` any time to add another. [Providers](providers.md)
+walks through every step, and `batbox providers add <id>` does the same from a
+script.
+
+To write the file by hand instead, Batbox reads `native-client.json` from your
+home directory’s `.batbox` folder:
 
 | Platform | Configuration file |
 | --- | --- |
