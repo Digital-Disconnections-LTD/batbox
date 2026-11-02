@@ -75,8 +75,9 @@ int main(){
     check(claude&&claude->toolCall&&claude->reasoning,"Claude Sonnet flags");
     check(bp::describeModel(*claude)=="1M context · 128K output · tools · reasoning · images",
       "model description: "+bp::describeModel(*claude));
-    check(bp::compactTokens(131072)=="131K"&&bp::compactTokens(1048576)=="1M"&&
-      bp::compactTokens(1500000)=="1.5M","token formatting");
+    check(bp::compactTokens(131072)=="128K"&&bp::compactTokens(65536)=="64K"&&
+      bp::compactTokens(1048576)=="1M"&&bp::compactTokens(200000)=="200K"&&
+      bp::compactTokens(1500000)=="1.5M"&&bp::compactTokens(900)=="900","token formatting");
 
     // URL placeholders resolve from the environment or stay for editing.
     const auto& databricks=*catalog.find("databricks");

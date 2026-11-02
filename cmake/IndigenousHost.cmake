@@ -13,7 +13,7 @@ target_link_libraries(batbox_indigenous_host PUBLIC
   batbox_application_gadgets batbox_application_runtime
   batbox_application_frontend batbox_application_presentation
   batbox_application_commands batbox_application_restore batbox_application_cli
-  batbox_application_memory)
+  batbox_application_memory batbox_providers)
 target_compile_options(batbox_indigenous_host PRIVATE -Wall -Wextra -Wpedantic)
 set(BATBOX_SETUP_WEB_SOURCE ${CMAKE_SOURCE_DIR}/gadgets/setup-web.sh)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${BATBOX_SETUP_WEB_SOURCE})
@@ -23,7 +23,7 @@ configure_file(src/application/SetupWebScript.hpp.in
 add_library(batbox_subcommands STATIC src/application/Subcommands.cpp)
 target_include_directories(batbox_subcommands PRIVATE ${CMAKE_BINARY_DIR}/generated)
 target_link_libraries(batbox_subcommands PUBLIC batbox_application_config
-  batbox_application_connectors)
+  batbox_application_connectors batbox_providers)
 target_compile_options(batbox_subcommands PRIVATE -Wall -Wextra)
 add_executable(batbox src/application/main.cpp)
 target_link_libraries(batbox PRIVATE batbox_indigenous_host batbox_subcommands)

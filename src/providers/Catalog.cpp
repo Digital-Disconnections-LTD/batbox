@@ -102,8 +102,34 @@ const Catalog& bundledCatalog(){
   return catalog;
 }
 
+std::string catalogSection(const CatalogProvider& provider){
+  if(!provider.supported())return "Unsupported yet";
+  if(provider.local)return "Local servers";
+  return "Cloud";
+}
+
+std::string kindLabel(const std::string& kind){
+  if(kind=="anthropic")return "Anthropic Messages";
+  if(kind=="openai-chat")return "OpenAI Chat (translated)";
+  if(kind=="bedrock")return "AWS Bedrock";
+  if(kind=="vertex")return "Google Vertex";
+  return "unsupported";
+}
+
+std::string shortKindLabel(const std::string& kind){
+  if(kind=="anthropic")return "Anthropic API";
+  if(kind=="openai-chat")return "OpenAI chat";
+  if(kind=="bedrock")return "Bedrock";
+  if(kind=="vertex")return "Vertex";
+  return "unsupported";
+}
+
 std::string compactTokens(std::size_t tokens){
+  // Limits are often powers of two: 65536 reads as 64K, 1048576 as 1M.
+  if(tokens>=1048576&&tokens%1048576==0)return std::to_string(tokens/1048576)+"M";
   if(tokens>=1000000&&tokens%1000000==0)return std::to_string(tokens/1000000)+"M";
+  if(tokens>=1000&&tokens<1000000&&tokens%1000!=0&&tokens%1024==0)
+    return std::to_string(tokens/1024)+"K";
   if(tokens>=1000000){
     const auto tenths=(tokens+50000)/100000;
     return std::to_string(tenths/10)+(tenths%10?"."+std::to_string(tenths%10):"")+"M";

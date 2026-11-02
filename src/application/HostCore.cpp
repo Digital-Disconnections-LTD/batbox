@@ -486,6 +486,13 @@ int Host::run(){
       });
   };
   const auto begin=[&host,submitInitial,startFresh]{
+    if(host.config.providerSetup){
+      startFresh();
+      if(!host.commands||!host.commands->openUiCommand("providers"))
+        host.report(std::make_exception_ptr(std::runtime_error(
+          "The provider picker could not be opened; use /providers")));
+      return;
+    }
     if(host.config.resumePicker){
       startFresh();
       if(!host.commands||!host.commands->openUiCommand("resume"))

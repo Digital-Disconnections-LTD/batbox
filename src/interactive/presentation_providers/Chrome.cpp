@@ -641,8 +641,9 @@ std::vector<ftxui::Element> welcomeCard(const ChromeServices& imports,
   std::vector<ftxui::Element> rows;
   rows.push_back(joinSegments(facts,roles," · ")|ftxui::hcenter);
   if(const auto notice=imports.notice?imports.notice():std::string{};!notice.empty())
-    rows.push_back(tone(ftxui::text(truncateColumns(notice,width)),roles.muted,roles,true)|
-      ftxui::hcenter);
+    for(const auto& line:splitBody(notice))
+      if(!line.empty())rows.push_back(tone(ftxui::text(truncateColumns(line,width)),
+        roles.muted,roles,true)|ftxui::hcenter);
   if(!tips)return rows;
   rows.push_back(ftxui::text(""));
   const std::string version=BATBOX_VERSION;

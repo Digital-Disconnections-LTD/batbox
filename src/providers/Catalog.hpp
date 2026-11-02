@@ -41,6 +41,12 @@ std::string bundledCatalogText();
 std::size_t catalogChunkCount();
 const char* catalogChunk(std::size_t index);
 std::size_t catalogBytes();
+// "Cloud", "Local servers" or "Unsupported yet".
+std::string catalogSection(const CatalogProvider& provider);
+// "Anthropic Messages", "OpenAI Chat (translated)", "AWS Bedrock", ...
+std::string kindLabel(const std::string& kind);
+// The same in a word or two for narrow lists: "Anthropic", "OpenAI chat".
+std::string shortKindLabel(const std::string& kind);
 // "200K context · 64K output · tools · reasoning"
 std::string describeModel(const CatalogModel& model);
 std::string compactTokens(std::size_t tokens);

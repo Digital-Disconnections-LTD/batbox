@@ -3,6 +3,7 @@
 // permission provider and the default Gadget view builders.
 #include "GoldenFrame.hpp"
 #include "application_commands/ConnectorsCommand.hpp"
+#include "application_commands/ProvidersCommand.hpp"
 #include "application_gadgets/DefaultInputs.hpp"
 #include "application_permissions/PermissionProvider.hpp"
 #include "application_presentation/Bindings.hpp"
@@ -11,7 +12,9 @@
 #include "interactive/message_view/RetainedViews.hpp"
 #include "interactive/presentation_providers/StyleRoles.hpp"
 #include <ftxui/screen/terminal.hpp>
+#include <chrono>
 #include <iostream>
+#include <thread>
 #include <stdexcept>
 
 using namespace batbox;
@@ -233,6 +236,123 @@ golden::Frame inputScene(Fixture& fixture){
   fixture.state.loading=false;
   return golden::render(ftxui::vbox(std::move(rows)),80,8);
 }
+
+// A small fixed catalog keeps these frames stable when the bundled one is
+// regenerated from models.dev.
+const char* providersCatalog=R"CAT({"defaults":{"context":131072,"output":16384},"providers":[
+{"id":"opencode","name":"OpenCode Zen","kind":"anthropic","base_url":"https://opencode.ai/inference",
+ "messages_path":"/anthropic/v1/messages","models_path":"/v1/models","key_env":["OPENCODE_API_KEY"],
+ "auth":"key","auth_header":"authorization","models":[["claude-sonnet-5-5","Claude Sonnet 5.5",1000000,128000,"trip"]]},
+{"id":"anthropic","name":"Anthropic","kind":"anthropic","base_url":"https://api.anthropic.com",
+ "messages_path":"/v1/messages","key_env":["ANTHROPIC_API_KEY"],"auth":"key","auth_header":"x-api-key","models":[]},
+{"id":"openrouter","name":"OpenRouter","kind":"anthropic","base_url":"https://openrouter.ai",
+ "messages_path":"/api/v1/messages","models_path":"/api/v1/models","key_env":["OPENROUTER_API_KEY"],
+ "auth":"key","auth_header":"authorization","doc":"https://openrouter.ai/keys","models":[
+ ["qwen/qwen3-coder","Qwen3 Coder",262144,65536,"t"],["anthropic/claude-sonnet-5.5","Claude Sonnet 5.5",1000000,128000,"trip"],
+ ["deepseek/deepseek-v4-pro","DeepSeek V4 Pro",1048576,393216,"tr"]]},
+{"id":"github-copilot","name":"GitHub Copilot","kind":"anthropic","base_url":"https://api.githubcopilot.com",
+ "messages_path":"/v1/messages","auth":"oauth-device","models":[]},
+{"id":"groq","name":"Groq","kind":"openai-chat","base_url":"https://api.groq.com/openai",
+ "messages_path":"/v1/chat/completions","key_env":["GROQ_API_KEY"],"auth":"key","models":[]},
+{"id":"ollama","name":"Ollama","kind":"anthropic","base_url":"http://127.0.0.1:11434","messages_path":"/v1/messages",
+ "auth":"none","auth_header":"none","local":true,"models":[]},
+{"id":"llama.cpp","name":"llama.cpp (llama-server)","kind":"anthropic","base_url":"http://127.0.0.1:9931",
+ "messages_path":"/v1/messages","auth":"none","auth_header":"none","local":true,"models":[]},
+{"id":"perplexity","name":"Perplexity","kind":"unsupported","reason":"Uses its own protocol; not supported yet.",
+ "auth":"key","models":[]}]})CAT";
+
+struct ProvidersScenes {golden::Frame list,key,models,saved;std::string notice;};
+ProvidersScenes providersScenes(Fixture& fixture){
+  static const auto catalog=providers::parseCatalog(Json::parse(providersCatalog));
+  application_commands::ProvidersInputs inputs;
+  inputs.catalog=&catalog;inputs.animate=false;
+  inputs.environment=[](const std::string& name)->std::optional<std::string>{
+    if(name=="GROQ_API_KEY")return std::string("set");
+    return std::nullopt;};
+  inputs.activeProfile=[]{return std::string("home-vllm::qwen3-coder");};
+  inputs.discover=[]{
+    providers::LocalServer ollama;
+    ollama.preset="ollama";ollama.name="Ollama";ollama.baseUrl="http://127.0.0.1:11434";
+    ollama.port=11434;ollama.models={"qwen3-coder:30b","gemma4:31b","llama3.3:70b"};
+    return std::vector<providers::LocalServer>{ollama};
+  };
+  inputs.readEndpoints=[]{
+    application::EndpointRecord home;
+    home.label="Home vLLM";home.baseUrl="http://10.0.0.5:8000";
+    home.models={"qwen3-coder"};home.contextWindow=65536;home.maxOutputTokens=8192;
+    return std::map<std::string,application::EndpointRecord>{{"home-vllm",home}};
+  };
+  inputs.test=[](const application::EndpointRecord&){
+    providers::ConnectionResult result;
+    result.reached=result.ok=true;result.status=200;
+    result.models={"qwen/qwen3-coder","anthropic/claude-sonnet-5.5","deepseek/deepseek-v4-pro",
+      "mistralai/devstral-2"};
+    result.message="Connected to openrouter.ai · 4 models";
+    return result;
+  };
+  std::optional<std::string> savedProfile;
+  inputs.save=[&savedProfile](std::map<std::string,application::EndpointRecord> endpoints,
+      const std::string& id,application::EndpointRecord endpoint,const std::string& model){
+    check(endpoint.provider=="anthropic"&&endpoint.preset=="openrouter"&&
+      endpoint.authToken=="sk-or-v1-golden"&&endpoint.contextWindow==262144&&
+      endpoint.maxOutputTokens==65536,"saved OpenRouter record");
+    providers::SaveResult result;
+    result.endpointId=id;result.profile=id+"::"+model;result.endpoint=endpoint;
+    endpoints[id]=endpoint;result.endpoints=std::move(endpoints);
+    savedProfile=result.profile;
+    return result;
+  };
+  std::optional<UiRequest> shown;
+  interactive::CommandUi::Action act;
+  std::optional<std::string> finished;
+  application_commands::startProvidersDialog(fixture.loop,
+    application_commands::completeProvidersInputs(std::move(inputs)),
+    [&](interactive::CommandCompletion done){finished=done.result.value_or("");},
+    [&](std::optional<UiRequest> request,interactive::CommandUi::Action action){
+      shown=std::move(request);act=std::move(action);});
+  const auto settle=[&](const std::function<bool()>& ready,const std::string& what){
+    for(int i=0;i<400&&!ready();++i){
+      fixture.loop.runReady();
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    check(ready(),"providers dialog never reached "+what);
+  };
+  const auto frame=[&]{
+    fixture.state.modal=*shown;
+    auto view=fixture.view(80,24);
+    auto result=golden::render(fixture.shell.chrome.renderModal(view),80,22);
+    fixture.state.modal.reset();
+    return result;
+  };
+  const auto type=[&](const std::string& text){
+    act({UiAction::Kind::TextChange,0,text});
+  };
+  settle([&]{return shown&&shown->body.find("Looking")==std::string::npos&&
+    !shown->choices.empty()&&shown->choices.front()=="Ollama";},"discovered servers");
+  ProvidersScenes scenes;
+  scenes.list=frame();
+  type("router");
+  check(shown->choices.size()==1&&shown->choices.front()=="OpenRouter","search for OpenRouter");
+  act({UiAction::Kind::Activate,0,{}});
+  check(shown->id=="providers-key-input"&&shown->sensitiveInput,"masked key field");
+  type("sk-or-v1-golden");
+  scenes.key=frame();
+  check(scenes.key.text.find("sk-or")==std::string::npos,"the key must stay masked");
+  act({UiAction::Kind::Activate,0,{}});
+  check(shown->id=="providers-base-url"&&shown->body.find("https://openrouter.ai▌")!=std::string::npos,
+    "base URL prefilled");
+  act({UiAction::Kind::Activate,0,{}});
+  settle([&]{return shown->id=="providers-models";},"the model step");
+  scenes.models=frame();
+  act({UiAction::Kind::Activate,0,{}});
+  settle([&]{return finished.has_value();},"the saved notice");
+  scenes.notice=*finished;
+  check(savedProfile=="openrouter::qwen/qwen3-coder","saved profile");
+  fixture.status=scenes.notice;
+  scenes.saved=golden::render(fixture.shell.chrome.renderStatus(fixture.view(100,24)),100,1);
+  fixture.status.clear();
+  return scenes;
+}
 } // namespace
 
 int main(int argc,char** argv){
@@ -300,9 +420,24 @@ int main(int argc,char** argv){
           transcript.styles.find("fg=3")==std::string::npos,
           "monochrome painted an explicit color");
       }
+      const auto providers=providersScenes(fixture);
+      check(contains(providers.list,"Found on this machine")&&contains(providers.list,"Ollama")&&
+        contains(providers.list,"3 models")&&contains(providers.list,"Configured")&&
+        contains(providers.list,"active")&&contains(providers.list,"Cloud")&&
+        contains(providers.list,"key found"),theme+": provider list groups");
+      check(contains(providers.key,"OpenRouter  ·  API key")&&
+        contains(providers.key,"***************"),theme+": masked key step");
+      check(contains(providers.models,"qwen/qwen3-coder")&&contains(providers.models,"256K context · 64K output")&&
+        contains(providers.models,"tools · reasoning")&&contains(providers.models,"mistralai/devstral-2"),
+        theme+": model step merges the live list with catalog limits");
+      check(providers.notice=="Added openrouter · qwen/qwen3-coder · /model to switch",
+        theme+": saved notice "+providers.notice);
+      check(contains(providers.saved,"Added openrouter"),theme+": saved notice in the status row");
       for(const auto& [scene,frame]:std::vector<std::pair<std::string,golden::Frame>>{
           {"welcome",welcome},{"transcript",transcript},{"gadgets",gadgets},
-          {"permission",permission},{"input",input}})
+          {"permission",permission},{"input",input},{"providers-list",providers.list},
+          {"providers-key",providers.key},{"providers-models",providers.models},
+          {"providers-saved",providers.saved}})
         passed=golden::compare(directory,scene+"-"+theme,frame)&&passed;
     }
     {
