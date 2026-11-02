@@ -52,6 +52,19 @@ class Batbox < Formula
     system "cmake", "--install", "build"
   end
 
+  def caveats
+    <<~EOS
+      Batbox talks to a model endpoint you configure. Point it at one first:
+        batbox            # opens the welcome screen; /config sets the endpoint and model
+      Docs: https://github.com/Digital-Disconnections-LTD/batbox/blob/main/docs/getting-started.md
+
+      Web search and page fetching are optional. To add them (no Docker needed):
+        batbox setup web
+      Check what is wired up at any time with:
+        batbox doctor
+    EOS
+  end
+
   test do
     assert_match(/^batbox \d+\.\d+\.\d+$/, shell_output("#{bin}/batbox --version"))
     assert_match "Usage: batbox", shell_output("#{bin}/batbox --help")
