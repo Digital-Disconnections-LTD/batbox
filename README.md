@@ -147,16 +147,76 @@ Batbox connects to them. Give their communities some love, too.
 
 ## Take a Flight
 
-On macOS, let Homebrew carry the bat:
+Pick your platform, install, then set Batbox up once. Packages live on the
+[latest release](https://github.com/Digital-Disconnections-LTD/batbox/releases/latest).
+The commands below fetch 0.1.0; replace 0.1.0 with the current version if the
+release page shows a newer one.
+
+**macOS.** Let Homebrew carry the bat:
 
 ```sh
 brew install digital-disconnections-ltd/batbox/batbox
 ```
 
-Not on a Mac, or prefer the package? Run the installer for your platform
-(`gadgets/install-macos.sh`, `gadgets/install-linux.sh` or
-`gadgets\install-windows.ps1`). Then connect your backend and launch Batbox in
-your project. The [first Flight guide](docs/getting-started.md) walks through it.
+There are no bottles yet, so Homebrew compiles Batbox; give it a few minutes.
+
+Prefer the package? It borrows Homebrew's libraries, so add those first. Use
+`macos-arm64` on Apple silicon and `macos-x86_64` on Intel:
+
+```sh
+brew install cmark-gfm curl icu4c@79 libuv openssl@3 pcre2 ripgrep vips yaml-cpp
+curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.0/batbox-0.1.0-macos-arm64.tar.gz
+tar -xzf batbox-0.1.0-macos-arm64.tar.gz
+cd batbox-macos-arm64-preview
+bash gadgets/install-macos.sh
+```
+
+**Linux** (x86_64, built on Ubuntu 24.04). The package uses your system's shared
+libraries rather than bundling them, so install those too:
+
+```sh
+sudo apt install git ripgrep libcmark-gfm-extensions0.29.0.gfm.6 libcurl4t64 libpcre2-16-0 libuv1t64 libvips42t64 libyaml-cpp0.8
+curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.0/batbox-0.1.0-linux-x86_64.tar.gz
+tar -xzf batbox-0.1.0-linux-x86_64.tar.gz
+cd batbox-linux-x86_64-preview
+bash gadgets/install-linux.sh
+```
+
+On another distribution, install the same libraries under its names;
+`DEPENDENCIES.txt` in the package lists every one. [Batbox on
+Linux](docs/indigenous-linux.md) has more.
+
+**Windows** (x86_64). The Windows package is not attached to this release
+yet, so for now [build it from source](docs/BUILDING.md) with MSYS2 UCRT64.
+Once a release carries the zip, install it from PowerShell:
+
+```powershell
+winget install Git.Git
+winget install BurntSushi.ripgrep.MSVC
+Invoke-WebRequest https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.0/batbox-0.1.0-windows-x86_64.zip -OutFile batbox.zip
+Expand-Archive batbox.zip -DestinationPath .
+cd batbox-windows-x86_64-preview
+powershell -ExecutionPolicy Bypass -File .\gadgets\install-windows.ps1
+```
+
+Git for Windows gives the coding Gadgets their Bash and ripgrep does the
+searching; the DLLs Batbox needs ride along in the zip. [Batbox on
+Windows](docs/indigenous-windows.md) has more.
+
+Whichever path you took, open a new terminal so `batbox` is on your PATH.
+
+**Then, for everyone:**
+
+```sh
+batbox             # opens the welcome screen; /config points it at your model
+batbox setup web   # optional: web search and page fetching, no Docker needed
+batbox doctor      # checks what is wired up
+```
+
+The [first Flight guide](docs/getting-started.md) walks through endpoints and
+keys. `batbox setup web` covers macOS and Linux today; on Windows, follow the
+manual steps in [Web helpers](docs/connectors.md). Then launch Batbox in your
+project:
 
 ```sh
 batbox --cwd /path/to/project
@@ -167,6 +227,9 @@ Inside the app, `/help` is your map, `/config` connects your model, and `/bats`
 introduces the crew. `/permissions` chooses how freely the Flight can run.
 Use `batbox --yolo` to skip Gadget approval dialogs for the whole Flight.
 `/monster` has a little surprise.
+
+Building from source? The [developer build reference](docs/BUILDING.md) has
+the recipes.
 
 This is a **community project**. Packaging, desktop integration, and release
 acceptance are still being finished. See the [roadmap](ROADMAP.md) before relying

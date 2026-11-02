@@ -1,26 +1,45 @@
 # Your first flight 🦇
 
-You need a Batbox package for your operating system and a model server that
-supports **Anthropic Messages streaming**. A server offering only OpenAI chat
+You need Batbox for your operating system and a model server that supports
+**Anthropic Messages streaming**. A server offering only OpenAI chat
 completions is not enough for this client.
 
 ## Unpack and get comfortable
+
+On macOS, [Homebrew](#homebrew-on-macos) is the easy road. Otherwise, download
+the package for your platform from the
+[latest release](https://github.com/Digital-Disconnections-LTD/batbox/releases/latest)
+(replace 0.1.0 with the current version):
+
+| Platform | Package |
+| --- | --- |
+| macOS, Apple silicon | `batbox-0.1.0-macos-arm64.tar.gz` |
+| macOS, Intel | `batbox-0.1.0-macos-x86_64.tar.gz` |
+| Linux x86_64 | `batbox-0.1.0-linux-x86_64.tar.gz` |
+| Windows x86_64 | `batbox-0.1.0-windows-x86_64.zip` |
+
+The 0.1.0 release does not carry the Windows zip yet; until one does, Windows
+users build from source with the [developer build reference](BUILDING.md).
+
+`SHA256SUMS` on the same page lets you check the download. The macOS packages
+use Homebrew's libraries and the Linux package uses your system's; the
+[README](../README.md#take-a-flight) has the one-line installs for both.
 
 Keep the package folders together. On Linux and macOS, the executable is
 `bin/batbox`; on Windows it is `bin/batbox.exe`. The Windows `bin/` and `etc/`
 folders belong next to each other, so the DLLs and certificate bundle stay where
 the app expects them.
 
-From the extracted folder, run your installer:
+Extract the archive, change into the folder it creates, and run your installer:
 
 | Platform | Install command |
 | --- | --- |
 | macOS | `bash gadgets/install-macos.sh` |
 | Linux | `bash gadgets/install-linux.sh` |
-| Windows PowerShell | `.\gadgets\install-windows.ps1` |
+| Windows PowerShell | `powershell -ExecutionPolicy Bypass -File .\gadgets\install-windows.ps1` |
 
 The installer keeps the package together and puts `batbox` on your user PATH.
-Open a new terminal on Linux or macOS, then type `batbox` from any project.
+Open a new terminal afterwards, then type `batbox` from any project.
 No administrator access is needed. Your settings stay in `.batbox` at home.
 The same scripts work from a source checkout after its build prerequisites are
 installed; they compile Batbox before installing it.
