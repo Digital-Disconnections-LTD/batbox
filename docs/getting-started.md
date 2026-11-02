@@ -30,6 +30,20 @@ Scrapling and its MCP dependencies available through `scrapling_command` or PATH
 The [platform guides](README.md#your-platform-your-terminal) cover runtime details.
 A source checkout needs the separate [developer build reference](BUILDING.md).
 
+### Homebrew on macOS
+
+With [Homebrew](https://brew.sh), you can skip the package and install from the
+project tap instead:
+
+```sh
+brew install digital-disconnections-ltd/batbox/batbox
+```
+
+Homebrew lowercases the tap owner's name. Add `--HEAD` to build the latest `main`
+branch. `brew upgrade batbox` picks up new releases, and `batbox --version` shows
+which one you have. If you also used the package installer, remove
+`~/.local/bin/batbox` so the Homebrew command is the one on your PATH.
+
 ## Connect your model
 
 Batbox reads `native-client.json` from your home directory’s `.batbox` folder:
