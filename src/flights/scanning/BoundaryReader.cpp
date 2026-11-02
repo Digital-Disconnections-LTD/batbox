@@ -20,7 +20,7 @@ constexpr std::string_view boundaryMarker="\"compact_boundary\"";
 class ReadDescriptor {
  public:
 #if defined(_WIN32)
-  explicit ReadDescriptor(const std::string& path):input_(indigenousPath(path),
+  explicit ReadDescriptor(const std::string& path):input_(indigenousFilePath(path),
       std::ios::binary){
     if(!input_)throw std::system_error(errno,std::generic_category(),"open transcript");
   }

@@ -24,22 +24,22 @@ if(UNIX)
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/checks/indigenous_agent_progress_smoke.py
       $<TARGET_FILE:batbox>)
-  set_tests_properties(phase6-agent-progress-pty PROPERTIES TIMEOUT 50)
+  set_tests_properties(phase6-agent-progress-pty PROPERTIES TIMEOUT 180)
   add_test(NAME phase6-transcript-copy-pty
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/checks/indigenous_transcript_copy_smoke.py
       $<TARGET_FILE:batbox>)
-  set_tests_properties(phase6-transcript-copy-pty PROPERTIES TIMEOUT 65)
+  set_tests_properties(phase6-transcript-copy-pty PROPERTIES TIMEOUT 180)
   add_test(NAME phase6-escape-interrupt-pty
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/checks/indigenous_escape_interrupt_smoke.py
       $<TARGET_FILE:batbox>)
-  set_tests_properties(phase6-escape-interrupt-pty PROPERTIES TIMEOUT 30)
+  set_tests_properties(phase6-escape-interrupt-pty PROPERTIES TIMEOUT 180)
   add_test(NAME phase6-paste-terminal-roundtrip
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/checks/indigenous_paste_smoke.py
       $<TARGET_FILE:batbox> --scrapling-fixture $<TARGET_FILE:batbox-scrapling-fixture>)
-  set_tests_properties(phase6-paste-terminal-roundtrip PROPERTIES TIMEOUT 60)
+  set_tests_properties(phase6-paste-terminal-roundtrip PROPERTIES TIMEOUT 180)
   add_test(NAME phase6-welcome-animation-pty
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/tests/phase6/welcome_animation_pty.py

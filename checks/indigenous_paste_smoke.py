@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """Exercise large Unicode pastes in a real POSIX terminal and Messages request."""
 import argparse
-import errno
-import fcntl
 import http.server
 import json
-import os
 from pathlib import Path
-import pty
-import select
-import signal
-import struct
 import tempfile
-import termios
 import threading
-import time
+
+from loopback_http import LoopbackHTTPServer
+from pty_smoke import PtySession, child_environment
 
 
 def run(binary, scrapling_fixture, artifacts=None):
@@ -71,7 +65,7 @@ def run(binary, scrapling_fixture, artifacts=None):
         root = Path(temporary)
         config = root / "config"
         config.mkdir()
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        server = LoopbackHTTPServer(("127.0.0.1", 0), Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         (config / "native-client.json").write_text(json.dumps({
@@ -79,58 +73,27 @@ def run(binary, scrapling_fixture, artifacts=None):
             "scrapling_command": str(scrapling_fixture), "mcpServers": {},
             "state_directory": str(root / "state"), "fullscreen": True, "auto_title": False,
         }))
-        pid, master = pty.fork()
-        if pid == 0:
-            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
-            for name in list(os.environ):
-                if name.startswith("BATBOX_"):
-                    del os.environ[name]
-            os.environ.update(TERM="xterm-256color", BATBOX_CONFIG_DIR=str(config))
-            os.execl(str(binary), str(binary), "--cwd", str(root))
-        output = bytearray()
-        status = None
-
-        def drain(seconds):
-            nonlocal status
-            deadline = time.monotonic() + seconds
-            while time.monotonic() < deadline and status is None:
-                if select.select([master], [], [], 0.02)[0]:
-                    try:
-                        output.extend(os.read(master, 65536))
-                    except OSError as error:
-                        if error.errno != errno.EIO:
-                            raise
-                finished, result = os.waitpid(pid, os.WNOHANG)
-                if finished:
-                    status = result
-
-        def wait_for(marker):
-            deadline = time.monotonic() + 15
-            while marker not in output and status is None and time.monotonic() < deadline:
-                drain(0.05)
-            if marker not in output or status is not None:
-                raise RuntimeError(f"Terminal did not reach {marker!r}; status={status}")
-
-        def send(data):
-            if status is not None:
-                raise RuntimeError("Terminal exited during paste")
-            os.write(master, data)
-            drain(0.08)
+        terminal = PtySession([str(binary), "--cwd", str(root)], child_environment(config))
+        send = terminal.send
+        marker = b"[Pasted text #"
+        chip = f"({len(normalized)} characters)]".encode()
 
         def paste():
             wire = b"\x1b[200~" + payload.encode() + b"\x1b[201~"
-            # Force a read boundary after the first byte of an em dash.
+            before = len(terminal.output)
+            # Ask for a read boundary after the first byte of an em dash. The
+            # pause only makes the split likely; correctness never depends on it.
             split = wire.index("—".encode()) + 1
-            send(wire[:split])
-            for offset in range(split, len(wire), 1009):
-                send(wire[offset:offset + 1009])
+            send(wire[:split], settle=0.2)
+            terminal.write(wire[split:])
+            terminal.wait_for(lambda: marker in terminal.output[before:] and
+                              chip in terminal.output[before:], "paste chip")
 
         try:
-            wait_for(b"\x1b[?2004h")
-            wait_for(b"paste-fixture")
+            terminal.wait_for(lambda: b"\x1b[?2004h" in terminal.output and
+                              b"paste-fixture" in terminal.output, "terminal startup")
             send(b"before ")
             paste()
-            wait_for(f"[Pasted text #1 ({len(normalized)} characters)]".encode())
             send(b"\x1b[D\x1b[3~")  # Left skips the chip; Delete removes it.
             send(b"middle ")
             paste()
@@ -141,33 +104,30 @@ def run(binary, scrapling_fixture, artifacts=None):
             send(b"\x1b[C")
             send(b" after")
             if artifacts:
-                artifacts.mkdir(parents=True, exist_ok=True)
-                (artifacts / "paste-before-resize.terminal").write_bytes(output)
-            fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", 12, 40, 0, 0))
-            os.kill(pid, signal.SIGWINCH)
-            drain(0.3)
+                (artifacts / "paste-before-resize.terminal").write_bytes(terminal.output)
+            before_resize = len(terminal.output)
+            terminal.resize(12, 40)
+            terminal.wait_for(lambda: len(terminal.output) > before_resize, "redraw after resize")
+            terminal.drain(0.3)
             if requests:
                 raise RuntimeError("Paste submitted before Enter")
             send(b"\r")
-            wait_for(b"PASTE_ROUND_TRIP_OK")
+            terminal.wait_for(lambda: b"PASTE_ROUND_TRIP_OK" in terminal.output, "model response")
             send(b"/exit\r")
-            drain(3)
-            if status is None or os.waitstatus_to_exitcode(status) != 0:
-                raise RuntimeError(f"Terminal did not exit cleanly: {status}")
+            code = terminal.wait_for_exit()
+            if code != 0:
+                raise RuntimeError(f"Terminal did not exit cleanly: {terminal.status}")
             if errors or len(requests) != 1:
                 raise RuntimeError(json.dumps({"errors": errors, "requests": len(requests)}))
-            if b"\x1b[?2004l" not in output:
+            if b"\x1b[?2004l" not in terminal.output:
                 raise RuntimeError("Bracketed paste mode not restored on exit")
             print(json.dumps({"passed": True, "characters": len(normalized),
                               "requests": len(requests), "unicodeReadBoundary": True,
                               "atomicNavigationAndDeletion": True, "resize": True}))
         finally:
             if artifacts:
-                (artifacts / "paste-terminal.log").write_bytes(output)
-            if status is None:
-                os.kill(pid, signal.SIGKILL)
-                os.waitpid(pid, 0)
-            os.close(master)
+                (artifacts / "paste-terminal.log").write_bytes(terminal.output)
+            terminal.close()
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)

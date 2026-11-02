@@ -14,7 +14,7 @@ QueueServices indigenousQueueServices() {
   QueueServices services;
   services.appendFile=[](const std::string& file,const std::string& content){
 #if defined(_WIN32)
-    std::ofstream output(indigenousPath(file),std::ios::binary|std::ios::app);
+    std::ofstream output(indigenousFilePath(file),std::ios::binary|std::ios::app);
     if(!output)throw std::system_error(errno,std::generic_category(),"appendFile");
     output.write(content.data(),static_cast<std::streamsize>(content.size()));
     output.close();
@@ -34,7 +34,7 @@ QueueServices indigenousQueueServices() {
   };
   services.mkdir=[](const std::string& directory){
 #if defined(_WIN32)
-    std::filesystem::create_directories(indigenousPath(directory));
+    std::filesystem::create_directories(indigenousFilePath(directory));
 #else
     // mkdir({recursive:true,mode:0700}) applies mode to newly created parents.
     std::filesystem::path current;

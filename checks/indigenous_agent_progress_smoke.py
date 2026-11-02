@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """Foreground agents show compact progress while the lead waits for results."""
-import errno
-import fcntl
 import http.server
 import json
-import os
 from pathlib import Path
-import pty
-import select
-import signal
-import struct
 import sys
 import tempfile
-import termios
 import threading
-import time
+
+from loopback_http import LoopbackHTTPServer
+from pty_smoke import PtySession, STEP_SECONDS, child_environment
 
 
 def main(binary):
@@ -90,7 +84,7 @@ def main(binary):
                     "usage": {"output_tokens": 10}})
                 event({"type": "message_stop"})
 
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        server = LoopbackHTTPServer(("127.0.0.1", 0), Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         config = root / "config"
@@ -101,42 +95,17 @@ def main(binary):
             "context_window": 70000, "compact_at": 60000, "max_output_tokens": 2000,
             "permissions": {"defaultMode": "bypassPermissions"}, "thinking": False,
         }))
-        pid, master = pty.fork()
-        if pid == 0:
-            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 110, 0, 0))
-            env = {key: value for key, value in os.environ.items()
-                   if not key.startswith("BATBOX_") and key not in
-                   {"TMUX", "STY", "SSH_CONNECTION"}}
-            env.update(TERM="xterm-256color", BATBOX_CONFIG_DIR=str(config))
-            os.execve(str(binary), [str(binary), "--cwd", str(root)], env)
-        output = bytearray()
-        status = None
+        terminal = PtySession([str(binary), "--cwd", str(root)],
+                              child_environment(config), rows=30, columns=110)
+        output = terminal.output
+        drain = terminal.drain
 
-        def drain(seconds):
-            nonlocal status
-            deadline = time.monotonic() + seconds
-            while time.monotonic() < deadline and status is None:
-                if select.select([master], [], [], 0.02)[0]:
-                    try:
-                        output.extend(os.read(master, 65536))
-                    except OSError as error:
-                        if error.errno != errno.EIO:
-                            raise
-                finished, result = os.waitpid(pid, os.WNOHANG)
-                if finished:
-                    status = result
-
-        def wait_for(condition, label, seconds=12):
-            deadline = time.monotonic() + seconds
-            while not condition() and status is None and time.monotonic() < deadline:
-                drain(0.05)
-            if not condition():
-                raise RuntimeError(f"Timed out waiting for {label}; exit={status}; "
-                                   f"terminal_tail={output[-1800:]!r}")
+        def wait_for(condition, label, seconds=STEP_SECONDS):
+            terminal.wait_for(condition, label, seconds, tail=1800)
 
         try:
             wait_for(lambda: b"agent-fixture" in output, "startup")
-            os.write(master, b"Run two research agents\r")
+            terminal.write(b"Run two research agents\r")
             wait_for(lambda: len(waiting_children) == 2, "both child tool rounds")
             drain(0.2)
             for key in (b'"timestamp"', b'"progressMessages"', b'"agentId"'):
@@ -154,17 +123,13 @@ def main(binary):
                     raise RuntimeError("Lead did not receive both final results")
             if "agent_progress" in history or "CHILD_INTERNAL_OUTPUT" in history:
                 raise RuntimeError("Child progress leaked into the lead model request")
-            os.write(master, b"/exit\r")
-            wait_for(lambda: status is not None, "clean exit")
-            if os.waitstatus_to_exitcode(status) != 0:
-                raise RuntimeError(f"Batbox exited with {status}")
+            terminal.write(b"/exit\r")
+            if terminal.wait_for_exit() != 0:
+                raise RuntimeError(f"Batbox exited with {terminal.status}")
             print("Compact agent progress displayed; lead waited and received only final results")
         finally:
             release.set()
-            if status is None:
-                os.kill(pid, signal.SIGKILL)
-                os.waitpid(pid, 0)
-            os.close(master)
+            terminal.close()
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)

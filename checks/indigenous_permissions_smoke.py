@@ -6,7 +6,7 @@ isolated configuration and state directory; failures retain fixture artifacts.
 """
 import argparse
 from dataclasses import dataclass
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 import json
 import os
 from pathlib import Path
@@ -17,6 +17,8 @@ import subprocess
 import tempfile
 import threading
 from urllib.parse import parse_qs, urlsplit
+
+from loopback_http import LoopbackHTTPServer
 
 
 SEARCH_MARKER = "PERMISSION_FIXTURE_SEARCH_RESULT"
@@ -31,6 +33,7 @@ class Case:
     config_mode: str | None = None
     deny: bool = False
     cli_mode: str | None = None
+    unwritable_bat_transcript: bool = False
 
     @property
     def expect_search(self):
@@ -47,6 +50,30 @@ CASES = [
     )
     for kind, background in (("foreground", False), ("background", True))
 ]
+# A Bat whose transcript cannot be written must still finish its turn rather than
+# wait forever for the write. On POSIX a path just past PATH_MAX recreates what
+# MAX_PATH did to Bat transcripts on Windows.
+if os.name != "nt":
+    CASES += [Case(f"unwritable-bat-transcript-{kind}", background,
+                   config_mode="bypassPermissions", unwritable_bat_transcript=True)
+              for kind, background in (("foreground", False), ("background", True))]
+
+
+def state_directory(root, work, case):
+    if not case.unwritable_bat_transcript:
+        return root / "state"
+    # Bat transcripts live at <state>/projects/<project>/<flight>/subagents/
+    # agent-<bat>.jsonl. Leave room for the subagents directory but not the file.
+    limit = os.pathconf("/", "PC_PATH_MAX")
+    project = len(re.sub(r"[^A-Za-z0-9]", "-", str(work)))
+    if project > 200:
+        raise AssertionError("Fixture project path is too long: " + str(work))
+    length = limit - 20 - len("/projects/") - project - len("/" + "0" * 36 + "/subagents")
+    state = root / "state"
+    while len(str(state)) < length - 1:
+        state /= "d" * min(200, length - len(str(state)) - 1)
+    state.mkdir(parents=True)
+    return state
 
 
 def gadget_results(body):
@@ -221,8 +248,7 @@ def run_case(binary, case, root, timeout, scrapling_fixture):
                 errors.append(str(error))
                 self.send_error(500)
 
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    server.daemon_threads = True
+    server = LoopbackHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     config_dir = root / "config"
@@ -234,8 +260,9 @@ def run_case(binary, case, root, timeout, scrapling_fixture):
     if case.deny:
         permissions["deny"] = ["WebSearch"]
     endpoint = f"http://127.0.0.1:{server.server_port}"
+    state = state_directory(root, work, case)
     config = {"model": "permission-fixture", "base_url": endpoint,
-              "searxng_url": endpoint + "/search", "state_directory": str(root / "state"),
+              "searxng_url": endpoint + "/search", "state_directory": str(state),
               "mcpServers": {}, "thinking": False, "permissions": permissions,
               "context_window": 70000, "max_output_tokens": 1000, "compact_at": 60000}
     if scrapling_fixture:
@@ -270,13 +297,21 @@ def run_case(binary, case, root, timeout, scrapling_fixture):
             "errors": errors}, indent=2), encoding="utf-8")
         (root / "stdout.txt").write_text(output, encoding="utf-8")
         (root / "stderr.txt").write_text(error_output, encoding="utf-8")
-    failure = (timed_out or code != 0 or errors or FINAL_MARKER not in output or
+    # Batbox reports the lost Bat transcript at shutdown with a failing exit.
+    expected_exit = 1 if case.unwritable_bat_transcript else 0
+    failure = (timed_out or code != expected_exit or errors or FINAL_MARKER not in output or
                observations["childRequests"] != 2 or observations["childResult"] is None or
                len(searches) != int(case.expect_search))
     result = {"case": case.name, "passed": not bool(failure), "timedOut": timed_out,
               "exit": code, "modelRequests": len(requests), "searchRequests": len(searches),
               "childRequests": observations["childRequests"], "errors": errors,
               "cleanupWarnings": cleanup_warnings}
+    if failure:
+        native_log = state / "native.log"
+        if error_output:
+            result["stderrTail"] = error_output[-2000:]
+        if native_log.is_file():
+            result["nativeLogTail"] = native_log.read_text(encoding="utf-8", errors="replace")[-3000:]
     (root / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     return result
 

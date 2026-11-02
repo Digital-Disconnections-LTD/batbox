@@ -47,7 +47,7 @@ std::optional<std::string> extractLastJsonStringField(const std::string& text,co
 }
 std::string readFileTailSync(const std::string& file) {
 #if defined(_WIN32)
-  std::ifstream input(indigenousPath(file),std::ios::binary|std::ios::ate);
+  std::ifstream input(indigenousFilePath(file),std::ios::binary|std::ios::ate);
   if(!input)return "";
   const auto end=input.tellg();
   if(end<=0)return "";
@@ -76,7 +76,7 @@ void appendEntryToFile(const std::string& file,const Json& entry) {
   catch(...) {
     const auto parent=value::dirname(file);
 #if defined(_WIN32)
-    std::filesystem::create_directories(indigenousPath(parent));
+    std::filesystem::create_directories(indigenousFilePath(parent));
 #else
     if(::mkdir(parent.c_str(),0700)<0)throw std::system_error(errno,std::generic_category(),"mkdirSync");
 #endif

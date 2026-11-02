@@ -39,7 +39,7 @@ std::optional<std::string> resolveMetadataBuf(const std::optional<std::string>& 
 std::vector<std::string> scanPreBoundaryMetadata(const std::string& filePath,
   std::size_t endOffset){
 #if defined(_WIN32)
-  std::ifstream input(indigenousPath(filePath),std::ios::binary);
+  std::ifstream input(indigenousFilePath(filePath),std::ios::binary);
   if(!input)throw std::system_error(errno,std::generic_category(),"open metadata scan");
 #else
   const int fd=::open(filePath.c_str(),O_RDONLY);

@@ -7,10 +7,10 @@
 namespace batbox::flights {
 void bindIndigenousFileReads(LoadServices& services) {
   services.stat=[](const std::string& path)->std::uintmax_t{
-    return std::filesystem::file_size(indigenousPath(path));
+    return std::filesystem::file_size(indigenousFilePath(path));
   };
   services.readFile=[](const std::string& path){
-    const auto file=indigenousPath(path);
+    const auto file=indigenousFilePath(path);
     std::ifstream input(file,std::ios::binary);
     if(!input)throw std::system_error(errno,std::generic_category(),"readFile");
     // Size the buffer once instead of growing it byte by byte; keep reading

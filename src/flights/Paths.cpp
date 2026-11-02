@@ -51,15 +51,15 @@ bool isFsInaccessible(const std::error_code& error){
 }
 void Paths::writeBatMetadata(const std::string& bat,const Json& metadata)const {
   const auto path=getBatMetadataPath(bat);
-  std::filesystem::create_directories(indigenousPath(value::dirname(path)));
-  std::ofstream output(indigenousPath(path),std::ios::binary|std::ios::trunc);
+  std::filesystem::create_directories(indigenousFilePath(value::dirname(path)));
+  std::ofstream output(indigenousFilePath(path),std::ios::binary|std::ios::trunc);
   if(!output)throw std::system_error(errno,std::generic_category(),"writeAgentMetadata");
   output<<value::stringify(metadata);output.close();
   if(!output)throw std::system_error(errno,std::generic_category(),"writeAgentMetadata");
 }
 std::optional<Json> Paths::readBatMetadata(const std::string& bat)const {
   const auto path=getBatMetadataPath(bat);
-  std::ifstream input(indigenousPath(path),std::ios::binary);
+  std::ifstream input(indigenousFilePath(path),std::ios::binary);
   if(!input){const auto error=errno;if(isFsInaccessible(error))return std::nullopt;throw std::system_error(error,std::generic_category(),"readAgentMetadata");}
   const std::string raw((std::istreambuf_iterator<char>(input)),{});
   if(input.bad())throw std::system_error(errno,std::generic_category(),"readAgentMetadata");

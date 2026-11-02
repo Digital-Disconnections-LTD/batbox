@@ -227,7 +227,9 @@ void IndigenousBatApplication::recordBatMessages(const Json& messages,
         if(field(message,"type")!="progress")lastTranscriptUuids_[batId]=uuid.get<std::string>();
       }
     }
-    if(awaitWrites)written.get();
+    // A failed drain leaves its entries' futures pending forever, so waiting on
+    // the future alone hangs the Bat. flush() reports the failure instead.
+    if(awaitWrites){writes_->flush();written.get();}
     if(field(message,"uuid").is_string())parentId=string(field(message,"uuid"));
   }
 }

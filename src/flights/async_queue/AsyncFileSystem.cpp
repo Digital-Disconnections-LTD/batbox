@@ -20,7 +20,7 @@ std::runtime_error systemError(const char* action,const std::string& path,int co
 }
 void appendFile(const std::string& path,const std::string& data){
 #if defined(_WIN32)
-  std::ofstream output(indigenousPath(path),std::ios::binary|std::ios::app);
+  std::ofstream output(indigenousFilePath(path),std::ios::binary|std::ios::app);
   if(!output)throw systemError("open",path,errno);
   output.write(data.data(),static_cast<std::streamsize>(data.size()));
   output.close();
@@ -44,7 +44,7 @@ void appendFile(const std::string& path,const std::string& data){
 void ensureDirectory(const std::string& path){
   if(path.empty())return;
 #if defined(_WIN32)
-  std::filesystem::create_directories(indigenousPath(path));
+  std::filesystem::create_directories(indigenousFilePath(path));
 #else
   std::string current;
   if(path.front()=='/')current="/";

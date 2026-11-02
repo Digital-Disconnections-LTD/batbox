@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 """Select transcript text across a scroll in a real terminal and inspect OSC 52."""
 import base64
-import errno
-import fcntl
 import http.server
 import json
-import os
 from pathlib import Path
-import pty
 import re
-import select
-import signal
-import struct
 import sys
 import tempfile
-import termios
 import threading
-import time
+
+from loopback_http import LoopbackHTTPServer
+from pty_smoke import PtySession, STEP_SECONDS, child_environment
 
 
 def main(binary):
@@ -55,7 +49,7 @@ def main(binary):
         root = Path(temporary)
         config = root / "config"
         config.mkdir()
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        server = LoopbackHTTPServer(("127.0.0.1", 0), Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         (config / "native-client.json").write_text(json.dumps({
@@ -63,42 +57,14 @@ def main(binary):
             "state_directory": str(root / "state"), "mcpServers": {}, "fullscreen": True,
             "max_output_tokens": 50000,
         }))
-        pid, master = pty.fork()
-        if pid == 0:
-            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
-            env = {key: value for key, value in os.environ.items()
-                   if not key.startswith("BATBOX_") and key not in
-                   {"TMUX", "STY", "SSH_CONNECTION"}}
-            env.update(TERM="xterm-256color", BATBOX_CONFIG_DIR=str(config))
-            os.execve(str(binary), [str(binary), "--cwd", str(root)], env)
-        output = bytearray()
-        status = None
+        terminal = PtySession([str(binary), "--cwd", str(root)],
+                              child_environment(config), rows=24, columns=100)
+        output = terminal.output
+        drain = terminal.drain
+        send = terminal.send
 
-        def drain(seconds):
-            nonlocal status
-            deadline = time.monotonic() + seconds
-            while time.monotonic() < deadline and status is None:
-                if select.select([master], [], [], 0.02)[0]:
-                    try:
-                        output.extend(os.read(master, 65536))
-                    except OSError as error:
-                        if error.errno != errno.EIO:
-                            raise
-                finished, result = os.waitpid(pid, os.WNOHANG)
-                if finished:
-                    status = result
-
-        def wait_for(condition, label):
-            deadline = time.monotonic() + 20
-            while not condition() and status is None and time.monotonic() < deadline:
-                drain(0.05)
-            if not condition():
-                raise RuntimeError(f"Timed out waiting for {label}; exit={status}; "
-                                   f"terminal_tail={output[-1200:]!r}")
-
-        def send(raw):
-            os.write(master, raw)
-            drain(0.1)
+        def wait_for(condition, label, seconds=STEP_SECONDS):
+            terminal.wait_for(condition, label, seconds, tail=1200)
 
         try:
             wait_for(lambda: b"\x1b[?2004h" in output and b"copy-fixture" in output,
@@ -157,8 +123,7 @@ def main(binary):
             if b"\x1b[?1049h" not in output[before_native +
                     len(selected_native):]:
                 raise RuntimeError("Native copy did not restore fullscreen")
-            send(b"\x1b")
-            drain(0.2)
+            send(b"\x1b", settle=0.5)  # A lone Escape needs an input pause.
             before_full = len(output)
             send(b"y")
             wait_for(lambda: b"Press Return to return to Batbox" in
@@ -174,15 +139,11 @@ def main(binary):
             send(b"\x0f")
             drain(0.2)
             send(b"/exit\r")
-            wait_for(lambda: status is not None, "clean exit")
-            if os.waitstatus_to_exitcode(status) != 0:
-                raise RuntimeError(f"Batbox exited with {status}")
+            if terminal.wait_for_exit() != 0:
+                raise RuntimeError(f"Batbox exited with {terminal.status}")
             print("Transcript OSC 52 and native terminal copy passed")
         finally:
-            if status is None:
-                os.kill(pid, signal.SIGKILL)
-                os.waitpid(pid, 0)
-            os.close(master)
+            terminal.close()
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
