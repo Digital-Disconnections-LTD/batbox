@@ -11,7 +11,7 @@ using Ready=interactive::CommandUi::Ready;
 using Error=interactive::CommandUi::Error;
 enum class Page{Home,Detail,Models,Edit,Settings,Input,ConfirmDelete,Progress};
 enum class Field{Label,BaseUrl,MessagesPath,ModelsPath,Token,KeyEnv,Context,Output,
-  Model,Search,Compact,Headers,Subagents,ConcurrentSubagents};
+  Model,Search,Compact,Headers,Subagents,ConcurrentSubagents,BatDepth};
 std::string slug(std::string label);
 std::string lower(std::string value);
 std::size_t parsePositive(const std::string& value);

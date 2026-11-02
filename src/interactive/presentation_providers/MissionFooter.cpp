@@ -207,7 +207,8 @@ ftxui::Element missionFooterAt(const Json& missions,const FooterOptions& options
     const auto& mission=missions[i];
     const auto glance=batGlance(mission,options.nowMs);
     const bool here=options.current&&rowId(mission)==*options.current;
-    std::string detail=glance.foreground?"foreground":glance.status;
+    std::string detail=glance.foreground?"foreground":
+      glance.status=="killed"?"stopped":glance.status;
     if(!glance.elapsed.empty())detail+=" · "+glance.elapsed;
     if(text(mission,"type")=="local_agent"||glance.gadgetUses>0)
       detail+=" · "+std::to_string(glance.gadgetUses)+

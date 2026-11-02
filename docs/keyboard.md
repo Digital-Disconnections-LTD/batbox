@@ -5,8 +5,9 @@ These keys work in the fullscreen layout, which is the default.
 ## Moving between Bats
 
 The Active Missions list sits under the input box, above the status row. It
-lists your running Bats, each sub-Bat indented under the Bat that launched it,
-then background shells. The input box is home: the main Flight.
+lists your running Bats, each sub-Bat (a Bat launched by a Bat) indented under
+the Bat that launched it, then background shells. The input box is home: the
+main Flight.
 
 | Key | What it does |
 | --- | --- |
@@ -35,7 +36,7 @@ view. On a terminal shorter than 12 rows it folds itself.
 | Ctrl+R | Search your poetry history. |
 | Ctrl+B | Send running foreground work to the background. |
 | Ctrl+G | Edit your poetry in `$VISUAL` or `$EDITOR`. |
-| Ctrl+C | In a Bat, clear the input, or stop the Bat when the input is empty. |
+| Ctrl+C | In a Bat, clear the input, or, when the input is empty, stop the Bat and the sub-Bats it launched. |
 | Page Up / Page Down | Scroll the conversation. |
 | Ctrl+End | Jump to the latest output. |
 

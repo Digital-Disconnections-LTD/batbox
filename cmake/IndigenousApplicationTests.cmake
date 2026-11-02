@@ -49,7 +49,12 @@ if(UNIX)
   add_test(NAME phase6-system-poetry-smoke COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/checks/system_poetry_smoke.py $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-system-poetry-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-nested-bats-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/nested_bats_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-nested-bats-smoke PROPERTIES TIMEOUT 180)
 endif()
+batbox_indigenous(phase6-bat-depth-config-indigenous
+  tests/phase6/bat_depth_config_indigenous.cpp batbox_application_config)
 batbox_indigenous(phase6-indigenous-lsp-grouped checks/indigenous_lsp_grouped.cpp batbox_indigenous_lsp)
 add_executable(batbox-indigenous-lsp-runtime checks/indigenous_lsp_runtime.cpp)
 target_link_libraries(batbox-indigenous-lsp-runtime PRIVATE batbox_indigenous_lsp)

@@ -44,5 +44,26 @@ int main(){
     std::cerr<<"Background Bat launches must not read as completed:\n"<<launchText<<"\n";
     return 1;
   }
+  // A sub-Bat's card names the Bat that launched it ahead of its status.
+  const Json by=Json{{"data",{{"launchedBy","Audit the parser"}}}};
+  Json nested=Json::array({
+    Json{{"param",{{"input",{{"description","Check the lexer"}}}}},
+      {"progressMessages",Json::array({by})}},
+    Json{{"param",{{"input",{{"description","Count the tokens"}}}}},{"isInProgress",true},
+      {"progressMessages",Json::array({event,by})}},
+    Json{{"param",{{"input",{{"description","Split the grains"}}}}},{"isResolved",true},
+      {"progressMessages",Json::array({by})},{"output",{{"status","completed"}}}}});
+  const auto nestedText=bats::groupedBatGadgetUseText(nested);
+  for(const auto* line:{"Check the lexer · Launched by Audit the parser\n",
+      "Count the tokens · Launched by Audit the parser · Latest tool: Read · 1 tool call",
+      "Split the grains · Launched by Audit the parser · Completed"})
+    if(nestedText.find(line)==std::string::npos){
+      std::cerr<<"Sub-Bat cards must name their launcher, missing '"<<line<<"':\n"<<nestedText<<"\n";
+      return 1;
+    }
+  if(bats::batLaunchedBy(Json::array({event,by}))!="Audit the parser"||
+      !bats::batLaunchedBy(progress).empty()){
+    std::cerr<<"Launcher lookup changed\n";return 1;
+  }
   std::cout<<"Bat progress displays activity and status without internal event data\n";
 }

@@ -1,9 +1,11 @@
 #include "flights/SavedBats.hpp"
+#include "flights/IndigenousPath.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <optional>
 #include <system_error>
 
@@ -15,6 +17,11 @@ std::string text(const Json& value){return value.is_string()?value.get<std::stri
 constexpr std::size_t headRows=8;
 constexpr std::streamoff tailBytes=64*1024;
 constexpr std::size_t countChunk=256*1024;
+constexpr std::size_t deepestNest=64;
+// Deep sub-Bat folders pass MAX_PATH on Windows; open them in long form.
+fs::path openable(const fs::path& path){
+  return indigenousFilePath(runtime::pathToUtf8(path));
+}
 std::optional<Json> parseRow(const std::string& line){
   if(line.empty()||line.front()!='{')return std::nullopt;
   try{return value::parse(line);}catch(const std::exception&){return std::nullopt;}
@@ -45,12 +52,15 @@ std::size_t countOccurrences(std::ifstream& input,const std::string& needle){
   }
   return count;
 }
-std::optional<SavedBat> readSavedBat(const fs::path& transcript,const std::string& subdirectory){
+std::optional<SavedBat> readSavedBat(const fs::path& transcript,const std::string& subdirectory,
+    const std::vector<std::string>& lineage){
   const auto name=runtime::pathToUtf8(transcript.filename());
   if(name.size()<=12||!name.starts_with("agent-")||!name.ends_with(".jsonl"))return std::nullopt;
   SavedBat bat;
   bat.id=name.substr(6,name.size()-12);bat.subdirectory=subdirectory;
-  std::ifstream input(transcript,std::ios::binary);
+  bat.lineage=lineage;bat.depth=lineage.size()+1;
+  if(!lineage.empty())bat.parentId=lineage.back();
+  std::ifstream input(openable(transcript),std::ios::binary);
   if(!input)return std::nullopt;
   std::string line;bool sawRow=false;
   for(std::size_t row=0;row<headRows&&std::getline(input,line);++row){
@@ -85,7 +95,7 @@ std::optional<SavedBat> readSavedBat(const fs::path& transcript,const std::strin
   bat.gadgetUses=countOccurrences(input,"\"type\":\"tool_use\"");
   std::error_code error;
   if(!bat.endTime){
-    const auto modified=fs::last_write_time(transcript,error);
+    const auto modified=fs::last_write_time(openable(transcript),error);
     if(!error){
       const auto system=std::chrono::system_clock::now()+
         std::chrono::duration_cast<std::chrono::system_clock::duration>(
@@ -96,7 +106,7 @@ std::optional<SavedBat> readSavedBat(const fs::path& transcript,const std::strin
   }
   if(!bat.startTime)bat.startTime=bat.endTime;
   auto metaPath=transcript;metaPath.replace_extension(".meta.json");
-  std::ifstream meta(metaPath,std::ios::binary);
+  std::ifstream meta(openable(metaPath),std::ios::binary);
   if(meta){
     const std::string raw((std::istreambuf_iterator<char>(meta)),{});
     try{
@@ -129,33 +139,52 @@ std::int64_t savedBatTimestamp(const std::string& value){
 std::vector<SavedBat> scanSavedBats(const fs::path& directory,std::size_t limit){
   std::vector<SavedBat> found;
   std::error_code error;
-  if(!fs::is_directory(directory,error))return found;
+  const auto root=openable(directory);
+  if(!fs::is_directory(root,error))return found;
   // Rank sidechains by modification time first so only the newest are read.
-  struct Candidate {fs::path path;std::string subdirectory;fs::file_time_type modified;};
+  struct Candidate {fs::path path;std::string subdirectory;std::vector<std::string> lineage;
+    fs::file_time_type modified;};
   std::vector<Candidate> candidates;
-  const auto visit=[&](const fs::path& folder,const std::string& subdirectory){
+  std::function<void(const fs::path&,const std::string&,const std::vector<std::string>&)> visit=
+      [&](const fs::path& folder,const std::string& subdirectory,
+        const std::vector<std::string>& lineage){
     std::error_code walk;
-    for(fs::directory_iterator it(folder,walk),end;!walk&&it!=end;it.increment(walk)){
-      std::error_code kind;
-      if(!it->is_regular_file(kind))continue;
+    std::vector<std::pair<std::string,fs::path>> nests;
+    for(fs::directory_iterator it(openable(folder),walk),end;!walk&&it!=end;it.increment(walk)){
       const auto name=runtime::pathToUtf8(it->path().filename());
+      std::error_code kind;
+      if(it->is_directory(kind)){
+        // agent-<id>/subagents/ holds the Bats that Bat <id> launched.
+        if(name.size()>6&&name.starts_with("agent-")&&lineage.size()<deepestNest)
+          nests.emplace_back(name.substr(6),it->path()/"subagents");
+        continue;
+      }
+      if(!it->is_regular_file(kind))continue;
       if(name.size()<=12||!name.starts_with("agent-")||!name.ends_with(".jsonl"))continue;
       std::error_code stamp;
       const auto modified=it->last_write_time(stamp);
-      candidates.push_back({it->path(),subdirectory,
+      candidates.push_back({it->path(),subdirectory,lineage,
         stamp?fs::file_time_type::min():modified});
     }
+    for(const auto& [id,nested]:nests){
+      std::error_code kind;
+      if(!fs::is_directory(openable(nested),kind))continue;
+      auto deeper=lineage;deeper.push_back(id);
+      visit(nested,subdirectory,deeper);
+    }
   };
-  visit(directory,"");
-  for(fs::directory_iterator it(directory,error),end;!error&&it!=end;it.increment(error)){
+  visit(root,"",{});
+  for(fs::directory_iterator it(root,error),end;!error&&it!=end;it.increment(error)){
     std::error_code kind;
-    if(it->is_directory(kind))visit(it->path(),runtime::pathToUtf8(it->path().filename()));
+    const auto name=runtime::pathToUtf8(it->path().filename());
+    if(it->is_directory(kind)&&!name.starts_with("agent-"))visit(it->path(),name,{});
   }
   std::stable_sort(candidates.begin(),candidates.end(),
     [](const Candidate& a,const Candidate& b){return a.modified>b.modified;});
   for(const auto& candidate:candidates){
     if(found.size()>=limit)break;
-    if(auto bat=readSavedBat(candidate.path,candidate.subdirectory))found.push_back(std::move(*bat));
+    if(auto bat=readSavedBat(candidate.path,candidate.subdirectory,candidate.lineage))
+      found.push_back(std::move(*bat));
   }
   std::stable_sort(found.begin(),found.end(),[](const SavedBat& a,const SavedBat& b){
     return a.endTime>b.endTime;

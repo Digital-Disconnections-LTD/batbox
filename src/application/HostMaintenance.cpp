@@ -53,7 +53,8 @@ Host::Impl::RetiredRoost Host::Impl::captureRoostGeneration()const{
   result.mcpRuntimeSlot=mcpRuntimeSlot;result.mcpClientRows=mcpClientRows;
   result.commandRows=commandRows;result.mcpAuthUi=mcpAuthUi;
   result.mcpServices=mcpServices;
-  if(bats)result.transcriptOrigins=bats->transcriptOrigins();
+  if(bats){result.transcriptOrigins=bats->transcriptOrigins();
+    result.batLineage=bats->batLineage();}
   return result;
 }
 void Host::Impl::installRoostGeneration(const RetiredRoost& generation){
@@ -106,8 +107,9 @@ void Host::Impl::beginRetiredShutdown(std::size_t index){
   if(generation.state!=RetiredRoost::State::Live)return;
   generation.state=RetiredRoost::State::Closing;
   generation.shutdownReady.emplace(owner);
-  if(generation.bats)generation.transcriptOrigins=
+  if(generation.bats){generation.transcriptOrigins=
     generation.bats->transcriptOrigins();
+    generation.batLineage=generation.bats->batLineage();}
   // Registration sentinel prevents a synchronously failed shutdown call from
   // completing the record while later shutdown owners are still being added.
   auto remaining=std::make_shared<int>(1);
@@ -185,6 +187,7 @@ void Host::Impl::releaseRetiredProviders(){
     if(generation.pendingOperations){pending=true;continue;}
     if(generation.bats){
       generation.transcriptOrigins=generation.bats->transcriptOrigins();
+      generation.batLineage=generation.bats->batLineage();
       const auto state=appState();const auto& missions=value::property(state,"tasks");
       for(const auto& [id,_]:generation.transcriptOrigins){
         const auto& mission=value::property(missions,id);
@@ -236,8 +239,10 @@ Host::Impl::reviveRetired(std::size_t index){
     commands=makeCommands();
     auto revived=captureRoostGeneration();
     revived.transcriptOrigins=identity.transcriptOrigins;
+    revived.batLineage=identity.batLineage;
     revived.pendingOperations=identity.pendingOperations;
     revived.bats->restoreTranscriptOrigins(identity.transcriptOrigins);
+    revived.bats->restoreBatLineage(identity.batLineage);
     revived.state=RetiredRoost::State::Live;
     revived.mcpReady=mcpRuntime->start();
     installRoostGeneration(active);

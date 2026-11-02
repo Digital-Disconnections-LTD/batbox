@@ -1,6 +1,7 @@
 #include "application_config/ConfigPanelInternal.hpp"
 #include "runtime/JsonValue.hpp"
 #include <algorithm>
+#include <limits>
 #include <stdexcept>
 
 namespace batbox::application_config {
@@ -92,7 +93,7 @@ void Panel::showInput(){
     static constexpr const char* labels[]={"Label","Base URL","Messages path",
       "Models path","API key","API key environment variable","Context tokens",
       "Max output tokens","Model ID","Search models","Auto compact tokens",
-      "Headers JSON","Max subagents","Concurrent subagents"};
+      "Headers JSON","Max subagents","Concurrent subagents","Max Bat depth"};
     interactive::UiRequest view;view.kind=interactive::UiRequest::Kind::Form;
     view.id="endpoint-input";view.title=std::string("◆  ")+labels[static_cast<int>(field_)];
     view.sensitiveInput=field_==Field::Token||field_==Field::Headers;
@@ -158,6 +159,15 @@ void Panel::submitInput(){
         const auto key=field_==Field::Subagents?"max_subagents":
           "max_concurrent_subagents";
         persist(endpoints_,selectedProfile(),Json{{key,count}});return;
+      }
+      if(field_==Field::BatDepth){
+        if(value.empty()){backFromInput();return;}
+        std::size_t used=0;unsigned long long depth=0;
+        try{depth=std::stoull(value,&used);}catch(...){used=0;}
+        if(value[0]=='-'||used!=value.size()||depth>std::numeric_limits<std::size_t>::max())
+          throw std::invalid_argument("Enter 0 or a whole number (0 or 1: Bats cannot launch Bats)");
+        persist(endpoints_,selectedProfile(),
+          Json{{"max_bat_depth",static_cast<std::size_t>(depth)}});return;
       }
       if(value.empty()&&!new_){backFromInput();return;}
       switch(field_){

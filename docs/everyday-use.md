@@ -69,6 +69,24 @@ you are in is marked with `▸`, and the status row turns into a breadcrumb such
 `Flight › Audit the parser · Alt+↑↓ move · Alt+← home · Ctrl+T list`. See
 [Keyboard shortcuts](keyboard.md) for terminal setup. Custom Bat poetry live in
 `~/.batbox/agents/` or your project’s `.batbox/agents/`.
+
+A Bat can launch Bats of its own with the Agent Gadget, up to `max_bat_depth`
+levels deep (default 3: a Bat, its sub-Bat, and that sub-Bat's sub-Bat; see
+[configuration](indigenous-configuration.md#bat-limits)). A sub-Bat runs in its
+parent's foreground: the parent waits for its result, and it is not sent to the
+background. In the parent's conversation its launch line names the parent, for
+example `Check the lexer · Launched by Audit the parser`. A Bat at the deepest
+level does not get the Agent Gadget, and its poetry tells it so. The Bat limits
+count the whole tree: `--max-subagents` counts every Bat running or waiting,
+and `--max-concurrent-subagents` every Bat working. A sub-Bat uses its waiting
+parent's concurrent slot; a second sub-Bat launched alongside it needs a free
+slot and is refused at once if there is none, since a Bat never waits for a slot
+while it holds one. Stopping a Bat (Ctrl+C inside it, or `x` in `/bats`) stops
+the Bats it launched, and a Bat that finishes takes any running sub-Bats with
+it; they show as stopped. A sub-Bat's transcript is saved under its parent's
+(`subagents/agent-<parent>/subagents/`), so resuming the Flight lists it under
+its parent again.
+
 Agent progress shows each task's status and latest tool. Foreground agents return
 their final results before the leader continues; progress events are display
 updates and are excluded from the leader's model requests.

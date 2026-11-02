@@ -210,16 +210,18 @@ void Panel::showSettings(){
       "Thinking default  "+std::string(config_->thinking?"on":"off"),
       "Max subagents  "+std::to_string(config_->maxSubagents),
       "Concurrent subagents  "+std::to_string(config_->maxConcurrentSubagents),
+      "Max Bat depth  "+std::to_string(config_->maxBatDepth)+
+        (config_->maxBatDepth<=1?" (Bats cannot launch Bats)":""),
       "Back"};
-    view.selectedIndex=std::min<std::size_t>(settingsIndex_,4);
+    view.selectedIndex=std::min<std::size_t>(settingsIndex_,5);
     auto self=shared_from_this();
     publish(std::move(view),[self](const auto& event){
       if(event.kind==interactive::UiAction::Kind::Cancel||
           event.kind==interactive::UiAction::Kind::Back){self->showHome();return;}
       if(event.kind==interactive::UiAction::Kind::MoveSelection){
-        self->settingsIndex_=std::min<std::size_t>(event.index,4);self->showSettings();return;}
+        self->settingsIndex_=std::min<std::size_t>(event.index,5);self->showSettings();return;}
       if(event.kind!=interactive::UiAction::Kind::Activate)return;
-      self->settingsIndex_=std::min<std::size_t>(event.index,4);
+      self->settingsIndex_=std::min<std::size_t>(event.index,5);
       if(self->settingsIndex_==0)self->input(Field::Compact,Page::Settings);
       else if(self->settingsIndex_==1)
         self->persist(self->endpoints_,self->selectedProfile(),
@@ -228,6 +230,8 @@ void Panel::showSettings(){
         self->input(Field::Subagents,Page::Settings);
       else if(self->settingsIndex_==3)
         self->input(Field::ConcurrentSubagents,Page::Settings);
+      else if(self->settingsIndex_==4)
+        self->input(Field::BatDepth,Page::Settings);
       else self->showHome();
     });
   }

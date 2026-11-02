@@ -277,6 +277,31 @@ int main(){
     check(contains(collapsed,"Active Missions (6) · in: Count tokens")&&
       !contains(collapsed,"reviewer"),"Collapsed list names the open Bat:\n"+collapsed);
 
+    // The collapsed line counts every running Bat in the tree, sub-Bats
+    // included, and a stopped Bat reads as stopped.
+    Json chain=Json::object();
+    const auto bat=[](const std::string& description,const std::string& parent,int age){
+      Json row={{"type","local_agent"},{"status","running"},{"agentType","general-purpose"},
+        {"description",description},{"startTime",now-age}};
+      if(!parent.empty())row["parentBatId"]=parent;
+      return row;
+    };
+    chain["bat-audit"]=bat("Audit the parser","",3000);
+    chain["bat-lexer"]=bat("Check the lexer","bat-audit",2000);
+    chain["bat-tokens"]=bat("Count the tokens","bat-lexer",1000);
+    options.current="bat-tokens";
+    const auto chainRows=providers::backgroundFooterMissions(chain,std::string("bat-tokens"));
+    check(contains(render(chainRows,options,1),"Active Missions (3) · in: Count the tokens"),
+      "Collapsed count must include sub-Bats:\n"+render(chainRows,options,1));
+    for(const auto* id:{"bat-audit","bat-lexer","bat-tokens"})chain[id]["status"]="killed";
+    options.collapsed=false;
+    const auto stopped=render(providers::backgroundFooterMissions(chain,std::string("bat-tokens")),
+      options,4);
+    check(contains(stopped,"Active Missions (0)")&&contains(stopped,"  ● Audit the parser · stopped")&&
+      contains(stopped,"  └ ● Check the lexer · stopped")&&
+      contains(stopped,"▸   └ ● Count the tokens · stopped"),
+      "Stopped Bats in the open trail read as stopped:\n"+stopped);
+
     const auto glance=providers::batGlance(missions().at("bat-done"),now);
     check(glance.label=="Summarize history"&&glance.elapsed=="1m 0s"&&
       glance.gadgetUses==7&&glance.tokens==4200&&!glance.running,

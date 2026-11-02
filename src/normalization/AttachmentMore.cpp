@@ -67,6 +67,15 @@ std::optional<Json> normalizeMoreAttachmentForAPI(const Json& attachment,const A
   if(type=="task_status"){
     const std::string status=val(attachment,"status"),id=val(attachment,"taskId"),description=val(attachment,"description");
     if(status=="killed")return Json::array({meta(wrapInSystemReminder("Task \""+description+"\" ("+id+") was stopped by the user."),services)});
+    const Json& launchedBy=get(attachment,"launchedBy");
+    const std::string launcher=launchedBy.is_string()?launchedBy.get<std::string>():"";
+    if(status=="running"&&!launcher.empty()){
+      std::vector<std::string> parts={"Agent \""+description+"\" ("+id+"), launched by the Bat \""+
+        launcher+"\", is still running. Its result goes to that Bat, not to you; do NOT spawn a duplicate."};
+      if(value::truthy(get(attachment,"deltaSummary")))parts.push_back("Progress: "+val(attachment,"deltaSummary"));
+      if(value::truthy(get(attachment,"outputFilePath")))parts.push_back("You can read partial output at "+val(attachment,"outputFilePath")+".");
+      return Json::array({meta(wrapInSystemReminder(join(parts," ")),services)});
+    }
     if(status=="running"){
       std::vector<std::string> parts={"Background agent \""+description+"\" ("+id+") is still running."};
       if(value::truthy(get(attachment,"deltaSummary")))parts.push_back("Progress: "+val(attachment,"deltaSummary"));
@@ -76,6 +85,7 @@ std::optional<Json> normalizeMoreAttachmentForAPI(const Json& attachment,const A
     }
     const std::string display=status=="killed"?"stopped":status;
     std::vector<std::string> parts={"Task "+id,"(type: "+val(attachment,"taskType")+")","(status: "+display+")","(description: "+description+")"};
+    if(!launcher.empty())parts.push_back("(launched by the Bat \""+launcher+"\")");
     if(value::truthy(get(attachment,"deltaSummary")))parts.push_back("Delta: "+val(attachment,"deltaSummary"));
     if(value::truthy(get(attachment,"outputFilePath")))parts.push_back("Read the output file to retrieve the result: "+val(attachment,"outputFilePath"));
     else parts.push_back("You can check its output using the "+services.missionOutputGadgetName+" tool.");

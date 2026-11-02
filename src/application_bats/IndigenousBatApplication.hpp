@@ -25,6 +25,12 @@ namespace batbox::application_skills {class Provider;}
 namespace batbox::application_hooks {class Provider;}
 namespace batbox::mcp::manager {class IndigenousRuntime;}
 namespace batbox::application_bats {
+// Where a Bat sits in the Bat tree: the Bat that launched it, if one did,
+// and its depth (1 = launched by the main Flight, 2 = by a Bat, ...).
+struct BatNode {
+  std::optional<std::string> parent;
+  std::size_t depth=1;
+};
 class IndigenousBatApplication final:
     public std::enable_shared_from_this<IndigenousBatApplication>{
 public:
@@ -88,6 +94,9 @@ public:
   Json retainedStateSummary()const;
   std::unordered_map<std::string,std::string> transcriptOrigins()const;
   void restoreTranscriptOrigins(const std::unordered_map<std::string,std::string>&);
+  std::optional<BatNode> batNode(const std::string& batId)const;
+  std::unordered_map<std::string,BatNode> batLineage()const;
+  void restoreBatLineage(const std::unordered_map<std::string,BatNode>&);
   void runForSkill(const bats::RunBatParams& params,const query::Yield& yield);
   bats::BatGadgetCallServices makeServices();
   Json batDefinitions()const;
@@ -141,6 +150,26 @@ private:
   void requireCapacity(std::stop_token stop);
   void releaseCapacity();
   void rollbackCapacity();
+  // A Bat launching a Bat never waits for a slot, since it holds one itself:
+  // the first sub-Bat at a time borrows its parent's concurrent slot (the
+  // parent is waiting on it), any other needs a free slot or fails at once.
+  // Returns whether the parent's slot was borrowed.
+  bool requireNestedCapacity(const std::string& parent);
+  void releaseNestedCapacity(const std::string& parent,bool borrowed);
+  void rememberBatNode(const std::string& id,std::optional<std::string> parent,
+    std::size_t depth);
+  bool mayLaunchBats(std::size_t depth)const;
+  // The system prompt line on nesting for a Bat at depth, or empty.
+  std::string nestingPoetry(std::size_t depth,const Json& definition)const;
+  // Adds the nesting rules for the Bat about to run (its depth on the
+  // definition, an explanation for the missing Agent Gadget when capped).
+  void prepareNestedRun(bats::RunBatParams& params)const;
+  Json withLineage(const std::string& id,Json metadata)const;
+  // Stops every running Bat that `id` launched, and theirs.
+  void stopChildBats(const std::string& id);
+  // The label of the Bat that launched the sub-Bat an Agent input started,
+  // or empty when no Bat did. Owner thread only.
+  std::string launcherLabel(const Json& agentInput)const;
   std::shared_ptr<event_loop::Loop::KeepAlive> beginBackgroundJob();
   void finishBackgroundJob(const std::shared_ptr<event_loop::Loop::KeepAlive>& keep);
   void notifyShutdownProgress();
@@ -167,6 +196,10 @@ private:
   mutable std::mutex capacityMutex_;
   std::condition_variable_any capacityChanged_;
   std::size_t outstanding_=0,active_=0;
+  // Bats whose concurrent slot a sub-Bat currently borrows.
+  std::unordered_set<std::string> lentSlots_;
+  mutable std::mutex nodesMutex_;
+  std::unordered_map<std::string,BatNode> batNodes_;
   std::atomic_bool closing_=false;
   std::size_t backgroundJobs_=0;
   bool shutdownFlushStarted_=false;

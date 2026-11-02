@@ -184,6 +184,7 @@ user_input::CommandEntry makeHelpCommand(
             {"esc","Interrupt the model, or go back one level from a Bat"},
             {"alt+↓ / alt+↑","Move through the Bats in Active Missions"},
             {"alt+←","Go home to the main Flight (empty input)"},
+            {"ctrl+c","In a Bat, stop it and the sub-Bats it launched (empty input)"},
             {"ctrl+t","Fold or unfold the Active Missions list"},
             {"ctrl+o","Transcript with full Gadget output"},
             {"ctrl+r","Search poetry history"},

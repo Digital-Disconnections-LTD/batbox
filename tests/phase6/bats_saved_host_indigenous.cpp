@@ -1,5 +1,6 @@
 #include "application/HostInternal.hpp"
 #include "flights/SavedBats.hpp"
+#include "interactive/presentation_providers/MissionFooter.hpp"
 #include "runtime/Platform.hpp"
 #include "user_input/SlashInternal.hpp"
 #include <algorithm>
@@ -138,6 +139,81 @@ struct HostSavedBatsProbe {
       !mission(impl.appState(),"a4444444").is_null(),"The current Flight's scan still applies");
   }
 
+  // A resumed Flight rebuilds the Bat tree from the folders its transcripts
+  // sit in: a sub-Bat's sidechain lives under agent-<parent>/subagents/.
+  static void nestedSavedBats(Host::Impl& impl){
+    const auto subagents=std::filesystem::path(impl.bats->transcriptPath("a0000000")).parent_path();
+    const auto lexerDirectory=subagents/"agent-c1111111"/"subagents";
+    const auto tokensDirectory=lexerDirectory/"agent-c2222222"/"subagents";
+    writeBat(subagents,"c1111111","Audit the parser","Audit reply");
+    writeBat(lexerDirectory,"c2222222","Check the lexer","Lexer reply");
+    writeBat(tokensDirectory,"c3333333","Count the tokens","Tokens reply");
+    const auto scanned=flights::scanSavedBats(subagents,50);
+    const auto tokens=std::find_if(scanned.begin(),scanned.end(),
+      [](const flights::SavedBat& bat){return bat.id=="c3333333";});
+    check(tokens!=scanned.end()&&tokens->depth==3&&tokens->parentId=="c2222222"&&
+      tokens->lineage==std::vector<std::string>({"c1111111","c2222222"}),
+      "The scanner must find a grandchild with its lineage");
+    check(impl.bats->applySavedBats(impl.flight->id(),scanned)>=3,"Nested Bats must be seeded");
+    const auto state=impl.appState();
+    const auto& audit=mission(state,"c1111111");
+    const auto& lexer=mission(state,"c2222222");
+    const auto& counted=mission(state,"c3333333");
+    check(!audit.contains("parentBatId")&&audit.value("batDepth",0)==1&&
+      lexer.value("parentBatId","")=="c1111111"&&lexer.value("batDepth",0)==2&&
+      counted.value("parentBatId","")=="c2222222"&&counted.value("batDepth",0)==3,
+      "Seeded records must carry the tree: "+lexer.dump());
+    check(impl.bats->transcriptPath("c3333333")==
+        (tokensDirectory/"agent-c3333333.jsonl").string(),
+      "A seeded sub-Bat must keep its nested transcript path, got "+
+        impl.bats->transcriptPath("c3333333"));
+    const auto node=impl.bats->batNode("c3333333");
+    check(node&&node->parent==std::optional<std::string>("c2222222")&&node->depth==3,
+      "The rebuilt tree must resolve the grandchild's parent");
+    const auto observed=settle(impl,impl.observeBatMission("c3333333"));
+    check(observed.value("diskLoaded",false)&&
+      value::property(observed,"messages").size()==4,
+      "Opening a seeded sub-Bat must load its nested transcript");
+    impl.batOwner("c3333333")->releaseMission("c3333333");
+    const auto rows=interactive::presentation_providers::backgroundFooterMissions(
+      value::property(impl.appState(),"tasks"),std::string("c3333333"));
+    std::vector<std::string> trail;
+    for(const auto& row:rows)if(row.value("id","").starts_with("c"))
+      trail.push_back(row.value("id","")+":"+std::to_string(row.value("depth",-1)));
+    check(trail==std::vector<std::string>({"c1111111:0","c2222222:1","c3333333:2"}),
+      "The open sub-Bat and its parents list as a tree");
+  }
+
+  // A sub-Bat's launch line names its parent; stopping a Bat stops the
+  // running Bats under it.
+  static void launchLineAndStop(Host::Impl& impl){
+    const auto running=[](const std::string& description,const std::string& parent){
+      Json row={{"type","local_agent"},{"agentType","lexer"},{"status","running"},
+        {"description",description},{"prompt","Go "+description},{"retain",false}};
+      if(!parent.empty())row["parentBatId"]=parent;
+      return row;
+    };
+    setMission(impl,"d1111111",running("Audit the parser",""));
+    setMission(impl,"d2222222",running("Check the lexer","d1111111"));
+    setMission(impl,"d3333333",running("Count the tokens","d2222222"));
+    setMission(impl,"d4444444",running("Unrelated",""));
+    const auto gadget=impl.bats->makeGadget();
+    const auto line=gadget.renderGadgetUseMessage(Json{{"description","Check the lexer"},
+      {"prompt","Go Check the lexer"},{"subagent_type","lexer"}},Json::object());
+    check(line=="Check the lexer · Launched by Audit the parser",
+      "A sub-Bat's launch line must name its parent, got "+line.dump());
+    check(gadget.renderGadgetUseMessage(Json{{"description","Audit the parser"},
+        {"prompt","Go Audit the parser"},{"subagent_type","lexer"}},Json::object())==
+      "Audit the parser","A top-level launch line stays as it was");
+    impl.bats->stopMission("d1111111");
+    const auto state=impl.appState();
+    for(const auto* id:{"d1111111","d2222222","d3333333"})
+      check(mission(state,id).value("status","")=="killed",
+        std::string("Stopping a Bat must stop every Bat under it: ")+id);
+    check(mission(state,"d4444444").value("status","")=="running",
+      "Stopping a Bat must leave unrelated Bats running");
+  }
+
   // Only the newest sidechains by modification time are opened, and an
   // unreadable one does not use up the limit.
   static void scanLimit(const std::filesystem::path& root){
@@ -274,6 +350,8 @@ struct HostSavedBatsProbe {
         scanLimit(root);
         commandNames(impl);
         savedBats(impl);
+        nestedSavedBats(impl);
+        launchLineAndStop(impl);
         streamThrottle(impl);
         sendMessageResult(impl);
         helpVocabulary(impl);

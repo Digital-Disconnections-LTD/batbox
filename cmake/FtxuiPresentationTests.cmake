@@ -35,6 +35,11 @@ if(UNIX)
       ${CMAKE_SOURCE_DIR}/checks/indigenous_bat_switch_smoke.py
       $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-bat-switch-pty PROPERTIES TIMEOUT 180)
+  add_test(NAME phase6-nested-bat-pty
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/checks/indigenous_nested_bat_smoke.py
+      $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-nested-bat-pty PROPERTIES TIMEOUT 180)
   add_test(NAME phase6-escape-interrupt-pty
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/checks/indigenous_escape_interrupt_smoke.py

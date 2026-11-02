@@ -132,12 +132,25 @@ std::size_t IndigenousBatApplication::applySavedBats(const std::string& flight,
   // its Bats belong to the Flight they were found in.
   if(found.empty()||inputs_.currentFlightId()!=flight)return 0;
   std::size_t added=0;
+  // The folders the Bats were found in rebuild the tree, so nested
+  // transcripts resolve and the list nests them again.
+  for(const auto& bat:found){
+    std::optional<std::string> parent;
+    for(std::size_t level=0;level<bat.lineage.size();++level){
+      if(!batNode(bat.lineage[level]))rememberBatNode(bat.lineage[level],parent,level+1);
+      parent=bat.lineage[level];
+    }
+    if(!batNode(bat.id))rememberBatNode(bat.id,parent,bat.depth);
+  }
   {
     std::lock_guard lock(pathsMutex_);
     auto paths=pathsForFlightLocked(flight);
     for(const auto& bat:found){
       if(batFlights_.try_emplace(bat.id,flight).second&&!bat.subdirectory.empty())
         paths->setBatTranscriptSubdir(bat.id,bat.subdirectory);
+      for(const auto& ancestor:bat.lineage)
+        if(batFlights_.try_emplace(ancestor,flight).second&&!bat.subdirectory.empty())
+          paths->setBatTranscriptSubdir(ancestor,bat.subdirectory);
     }
   }
   setAppState([&](const Json& state){
@@ -145,9 +158,12 @@ std::size_t IndigenousBatApplication::applySavedBats(const std::string& flight,
     if(!next["tasks"].is_object())next["tasks"]=Json::object();
     for(const auto& bat:found){
       if(!value::property(next["tasks"],bat.id).is_null())continue;
-      next["tasks"][bat.id]=bats::savedBatRecord(bat.id,bat.description,
+      auto record=bats::savedBatRecord(bat.id,bat.description,
         bat.agentType,bat.poetry,bat.startTime,bat.endTime,bat.gadgetUses,
         bat.lastAssistant,registration_.getMissionOutputPath(bat.id));
+      if(!bat.parentId.empty())record["parentBatId"]=bat.parentId;
+      record["batDepth"]=bat.depth;
+      next["tasks"][bat.id]=std::move(record);
       ++added;
     }
     return added?next:state;

@@ -20,6 +20,64 @@ Json directoryKeys(const Json& directories){
   Json keys=Json::array();for(const auto& key:value::objectKeys(directories))keys.push_back(key);
   return keys;
 }
+bool namesAgent(const Json& spec){
+  if(!spec.is_string())return false;
+  const auto& text=spec.get_ref<const std::string&>();
+  return text=="Agent"||text.starts_with("Agent(");
+}
+bool listsAgent(const Json& specs){
+  if(specs.is_array())for(const auto& spec:specs)if(namesAgent(spec))return true;
+  return false;
+}
+// Whether a Bat definition would take the Agent Gadget when its depth allows.
+bool definitionTakesAgent(const Json& definition){
+  if(listsAgent(field(definition,"disallowedTools")))return false;
+  const auto& tools=field(definition,"tools");
+  if(!definition.is_object()||!definition.contains("tools"))return true;
+  if(tools.is_array()&&tools.size()==1&&tools[0]=="*")return true;
+  return listsAgent(tools);
+}
+std::optional<std::size_t> nestDepth(const Json& definition){
+  const auto& depth=field(definition,"nestDepth");
+  if(depth.is_number_unsigned())return depth.get<std::size_t>();
+  if(depth.is_number_integer()&&depth.get<long long>()>0)
+    return static_cast<std::size_t>(depth.get<long long>());
+  return std::nullopt;
+}
+}
+std::string IndigenousBatApplication::nestingPoetry(std::size_t depth,
+    const Json& definition)const{
+  const auto limit=inputs_.config.maxBatDepth;
+  if(!mayLaunchBats(depth))
+    return "You cannot launch Bats: this Bat is at the deepest level Bats may nest "
+      "(max_bat_depth "+std::to_string(limit)+"), so the Agent Gadget is not "
+      "available to you. Do the work yourself with the Gadgets you have.";
+  if(!definitionTakesAgent(definition))return {};
+  const auto below=limit-depth;
+  return "You can launch Bats of your own with the Agent Gadget, nested up to "+
+    std::to_string(below)+(below==1?" level":" levels")+" below you. They run in "
+    "the foreground: you wait for each result, run_in_background is ignored, and "
+    "a Bat you launch stops when you finish or are stopped.";
+}
+void IndigenousBatApplication::prepareNestedRun(bats::RunBatParams& params)const{
+  const auto& id=field(params.override,"agentId");
+  if(!id.is_string())return;
+  const auto node=batNode(id.get<std::string>());
+  if(!node)return;
+  if(!params.batDefinition.is_object())params.batDefinition=Json::object();
+  params.batDefinition["nestDepth"]=node->depth;
+  auto& data=params.gadgetUseContext.query.data;
+  if(!data.is_object())return;
+  if(mayLaunchBats(node->depth)){
+    if(data.contains("unavailableGadgets")&&data["unavailableGadgets"].is_object())
+      data["unavailableGadgets"].erase("Agent");
+    return;
+  }
+  if(!data.contains("unavailableGadgets")||!data["unavailableGadgets"].is_object())
+    data["unavailableGadgets"]=Json::object();
+  data["unavailableGadgets"]["Agent"]="Agent is not available to this Bat: it is "
+    "at the maximum Bat depth (max_bat_depth "+std::to_string(inputs_.config.maxBatDepth)+
+    "), so it cannot launch Bats. Do this work yourself.";
 }
 bats::RunBatPreflightServices IndigenousBatApplication::makeRunPreflight(){
   bats::RunBatPreflightServices services;
@@ -89,12 +147,21 @@ bats::RunBatSetupServices IndigenousBatApplication::makeRunSetup(){
     if(parsed.ruleContent)value["ruleContent"]=*parsed.ruleContent;
     return value;
   };
-  services.resolveBatGadgets=[filters,weak](const Json& definition,
+  // Bats below the depth limit take the Agent Gadget, in foreground and
+  // resumed (async) runs alike.
+  auto nestedFilters=filters;
+  nestedFilters.allBatDisallowed.erase("Agent");
+  nestedFilters.customBatDisallowed.erase("Agent");
+  nestedFilters.asyncBatAllowed.insert("Agent");
+  services.resolveBatGadgets=[filters,nestedFilters,weak](const Json& definition,
       const gadgets::Gadgets& available,bool async)mutable{
+    const auto self=weak.lock();
+    const auto depth=nestDepth(definition);
+    const bool nests=self&&depth&&self->mayLaunchBats(*depth);
     Json effective=definition;
     const auto& scope=field(definition,"memory");
     if(scope.is_string()&&field(definition,"tools").is_array())
-      if(auto self=weak.lock())
+      if(self)
         if(batMemoryEnabled(self->inputs_.config,self->appState(),
             self->inputs_.projectRoot)){
           auto& configured=effective["tools"];
@@ -102,18 +169,31 @@ bats::RunBatSetupServices IndigenousBatApplication::makeRunSetup(){
             if(std::find(configured.begin(),configured.end(),Json(name))==
                 configured.end())configured.push_back(name);
         }
-    return bats::resolveBatGadgets(effective,available,async,false,filters)
-      .resolvedGadgets;
+    auto resolved=bats::resolveBatGadgets(effective,available,async,false,
+      nests?nestedFilters:filters).resolvedGadgets;
+    // An explicit tools list names Agent for the main thread only; a Bat that
+    // may nest and lists it takes it here.
+    if(nests&&listsAgent(field(effective,"tools"))&&
+        !listsAgent(field(effective,"disallowedTools"))&&
+        !gadgets::findGadgetByName(resolved,"Agent"))
+      if(const auto* agent=gadgets::findGadgetByName(available,"Agent"))
+        resolved.push_back(agent);
+    return resolved;
   };
   services.additionalWorkingDirectoryKeys=directoryKeys;
   services.poetry.getBatPoetry=[weak](const Json& definition,
       const bats::BatContext&){
     if(auto self=weak.lock()){
-      return Json(batSystemPoetryText(definition,generalPurposePoetry(),
+      auto text=batSystemPoetryText(definition,generalPurposePoetry(),
         self->inputs_.config,self->appState(),self->inputs_.projectRoot,
         [self](const std::string& value){
           if(self->inputs_.logError)
-            self->inputs_.logError(std::runtime_error(value));}));
+            self->inputs_.logError(std::runtime_error(value));});
+      if(const auto depth=nestDepth(definition)){
+        const auto note=self->nestingPoetry(*depth,definition);
+        if(!note.empty())text+="\n\n"+note;
+      }
+      return Json(std::move(text));
     }
     throw std::runtime_error("Agent prompt owner closed");
   };
@@ -241,9 +321,10 @@ bats::RunBatLoopServices IndigenousBatApplication::makeRunLoop(){
         self->recordBatMessages(messages,id,std::nullopt);};
   services.enqueueBatMetadata=[weak](const std::string& id,const Json& data){
     if(auto self=weak.lock()){
+      const auto metadata=self->withLineage(id,data);
       auto paths=self->pathsForBat(id);
       std::lock_guard lock(self->pathsMutex_);
-      paths->writeBatMetadata(id,data);
+      paths->writeBatMetadata(id,metadata);
     }
   };
   services.recordSidechainTranscript=[weak](const Json& messages,

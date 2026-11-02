@@ -16,7 +16,7 @@ void runGadgetUse(const Json& gadgetUse,const Json& assistantMessage,Context& co
       gadget=fallback;
   }
   if(!gadget) {
-    const std::string plain="Error: No such tool available: "+gadgetName;
+    const std::string plain=internal::missingGadgetText(context.data,gadgetName);
     Json args={{"content",Json::array({internal::createResult(gadgetId,
       "<tool_use_error>"+plain+"</tool_use_error>")})},
       {"toolUseResult",plain},{"sourceToolAssistantUUID",internal::field(assistantMessage,"uuid")}};

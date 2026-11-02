@@ -268,6 +268,8 @@ void Panel::persist(std::map<std::string,Endpoint> next,std::string selection,
           if(settingEdits.contains("max_concurrent_subagents"))
             self->config_->maxConcurrentSubagents=
               settingEdits.at("max_concurrent_subagents").get<std::size_t>();
+          if(settingEdits.contains("max_bat_depth"))
+            self->config_->maxBatDepth=settingEdits.at("max_bat_depth").get<std::size_t>();
           self->setSelectedProfile(selection);
           self->busy_=false;self->notice_="Saved. Next request uses the selected model.";
           if(self->closeAfterSave_){

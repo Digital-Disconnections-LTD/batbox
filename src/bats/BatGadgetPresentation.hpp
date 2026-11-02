@@ -10,5 +10,8 @@ Json mapBatGadgetResult(const Json& data,const std::string& gadgetUseId,
 std::string batGadgetAutoClassifierInput(const Json& input);
 Json batGadgetActivityDescription(const Json& input);
 std::string batGadgetProgressText(const Json& progressMessages);
+// The launching Bat's label carried as "launchedBy" in a sub-Bat card's
+// progress entries, or empty.
+std::string batLaunchedBy(const Json& progressMessages);
 std::string groupedBatGadgetUseText(const Json& entries);
 } // namespace batbox::bats

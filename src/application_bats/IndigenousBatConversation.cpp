@@ -199,8 +199,14 @@ void IndigenousBatApplication::finishBatJob(const std::string& id){
   if(finished){
     schedulePendingContinuation(id);
     const auto weak=weak_from_this();
-    inputs_.owner.postMission([weak]{
-      if(auto self=weak.lock())self->releaseInactiveState();
+    inputs_.owner.postMission([weak,id]{
+      if(auto self=weak.lock()){
+        // A Bat that finished or was stopped takes the Bats it launched with it.
+        if(!self->closing_)try{self->stopChildBats(id);}
+          catch(const std::exception& error){
+            if(self->inputs_.logError)self->inputs_.logError(error);}
+        self->releaseInactiveState();
+      }
     });
   }
 }

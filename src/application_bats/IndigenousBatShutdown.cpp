@@ -1,16 +1,41 @@
 #include "application_bats/IndigenousBatApplication.hpp"
 #include "application/Async.hpp"
+#include <set>
 #include <stdexcept>
+#include <vector>
 
 namespace batbox::application_bats {
 bool IndigenousBatApplication::backgroundForegroundMission(const std::string& missionId){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent background action requires owner");
   if(closing_)return false;
+  // A sub-Bat's result belongs to the Bat waiting on it, so it stays in that
+  // Bat's foreground.
+  if(const auto node=batNode(missionId);node&&node->parent)return false;
   return bats::backgroundBatMission(missionId,foreground_);
 }
 void IndigenousBatApplication::stopMission(const std::string& missionId){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent stop action requires owner");
   bats::killAsyncBat(missionId,missionState_);
+  stopChildBats(missionId);
+}
+void IndigenousBatApplication::stopChildBats(const std::string& id){
+  if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent stop action requires owner");
+  const auto tasks=inputs_.store->getState()->fieldRef("tasks");
+  if(!tasks||!tasks->is_object())return;
+  std::vector<std::string> pending{id};
+  std::set<std::string> seen{id};
+  while(!pending.empty()){
+    const auto parent=pending.back();pending.pop_back();
+    for(auto it=tasks->begin();it!=tasks->end();++it){
+      const auto& link=value::property(it.value(),"parentBatId");
+      if(!link.is_string()||link!=parent||!seen.insert(it.key()).second)continue;
+      pending.push_back(it.key());
+      const auto& status=value::property(it.value(),"status");
+      if(status=="running"||status=="pending")
+        try{bats::killAsyncBat(it.key(),missionState_);}
+        catch(const std::exception& error){if(inputs_.logError)inputs_.logError(error);}
+    }
+  }
 }
 event_loop::Deferred<event_loop::Unit> IndigenousBatApplication::shutdown(){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent shutdown requires owner");

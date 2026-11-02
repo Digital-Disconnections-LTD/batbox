@@ -27,6 +27,9 @@ struct BatRegistrationServices {
   std::function<std::function<void()>(const std::function<void()>&)> registerCleanup;
   std::function<void(const Json&)> enqueueSdkEvent;
   std::function<void(bool child)> onCreateAbortOwner;
+  // Adds owner-specific fields, such as the launching Bat, to every record
+  // before it is stored, including a resumed Bat's replacement record.
+  std::function<void(Json& mission)> decorateMission;
 };
 Json createMissionStateBase(const std::string& id,const std::string& type,
   const std::string& description,const std::optional<std::string>& gadgetUseId,

@@ -53,6 +53,9 @@ struct Config {
   bool mcpServersConfigured=false;
   std::size_t contextWindow=280000,maxOutputTokens=50000,compactAt=100000;
   std::size_t maxSubagents=5,maxConcurrentSubagents=2;
+  // How deep Bats may nest: 1 is a Bat launched by the main Flight, 2 a Bat
+  // launched by a Bat. 0 and 1 both keep Bats from launching Bats.
+  std::size_t maxBatDepth=3;
   bool fullscreen=true,print=false,help=false,thinking=true;
   bool verbose=false,replayUserMessages=false;
   std::string inputFormat="text",outputFormat="text";

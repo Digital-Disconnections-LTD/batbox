@@ -85,6 +85,14 @@ Json createAsyncBatAttachmentsIfNeeded(Context& context,RestoreServices& service
     Json attachment={{"type","task_status"},{"taskType","local_agent"},{"description",mission.at("description")},
       {"status",status},{"deltaSummary",summary},{"outputFilePath",services.getMissionOutputPath(mission.at("agentId").get<std::string>())}};
     if(mission.contains("agentId"))attachment["taskId"]=mission["agentId"];
+    // A sub-Bat reports to the Bat that launched it; say so to anyone else.
+    const auto& parent=value::property(mission,"parentBatId");
+    if(parent.is_string()&&parent!=value::property(context.data,"agentId")){
+      const auto& launcher=value::property(app.at("tasks"),parent.get<std::string>().c_str());
+      const auto& label=value::property(launcher,"description");
+      attachment["launchedBy"]=label.is_string()&&!label.get_ref<const std::string&>().empty()?
+        label:parent;
+    }
     result.push_back(services.createAttachmentMessage(attachment));
   }
   return result;

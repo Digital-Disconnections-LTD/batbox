@@ -42,9 +42,10 @@ bats::BatGadgetCallServices IndigenousBatApplication::makeServices(){
   };
   worktree.enqueueBatMetadata=[weak](const std::string& id,const Json& data){
     if(const auto self=weak.lock()){
+      const auto metadata=self->withLineage(id,data);
       auto paths=self->pathsForBat(id);
       std::lock_guard lock(self->pathsMutex_);
-      paths->writeBatMetadata(id,data);
+      paths->writeBatMetadata(id,metadata);
     }
   };
   worktree.diagnostic=[log=inputs_.logError](const std::string& message){
@@ -58,10 +59,18 @@ bats::BatGadgetCallServices IndigenousBatApplication::makeServices(){
   inputs.loop=makeRunLoop();
   inputs.query=query_;
   auto services=makeBatGadgetServices(std::move(inputs));
+  const auto runAsync=services.async.runBat;
+  services.async.runBat=[self=shared_from_this(),runAsync](
+      const bats::RunBatParams& original,const query::Yield& yield){
+    auto params=original;
+    self->prepareNestedRun(params);
+    runAsync(params,yield);
+  };
   const auto run=services.foreground.runBat;
   services.foreground.runBat=[self=shared_from_this(),run](
       const bats::RunBatParams& original,const query::Yield& yield){
     auto params=original;
+    self->prepareNestedRun(params);
     std::shared_ptr<std::stop_callback<std::function<void()>>> parentLink;
     const auto& id=field(params.override,"agentId");
     if(!params.overrideAbortOwner&&id.is_string()){

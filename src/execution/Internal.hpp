@@ -8,6 +8,14 @@ inline std::string stringField(const Json& object, const char* name) {
   const auto& value=field(object,name);
   return value.is_string()?value.get<std::string>():std::string{};
 }
+// The text for a call to a Gadget this context does not have. An owner can
+// explain a deliberate absence under data["unavailableGadgets"][name].
+inline std::string missingGadgetText(const Json& data,const std::string& name) {
+  const auto& reason=field(field(data,"unavailableGadgets"),name.c_str());
+  if(reason.is_string()&&!reason.get_ref<const std::string&>().empty())
+    return "Error: "+reason.get<std::string>();
+  return "Error: No such tool available: "+name;
+}
 template <class T> inline void require(const T& callback,const char* name) {
   if(!callback)throw std::invalid_argument(std::string("Unbound tool execution import: ")+name);
 }

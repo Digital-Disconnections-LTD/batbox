@@ -126,6 +126,8 @@ bats::ResumeResult IndigenousBatApplication::resumeMission(const std::string& id
     const std::string& text,bats::BatContext context,IndigenousQueryBridge::CanUseGadget canUse,
     const std::vector<Json>& queuedInputs){
   if(inputs_.owner.isOwnerThread())throw std::logic_error("Agent history resume requires worker");
+  // Bats saved before the Bat tree was recorded resume as the Flight's own.
+  if(!batNode(id))rememberBatNode(id,std::nullopt,1);
   requireCapacity(context.query.stop);
   bool launched=false,registered=false;
   try{

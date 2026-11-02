@@ -110,7 +110,15 @@ Json batGadgetActivityDescription(const Json& input) {
   return input.at("description");
 }
 
-std::string batGadgetProgressText(const Json& progressMessages){
+std::string batLaunchedBy(const Json& progressMessages){
+  if(progressMessages.is_array())for(const auto& event:progressMessages){
+    const auto& by=value::property(value::property(event,"data"),"launchedBy");
+    if(by.is_string()&&!by.get_ref<const std::string&>().empty())return by.get<std::string>();
+  }
+  return {};
+}
+namespace {
+std::string latestToolText(const Json& progressMessages){
   std::unordered_set<std::string> calls;
   std::string latest;
   if(progressMessages.is_array())for(const auto& event:progressMessages){
@@ -128,9 +136,18 @@ std::string batGadgetProgressText(const Json& progressMessages){
       if(name.is_string())latest=name.get<std::string>();
     }
   }
-  if(latest.empty())return "Working…";
+  if(latest.empty())return {};
   return "Latest tool: "+latest+" · "+std::to_string(calls.size())+
     (calls.size()==1?" tool call":" tool calls");
+}
+std::string joined(const std::string& first,const std::string& second){
+  if(first.empty())return second;
+  return second.empty()?first:first+" · "+second;
+}
+}
+std::string batGadgetProgressText(const Json& progressMessages){
+  const auto latest=latestToolText(progressMessages);
+  return latest.empty()?std::string("Working…"):latest;
 }
 
 std::string groupedBatGadgetUseText(const Json& entries){
@@ -141,18 +158,22 @@ std::string groupedBatGadgetUseText(const Json& entries){
     const auto& input=value::property(value::property(entry,"param"),"input");
     const auto& description=value::property(input,"description");
     text+="\n  "+(description.is_string()?description.get<std::string>():"Agent task")+" · ";
+    // A sub-Bat names the Bat that launched it ahead of its status.
+    const auto& progress=value::property(entry,"progressMessages");
+    const auto by=batLaunchedBy(progress);
+    std::string state;
     // A background launch resolves at once; its result is the launch, not
     // the Bat's outcome, which arrives later as a notification.
     const auto& status=value::property(value::property(entry,"output"),"status");
-    if(value::property(entry,"isError")==true)text+="Failed";
+    if(value::property(entry,"isError")==true)state="Failed";
     else if(status=="async_launched"||status=="remote_launched"||status=="teammate_spawned")
-      text+="Launched";
-    else if(value::property(entry,"isResolved")==true)text+="Completed";
+      state=by.empty()?"Launched":"";
+    else if(value::property(entry,"isResolved")==true)state="Completed";
     else if(value::property(entry,"isInProgress")==true||
-        (value::property(entry,"progressMessages").is_array()&&
-         !value::property(entry,"progressMessages").empty()))
-      text+=batGadgetProgressText(value::property(entry,"progressMessages"));
-    else text+="Queued";
+        (progress.is_array()&&!progress.empty()))
+      state=by.empty()?batGadgetProgressText(progress):latestToolText(progress);
+    else state=by.empty()?"Queued":"";
+    text+=joined(by.empty()?"":"Launched by "+by,state);
   }
   return text;
 }

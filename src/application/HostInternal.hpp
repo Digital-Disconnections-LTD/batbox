@@ -44,6 +44,7 @@ struct Host::Impl {
     std::filesystem::path projectRoot;
     Json settings=Json::object(),mcpSnapshot=Json::object();
     std::unordered_map<std::string,std::string> transcriptOrigins;
+    std::unordered_map<std::string,application_bats::BatNode> batLineage;
     enum class State {Live, Closing, Dormant, Reviving};
     State state=State::Live;
     std::size_t pendingOperations=0;

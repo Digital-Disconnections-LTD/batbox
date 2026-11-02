@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 #include <system_error>
+#include <unordered_set>
+#include <vector>
 namespace batbox::flights {
 using shell::joinPosixPath;
 std::string Paths::getProjectsDir()const{return joinPosixPath(services.getConfigHome(),"projects");}
@@ -25,13 +27,28 @@ std::string Paths::getFlightProjectTranscriptPath(const std::string& flight)cons
 }
 void Paths::setBatTranscriptSubdir(const std::string& bat,const std::string& subdir){subdirectories[bat]=subdir;}
 void Paths::clearBatTranscriptSubdir(const std::string& bat){subdirectories.erase(bat);}
-std::string Paths::getBatTranscriptPath(const std::string& bat)const {
+std::string Paths::batDirectory(const std::string& bat)const {
+  // Launching Bats from the top-level Bat down to `bat`'s parent. A parent
+  // link that loops stops at the first repeat.
+  std::vector<std::string> lineage;
+  if(services.getBatParent){
+    std::unordered_set<std::string> seen{bat};
+    for(auto parent=services.getBatParent(bat);parent&&!parent->empty()&&
+        seen.insert(*parent).second;parent=services.getBatParent(*parent))
+      lineage.push_back(*parent);
+  }
   const auto override=services.getFlightProjectDir();
   const auto project=override ? *override : services.getProjectDir(services.getOriginalCwd());
   auto base=joinPosixPath(project,services.getFlightId());
   base=joinPosixPath(base,"subagents");
-  if(const auto at=subdirectories.find(bat);at!=subdirectories.end() && !at->second.empty())base=joinPosixPath(base,at->second);
-  return joinPosixPath(base,"agent-"+bat+".jsonl");
+  const auto& top=lineage.empty()?bat:lineage.back();
+  if(const auto at=subdirectories.find(top);at!=subdirectories.end() && !at->second.empty())base=joinPosixPath(base,at->second);
+  for(auto it=lineage.rbegin();it!=lineage.rend();++it)
+    base=joinPosixPath(joinPosixPath(base,"agent-"+*it),"subagents");
+  return base;
+}
+std::string Paths::getBatTranscriptPath(const std::string& bat)const {
+  return joinPosixPath(batDirectory(bat),"agent-"+bat+".jsonl");
 }
 std::string Paths::getBatMetadataPath(const std::string& bat)const {
   auto path=getBatTranscriptPath(bat);path.replace(path.size()-6,6,".meta.json");return path;

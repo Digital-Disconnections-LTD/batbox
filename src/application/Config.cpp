@@ -47,6 +47,13 @@ std::size_t positive(const std::string& value,const char* name){
     throw std::invalid_argument(std::string("Invalid ")+name);
   return static_cast<std::size_t>(parsed);
 }
+std::size_t nonNegative(const std::string& value,const char* name){
+  std::size_t used=0;unsigned long long parsed=0;
+  try{parsed=std::stoull(value,&used);}catch(...){throw std::invalid_argument(std::string("Invalid ")+name+": expected 0 or a positive whole number");}
+  if(value.empty()||value.front()=='-'||used!=value.size()||parsed>std::numeric_limits<std::size_t>::max())
+    throw std::invalid_argument(std::string("Invalid ")+name+": expected 0 or a positive whole number");
+  return static_cast<std::size_t>(parsed);
+}
 void applyConfig(Config& config,const Json& value){
   const auto text=[&](const char* name,std::string& output){if(value.contains(name))output=value.at(name).get<std::string>();};
   text("base_url",config.baseUrl);text("model",config.model);text("auth_token",config.authToken);
@@ -58,6 +65,8 @@ void applyConfig(Config& config,const Json& value){
   number("context_window",config.contextWindow);number("max_output_tokens",config.maxOutputTokens);
   number("compact_at",config.compactAt);number("max_subagents",config.maxSubagents);
   number("max_concurrent_subagents",config.maxConcurrentSubagents);
+  if(value.contains("max_bat_depth"))
+    config.maxBatDepth=nonNegative(value::stringify(value.at("max_bat_depth")),"max_bat_depth");
   if(value.contains("autoCompactEnabled"))
     config.settings["autoCompactEnabled"]=value.at("autoCompactEnabled").get<bool>();
   if(value.contains("fullscreen"))config.fullscreen=value.at("fullscreen").get<bool>();
@@ -205,6 +214,8 @@ Config loadConfig(const std::vector<std::string>& arguments){
   envNumber("BATBOX_MAX_OUTPUT_TOKENS",config.maxOutputTokens);envNumber("BATBOX_CONTEXT_WINDOW",config.contextWindow);
   envNumber("BATBOX_COMPACT_AT",config.compactAt);envNumber("BATBOX_MAX_SUBAGENTS",config.maxSubagents);
   envNumber("BATBOX_MAX_CONCURRENT_SUBAGENTS",config.maxConcurrentSubagents);
+  if(const auto selected=environment("BATBOX_MAX_BAT_DEPTH");!selected.empty())
+    config.maxBatDepth=nonNegative(selected,"BATBOX_MAX_BAT_DEPTH");
   std::vector<std::string> poetry;
   std::optional<std::string> promptFlag;
   config.modelRequested=false;
@@ -273,6 +284,7 @@ Config loadConfig(const std::vector<std::string>& arguments){
     else if(argument=="--compact-at")config.compactAt=positive(next("--compact-at"),"--compact-at");
     else if(argument=="--max-subagents")config.maxSubagents=positive(next("--max-subagents"),"--max-subagents");
     else if(argument=="--max-concurrent-subagents")config.maxConcurrentSubagents=positive(next("--max-concurrent-subagents"),"--max-concurrent-subagents");
+    else if(argument=="--max-bat-depth")config.maxBatDepth=nonNegative(next("--max-bat-depth"),"--max-bat-depth");
     else if(argument=="--"){for(++i;i<arguments.size();++i)poetry.push_back(arguments[i]);break;}
     else if(argument.starts_with('-'))throw std::invalid_argument("Unknown option: "+argument);
     else poetry.push_back(argument);
@@ -467,6 +479,8 @@ std::string commandLineHelp(){
     "  --compact-at N                 Automatic compaction threshold\n"
     "  --max-subagents N              Subagent limit\n"
     "  --max-concurrent-subagents N   Concurrent subagents\n"
+    "  --max-bat-depth N              How deep Bats may launch Bats (default 3;\n"
+    "                                 0 or 1: Bats cannot launch Bats)\n"
     "  -h, --help                     Show this help (also: batbox help)\n"
     "  --version                      Print the version and exit (also: batbox version)\n\n"
     "Configuration: ~/.batbox/native-client.json and ~/.batbox/settings.json\n"

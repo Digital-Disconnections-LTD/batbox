@@ -31,11 +31,13 @@ void registerMission(const Json& mission,BatRegistrationServices& services){
   const Json& idValue=field(mission,"id");
   if(!idValue.is_string())throw std::invalid_argument("Missing task id");
   const std::string id=idValue.get<std::string>();
+  Json decorated=mission;
+  if(services.decorateMission)services.decorateMission(decorated);
   bool replacement=false;
   services.state->setAppState([&](const Json& previous){
     const Json& existing=value::property(field(previous,"tasks"),id);
     replacement=!existing.is_null();
-    Json merged=mission;
+    Json merged=decorated;
     if(existing.is_object()&&existing.contains("retain")){
       for(const char* key:{"retain","startTime","messages",
                             "diskLoaded","pendingMessages"})

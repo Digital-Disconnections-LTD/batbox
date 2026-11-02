@@ -73,7 +73,7 @@ void StreamingGadgetExecutor::addGadget(const Json& block,const Json& assistantM
   const auto* definition=gadgets::findGadgetByName(context_.gadgets,internal::stringField(block,"name"));
   if(!definition) {
     internal::require(services_.createUserMessage,"createUserMessage");
-    const std::string plain="Error: No such tool available: "+internal::stringField(block,"name");
+    const std::string plain=internal::missingGadgetText(context_.data,internal::stringField(block,"name"));
     tracked->status=Status::Completed;
     tracked->concurrencySafe=true;
     tracked->results.push_back(services_.createUserMessage(Json{{"content",Json::array({

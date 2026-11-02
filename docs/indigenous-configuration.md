@@ -78,3 +78,23 @@ explicit configuration root. Keep credentials outside your source repository.
 Fresh installations store runtime data under `~/.batbox/state/`. Existing saved
 Flights retain their configured location. `state_directory` can select one
 explicitly. Vocabulary changes do not relocate your data.
+
+## Bat limits
+
+| Setting | Flag | Environment | Default | What it limits |
+| --- | --- | --- | --- | --- |
+| `max_subagents` | `--max-subagents N` | `BATBOX_MAX_SUBAGENTS` | 5 | Bats running or waiting at once, counting Bats launched by Bats. |
+| `max_concurrent_subagents` | `--max-concurrent-subagents N` | `BATBOX_MAX_CONCURRENT_SUBAGENTS` | 2 | Bats working at once, counting Bats launched by Bats. |
+| `max_bat_depth` | `--max-bat-depth N` | `BATBOX_MAX_BAT_DEPTH` | 3 | How deep Bats may launch Bats. |
+
+Depth 1 is a Bat the main Flight launches, depth 2 a Bat that Bat launches, and
+depth 3 a grandchild. A Bat below `max_bat_depth` gets the Agent Gadget; a Bat
+at it does not, and its poetry says it cannot launch Bats. `0` and `1` both
+keep Bats from launching Bats; the main Flight can always launch them.
+
+Set them in `settings.json` or `native-client.json` (for example
+`"max_bat_depth": 2`). Later sources win: `settings.json`, then
+`native-client.json`, then the environment variable, then the flag. `/config`
+shows all three under ⚙ Request settings, saves edits to `native-client.json`,
+and applies them on the next launch. A project's `.batbox/` folder does not set
+these limits.

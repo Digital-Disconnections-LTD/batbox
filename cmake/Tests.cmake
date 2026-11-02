@@ -38,6 +38,8 @@ target_sources(batbox-compaction-probe PRIVATE tests/phase4/compaction_workflow_
 target_sources(batbox-compaction-probe PRIVATE tests/phase4/compaction_summary_fixture.cpp)
 target_sources(batbox-compaction-probe PRIVATE tests/phase4/compaction_restore_fixture.cpp)
 batbox_indigenous(phase4-compaction-restore-async tests/phase4/compaction_restore_async.cpp batbox_compaction)
+batbox_indigenous(phase4-compaction-restore-nested-bats
+  tests/phase4/compaction_restore_nested_bats.cpp batbox_compaction)
 foreach(section IN ITEMS bash_helpers bash_result bash_shellquote bash_split bash_heredoc bash_quoting bash_pipe bash_provider bash_snapshot
     bash_schema bash_accumulator bash_hints bash_cwd bash_call bash_tail bash_poller bash_run_shell bash_static bash_shell_exec
     bash_duration bash_cwd_completion)

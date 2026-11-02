@@ -50,8 +50,13 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
     return name.empty()?std::string("Bat"):name;
   };
   display.userFacingNameBackgroundColor=[](const Json&){return Json();};
-  display.renderGadgetUseMessage=[](const Json& input,const Json&){
-    return field(input,"description");
+  // A sub-Bat's launch line names the Bat that launched it.
+  display.renderGadgetUseMessage=[weak](const Json& input,const Json&){
+    const auto& description=field(input,"description");
+    const auto self=weak.lock();
+    if(!self||!description.is_string())return description;
+    const auto by=self->launcherLabel(input);
+    return by.empty()?description:Json(description.get<std::string>()+" · Launched by "+by);
   };
   display.renderGadgetUseProgressMessage=[](const Json& progress,const Json&){
     return Json(bats::batGadgetProgressText(progress));
@@ -66,8 +71,16 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
     return field(data,"content");
   };
   display.renderGadgetUseTag=[](const Json& input){return field(input,"subagent_type");};
-  display.renderGroupedGadgetUse=[](const Json& data,const Json&){
-    return Json(bats::groupedBatGadgetUseText(data));
+  display.renderGroupedGadgetUse=[weak](const Json& data,const Json&){
+    Json entries=data;
+    if(const auto self=weak.lock();self&&entries.is_array())
+      for(auto& entry:entries){
+        const auto by=self->launcherLabel(field(field(entry,"param"),"input"));
+        if(by.empty()||!entry.is_object())continue;
+        if(!entry["progressMessages"].is_array())entry["progressMessages"]=Json::array();
+        entry["progressMessages"].push_back(Json{{"data",{{"launchedBy",by}}}});
+      }
+    return Json(bats::groupedBatGadgetUseText(entries));
   };
   bats::configureBatGadgetDescriptor(gadget,display);
   bats::configureBatGadgetInputSchema(gadget,bats::BatGadgetSchemaOptions{});
@@ -109,15 +122,37 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
       const std::function<void(const gadgets::GadgetProgress&)>& onProgress){
     std::promise<gadgets::GadgetResult> promise;auto future=promise.get_future();
     auto self=weak.lock();
-    bool reserved=false,asyncLaunched=false;
-    std::optional<std::string> retainedForeground;
+    bool reserved=false,asyncLaunched=false,borrowed=false;
+    std::optional<std::string> retainedForeground,launcher;
+    const auto release=[&]{
+      if(launcher)self->releaseNestedCapacity(*launcher,borrowed);
+      else self->releaseCapacity();
+    };
     try{
       if(!self)throw std::runtime_error("Indigenous Bat owner is unavailable");
       if(!callContext.batContext)
         throw std::invalid_argument("BatGadget requires Indigenous BatContext");
       if(!canUseGadget)
         throw std::invalid_argument("BatGadget requires permission callback");
-      self->requireCapacity(callContext.stopToken);reserved=true;
+      // A Bat's own context names it; the main Flight's names no Bat.
+      std::size_t childDepth=1;
+      const auto& callerId=field(callContext.batContext->query.data,"agentId");
+      if(callerId.is_string()&&!callerId.get_ref<const std::string&>().empty()){
+        const auto caller=self->batNode(callerId.get<std::string>());
+        if(!caller)throw std::runtime_error(
+          "Only the main Flight and its Bats can launch Bats");
+        if(!self->mayLaunchBats(caller->depth))throw std::runtime_error(
+          "Cannot launch a Bat from here: Bats may nest "+
+          std::to_string(self->inputs_.config.maxBatDepth)+
+          (self->inputs_.config.maxBatDepth==1?" level":" levels")+
+          " deep (max_bat_depth) and this Bat is already at depth "+
+          std::to_string(caller->depth)+". Do this work yourself.");
+        launcher=callerId.get<std::string>();
+        childDepth=caller->depth+1;
+      }
+      if(launcher)borrowed=self->requireNestedCapacity(*launcher);
+      else self->requireCapacity(callContext.stopToken);
+      reserved=true;
       bats::BatContext context=*callContext.batContext;
       context.query.data=callContext.data;
       context.query.stop=callContext.stopToken;
@@ -134,14 +169,35 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
       context.query.data["options"]=std::move(options);
       bats::materializeAppStateModifier(context);
       auto services=self->makeServices();
-      services.foreground.final.unregisterForeground=[self,&retainedForeground](const std::string& id){
+      services.launch.createBatId=[self,create=services.launch.createBatId,
+          launcher,childDepth]{
+        auto id=create();
+        self->rememberBatNode(id,launcher,childDepth);
+        return id;
+      };
+      const auto selectPoetry=services.launch.poetry.getSelectedBatPoetry;
+      services.launch.poetry.getSelectedBatPoetry=[self,selectPoetry,childDepth](
+          const Json& bat,const bats::BatContext& parent){
+        Json poetry=selectPoetry(bat,parent);
+        const auto note=self->nestingPoetry(childDepth,bat);
+        if(poetry.is_string()&&!note.empty())
+          poetry=poetry.get<std::string>()+"\n\n"+note;
+        return poetry;
+      };
+      // A sub-Bat runs in its parent's foreground: the parent waits for the
+      // result, and a background launch would report to the main Flight.
+      if(launcher)services.launch.isBackgroundMissionsDisabled=[]{return true;};
+      services.foreground.final.unregisterForeground=[self,&retainedForeground,
+          nested=launcher.has_value()](const std::string& id){
         const auto current=self->appState();
         const auto& mission=value::property(field(current,"tasks"),id);
         if(bats::isPanelBatMission(mission)&&field(mission,"isBackgrounded")==false&&
-            field(mission,"retain")==true){
+            (nested||field(mission,"retain")==true)){
           // Indigenous selected views outlive the foreground Gadget.call. Keep the
           // retained mission until this call's actual result/error is available.
-          // Unobserved foreground missions still unregister when they finish.
+          // A sub-Bat's record stays like a background Bat's, so the tree and
+          // its outcome remain listed. Other unobserved foreground missions
+          // still unregister when they finish.
           retainedForeground=id;self->foregroundSignals_.erase(id);return;
         }
         bats::unregisterBatForeground(id,self->foreground_);
@@ -160,7 +216,7 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
         self->schedulePendingContinuation(field(data,"agentId").get<std::string>(),true);
       gadgets::GadgetResult result;result.data=data;
       promise.set_value(std::move(result));
-      if(!asyncLaunched)self->releaseCapacity();
+      if(!asyncLaunched)release();
     }catch(...){
       const auto failure=std::current_exception();
       if(retainedForeground){
@@ -174,12 +230,35 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
           else bats::failBatMission(*retainedForeground,message,self->missionState_);
         }catch(...){}
       }
-      if(reserved)self->rollbackCapacity();
+      if(reserved)release();
       promise.set_exception(failure);
     }
     return future;
   };
   return gadgets::buildGadget(std::move(gadget));
+}
+std::string IndigenousBatApplication::launcherLabel(const Json& input)const{
+  // Rendering runs on the owner, where the store is read without a copy.
+  if(!inputs_.owner.isOwnerThread()||!input.is_object())return {};
+  const auto tasks=inputs_.store->getState()->fieldRef("tasks");
+  if(!tasks||!tasks->is_object())return {};
+  const auto& description=field(input,"description");
+  const auto& type=field(input,"subagent_type");
+  for(auto it=tasks->begin();it!=tasks->end();++it){
+    const auto& mission=it.value();
+    const auto& parent=field(mission,"parentBatId");
+    // The sub-Bat's record keeps its launch's description, prompt and type.
+    if(!parent.is_string()||field(mission,"description")!=description||
+        field(mission,"prompt")!=field(input,"prompt")||
+        (type.is_string()&&field(mission,"agentType")!=type))continue;
+    const auto& launcher=value::property(*tasks,parent.get<std::string>().c_str());
+    for(const char* key:{"name","description","agentType"}){
+      auto label=string(field(launcher,key));
+      if(!label.empty())return label;
+    }
+    return parent.get<std::string>();
+  }
+  return {};
 }
 void IndigenousBatApplication::bindPreflight(bats::BatGadgetCallServices& gadget){
   auto& pre=gadget.preflight;

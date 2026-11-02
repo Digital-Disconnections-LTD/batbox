@@ -269,6 +269,37 @@ int main(){
   assert(readEndpoints(path)->at("local").authToken==typed);
   assert(service->config().profiles.contains(profileId("local","alpha")));
 
+  // Max Bat depth sits with the other Bat limits; 0 is a valid depth.
+  auto depthConfig=std::make_shared<application::Config>(panelConfig);
+  auto depthPanel=std::make_shared<Panel>(loop,depthConfig,
+    service,store,std::function<std::shared_ptr<interactive::conversation_shell::Shell>()>{},
+    [](interactive::CommandCompletion){},
+    [&](std::optional<interactive::UiRequest> next,
+        interactive::CommandUi::Action nextAction){
+      visible=std::move(next);action=std::move(nextAction);},
+    [](std::string){assert(false);});
+  depthPanel->start();loop.run();
+  action({interactive::UiAction::Kind::Activate,2,{}});
+  assert(visible&&visible->id=="endpoint-settings");
+  assert(visible->choices.at(2).starts_with("Max subagents  ")&&
+    visible->choices.at(3).starts_with("Concurrent subagents  ")&&
+    visible->choices.at(4)=="Max Bat depth  3"&&visible->choices.at(5)=="Back");
+  action({interactive::UiAction::Kind::Activate,4,{}});
+  assert(visible&&visible->id=="endpoint-input"&&visible->title.find("Max Bat depth")!=std::string::npos);
+  action({interactive::UiAction::Kind::TextChange,0,"-1"});
+  action({interactive::UiAction::Kind::Activate,0,{}});
+  assert(visible&&visible->id=="endpoint-input"&&
+    visible->body.find("Enter 0 or a whole number")!=std::string::npos&&depthConfig->maxBatDepth==3);
+  action({interactive::UiAction::Kind::TextChange,0,"\x7f"});
+  action({interactive::UiAction::Kind::TextChange,0,"\x7f"});
+  action({interactive::UiAction::Kind::TextChange,0,"0"});
+  action({interactive::UiAction::Kind::Activate,0,{}});
+  loop.run();
+  assert(depthConfig->maxBatDepth==0);
+  {std::ifstream file(path);assert(Json::parse(file).at("max_bat_depth")==0);}
+  assert(visible&&visible->id=="endpoint-settings"&&
+    visible->choices.at(4)=="Max Bat depth  0 (Bats cannot launch Bats)");
+
   // Cloud endpoints show their kind, region and project; the URL comes from the region.
   Endpoint vertex;
   vertex.label="Vertex";vertex.provider="vertex";vertex.preset="google-vertex-anthropic";

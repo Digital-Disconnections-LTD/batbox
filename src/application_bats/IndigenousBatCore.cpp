@@ -6,6 +6,7 @@
 #include "runtime/IndigenousPath.hpp"
 #include "bats/IndigenousMissionOutput.hpp"
 #include "flights/ProjectDirectories.hpp"
+#include <algorithm>
 #include <filesystem>
 #include <stdexcept>
 
@@ -151,6 +152,13 @@ void IndigenousBatApplication::initialize(){
     }};
   };
   registration_.enqueueSdkEvent=inputs_.enqueueSdkEvent;
+  registration_.decorateMission=[weak](Json& mission){
+    const auto self=weak.lock();if(!self)return;
+    const auto& id=field(mission,"id");if(!id.is_string())return;
+    const auto node=self->batNode(id.get<std::string>());if(!node)return;
+    if(node->parent)mission["parentBatId"]=*node->parent;
+    mission["batDepth"]=node->depth;
+  };
   notification_.setAppState=missionState_.setAppState;
   notification_.abortSpeculation=[](const bats::RootSetAppState&){};
   notification_.getMissionOutputPath=registration_.getMissionOutputPath;
@@ -246,14 +254,27 @@ std::shared_ptr<flights::Paths> IndigenousBatApplication::pathsForFlightLocked(
   services.getFlightProjectDir=[]()->std::optional<std::string>{return {};};
   services.getProjectDir=[dirs=directories_](const std::string& cwd){
     return dirs->getProjectDir(cwd);};
+  services.getBatParent=[weak=weak_from_this()](const std::string& bat)
+      ->std::optional<std::string>{
+    const auto self=weak.lock();if(!self)return {};
+    const auto node=self->batNode(bat);
+    return node?node->parent:std::nullopt;
+  };
   return flightPaths_.emplace(flight,
     std::make_shared<flights::Paths>(std::move(services))).first->second;
+}
+namespace {
+std::string outstandingLimit(std::size_t limit){
+  return "Outstanding subagent limit reached: "+std::to_string(limit)+
+    " Bats are already running or waiting, counting Bats launched by Bats "
+    "(--max-subagents "+std::to_string(limit)+")";
+}
 }
 void IndigenousBatApplication::requireCapacity(std::stop_token stop){
   std::unique_lock lock(capacityMutex_);
   if(closing_||stop.stop_requested())throw std::runtime_error("Subagent launch interrupted");
   if(outstanding_>=inputs_.config.maxSubagents)
-    throw std::runtime_error("Outstanding subagent limit reached");
+    throw std::runtime_error(outstandingLimit(inputs_.config.maxSubagents));
   ++outstanding_;
   if(!capacityChanged_.wait(lock,stop,[this]{
       return closing_||active_<inputs_.config.maxConcurrentSubagents;})||closing_){
@@ -272,6 +293,62 @@ void IndigenousBatApplication::releaseCapacity(){
 }
 void IndigenousBatApplication::rollbackCapacity(){
   releaseCapacity();
+}
+bool IndigenousBatApplication::requireNestedCapacity(const std::string& parent){
+  bool borrowed=false;
+  {
+    std::lock_guard lock(capacityMutex_);
+    if(closing_)throw std::runtime_error("Subagent launch interrupted");
+    if(outstanding_>=inputs_.config.maxSubagents)
+      throw std::runtime_error(outstandingLimit(inputs_.config.maxSubagents));
+    borrowed=!lentSlots_.contains(parent);
+    if(!borrowed&&active_>=inputs_.config.maxConcurrentSubagents)
+      throw std::runtime_error("Concurrent subagent limit reached: "+
+        std::to_string(active_)+" Bats are running, counting Bats launched by Bats "
+        "(--max-concurrent-subagents "+std::to_string(inputs_.config.maxConcurrentSubagents)+
+        "). A Bat cannot wait for a slot while it holds one; launch these Bats one at a time");
+    ++outstanding_;
+    if(borrowed)lentSlots_.insert(parent);else ++active_;
+  }
+  return borrowed;
+}
+void IndigenousBatApplication::releaseNestedCapacity(const std::string& parent,bool borrowed){
+  {std::lock_guard lock(capacityMutex_);
+    if(borrowed)lentSlots_.erase(parent);else if(active_)--active_;
+    if(outstanding_)--outstanding_;}
+  capacityChanged_.notify_all();
+  notifyShutdownProgress();
+}
+std::optional<BatNode> IndigenousBatApplication::batNode(const std::string& id)const{
+  std::lock_guard lock(nodesMutex_);
+  const auto at=batNodes_.find(id);
+  if(at==batNodes_.end())return std::nullopt;
+  return at->second;
+}
+void IndigenousBatApplication::rememberBatNode(const std::string& id,
+    std::optional<std::string> parent,std::size_t depth){
+  if(id.empty())throw std::invalid_argument("Bat tree entry needs an id");
+  if(parent&&(parent->empty()||*parent==id))parent.reset();
+  std::lock_guard lock(nodesMutex_);
+  batNodes_[id]=BatNode{std::move(parent),std::max<std::size_t>(depth,1)};
+}
+std::unordered_map<std::string,BatNode> IndigenousBatApplication::batLineage()const{
+  std::lock_guard lock(nodesMutex_);return batNodes_;
+}
+void IndigenousBatApplication::restoreBatLineage(
+    const std::unordered_map<std::string,BatNode>& lineage){
+  std::lock_guard lock(nodesMutex_);
+  batNodes_.insert(lineage.begin(),lineage.end());
+}
+bool IndigenousBatApplication::mayLaunchBats(std::size_t depth)const{
+  return depth<inputs_.config.maxBatDepth;
+}
+Json IndigenousBatApplication::withLineage(const std::string& id,Json metadata)const{
+  const auto node=batNode(id);
+  if(!node||!metadata.is_object())return metadata;
+  if(node->parent)metadata["parentBatId"]=*node->parent;
+  metadata["batDepth"]=node->depth;
+  return metadata;
 }
 Json IndigenousBatApplication::batDefinitions()const{
   std::lock_guard lock(definitionsMutex_);
