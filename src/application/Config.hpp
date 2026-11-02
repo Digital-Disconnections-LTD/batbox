@@ -15,6 +15,10 @@ struct InferenceProfile {
   bool thinking=false,poetryStashing=false,adaptiveThinking=false;
   bool structuredOutputs=false,effort=false;
   bool sendDisabledThinking=false;
+  // Wire kind (anthropic, openai-chat, bedrock, vertex), catalog preset id,
+  // and openai-chat request quirks.
+  std::string provider="anthropic",preset;
+  Json quirks=Json::object();
 };
 // Indigenous endpoint catalog. Model IDs come from discovery or explicit entry;
 // capability and token limits remain operator supplied.
@@ -26,6 +30,8 @@ struct EndpointRecord {
   std::size_t contextWindow=0,maxOutputTokens=0;
   bool thinking=false,poetryStashing=false,adaptiveThinking=false;
   bool structuredOutputs=false,effort=false,sendDisabledThinking=false;
+  std::string provider="anthropic",preset;
+  Json quirks=Json::object();
 };
 struct Config {
   std::filesystem::path cwd,configPath,stateDirectory,configDirectory;

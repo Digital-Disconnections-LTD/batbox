@@ -125,6 +125,10 @@ void validateEndpoint(const std::string& id,const application::EndpointRecord& e
   if(endpoint.modelsPath.find_first_of("\r\n")!=std::string::npos)
     throw std::invalid_argument("Models path must be one line");
   if(!endpoint.headers.is_object())throw std::invalid_argument("Endpoint headers must be an object");
+  if(endpoint.provider.find_first_of("\r\n")!=std::string::npos||
+      endpoint.preset.find_first_of("\r\n")!=std::string::npos)
+    throw std::invalid_argument("Provider and preset must be one line");
+  if(!endpoint.quirks.is_object())throw std::invalid_argument("Endpoint quirks must be an object");
   for(auto it=endpoint.headers.begin();it!=endpoint.headers.end();++it)
     if(!it.value().is_string()||it.key().find_first_of("\r\n")!=std::string::npos||
         (it.value().is_string()&&it.value().get<std::string>().find_first_of("\r\n")!=std::string::npos))
@@ -152,6 +156,8 @@ application::InferenceProfile inferenceProfile(const application::EndpointRecord
   profile.adaptiveThinking=endpoint.adaptiveThinking;
   profile.structuredOutputs=endpoint.structuredOutputs;profile.effort=endpoint.effort;
   profile.sendDisabledThinking=endpoint.sendDisabledThinking;
+  profile.provider=endpoint.provider;profile.preset=endpoint.preset;
+  profile.quirks=endpoint.quirks;
   return profile;
 }
 void loadEndpoints(application::Config& config,const Json& source){
@@ -168,6 +174,9 @@ void loadEndpoints(application::Config& config,const Json& source){
     endpoint.authToken=field(row,"auth_token");
     endpoint.apiKeyEnv=field(row,"api_key_env");
     endpoint.authHeader=field(row,"auth_header","authorization");
+    endpoint.provider=field(row,"provider","anthropic");
+    endpoint.preset=field(row,"preset");
+    if(row.contains("quirks"))endpoint.quirks=row.at("quirks");
     if(row.contains("headers"))endpoint.headers=row.at("headers");
     if(row.contains("models")){
       if(!row.at("models").is_array())throw std::invalid_argument("Endpoint models must be an array");
@@ -203,6 +212,9 @@ Json endpointDocument(const std::map<std::string,application::EndpointRecord>& e
     if(!endpoint.authToken.empty())rows[id]["auth_token"]=endpoint.authToken;
     if(!endpoint.apiKeyEnv.empty())rows[id]["api_key_env"]=endpoint.apiKeyEnv;
     if(!endpoint.headers.empty())rows[id]["headers"]=endpoint.headers;
+    rows[id]["provider"]=endpoint.provider.empty()?std::string("anthropic"):endpoint.provider;
+    if(!endpoint.preset.empty())rows[id]["preset"]=endpoint.preset;
+    if(!endpoint.quirks.empty())rows[id]["quirks"]=endpoint.quirks;
   }
   return rows;
 }

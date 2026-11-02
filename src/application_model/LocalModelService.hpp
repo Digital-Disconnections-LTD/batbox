@@ -46,6 +46,9 @@ struct ModelProfile {
   std::string wireModel;
   std::optional<transport::ClientConfig> client;
   std::string authHeader="authorization";
+  // Wire kind, catalog preset and openai-chat quirks from the endpoint.
+  std::string provider="anthropic",preset;
+  Json quirks=Json::object();
 };
 struct Config {
   transport::ClientConfig client;

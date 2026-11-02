@@ -110,6 +110,12 @@ void applyConfig(Config& config,const Json& value){
       field("api_key_helper",profile.apiKeyHelper);
       field("api_key_env",profile.apiKeyEnv);
       field("auth_header",profile.authHeader);
+      field("provider",profile.provider);field("preset",profile.preset);
+      if(row.contains("quirks")){
+        if(!row.at("quirks").is_object())
+          throw std::invalid_argument("Profile quirks must be a JSON object: "+it.key());
+        profile.quirks=row.at("quirks");
+      }
       if(row.contains("headers"))profile.headers=row.at("headers");
       if(!profile.headers.is_object())
         throw std::invalid_argument("Profile headers must be a JSON object: "+it.key());

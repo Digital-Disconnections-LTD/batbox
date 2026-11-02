@@ -128,6 +128,8 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
     profile.client->messagesPath=configured.messagesPath;
     profile.client->headers=configured.headers;
     profile.authHeader=configured.authHeader;
+    profile.provider=configured.provider;profile.preset=configured.preset;
+    profile.quirks=configured.quirks;
     profile.costs={{"inputTokens",0},{"outputTokens",0},
       {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
       {"webSearchRequests",0}};
