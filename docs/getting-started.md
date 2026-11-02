@@ -25,8 +25,8 @@ No administrator access is needed. Your settings stay in `.batbox` at home.
 The same scripts work from a source checkout after its build prerequisites are
 installed; they compile Batbox before installing it.
 
-Git, Bash, and ripgrep support the coding gadgets. The current startup also needs
-Scrapling and its MCP dependencies available through `scrapling_command` or PATH.
+Git, Bash, and ripgrep support the coding gadgets. Web search and fetch are optional:
+run `batbox setup web` to add them, as [Web helpers](connectors.md) explains.
 The [platform guides](README.md#your-platform-your-terminal) cover runtime details.
 A source checkout needs the separate [developer build reference](BUILDING.md).
 
@@ -125,7 +125,7 @@ a more restrictive mode for a particular run. The same flags work in PowerShell.
 | The server reports an unknown model | Its exact wire model ID; refresh `/model` or enter it manually. |
 | The request returns 404 | The combination of `base_url` and `messages_path`. |
 | A library or DLL is missing | Your platform guide and the package’s dependency inventory. |
-| Scrapling cannot start | `scrapling_command`, PATH, and the helper’s Python/browser dependencies. |
+| Web search or fetch is unavailable | `/connectors` or `batbox doctor`, then `batbox setup web`. |
 | Configuration will not load | Valid JSON: commas between entries, with no trailing commas. |
 
 Next stop: [Everyday Batbox](everyday-use.md).
