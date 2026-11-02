@@ -48,16 +48,34 @@ update in the Homebrew tap
    it with `brew style` and `brew audit --strict --online batbox` from the tap.
 
 5. **Push the tap.** Copy the formula into the tap repository's `Formula/` on a
-   branch and open a pull request. The tap's daily `brew bump` workflow may open
-   that pull request for you after the tag appears.
+   branch and open a pull request against `main`. The tap's daily `brew bump`
+   workflow may open that pull request for you after the tag appears.
+   `brew livecheck batbox` shows whether the tap is behind the latest release.
 
-6. **Bottles.** The tap's `brew test-bot` workflow builds and tests the formula on
-   every pull request (macOS and Linux runners) and uploads the bottles as an
-   artifact. When it is green, run the tap's `brew pr-pull` workflow (Actions tab,
-   or `gh workflow run publish.yml -R Digital-Disconnections-LTD/homebrew-batbox
-   -f pull_request=<number>`). It uploads the bottles to the GitHub release of
-   the tap, adds the `bottle do` block to the formula and pushes to `main`. Users
-   then pour the bottle instead of compiling.
+6. **Wait for test-bot.** The tap's `brew test-bot` workflow builds and tests the
+   formula on every pull request that changes it (macOS 26 arm64 and Linux x86_64
+   runners) and uploads the bottles as artifacts. Other platforms, such as Intel
+   Macs and older macOS releases, still build from source. Fix any failure on the
+   branch until both jobs are green:
 
-Copy the bottled formula back into `packaging/homebrew/Formula/batbox.rb` so the
-repository keeps the canonical version in step with the tap.
+   ```sh
+   gh pr checks <number> --watch -R Digital-Disconnections-LTD/homebrew-batbox
+   ```
+
+7. **Publish the bottles.** The tap's `brew pr-pull` workflow is started by hand,
+   not by a label (current Homebrew tap template). Run it from the Actions tab or
+   with:
+
+   ```sh
+   gh workflow run publish.yml -R Digital-Disconnections-LTD/homebrew-batbox -f pull_request=<number>
+   ```
+
+   It uploads the bottles to a `batbox-X.Y.Z` release on the tap repository,
+   commits a `bottle do` block to the formula, pushes to the tap's `main` and
+   closes the pull request. Users then pour the bottle instead of compiling;
+   check with `brew update && brew reinstall digital-disconnections-ltd/batbox/batbox`,
+   which should say `Pouring batbox-X.Y.Z.<platform>.bottle...tar.gz`.
+
+The `bottle do` block lives only in the tap. The publish job rewrites it on every
+release, so do not copy it into `packaging/homebrew/Formula/batbox.rb`; apart from
+that block the two formulas stay identical.
