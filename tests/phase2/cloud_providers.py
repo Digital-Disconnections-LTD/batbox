@@ -132,6 +132,17 @@ def bedrock_checks(runner, server):
         runs = handle.read().count('run')
     assert runs == 2, f'credential_process ran {runs} times; expected once plus one refresh'
 
+    # The application builds a client per request; the factory's shared stash keeps the process from rerunning.
+    server.reset()
+    server.secrets = {'AKIAPROCESS': 'processsecret'}
+    os.remove(counter)
+    results = runner.run('factory-bedrock', 'stream', {'base_url': server.url}, first_turn(), repeat=3, env={'AWS_PROFILE': 'builder'})
+    expect_clean(server)
+    assert all(r['status'] == 200 for r in results), results
+    with open(counter) as handle:
+        runs = handle.read().count('run')
+    assert runs == 1, f'credential_process ran {runs} times across fresh clients'
+
     # role_arn + source_profile: STS AssumeRole signed with the source keys, Bedrock signed with the role keys.
     server.reset()
     server.sts_secrets = {'AKIASOURCE': 'sourcesecret'}
@@ -186,9 +197,14 @@ def vertex_checks(runner, server):
     os.remove(key_path)
     results = runner.run('vertex', 'stream', base, body, repeat=2, env={'GOOGLE_APPLICATION_CREDENTIALS': account})
     expect_clean(server)
+
     assert all(r['status'] == 200 and r['headers_reported'] for r in results), results
     assert results[0]['events'] == tool_use_events(model), results[0]['events']
     assert server.count('token') == 1, 'the access token is stashed between requests'
+    fresh = runner.run('factory-vertex', 'stream', {k: v for k, v in base.items() if k != 'gcloud_command'}, body, repeat=3,
+                       env={'GOOGLE_APPLICATION_CREDENTIALS': account})
+    expect_clean(server)
+    assert all(r['status'] == 200 for r in fresh) and server.count('token') == 2, server.requests
     calls = [r for r in server.requests if r['kind'] == 'vertex']
     assert all(c['project'] == 'my-project' and c['region'] == 'us-east5' and c['model'] == model and c['stream'] for c in calls), calls
     assert calls[0]['auth'] == 'Bearer ya29.fake-1'

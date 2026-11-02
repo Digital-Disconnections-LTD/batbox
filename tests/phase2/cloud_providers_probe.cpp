@@ -1,5 +1,6 @@
 #include "providers/aws/BedrockClient.hpp"
 #include "providers/aws/EventStream.hpp"
+#include "providers/cloud/CloudClients.hpp"
 #include "providers/gcp/VertexClient.hpp"
 #include "transport/Errors.hpp"
 #include <openssl/bn.h>
@@ -97,6 +98,18 @@ int vertex(const std::string& action, const Json& config, const Json& body, int 
   std::cout << value::stringify(Json{{"kind",client.kind()},{"results",run(client,action,body,repeat)}}) << '\n';
   return 0;
 }
+// A fresh client per request, as the application builds them; the factory keeps credentials stashed between them.
+int factory(const std::string& kind, const std::string& action, const Json& config, const Json& body, int repeat) {
+  Json results = Json::array();
+  for (int i = 0; i < repeat; ++i) {
+    transport::ClientConfig network;
+    network.baseUrl = config.value("base_url","");
+    auto client = cloud::makeCloudClient({kind,config.value("region",""),config.value("project",""),{},config.value("token","")},network);
+    results.push_back(run(*client,action,body,1).front());
+  }
+  std::cout << value::stringify(Json{{"kind",kind},{"results",results}}) << '\n';
+  return 0;
+}
 int generateKey(const std::string& path) {
   std::unique_ptr<EVP_PKEY_CTX,decltype(&EVP_PKEY_CTX_free)> context(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA,nullptr),EVP_PKEY_CTX_free);
   EVP_PKEY* raw = nullptr;
@@ -128,6 +141,11 @@ int main(int argc, char** argv) {
   const std::string mode = argv[1];
   if (mode == "eventstream" && argc >= 4) return eventStream(argv[2],std::stoul(argv[3]));
   if (mode == "genkey") return generateKey(argv[2]);
+  if ((mode == "factory-bedrock" || mode == "factory-vertex") && argc >= 4) {
+    const auto config = value::parse(slurp(argv[3]));
+    const auto body = argc >= 5 ? value::parse(slurp(argv[4])) : Json::object();
+    return factory(mode.substr(8),argv[2],config,body,argc >= 6 ? std::stoi(argv[5]) : 1);
+  }
   if ((mode == "bedrock" || mode == "vertex") && argc >= 4) {
     const auto config = value::parse(slurp(argv[3]));
     const auto body = argc >= 5 ? value::parse(slurp(argv[4])) : Json::object();
