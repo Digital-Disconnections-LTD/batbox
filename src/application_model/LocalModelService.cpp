@@ -1,6 +1,7 @@
 #include "application_model/Internal.hpp"
 #include "query/SimpleQueriesBinding.hpp"
 #include "runtime/Platform.hpp"
+#include "transport/WireClient.hpp"
 #include <future>
 #include <stdexcept>
 #include <utility>
@@ -39,6 +40,8 @@ void validate(const Config& config,const Imports& imports){
     if(profile.authHeader!="authorization"&&profile.authHeader!="x-api-key"&&
        profile.authHeader!="none")
       throw std::invalid_argument("Invalid authentication header for profile: "+name);
+    transport::validateProviderKind(profile.provider);
+    transport::validateQuirks(profile.quirks);
     for(const auto* key:{"inputTokens","outputTokens",
         "promptCacheReadTokens","promptCacheWriteTokens","webSearchRequests"})
       if(!profile.costs.is_object()||!profile.costs.contains(key)||
@@ -104,6 +107,8 @@ void LocalModelService::upsertRuntimeProfile(ModelProfile profile,std::string au
   if(profile.authHeader!="authorization"&&profile.authHeader!="x-api-key"&&
       profile.authHeader!="none")
     throw std::invalid_argument("Invalid runtime profile authentication");
+  transport::validateProviderKind(profile.provider);
+  transport::validateQuirks(profile.quirks);
   std::lock_guard lock(mutex_);
   runtimeAuthTokens_.insert_or_assign(profile.id,std::move(authToken));
   config_.profiles.insert_or_assign(profile.id,std::move(profile));

@@ -85,7 +85,7 @@ batbox::model::QueryServices QueryE2EModelFixture::makeServices(){
     config.baseUrl=baseUrl;config.messagesPath="/v1/messages";
     config.requestTimeout=std::chrono::seconds(8);
     config.streamIdleTimeout=std::chrono::seconds(6);
-    return std::make_shared<batbox::transport::Client>(config);
+    return std::make_shared<batbox::transport::AnthropicMessagesClient>(config);
   };
   services.normalizeFallbackContent=[](const Json& content){
     return batbox::streaming::normalizeContentFromAPI(content);};

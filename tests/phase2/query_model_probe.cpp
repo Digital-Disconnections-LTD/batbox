@@ -130,7 +130,7 @@ int main(int argc,char** argv){
    config.baseUrl=base;config.messagesPath=path;
    config.requestTimeout=std::chrono::seconds(8);
    config.streamIdleTimeout=std::chrono::seconds(6);
-   return std::make_shared<batbox::transport::Client>(config);
+   return std::make_shared<batbox::transport::AnthropicMessagesClient>(config);
  };
  services.normalizeFallbackContent=[](const Json& content){return batbox::streaming::normalizeContentFromAPI(content);};
  services.getAssistantMessageFromError=[](const batbox::api_errors::Failure& failure,const std::string& model){

@@ -8,8 +8,12 @@
 
 namespace batbox::application {
 struct InferenceProfile {
-  std::string model,baseUrl,messagesPath="/v1/messages";
+  std::string model,baseUrl,messagesPath="/v1/messages",modelsPath;
   std::string authToken,apiKeyHelper,apiKeyEnv,authHeader="authorization";
+  // provider is the wire kind (anthropic, openai-chat, bedrock, vertex);
+  // preset is the catalog id the endpoint came from; quirks tune openai-chat.
+  std::string provider="anthropic",preset;
+  Json quirks=Json::object();
   Json headers=Json::object();
   std::size_t contextWindow=280000,maxOutputTokens=50000;
   bool thinking=false,poetryStashing=false,adaptiveThinking=false;
@@ -21,6 +25,8 @@ struct InferenceProfile {
 struct EndpointRecord {
   std::string label,baseUrl,messagesPath="/v1/messages",modelsPath;
   std::string authToken,apiKeyEnv,authHeader="authorization";
+  std::string provider="anthropic",preset;
+  Json quirks=Json::object();
   Json headers=Json::object();
   std::vector<std::string> models;
   std::size_t contextWindow=0,maxOutputTokens=0;

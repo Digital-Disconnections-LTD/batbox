@@ -3,7 +3,8 @@
 target_sources(batbox_application_config PRIVATE
   src/application_config/EndpointStore.cpp
   src/application_compaction_settings/Policy.cpp)
-target_link_libraries(batbox_application_config PUBLIC batbox_app_state batbox_event_loop)
+target_link_libraries(batbox_application_config PUBLIC batbox_app_state batbox_event_loop
+  batbox_transport)
 target_sources(batbox_application_commands PRIVATE
   src/application_config/Discovery.cpp
   src/application_config/ConfigPanel.cpp
@@ -20,4 +21,13 @@ if(BUILD_TESTING)
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-UNDEBUG>)
   add_test(NAME phase6-endpoint-config-indigenous
     COMMAND batbox-endpoint-config-indigenous)
+  add_executable(batbox-provider-config-indigenous
+    tests/phase6/provider_config_indigenous.cpp)
+  target_link_libraries(batbox-provider-config-indigenous PRIVATE
+    batbox_application_commands batbox_application_config)
+  target_compile_options(batbox-provider-config-indigenous PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/UNDEBUG>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-UNDEBUG>)
+  add_test(NAME phase6-provider-config-indigenous
+    COMMAND batbox-provider-config-indigenous)
 endif()

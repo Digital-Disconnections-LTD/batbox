@@ -92,7 +92,7 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
     std::function<void(const std::string&)> diagnostic,
     std::shared_ptr<gadgets::live_roster::Roster> roster){
   if(config.model.empty())throw std::invalid_argument(
-    "Set --model or BATBOX_MODEL to a model served by the Messages API");
+    "Set --model or BATBOX_MODEL to a model served by the configured endpoint");
   if(!messages)throw std::invalid_argument("Model message services required");
   application_model::Config model;
   model.client.baseUrl=config.baseUrl;
@@ -126,8 +126,12 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
     profile.client.emplace();
     profile.client->baseUrl=configured.baseUrl;
     profile.client->messagesPath=configured.messagesPath;
+    profile.client->modelsPath=configured.modelsPath;
     profile.client->headers=configured.headers;
     profile.authHeader=configured.authHeader;
+    profile.provider=configured.provider;
+    profile.preset=configured.preset;
+    profile.quirks=configured.quirks;
     profile.costs={{"inputTokens",0},{"outputTokens",0},
       {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
       {"webSearchRequests",0}};

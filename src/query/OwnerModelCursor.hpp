@@ -7,7 +7,7 @@ namespace batbox::query {
 struct OwnerRequestAwaits {
   // Retry awaits client creation. Creation starts on the owner and
   // may settle later; the request worker waits without pumping a nested loop.
-  std::function<event_loop::Deferred<std::shared_ptr<transport::Client>>()>
+  std::function<event_loop::Deferred<std::shared_ptr<transport::WireClient>>()>
     createClient;
   OwnerRetryAwaits retry;
 };

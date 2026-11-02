@@ -8,7 +8,7 @@
 #include "model/PostStream.hpp"
 #include "api_errors/ApiErrors.hpp"
 #include "streaming/Reducer.hpp"
-#include "transport/Client.hpp"
+#include "transport/WireClient.hpp"
 #include <exception>
 #include <memory>
 #include <stop_token>
@@ -72,7 +72,7 @@ struct QueryServices {
   std::function<void(const retry::ErrorRecord&)> extractQuotaStatusFromError;
   retry::Dependencies retry;
   streaming::ReducerConfig reducer;
-  std::function<std::shared_ptr<transport::Client>()> createClient;
+  std::function<std::shared_ptr<transport::WireClient>()> createClient;
   std::function<Json(const Json&)> normalizeFallbackContent;
   std::function<Json(const api_errors::Failure&, const std::string&)> getAssistantMessageFromError;
   std::function<void()> onStreamingFallback;

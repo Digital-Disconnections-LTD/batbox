@@ -9,6 +9,7 @@ Start with [your first Flight](getting-started.md), then get comfortable with
 | Commands, Bats, memory, and saved Flights | [Everyday use](everyday-use.md) |
 | Files and preferences | [Configuration](indigenous-configuration.md) |
 | Named model routes | [Model profiles](indigenous-model-profiles.md) |
+| Server kinds, Chat Completions servers and quirks | [Providers](providers.md) |
 | Context, endpoints, and language servers | [Models and code intelligence](indigenous-endpoints-context-lsp.md) |
 | Extra capabilities | [MCP connections](indigenous-mcp-connections.md) |
 | Browser work and search | [Scrapling and SearXNG](connectors.md) |

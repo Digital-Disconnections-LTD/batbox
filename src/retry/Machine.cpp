@@ -157,7 +157,10 @@ RetryStep RetryMachine::advance() {
         } else if(persistent_) {
           ++persistentAttempt_;
           delayMs_=std::min(getRetryDelay(persistentAttempt_,retryAfter,PERSISTENT_MAX_BACKOFF_MS,deps_),PERSISTENT_RESET_CAP_MS);
-        } else delayMs_=getRetryDelay(attempt_,retryAfter,32000,deps_);
+        } else {
+          delayMs_=getRetryDelay(attempt_,retryAfter,32000,deps_);
+          if(deps_.maxRetryDelayMs)delayMs_=std::min(delayMs_,*deps_.maxRetryDelayMs);
+        }
         reportedAttempt_=persistent_?persistentAttempt_:attempt_;
         if(persistent_) {
           remainingMs_=delayMs_;

@@ -1,8 +1,9 @@
 # Your first flight 🦇
 
 You need Batbox for your operating system and a model server that supports
-**Anthropic Messages streaming**. A server offering only OpenAI chat
-completions is not enough for this client.
+**Anthropic Messages streaming** or **OpenAI Chat Completions streaming**. For a
+Chat Completions server, set `"provider": "openai-chat"` on the endpoint;
+[Providers](providers.md) has the details.
 
 ## Unpack and get comfortable
 

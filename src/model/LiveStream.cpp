@@ -4,7 +4,7 @@
 
 namespace batbox::model {
 
-LiveStream::LiveStream(transport::Client& client, Json body, std::stop_token userSignal)
+LiveStream::LiveStream(transport::WireClient& client, Json body, std::stop_token userSignal)
     : client_(client), body_(std::move(body)) {
   if (userSignal.stop_possible()) {
     userCancel_ = std::make_unique<std::stop_callback<std::function<void()>>>(

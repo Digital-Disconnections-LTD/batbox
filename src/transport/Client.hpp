@@ -13,6 +13,7 @@ namespace batbox::transport {
 struct ClientConfig {
   std::string baseUrl = "http://127.0.0.1:8000";
   std::string messagesPath = "/v1/messages";
+  std::string modelsPath;
   std::string authToken;
   Json headers = Json::object();
   MessagesProtocol protocol;

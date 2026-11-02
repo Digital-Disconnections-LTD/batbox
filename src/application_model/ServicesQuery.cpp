@@ -1,10 +1,29 @@
 #include "application_model/Internal.hpp"
 #include "runtime/Platform.hpp"
+#include "transport/WireClient.hpp"
+#include "transport/openai_chat/OpenAIChatClient.hpp"
+#include "transport/RawHttp.hpp"
 #include <algorithm>
 #include <cctype>
+#include <stdexcept>
 #include <utility>
 
 namespace batbox::application_model {
+namespace {
+// The profile's provider kind picks the wire client; everything above this
+// seam stays Anthropic-shaped.
+std::shared_ptr<transport::WireClient> makeWireClient(const ModelProfile& profile,
+    transport::ClientConfig config){
+  if(profile.provider==transport::kProviderAnthropic)
+    return std::make_shared<transport::AnthropicMessagesClient>(std::move(config));
+  if(profile.provider==transport::kProviderOpenAIChat)
+    return std::make_shared<transport::openai_chat::OpenAIChatClient>(std::move(config),
+      transport::chatQuirks(profile.quirks));
+  transport::validateProviderKind(profile.provider);
+  throw std::invalid_argument("Provider "+profile.provider+
+    " is not available in this build of Batbox");
+}
+}
 model::QueryServices LocalServiceBuilder::makeServices(){
   model::QueryServices service;
   auto& local=host;
@@ -62,6 +81,11 @@ model::QueryServices LocalServiceBuilder::makeServices(){
   if(found==runtime.config.profiles.end())
     throw std::invalid_argument("Unconfigured local model: "+modelName);
   const auto profile=found->second;
+  const auto& baseUrl=profile.client?profile.client->baseUrl:runtime.config.client.baseUrl;
+  if(profile.provider!=transport::kProviderAnthropic||transport::isLoopbackUrl(baseUrl)){
+    service.retry.maxRetriesCap=2;
+    service.retry.maxRetryDelayMs=2000;
+  }
   if(const auto baseSegment=local.imports_.buildParamsSegment){
     std::map<std::string,bool> sendDisabledByProfile;
     for(const auto& [id,configured]:runtime.config.profiles)
@@ -91,7 +115,8 @@ model::QueryServices LocalServiceBuilder::makeServices(){
   std::optional<std::string> runtimeToken;
   if(const auto token=runtime.runtimeAuthTokens.find(modelName);
       token!=runtime.runtimeAuthTokens.end())runtimeToken=token->second;
-  service.createClient=[&local,profile,defaultClient,runtimeToken,modelName]{
+  service.createClient=[&local,profile,defaultClient,runtimeToken,modelName]()
+      ->std::shared_ptr<transport::WireClient>{
     auto config=profile.client.value_or(defaultClient);
     const auto token=profile.authHeader=="none"?std::string{}
       :(runtimeToken?*runtimeToken:local.imports_.authTokenForModel
@@ -108,7 +133,8 @@ model::QueryServices LocalServiceBuilder::makeServices(){
           [](unsigned char value){return static_cast<char>(std::tolower(value));});
         if(name=="anthropic-version")hasVersion=true;
       }
-      if(!hasVersion)config.headers["anthropic-version"]="2023-06-01";
+      if(!hasVersion&&profile.provider==transport::kProviderAnthropic)
+        config.headers["anthropic-version"]="2023-06-01";
     }else config.authToken.clear();
     {
       std::lock_guard lock(local.mutex_);
@@ -116,7 +142,7 @@ model::QueryServices LocalServiceBuilder::makeServices(){
     }
     if(local.imports_.configureClientNetwork)
       local.imports_.configureClientNetwork(config);
-    return std::make_shared<transport::Client>(std::move(config));
+    return makeWireClient(profile,std::move(config));
   };
   service.normalizeFallbackContent=service.reducer.normalizeContent;
   service.getAssistantMessageFromError=[errors=errors,messages=messages](
