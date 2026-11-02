@@ -51,6 +51,8 @@ target_compile_options(batbox-indigenous-lsp-runtime PRIVATE
 add_test(NAME phase6-indigenous-lsp-runtime COMMAND batbox-indigenous-lsp-runtime
   ${CMAKE_SOURCE_DIR}/checks/indigenous_lsp_fixture_server.py)
 set_tests_properties(phase6-indigenous-lsp-runtime PROPERTIES TIMEOUT 40)
+batbox_indigenous(phase6-error-report-indigenous
+  tests/phase6/error_report_indigenous.cpp batbox_indigenous_host)
 batbox_indigenous(phase6-indigenous-host-lifetime
   tests/phase6/indigenous_host_lifetime.cpp batbox_indigenous_host)
 set_tests_properties(phase6-indigenous-host-lifetime PROPERTIES TIMEOUT 45)

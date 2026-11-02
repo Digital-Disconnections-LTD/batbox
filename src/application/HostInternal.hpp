@@ -177,7 +177,7 @@ struct Host::Impl {
   void requestExit();
   void log(std::string text)const;
   void flushLog()const;
-  void report(std::exception_ptr error);
+  void report(std::exception_ptr error,std::string_view origin="the application");
   gadgets::Gadgets currentGadgets()const;
   Json appState()const;
 };

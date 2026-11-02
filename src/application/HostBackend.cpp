@@ -88,7 +88,7 @@ void Host::Impl::bindBackend(){
     if(!owner)throw std::logic_error("Native Agent owner is unavailable");
     return owner->makeGadget();
   };
-  gadgetDefaults.onError=[this](std::exception_ptr error){report(error);};
+  gadgetDefaults.onError=[this](std::exception_ptr error){report(error,"Gadgets");};
   gadgetDefaults.log=[this](const std::string& value){log(value);};
   gadgetDefaults.showBackgroundHint=[this,dispatch=owner.dispatcher()](const Json&){
     dispatch.postMission([this]{
