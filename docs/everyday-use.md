@@ -107,6 +107,8 @@ cancels. Long lists show the first 50 matches, so keep typing to narrow them.
 **Show all projects** widens the list to every directory; choosing a Flight from
 another project switches the workspace to that directory in place.
 
+![The resume picker filtering five saved Flights, one of them interrupted](assets/screenshots/resume.png)
+
 `/resume <words>` resumes directly when the slug, title or words match a single
 Flight, and lists the candidates when several do. `/continue` resumes the most
 recent Flight for this directory and its sibling git worktrees, skipping any
