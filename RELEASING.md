@@ -25,13 +25,14 @@ update in the Homebrew tap
    gh release create vX.Y.Z --generate-notes
    ```
 
-   The tag starts the platform build workflow. When every platform is green
-   (about an hour and a half), its release job attaches the packages and their
-   checksums to the release, creating it first if you have not:
+   The tag starts the platform build workflow. When the Linux and macOS builds
+   are green (about an hour and a half), its release job attaches the packages
+   and their checksums to the release, creating it first if you have not:
    `batbox-X.Y.Z-linux-x86_64.tar.gz`, `batbox-X.Y.Z-macos-arm64.tar.gz`,
    `batbox-X.Y.Z-macos-x86_64.tar.gz`, `batbox-X.Y.Z-windows-x86_64.zip` and
-   `SHA256SUMS`. Nothing to upload by hand; if a flaky check fails, re-run the
-   failed jobs and the release job follows.
+   `SHA256SUMS`. The Windows zip is attached only when the Windows build passes;
+   the job warns and carries on without it. Nothing to upload by hand; if a
+   flaky check fails, re-run the failed jobs and the release job follows.
 
 3. **Hash the source tarball.** GitHub serves the tag archive the formula uses:
 
