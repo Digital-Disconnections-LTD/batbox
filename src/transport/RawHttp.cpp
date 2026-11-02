@@ -216,6 +216,18 @@ std::string joinUrl(const std::string& baseUrl, const std::string& path) {
   return url + path;
 }
 
+bool isLoopbackUrl(const std::string& url) {
+  const auto scheme = url.find("://");
+  auto host = url.substr(scheme == std::string::npos ? 0 : scheme+3);
+  host = host.substr(0,host.find_first_of("/?#"));
+  if (const auto at = host.rfind('@'); at != std::string::npos) host = host.substr(at+1);
+  if (host.starts_with('[')) host = host.substr(1,host.find(']')-1);
+  else if (const auto colon = host.find(':'); colon != std::string::npos) host = host.substr(0,colon);
+  host = lowerAscii(host);
+  return host == "localhost" || host.ends_with(".localhost") || host.starts_with("127.") ||
+    host == "::1" || host == "0.0.0.0";
+}
+
 std::string errorText(const Json& body, const std::string& raw) {
   const auto& nested = value::property(value::property(body,"error"),"message");
   if (nested.is_string() && !nested.get<std::string>().empty()) return nested.get<std::string>();

@@ -48,6 +48,8 @@ private:
 // the bearer token, the same set Client sends.
 Json requestHeaders(const ClientConfig& config, bool stream);
 std::string joinUrl(const std::string& baseUrl, const std::string& path);
+// localhost, 127.0.0.0/8, ::1 or 0.0.0.0.
+bool isLoopbackUrl(const std::string& url);
 // GET the model list and return {"data":[{"id":...}]}, following Anthropic
 // style has_more/last_id pages. Non-2xx statuses throw APIError.
 Json fetchModelList(HttpSession& session, const std::string& url);
