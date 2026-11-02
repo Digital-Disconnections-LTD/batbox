@@ -1,5 +1,6 @@
 #include "application/Config.hpp"
 #include "application/Host.hpp"
+#include "application/Subcommands.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
 #endif
@@ -10,8 +11,10 @@
 namespace {
 int run(std::vector<std::string> arguments){
   try{
+    if(const auto status=batbox::application::runSubcommand(arguments))return *status;
     auto config=batbox::application::loadConfig(arguments);
-    if(config.help){std::cout<<batbox::application::commandLineHelp();return 0;}
+    if(config.help){std::cout<<batbox::application::commandLineHelp()<<
+      batbox::application::subcommandHelp();return 0;}
     batbox::application::Host host(std::move(config));
     return host.run();
   }catch(const std::exception& error){

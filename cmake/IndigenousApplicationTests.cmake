@@ -78,6 +78,9 @@ if(UNIX)
     batbox_application_connectors batbox_web)
   add_test(NAME phase5-web-connectors-indigenous COMMAND batbox-phase5-web-connectors-indigenous
     $<TARGET_FILE:batbox-scrapling-fixture>)
+  add_test(NAME phase6-setup-web-script COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/setup_web_script.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-setup-web-script PROPERTIES TIMEOUT 60)
   add_test(NAME phase6-indigenous-web-unavailable-smoke COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/checks/indigenous_web_unavailable_smoke.py $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-indigenous-web-unavailable-smoke PROPERTIES TIMEOUT 70)

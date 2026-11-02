@@ -1,0 +1,5 @@
+#pragma once
+// Generated from gadgets/setup-web.sh at configure time.
+namespace batbox::application {
+inline constexpr const char setupWebScript[]=R"BATBOX_SETUP_WEB(@BATBOX_SETUP_WEB_SCRIPT@)BATBOX_SETUP_WEB";
+}
