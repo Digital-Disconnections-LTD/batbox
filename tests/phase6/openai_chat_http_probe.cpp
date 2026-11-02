@@ -3,6 +3,7 @@
 #include "transport/RetryAdapter.hpp"
 #include "transport/openai_chat/OpenAIChatClient.hpp"
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 
@@ -60,6 +61,9 @@ int main(int argc,char** argv){
   config.baseUrl=argv[1];
   config.messagesPath="/v1/chat/completions";
   config.authToken="test-key";
+  // A live check passes credentials through the environment, never argv.
+  if(const auto* token=std::getenv("OPENAI_CHAT_PROBE_TOKEN"))config.authToken=token;
+  if(const auto* headers=std::getenv("OPENAI_CHAT_PROBE_HEADERS"))config.headers=Json::parse(headers);
   config.requestTimeout=std::chrono::seconds(10);
   config.streamIdleTimeout=std::chrono::seconds(8);
   transport::ChatQuirks quirks;
