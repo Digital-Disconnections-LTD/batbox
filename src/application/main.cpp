@@ -3,12 +3,22 @@
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
 #endif
+#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <vector>
 
+#ifndef BATBOX_VERSION
+#define BATBOX_VERSION "unknown"
+#endif
+
 namespace {
 int run(std::vector<std::string> arguments){
+  // Answer before reading any configuration, so packagers can probe the binary.
+  const auto end=std::find(arguments.begin(),arguments.end(),"--");
+  if(std::find(arguments.begin(),end,"--version")!=end){
+    std::cout<<"batbox "<<BATBOX_VERSION<<'\n';return 0;
+  }
   try{
     auto config=batbox::application::loadConfig(arguments);
     if(config.help){std::cout<<batbox::application::commandLineHelp();return 0;}

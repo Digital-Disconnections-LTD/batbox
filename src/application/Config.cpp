@@ -425,7 +425,8 @@ std::string commandLineHelp(){
     "  --thinking | --no-thinking     Extended model reasoning\n"
     "  --compact-at N                 Automatic compaction threshold\n"
     "  --max-subagents N              Subagent limit\n"
-    "  --max-concurrent-subagents N   Concurrent subagents\n\n"
+    "  --max-concurrent-subagents N   Concurrent subagents\n"
+    "  --version                      Print the version and exit\n\n"
     "Configuration: ~/.batbox/native-client.json and ~/.batbox/settings.json\n"
     "Bats: ~/.batbox/agents/*.md; skills: ~/.batbox/skills/\n"
     "MCP: ~/.batbox/mcp.json; BATBOX_CONFIG_DIR overrides the configuration root.\n";

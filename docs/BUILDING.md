@@ -14,6 +14,33 @@ builds and installs the command on your user PATH. POSIX installers accept
 `--skip-build` for a binary already built in `build/indigenous`. Windows accepts
 `-RuntimeRoot C:\msys64\ucrt64` when the UCRT64 prefix is not detected automatically.
 
+## Homebrew (macOS)
+
+To install a released build without a checkout, use the project tap. Homebrew
+lowercases the tap owner, so the command is:
+
+```sh
+brew install digital-disconnections-ltd/batbox/batbox
+```
+
+Add `--HEAD` to build the current `main` branch instead of the latest release.
+Installing by the full name trusts that one formula; to use the short name
+`brew install batbox` after `brew tap digital-disconnections-ltd/batbox`, run
+`brew trust --formula digital-disconnections-ltd/batbox/batbox` first (Homebrew 6
+and later only load trusted formulae from non-official taps).
+The formula builds from source (or pours a bottle when the tap has one), pins
+FTXUI and Ada as formula resources, and takes every other library from Homebrew.
+`batbox --version` reports the installed version. The canonical formula lives in
+`packaging/homebrew/Formula/batbox.rb`; [RELEASING.md](../RELEASING.md) explains
+how a release reaches the tap.
+
+For packagers, `cmake --install` places the executable in `bin/` and the license,
+notice and documentation records in `share/doc/batbox/`. The executable reads no
+data files from its prefix. Offline builds can supply pre-unpacked sources with
+`-DFETCHCONTENT_SOURCE_DIR_BATBOX_FTXUI_UPSTREAM=<dir>` and
+`-DBATBOX_ADA_SOURCE_DIR=<dir>`; with `-DFETCHCONTENT_FULLY_DISCONNECTED=ON` and
+`-DBATBOX_FETCH_CMARK_GFM=OFF` the configure step makes no network requests.
+
 ## Linux
 
 On Debian/Ubuntu:
