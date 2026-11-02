@@ -358,6 +358,18 @@ void helpCommand(){
   const auto chosen=await(loop,pending);
   check(chosen.nextInput&&*chosen.nextInput=="/theme "&&chosen.submitNextInput==false,
     "choosing a command puts it in the poetry input");
+  std::optional<interactive::UiRequest> listed;
+  auto providersRouter=user_input::UiCommandRouter::create(loop,{
+    [&](std::optional<interactive::UiRequest> next){listed=std::move(next);},
+    [](const std::string& failure){throw std::runtime_error(failure);},
+    [](bool){},[](bool){}});
+  auto providersHelp=commands_indigenous::makeHelpCommand(providersRouter,[]{
+    return std::vector<Json>{{{"name","providers"},{"description","Connect a model server"}}};
+  });
+  auto shown=providersHelp.invokeUi("");
+  for(int i=0;i<10&&!listed;++i)loop.runReady();
+  check(listed&&!listed->choices.empty()&&listed->choices[0]=="/providers"&&
+    listed->choiceInfo[0].section=="Model and settings","/help lists /providers under Model and settings");
 }
 } // namespace
 
