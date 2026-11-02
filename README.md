@@ -45,7 +45,8 @@ than fine, as long as it comes with regression tests.
 Bring a project and a little poetry: “Help me understand this code, then fix one
 small thing.” Batbox can explore files, make edits, run commands, and keep useful
 notes for your next visit. Responses stream into an Indigenous C++/FTXUI terminal
-interface from your configured **Anthropic Messages-compatible backend**.
+interface from the model server you connect: Anthropic Messages, OpenAI Chat
+Completions, Amazon Bedrock or Google Vertex AI.
 
 | In the Roost | What you can do |
 | :--- | :--- |
@@ -211,7 +212,7 @@ Whichever path you took, open a new terminal so `batbox` is on your PATH.
 **Then, for everyone:**
 
 ```sh
-batbox             # opens the welcome screen; /config points it at your model
+batbox             # the first run opens /providers to connect a model server
 batbox setup web   # optional: web search and page fetching, no Docker needed
 batbox doctor      # checks what is wired up
 ```
@@ -226,8 +227,9 @@ batbox --cwd /path/to/project
 ```
 
 On Windows, use `batbox --cwd C:\path\to\project` in PowerShell.
-Inside the app, `/help` is your map, `/config` connects your model, and `/bats`
-introduces the crew. `/permissions` chooses how freely the Flight can run.
+Inside the app, `/help` is your map and `/bats` introduces the crew.
+`/providers` connects a model server: 238 in the catalog, local ones found
+automatically. `/config` edits an endpoint's details. `/permissions` chooses how freely the Flight can run.
 Use `batbox --yolo` to skip Gadget approval dialogs for the whole Flight.
 `/monster` has a little surprise.
 

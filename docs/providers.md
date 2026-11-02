@@ -1,4 +1,109 @@
-# Providers
+# Providers 🦇
+
+Batbox ships with a catalog of 238 model providers: the 235 listed by
+[models.dev](https://models.dev) plus Ollama, llama.cpp and vLLM, which run on
+your own machine. 223 of them work today. Pick one, give it a key (or let Batbox
+find the key in your environment), choose a model, and you are flying.
+
+Servers that speak Anthropic Messages, such as Anthropic, OpenCode Zen,
+OpenRouter, DeepSeek, Ollama, llama.cpp, LM Studio and vLLM, are presets: Batbox
+talks to them directly. Servers that only speak OpenAI Chat Completions, such as
+OpenAI, Groq, Mistral and most gateways, go through Batbox's translator. Amazon
+Bedrock and Google Vertex AI get their own signed requests.
+
+## Pick a provider with /providers
+
+Batbox opens `/providers` by itself the first time you start it with nothing
+configured. Afterwards, type `/providers` (or `/connect`) whenever you want to
+add another server.
+
+1. **Choose a server.** The list has five groups:
+   - *Found on this machine*: model servers that answered on their usual ports
+     (Ollama 11434, LM Studio 1234, llama-server 9931 and 8080, vLLM 8000), with
+     the models they report.
+   - *Configured*: endpoints you already saved. Pick one to change its key, URL
+     or model.
+   - *Cloud*, *Local servers* and *Unsupported yet*: the catalog. Unsupported
+     entries say why when you select them.
+
+   Type to search by name or id (`zen`, `router`, `llama`). Backspace edits the
+   search, Ctrl+U clears it, ↑ and ↓ move, Enter picks, Esc closes.
+2. **Give it a key.** If one of the provider's key variables is set, for example
+   `OPENROUTER_API_KEY`, Batbox offers **Use $OPENROUTER_API_KEY** and saves only
+   the variable name. Otherwise a hidden field asks for the key, which is saved in
+   `native-client.json` with permissions only you can read. Type `$NAME` in that
+   field to use a different variable. Local servers skip this step; add a key
+   later in `/config` if yours has one. Bedrock and Vertex AI skip it too and use
+   your AWS or Google credentials.
+3. **Check the base URL.** It comes from the catalog. Edit it for a self-hosted,
+   regional or non-default port, then press Enter. For Bedrock and Vertex AI the
+   region in the URL becomes the endpoint's `region`.
+4. **Test the connection.** Batbox asks the server for its models through the
+   same client it uses for requests, so the test sends the same key, headers and
+   paths a real request would. It never sends a chat request here, so the test
+   costs nothing. Bedrock gets a signed call to its model list, which also checks
+   your AWS credentials. Vertex AI has no model list call, so Batbox shows its
+   Anthropic models and checks your Google credentials on the first request. If the
+   test fails you get a readable reason (wrong key, nothing listening, no model
+   list) and can retry, edit the URL, change the key, or carry on with the
+   catalog's models.
+5. **Pick a model.** The list merges what the server reported with what the
+   catalog knows: context and output limits, and whether the model does tools and
+   reasoning. Type to search, or choose **Enter a model ID…** for anything else.
+
+Batbox saves the endpoint, switches to it, and tells you:
+
+```text
+Added openrouter · qwen/qwen3-coder · /model to switch
+```
+
+The status row and welcome card then show the model with its provider, for
+example `openrouter · qwen/qwen3-coder`, and `/status` adds the profile id. The
+endpoint keeps the server's other models, so `/model` switches between them.
+`/config` shows the provider kind (and the region and project for Bedrock and
+Vertex AI) and edits every other field, including the limits and capability
+switches.
+
+Endpoint ids follow the catalog id (`openrouter`, `llama.cpp`). Adding the same
+provider again creates `openrouter-2`, so a second account or a second machine
+never overwrites the first.
+
+## Set one up from a script
+
+`batbox providers add` writes the same endpoint without the terminal interface:
+
+```sh
+# A local server: no key, the first model it reports.
+batbox providers add ollama
+
+# A key from your environment (only the variable name is saved).
+batbox providers add openrouter --key-env OPENROUTER_API_KEY --model qwen/qwen3-coder
+
+# A key from stdin, so it stays out of shell history.
+printf '%s\n' "$MY_KEY" | batbox providers add anthropic --key - --model claude-sonnet-5-5
+
+# Your own host or port.
+batbox providers add llama.cpp --base-url http://gpu-box.lan:8080
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--key-env VAR` | Read the key from `VAR` at request time. Defaults to the catalog's variable when it is set. |
+| `--key -` | Read the key from the first line of stdin and store it privately. |
+| `--base-url URL` | Replace the catalog URL. Required when the catalog URL has a placeholder. |
+| `--model ID` | The model to select. Defaults to the first model the server lists, then the catalog's first. |
+| `--id NAME` | Save under this endpoint id instead of the catalog id. |
+| `--no-test` | Skip the connection test. |
+
+Without `--no-test`, `add` runs the same connection test as the picker and
+prints its result (`Connection: Connected to 127.0.0.1:11434 · 3 models`). A
+failed test is reported but the endpoint is still saved, so you can fix the key
+or start the server later.
+
+`batbox providers` lists local servers, your endpoints and the whole catalog.
+`batbox providers show zen` prints one provider's URL, paths, key variable and
+models. `batbox doctor` includes local servers and a row per configured
+endpoint with its provider kind.
 
 ## How Batbox talks to a server
 
@@ -12,14 +117,12 @@ events before the rest of Batbox sees them.
 |---|---|---|
 | `anthropic` (default) | Anthropic Messages with SSE streaming | `/v1/messages` |
 | `openai-chat` | OpenAI Chat Completions with SSE streaming, translated | `/v1/chat/completions` |
-| `bedrock` | AWS Bedrock `InvokeModelWithResponseStream` | set by the Bedrock adapter |
-| `vertex` | Google Vertex `rawPredict` / `streamRawPredict` | set by the Vertex adapter |
+| `bedrock` | Amazon Bedrock `InvokeModelWithResponseStream`, signed | not used; the path comes from the model id |
+| `vertex` | Google Vertex AI `streamRawPredict` / `rawPredict` | not used; the path comes from project, region and model |
 
 An endpoint without `provider` is `anthropic`, so existing configurations keep
 working unchanged. Any other value is a configuration error that lists the
-allowed kinds. A build that doesn't include the Bedrock or Vertex adapter
-accepts those kinds in configuration and fails the request with "Provider
-bedrock is not available in this build of Batbox".
+allowed kinds.
 
 Use `anthropic` for any server with a working `/v1/messages` route, including
 recent vLLM, llama.cpp `llama-server`, Ollama and LM Studio. Use `openai-chat`
@@ -56,9 +159,10 @@ The same keys work in a `profiles` entry, which also takes `model` and
 |---|---|
 | `provider` | Wire kind from the table above. Default `anthropic`. |
 | `preset` | Catalog id the endpoint came from, such as `vllm`, `ollama`, `openrouter` or `llama.cpp`. Shown in the UI; it doesn't change requests. |
-| `base_url` | Server root, `http` or `https`. Credentials don't belong in the URL. |
+| `base_url` | Server root, `http` or `https`. Credentials don't belong in the URL. Optional for `bedrock` and `vertex`, which build the host from `region`. |
+| `region`, `project` | `bedrock` and `vertex` only: the AWS region or Vertex location, and the Google Cloud project. See [Amazon Bedrock](#amazon-bedrock) and [Google Vertex AI](#google-vertex-ai). |
 | `messages_path` | Request path. For `openai-chat` this is the chat completions path. When `base_url` already ends in `/v1`, a leading `/v1` is dropped, so `/v1/chat/completions` becomes `/chat/completions`. |
-| `models_path` | Model list path. Without it Batbox uses `/v1/models`, or `/models` when `base_url` ends in `/v1`. The reply must be `{"data":[{"id":...}]}`. |
+| `models_path` | Model list path. Without it Batbox uses `/v1/models`, or `/models` when `base_url` ends in `/v1`. The reply must be `{"data":[{"id":...}]}`. `bedrock` and `vertex` list models their own way. |
 | `auth_header` | `authorization` sends `Authorization: Bearer <key>`. `x-api-key` sends the key in `x-api-key` (and adds `anthropic-version: 2023-06-01` for `anthropic` endpoints). `none` sends no credential. |
 | `auth_token`, `api_key_env` | The key itself, or the name of an environment variable that holds it. `auth_token` wins when both are set. |
 | `headers` | Extra request headers, single-line text values. |
@@ -168,7 +272,87 @@ standard ladder of 10 retries with backoff up to 32 seconds.
   calls in one stream. Batbox detects this and repeats the turn without
   streaming.
 
-## Amazon Bedrock
+## Provider notes
+
+### OpenCode Zen
+
+`batbox providers add opencode` (alias `zen`). One key from
+[opencode.ai/auth](https://opencode.ai/auth) reaches models from Anthropic,
+OpenAI, Google, Moonshot, Z.AI, Alibaba and more over
+`https://opencode.ai/inference/anthropic/v1/messages`. OpenCode translates the
+other vendors' models on its side, so the endpoint is a plain `anthropic` preset.
+Zen's free models only answer inside OpenCode, so the catalog leaves them out.
+Key: `OPENCODE_API_KEY`.
+
+### Anthropic
+
+`x-api-key` with `ANTHROPIC_API_KEY`; Batbox adds `anthropic-version`.
+Thinking, effort and prompt caching start on for models that support them.
+
+### OpenRouter
+
+Uses OpenRouter's Messages route at `https://openrouter.ai/api/v1/messages`, with
+the model list at `/api/v1/models`. Model ids look like `vendor/model`. Key:
+`OPENROUTER_API_KEY`.
+
+### OpenAI
+
+Chat Completions through the translator, with the quirks
+`max_tokens_field: max_completion_tokens`, `reasoning: openai` and
+`system_role: developer`. Key: `OPENAI_API_KEY`.
+
+### Groq
+
+Chat Completions through the translator at `https://api.groq.com/openai`, with
+the default quirks. Key: `GROQ_API_KEY`.
+
+### DeepSeek
+
+DeepSeek's Anthropic route at `https://api.deepseek.com/anthropic/v1/messages`,
+used directly. Key: `DEEPSEEK_API_KEY`.
+
+### Mistral
+
+Chat Completions through the translator. Mistral only accepts nine-character
+tool call ids, so the preset sets `tool_ids: short`. Key: `MISTRAL_API_KEY`.
+
+### Ollama
+
+Needs Ollama 0.14 or newer for `/v1/messages`. Port 11434, no key locally.
+`ollama pull qwen3-coder` first; the picker shows every pulled model. Ollama
+Cloud is its own entry (`ollama-cloud`).
+
+### llama.cpp
+
+Start `llama-server -m model.gguf` (tools need `--jinja`, which is on by
+default). Since October 2026 it listens on 9931; older builds use 8080, and the
+picker checks both. For a server started with `--api-key`, add the key with
+`batbox providers add llama.cpp --key -` or in `/config`. To use its Chat
+Completions route instead, set `"provider": "openai-chat"` with
+`"quirks": {"reasoning": "reasoning_content"}` as in the
+[endpoint example](#endpoint-example).
+
+### LM Studio
+
+Turn on the local server in LM Studio 0.4.1 or newer. Port 1234, no key unless
+you enabled authentication.
+
+### vLLM
+
+`vllm serve <model> --enable-auto-tool-choice --tool-call-parser <parser>` so
+tool calls work. Port 8000. Recent vLLM serves both `/v1/messages` (the preset)
+and `/v1/chat/completions` (`openai-chat`). If you start vLLM with `--api-key`,
+add the same key with `batbox providers add vllm --key -` or in `/config`.
+
+### Other catalog providers
+
+- Cerebras, Together AI and xAI use Chat Completions through the translator.
+  Each reads its usual `*_API_KEY` variable.
+- Moonshot / Kimi, Z.AI / GLM, MiniMax and Alibaba / Qwen each have an Anthropic
+  route, used directly. Alibaba plans have different hosts and keys; edit the
+  base URL to match yours. MiniMax serves only M3 and M3.1-Flash on that route.
+
+### Amazon Bedrock
 
 Batbox calls Anthropic models on Bedrock through `InvokeModelWithResponseStream`
 (and `InvokeModel` when a request is not streamed). The request body is the
@@ -176,7 +360,7 @@ Messages API body without `model`, with `anthropic_version: "bedrock-2023-05-31"
 Bedrock's binary event stream is decoded back into Messages API stream events, so
 Flights, gadgets and resume work as they do with any other endpoint.
 
-### Endpoint record
+#### Endpoint record
 
 ```json
 {
@@ -203,13 +387,13 @@ Flights, gadgets and resume work as they do with any other endpoint.
   `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` and `AWS_ENDPOINT_URL` work too.
 - Model ids are Bedrock ids: an inference profile such as
   `us.anthropic.claude-opus-5-5-v1:0` or `global.anthropic.claude-sonnet-5-5-v1:0`,
-  a base model id, or an ARN. Newer Claude models are only offered through
+  a base model id, or an ARN. Newer Anthropic models are only offered through
   inference profiles.
 - **Discover models** lists the region's Anthropic inference profiles and the
   Anthropic base models that support on-demand use. It calls
   `https://bedrock.{region}.amazonaws.com` (`AWS_ENDPOINT_URL_BEDROCK` overrides it).
 
-### Credentials
+#### Credentials
 
 Batbox looks for credentials in this order and uses the first it finds:
 
@@ -247,7 +431,7 @@ Batbox does not read the EC2 instance metadata service, ECS container
 credentials, or web identity tokens; on those hosts, use `credential_process`
 with the AWS CLI command above.
 
-### IAM
+#### IAM
 
 The calling identity needs:
 
@@ -262,7 +446,7 @@ Anthropic models can require a one-time use case submission in the Bedrock
 console before the first call. Until then, requests fail with
 `AccessDeniedException`.
 
-### Errors
+#### Errors
 
 Bedrock errors appear as Messages API errors, so retry and messages behave as
 they do elsewhere. `ThrottlingException` and `ServiceQuotaExceededException` are
@@ -271,14 +455,14 @@ rate limit errors (429). `ModelNotReadyException` and
 `ValidationException` is an invalid request (400). `AccessDeniedException` is a
 permission error (403). Expired or invalid credentials are authentication errors (401).
 
-## Google Vertex AI
+### Google Vertex AI
 
-Batbox calls Claude on Vertex AI with `streamRawPredict` (and `rawPredict` for
+Batbox calls Anthropic models on Vertex AI with `streamRawPredict` (and `rawPredict` for
 requests that are not streamed). The body is the Messages API body without
 `model`, with `anthropic_version: "vertex-2023-10-16"`. The response stream is
 ordinary server-sent events.
 
-### Endpoint record
+#### Endpoint record
 
 ```json
 {
@@ -307,11 +491,11 @@ ordinary server-sent events.
 - `base_url` is optional and replaces the host, for example a Private Service
   Connect endpoint.
 - Vertex has no inexpensive way to list Anthropic models, so **Discover models**
-  returns the endpoint's `models`, or Batbox's built-in list of Claude model ids
+  returns the endpoint's `models`, or Batbox's built-in list of Anthropic model ids
   when `models` is empty. Model ids are the Vertex names, such as
   `claude-sonnet-5-5`; dated names such as `claude-3-5-sonnet-v2@20241022` also work.
 
-### Credentials
+#### Credentials
 
 Batbox mints an OAuth access token for the `cloud-platform` scope, in this order:
 
@@ -332,16 +516,16 @@ Tokens are reused until a minute before they expire. A token from `gcloud` is
 reused for fifteen minutes. A 401 response discards the token, and the request
 is sent once more.
 
-### IAM
+#### IAM
 
-- Enable the Vertex AI API in the project and enable each Claude model you use
+- Enable the Vertex AI API in the project and enable each Anthropic model you use
   from its Model Garden page.
 - Give the calling identity the Vertex AI User role (`roles/aiplatform.user`),
   or another role with `aiplatform.endpoints.predict`.
 - Quotas are per model and region. Requests over quota return
   `RESOURCE_EXHAUSTED`, which Batbox reports as a rate limit error (429).
 
-### Errors
+#### Errors
 
 Google RPC errors are mapped by status: `RESOURCE_EXHAUSTED` is a rate limit
 error, `UNAVAILABLE` an overloaded error, `UNAUTHENTICATED` an authentication
@@ -349,120 +533,48 @@ error, `PERMISSION_DENIED` a permission error, `NOT_FOUND` not found, and
 `INVALID_ARGUMENT` an invalid request. Errors the model returns in Messages API
 form pass through unchanged.
 
-Batbox ships with a catalog of 238 model providers: the 235 listed by
-[models.dev](https://models.dev) plus Ollama, llama.cpp and vLLM, which run on
-your own machine. 223 of them work today. Pick one, give it a key (or let Batbox
-find the key in your environment), choose a model, and you are flying.
+## Troubleshooting
 
-Servers that speak Anthropic Messages, such as Anthropic, OpenCode Zen,
-OpenRouter, DeepSeek, Ollama, llama.cpp, LM Studio and vLLM, are presets: Batbox
-talks to them directly. Servers that only speak OpenAI Chat Completions, such as
-OpenAI, Groq, Mistral and most gateways, go through Batbox's translator. Amazon
-Bedrock and Google Vertex use their own signed requests.
+**The connection test or a request says the key was rejected.** Batbox never
+retries a 401 or 403, so a bad key fails at once instead of after a minute of
+backoff. The picker and `batbox providers add` say
+`The server rejected the key (HTTP 401). Check the key or its environment variable.`
+A request names the server and the setting to check, for example
+`401 from http://127.0.0.1:9931: check auth_token`, followed by the server's own
+message. If the key comes from `api_key_env`, make sure the variable is set in
+the shell that starts Batbox.
 
-## Pick a provider with /providers
+**`Could not connect to 127.0.0.1:11434. Is the server running?`** Nothing
+answered on that host and port. Start the server, or edit the base URL. Local
+servers retry at most twice, two seconds apart, so a stopped server fails within
+a few seconds.
 
-Batbox opens `/providers` by itself the first time you start it with nothing
-configured. Afterwards, type `/providers` (or `/connect`) whenever you want to
-add another server.
+**`No model list at … (HTTP 404)`.** Some servers have no model list route. The
+server may still answer requests: pick a model from the catalog, or enter its id.
 
-1. **Choose a server.** The list has five groups:
-   - *Found on this machine*: model servers that answered on their usual ports
-     (Ollama 11434, LM Studio 1234, llama-server 9931 and 8080, vLLM 8000), with
-     the models they report.
-   - *Configured*: endpoints you already saved. Pick one to change its key, URL
-     or model.
-   - *Cloud*, *Local servers* and *Unsupported yet*: the catalog. Unsupported
-     entries say why when you select them.
+**Bedrock or Vertex AI says it did not accept your credentials.** See the
+credential order under [Amazon Bedrock](#credentials) and
+[Google Vertex AI](#credentials-1). `aws sso login` or
+`gcloud auth application-default login` fixes most expired sessions.
 
-   Type to search by name or id (`zen`, `router`, `llama`). Backspace edits the
-   search, Ctrl+U clears it, ↑ and ↓ move, Enter picks, Esc closes.
-2. **Give it a key.** If one of the provider's key variables is set, for example
-   `OPENROUTER_API_KEY`, Batbox offers **Use $OPENROUTER_API_KEY** and saves only
-   the variable name. Otherwise a hidden field asks for the key, which is saved in
-   `native-client.json` with permissions only you can read. Type `$NAME` in that
-   field to use a different variable. Local servers skip this step; add a key
-   later in `/config` if yours has one.
-3. **Check the base URL.** It comes from the catalog. Edit it for a self-hosted,
-   regional or non-default port, then press Enter.
-4. **Test the connection.** Batbox lists the server's models with a plain GET. It
-   never sends a chat request here, so the test costs nothing. If it fails you get
-   a readable reason (wrong key, nothing listening, no model list) and can retry,
-   edit the URL, change the key, or carry on with the catalog's models.
-5. **Pick a model.** The list merges what the server reported with what the
-   catalog knows: context and output limits, and whether the model does tools and
-   reasoning. Type to search, or choose **Enter a model ID…** for anything else.
+**A provider is listed under *Unsupported yet*.** These speak a protocol Batbox
+doesn't translate:
 
-Batbox saves the endpoint, switches to it, and tells you:
+- The OpenAI Responses API only: Infer by Flow7, NeoSmith, Perplexity Agent and
+  Vivgrid. Batbox translates Chat Completions, not Responses.
+- Their own SDK protocols: AIHubMix, Cloudflare AI Gateway, Cohere, Merge
+  Gateway, Perplexity, QVAC, SaladCloud AI Gateway, SAP AI Core, Venice AI and
+  watsonx.ai.
+- GitLab Duo, which uses its own agent protocol.
 
-```text
-Added openrouter · qwen/qwen3-coder · /model to switch
-```
+If one of them also offers an OpenAI-compatible Chat Completions or Anthropic
+Messages route, add it by hand with `provider` and `base_url`.
 
-The endpoint keeps the server's other models, so `/model` switches between them.
-`/config` edits every field, including the limits and capability switches.
-
-Endpoint ids follow the catalog id (`openrouter`, `llama.cpp`). Adding the same
-provider again creates `openrouter-2`, so a second account or a second machine
-never overwrites the first.
-
-## Set one up from a script
-
-`batbox providers add` writes the same endpoint without the terminal interface:
-
-```sh
-# A local server: no key, the first model it reports.
-batbox providers add ollama
-
-# A key from your environment (only the variable name is saved).
-batbox providers add openrouter --key-env OPENROUTER_API_KEY --model qwen/qwen3-coder
-
-# A key from stdin, so it stays out of shell history.
-printf '%s\n' "$MY_KEY" | batbox providers add anthropic --key - --model claude-sonnet-5-5
-
-# Your own host or port.
-batbox providers add llama.cpp --base-url http://gpu-box.lan:8080
-```
-
-| Option | Meaning |
-| --- | --- |
-| `--key-env VAR` | Read the key from `VAR` at request time. Defaults to the catalog's variable when it is set. |
-| `--key -` | Read the key from the first line of stdin and store it privately. |
-| `--base-url URL` | Replace the catalog URL. Required when the catalog URL has a placeholder. |
-| `--model ID` | The model to select. Defaults to the first model the server lists, then the catalog's first. |
-| `--id NAME` | Save under this endpoint id instead of the catalog id. |
-| `--no-test` | Skip the model-list request. |
-
-`batbox providers` lists local servers, your endpoints and the whole catalog.
-`batbox providers show zen` prints one provider's URL, paths, key variable and
-models. `batbox doctor` includes local servers and configured endpoints.
-
-## Quick notes
-
-| Provider | Notes |
-| --- | --- |
-| **OpenCode Zen** (`opencode`) | One key from [opencode.ai/auth](https://opencode.ai/auth) reaches Claude, GPT, Gemini, Kimi, GLM, Qwen and more over `https://opencode.ai/inference/anthropic/v1/messages`. OpenCode translates non-Claude models. Its free models only answer inside OpenCode, so the catalog leaves them out. Key: `OPENCODE_API_KEY`. |
-| **Anthropic** (`anthropic`) | `x-api-key` with `ANTHROPIC_API_KEY`. Thinking, effort and prompt caching start on for models that support them. |
-| **OpenRouter** (`openrouter`) | Uses OpenRouter's Messages route at `/api/v1/messages`. Model ids look like `vendor/model`. Key: `OPENROUTER_API_KEY`. |
-| **OpenAI** (`openai`) | Chat Completions through the translator, with `max_completion_tokens` and the `developer` role. Key: `OPENAI_API_KEY`. |
-| **Ollama** (`ollama`) | Needs Ollama 0.14 or newer for `/v1/messages`. No key locally. `ollama pull qwen3-coder` first; the picker shows every pulled model. Ollama Cloud is its own entry (`ollama-cloud`). |
-| **llama.cpp** (`llama.cpp`) | Start `llama-server -m model.gguf` (tools need `--jinja`, which is on by default). Since October 2026 it listens on 9931; older builds use 8080, and the picker checks both. For a server started with `--api-key`, add the key with `batbox providers add llama.cpp --key -` or in `/config`. |
-| **LM Studio** (`lmstudio`) | Turn on the local server in LM Studio 0.4.1 or newer. Port 1234, no key unless you enabled authentication. |
-| **vLLM** (`vllm`) | `vllm serve <model> --enable-auto-tool-choice --tool-call-parser <parser>` so tool calls work. Port 8000. If you start vLLM with `--api-key`, add the same key with `batbox providers add vllm --key -` or in `/config`. |
-| **DeepSeek** (`deepseek`) | Messages at `https://api.deepseek.com/anthropic`. Key: `DEEPSEEK_API_KEY`. |
-| **Groq**, **Mistral**, **Cerebras**, **Together AI**, **xAI** | Chat Completions through the translator. Each reads its usual `*_API_KEY` variable. |
-| **Moonshot / Kimi**, **Z.AI / GLM**, **MiniMax**, **Alibaba / Qwen** | Each has an Anthropic route, used directly. Alibaba plans have different hosts and keys; edit the base URL to match yours. MiniMax serves only M3 and M3.1-Flash on that route. |
-| **Amazon Bedrock**, **Google Vertex** | Signed with your AWS or Google credentials instead of a key. Edit the region in the base URL. |
-| **GitHub Copilot** | Listed as coming soon: it needs GitHub's device sign-in. |
-
-## How Batbox talks to a server
-
-The `provider` field of each endpoint names the wire protocol: `anthropic` (the
-default) sends Anthropic Messages to `base_url` plus `messages_path`;
-`openai-chat` sends Chat Completions to `base_url` plus `messages_path` and
-translates the stream back; `bedrock` and `vertex` sign each request. `preset`
-records the catalog id, and `quirks` holds the per-server Chat Completions
-details the catalog chose.
+**GitHub Copilot says "coming soon".** Copilot's Anthropic models answer on
+`/v1/messages`, but a key comes only from GitHub's device sign-in, and that flow
+needs an OAuth app registered for Batbox. Until that app exists, Batbox can't
+sign you in, so `/providers` and `batbox providers add github-copilot` stop
+there.
 
 ## Where the catalog comes from
 
