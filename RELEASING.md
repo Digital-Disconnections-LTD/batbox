@@ -25,14 +25,23 @@ update in the Homebrew tap
    gh release create vX.Y.Z --generate-notes
    ```
 
+   The tag starts the platform build workflow. When every platform is green
+   (about an hour and a half), its release job attaches the packages and their
+   checksums to the release, creating it first if you have not:
+   `batbox-X.Y.Z-linux-x86_64.tar.gz`, `batbox-X.Y.Z-macos-arm64.tar.gz`,
+   `batbox-X.Y.Z-macos-x86_64.tar.gz`, `batbox-X.Y.Z-windows-x86_64.zip` and
+   `SHA256SUMS`. Nothing to upload by hand; if a flaky check fails, re-run the
+   failed jobs and the release job follows.
+
 3. **Hash the source tarball.** GitHub serves the tag archive the formula uses:
 
    ```sh
    curl -fsSL https://github.com/Digital-Disconnections-LTD/batbox/archive/refs/tags/vX.Y.Z.tar.gz | shasum -a 256
    ```
 
-4. **Update the formula.** In `packaging/homebrew/Formula/batbox.rb`, set `url`
-   to the new tag and `sha256` to the hash. If `cmake/FtxuiDependency.cmake` or
+4. **Update the formula.** This is the one hand step left. In
+   `packaging/homebrew/Formula/batbox.rb`, set `url` to the new tag and
+   `sha256` to the hash. If `cmake/FtxuiDependency.cmake` or
    `cmake/IndigenousDependencies.cmake` changed their pinned FTXUI or Ada
    archives, update the matching `resource` blocks (same URL and SHA-256). Check
    it with `brew style` and `brew audit --strict --online batbox` from the tap.

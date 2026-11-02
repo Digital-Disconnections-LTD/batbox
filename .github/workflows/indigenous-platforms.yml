@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
 permissions:
   contents: read
 jobs:
@@ -125,3 +126,33 @@ jobs:
         with:
           name: batbox-windows-x86_64
           path: dist/*
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [posix, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: batbox-*
+          path: artifacts
+      - name: Name the packages
+        run: |
+          version=${TAG#v}
+          mkdir release
+          cp artifacts/batbox-ubuntu-24.04/batbox-ubuntu-24.04.tar.gz "release/batbox-$version-linux-x86_64.tar.gz"
+          cp artifacts/batbox-macos-15/batbox-macos-15.tar.gz "release/batbox-$version-macos-arm64.tar.gz"
+          cp artifacts/batbox-macos-15-intel/batbox-macos-15-intel.tar.gz "release/batbox-$version-macos-x86_64.tar.gz"
+          cp artifacts/batbox-windows-x86_64/batbox-windows-x86_64.zip "release/batbox-$version-windows-x86_64.zip"
+          cd release
+          sha256sum batbox-* > SHA256SUMS
+          cat SHA256SUMS
+      - name: Attach to the release
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes --title "Batbox ${TAG#v}"
+          gh release upload "$TAG" release/* --clobber
