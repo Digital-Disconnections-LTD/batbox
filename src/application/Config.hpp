@@ -82,5 +82,6 @@ std::string resolveAuthToken(const Config& config);
 std::string resolveProfileAuthToken(const Config& config,const std::string& name);
 InferenceProfile selectedInferenceProfile(const Config& config);
 Json modelOptions(const Config& config);
+std::string commandLineUsage();
 std::string commandLineHelp();
 } // namespace batbox::application

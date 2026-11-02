@@ -5,10 +5,14 @@
 #include <vector>
 
 namespace batbox::application {
+// `batbox version`, or --version anywhere before `--`.
+bool requestsVersion(const std::vector<std::string>& arguments);
 // `batbox setup web [...]` runs the bundled gadgets/setup-web.sh with bash.
 // `batbox doctor` (or `batbox --doctor`) prints helper and MCP status and
-// exits 0 when every check passes, 1 otherwise. Returns nullopt for any
-// other command line.
+// exits 0 when every check passes, 1 otherwise. `batbox help`, --help and -h
+// print the usage and exit 0. Any other first word that is not an option is
+// an unknown command: a usage error, exit 2, so it never becomes a prompt.
+// Returns nullopt when the command line starts Batbox itself.
 std::optional<int> runSubcommand(const std::vector<std::string>& arguments);
 std::string subcommandHelp();
 int runDoctor(const std::vector<std::string>& arguments);

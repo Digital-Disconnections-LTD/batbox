@@ -117,6 +117,12 @@ def run(binary, skill_shell=False, mission_board=False, scrapling_fixture=None):
         try:
             subprocess.run([str(binary), "--help"], env=env, check=True,
                            stdout=subprocess.DEVNULL, timeout=30)
+            unknown = subprocess.run([str(binary), "update"], env=env, capture_output=True,
+                                     text=True, timeout=30)
+            if unknown.returncode != 2 or "unknown command" not in unknown.stderr or requests:
+                raise RuntimeError("An unknown command must exit 2 without a request: " +
+                                   json.dumps({"exit": unknown.returncode, "stderr": unknown.stderr,
+                                               "requests": len(requests)}))
             result = subprocess.run([str(binary), "--cwd", str(root), "--print",
                 "/native-fixture" if skill_shell else "Exercise the native tools."], env=env, capture_output=True,
                 text=True, encoding="utf-8", errors="replace", timeout=90)

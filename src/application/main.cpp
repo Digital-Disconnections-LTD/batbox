@@ -4,7 +4,6 @@
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
 #endif
-#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <vector>
@@ -16,15 +15,12 @@
 namespace {
 int run(std::vector<std::string> arguments){
   // Answer before reading any configuration, so packagers can probe the binary.
-  const auto end=std::find(arguments.begin(),arguments.end(),"--");
-  if(std::find(arguments.begin(),end,"--version")!=end){
+  if(batbox::application::requestsVersion(arguments)){
     std::cout<<"batbox "<<BATBOX_VERSION<<'\n';return 0;
   }
   try{
     if(const auto status=batbox::application::runSubcommand(arguments))return *status;
     auto config=batbox::application::loadConfig(arguments);
-    if(config.help){std::cout<<batbox::application::commandLineHelp()<<
-      batbox::application::subcommandHelp();return 0;}
     if(batbox::application::needsProviderSetup(config)){
       if(config.print){
         std::cerr<<"Batbox: "<<batbox::application::providerSetupHint()<<'\n';return 1;

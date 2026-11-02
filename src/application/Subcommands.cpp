@@ -302,6 +302,12 @@ void beginProviderSetup(Config& config){
   config.model=kProviderSetupProfile;
 }
 
+bool requestsVersion(const std::vector<std::string>& arguments){
+  if(!arguments.empty()&&arguments.front()=="version")return true;
+  const auto end=std::find(arguments.begin(),arguments.end(),"--");
+  return std::find(arguments.begin(),end,"--version")!=end;
+}
+
 std::optional<int> runSubcommand(const std::vector<std::string>& arguments){
   if(arguments.empty())return std::nullopt;
   if(arguments.front()=="providers")return runProviders({arguments.begin()+1,arguments.end()});
@@ -320,6 +326,18 @@ std::optional<int> runSubcommand(const std::vector<std::string>& arguments){
       rest.push_back(*it);
     }
     return runDoctor(rest);
+  }
+  const auto end=std::find(arguments.begin(),arguments.end(),"--");
+  if(arguments.front()=="help"||std::find(arguments.begin(),end,"--help")!=end||
+      std::find(arguments.begin(),end,"-h")!=end){
+    std::cout<<commandLineHelp()<<subcommandHelp();
+    return 0;
+  }
+  if(!arguments.front().starts_with('-')){
+    std::cerr<<"batbox: unknown command \""<<arguments.front()<<"\"\n"<<commandLineUsage()<<
+      "To send a prompt, quote it after -p or --prompt: batbox -p \"your prompt\"\n"
+      "Run batbox help for every option and command.\n";
+    return 2;
   }
   return std::nullopt;
 }

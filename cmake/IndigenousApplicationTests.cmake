@@ -41,6 +41,9 @@ if(UNIX)
   add_test(NAME phase6-indigenous-resume-smoke COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/checks/indigenous_resume_smoke.py $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-indigenous-resume-smoke PROPERTIES TIMEOUT 90)
+  add_test(NAME phase6-cli-arguments-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/cli_arguments_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-cli-arguments-smoke PROPERTIES TIMEOUT 90)
 endif()
 batbox_indigenous(phase6-indigenous-lsp-grouped checks/indigenous_lsp_grouped.cpp batbox_indigenous_lsp)
 add_executable(batbox-indigenous-lsp-runtime checks/indigenous_lsp_runtime.cpp)
@@ -53,6 +56,11 @@ add_test(NAME phase6-indigenous-lsp-runtime COMMAND batbox-indigenous-lsp-runtim
 set_tests_properties(phase6-indigenous-lsp-runtime PROPERTIES TIMEOUT 40)
 batbox_indigenous(phase6-error-report-indigenous
   tests/phase6/error_report_indigenous.cpp batbox_indigenous_host)
+batbox_indigenous(phase6-cli-args-indigenous
+  tests/phase6/cli_args_indigenous.cpp batbox_subcommands)
+target_compile_options(batbox-phase6-cli-args-indigenous PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/UNDEBUG>
+  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-UNDEBUG>)
 batbox_indigenous(phase6-indigenous-host-lifetime
   tests/phase6/indigenous_host_lifetime.cpp batbox_indigenous_host)
 set_tests_properties(phase6-indigenous-host-lifetime PROPERTIES TIMEOUT 45)

@@ -146,15 +146,28 @@ to your model, so the compact display does not reduce model token usage.
 
 ![A large paste shown as one editable item in the terminal](images/paste-chip.png)
 
-Want a quick answer from a script? Use `--print`:
+Want a quick answer from a script? Use `--print` (or `-p`):
 
 ```sh
 batbox --print "Explain this project's entry point in three sentences."
+git diff | batbox -p "Review this change."
 ```
 
+Piped input is added to the prompt, or used on its own when `-p` has no text.
 Headless `--print` runs gadgets automatically by default, including child Bats.
 It never waits for an approval dialog. An explicit `--permission-mode` can choose
 a more restrictive mode for a particular run. The same flags work in PowerShell.
+
+To open the terminal with a first prompt already sent, use `--prompt`:
+
+```sh
+batbox --prompt "Tell me what this project does. Don't edit anything yet."
+```
+
+A prompt on the command line always goes through `-p` or `--prompt`. The first
+word after `batbox` is otherwise a command: `setup web`, `doctor`, `providers`,
+`help` or `version`. Anything else, such as `batbox update`, prints the usage
+and exits without contacting your model.
 
 ## If takeoff is bumpy
 

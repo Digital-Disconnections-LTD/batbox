@@ -206,6 +206,7 @@ Config loadConfig(const std::vector<std::string>& arguments){
   envNumber("BATBOX_COMPACT_AT",config.compactAt);envNumber("BATBOX_MAX_SUBAGENTS",config.maxSubagents);
   envNumber("BATBOX_MAX_CONCURRENT_SUBAGENTS",config.maxConcurrentSubagents);
   std::vector<std::string> poetry;
+  std::optional<std::string> promptFlag;
   config.modelRequested=false;
   for(std::size_t i=0;i<arguments.size();++i){
     const auto& argument=arguments[i];
@@ -235,6 +236,11 @@ Config loadConfig(const std::vector<std::string>& arguments){
     else if(argument=="--fullscreen")config.fullscreen=true;
     else if(argument=="--inline")config.fullscreen=false;
     else if(argument=="--print"||argument=="-p")config.print=true;
+    else if(argument=="--prompt"){
+      if(promptFlag)throw std::invalid_argument("--prompt can be given once");
+      promptFlag=next("--prompt");
+      if(value::trim(*promptFlag).empty())throw std::invalid_argument("--prompt needs text");
+    }
     else if(argument=="--verbose")config.verbose=true;
     else if(argument=="--replay-user-messages")
       config.replayUserMessages=true;
@@ -273,11 +279,18 @@ Config loadConfig(const std::vector<std::string>& arguments){
   }
   config.modelRequested=config.modelRequested||requestedModel.has_value();
   config.permissionModeRequested=requestedPermissionMode.has_value()||config.print;
+  // Bare words are a prompt only for --print; a stray word must never reach a model.
+  if(!config.print&&!poetry.empty())
+    throw std::invalid_argument("Unexpected argument \""+poetry.front()+"\": start Batbox "
+      "with a prompt using --prompt \"text\", or print one reply with -p \"text\"");
+  if(promptFlag&&!poetry.empty())
+    throw std::invalid_argument("Give the prompt once: --prompt \"text\" or words after "
+      "--print, not both");
   if(config.resumePicker&&config.print)
     throw std::invalid_argument("--resume needs a Flight id, slug or title with --print");
-  if(config.resumePicker&&!poetry.empty())
+  if(config.resumePicker&&promptFlag)
     throw std::invalid_argument("--resume without a value opens the Flight picker and "
-      "cannot take an initial prompt; use --resume <slug> \"prompt\"");
+      "cannot take an initial prompt; use --resume <slug> --prompt \"text\"");
   if(requestedPermissionMode||config.print){
     if(!config.permissions.is_object())
       throw std::invalid_argument("Permissions must be a JSON object");
@@ -329,6 +342,7 @@ Config loadConfig(const std::vector<std::string>& arguments){
   }else if(!config.selectedProfile.empty())
     throw std::invalid_argument("--profile requires configured profiles");
   config.cwd=std::filesystem::absolute(config.cwd).lexically_normal();
+  if(promptFlag)config.initialPoetry=promptFlag;
   for(const auto& word:poetry){if(!config.initialPoetry)config.initialPoetry="";else *config.initialPoetry+=' ';*config.initialPoetry+=word;}
   if(config.inputFormat!="text"&&config.inputFormat!="stream-json")
     throw std::invalid_argument("--input-format must be text or stream-json");
@@ -416,10 +430,18 @@ Json modelOptions(const Config& config){
   return {{"model",config.model},{"maxTokens",config.maxOutputTokens},
     {"contextWindow",config.contextWindow},{"querySource","repl_main_thread"}};
 }
+std::string commandLineUsage(){
+  return "Usage: batbox [options]                 Open Batbox in this directory\n"
+    "       batbox [options] --prompt TEXT   Open Batbox and send TEXT as the first prompt\n"
+    "       batbox -p [options] TEXT         Send TEXT, print the reply and exit; piped\n"
+    "                                        stdin is added to TEXT or used alone\n"
+    "       batbox COMMAND                   setup web, doctor, providers, help, version\n";
+}
 std::string commandLineHelp(){
-  return "Batbox terminal\n\nUsage: batbox [options] [poetry]\n\n"
+  return "Batbox terminal\n\n"+commandLineUsage()+"\n"
     "  --fullscreen | --inline       Terminal layout\n"
-    "  -p, --print                    Run Gadgets without approval dialogs, print and exit\n"
+    "  --prompt TEXT                  First prompt for the interactive Flight\n"
+    "  -p, --print [TEXT]             Run Gadgets without approval dialogs, print and exit\n"
     "  --input-format FORMAT          text or stream-json (with --print)\n"
     "  --output-format FORMAT         text, json or stream-json (with --print)\n"
     "  --verbose                      Required for stream-json output\n"
@@ -445,7 +467,8 @@ std::string commandLineHelp(){
     "  --compact-at N                 Automatic compaction threshold\n"
     "  --max-subagents N              Subagent limit\n"
     "  --max-concurrent-subagents N   Concurrent subagents\n"
-    "  --version                      Print the version and exit\n\n"
+    "  -h, --help                     Show this help (also: batbox help)\n"
+    "  --version                      Print the version and exit (also: batbox version)\n\n"
     "Configuration: ~/.batbox/native-client.json and ~/.batbox/settings.json\n"
     "Bats: ~/.batbox/agents/*.md; skills: ~/.batbox/skills/\n"
     "MCP: ~/.batbox/mcp.json; BATBOX_CONFIG_DIR overrides the configuration root.\n";
