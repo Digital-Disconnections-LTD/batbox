@@ -96,7 +96,15 @@ Batbox connects to them. Give their communities some love, too.
 
 ## Take a Flight
 
-Run the installer for your platform, connect your backend, then launch Batbox in
+On macOS, let Homebrew carry the bat:
+
+```sh
+brew install digital-disconnections-ltd/batbox/batbox
+```
+
+Not on a Mac, or prefer the package? Run the installer for your platform
+(`gadgets/install-macos.sh`, `gadgets/install-linux.sh` or
+`gadgets\install-windows.ps1`). Then connect your backend and launch Batbox in
 your project. The [first Flight guide](docs/getting-started.md) walks through it.
 
 ```sh
