@@ -195,6 +195,8 @@ class FakeCloud(ThreadingHTTPServer):
         self.tokens_issued = []
         self.refresh_token = None
         self.metadata_token = None
+        # Optional callable(body, model) -> Anthropic events, replacing the canned conversation.
+        self.responder = None
 
     def record(self, entry):
         with self.lock:
@@ -238,6 +240,11 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(frame)
             self.wfile.flush()
         self.close_connection = True
+
+    def conversation(self, body, model):
+        if self.server.responder:
+            return self.server.responder(body, model)
+        return answer_events(model) if wants_answer(body) else tool_use_events(model)
 
     def aws_auth(self, raw, service='bedrock'):
         server = self.server
@@ -331,7 +338,7 @@ class Handler(BaseHTTPRequestHandler):
         if server.scenario == 'expire-once' and server.count('bedrock') == 1:
             return self.reply(403, {'message': 'The security token included in the request is expired'},
                               headers={'x-amzn-ErrorType': 'ExpiredTokenException:http://internal'})
-        events = answer_events(model) if wants_answer(body) else tool_use_events(model)
+        events = self.conversation(body, model)
         if not stream:
             return self.reply(200, message_json(answer_events(model)), headers={'x-amzn-RequestId': 'req-invoke'})
         frames = [es_chunk(e) for e in events]
@@ -399,7 +406,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(429, {'error': {'code': 429, 'message': 'Quota exceeded for aiplatform.googleapis.com', 'status': 'RESOURCE_EXHAUSTED'}})
         if not stream:
             return self.reply(200, message_json(answer_events(model)))
-        events = answer_events(model) if wants_answer(body) else tool_use_events(model)
+        events = self.conversation(body, model)
         frames = [f'event: {e["type"]}\ndata: {json.dumps(e)}\n\n'.encode() for e in events]
         frames.insert(1, b'event: ping\ndata: {"type": "ping"}\n\n')
         if server.scenario == 'overloaded-midstream':

@@ -132,6 +132,8 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
     profile.provider=configured.provider;
     profile.preset=configured.preset;
     profile.quirks=configured.quirks;
+    profile.region=configured.region;
+    profile.project=configured.project;
     profile.costs={{"inputTokens",0},{"outputTokens",0},
       {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
       {"webSearchRequests",0}};

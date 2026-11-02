@@ -2,7 +2,7 @@
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 add_library(batbox_cloud_providers
   src/providers/cloud/Clock.cpp src/providers/cloud/Command.cpp src/providers/cloud/Crypto.cpp
-  src/providers/cloud/ErrorShape.cpp src/providers/cloud/HttpExchange.cpp
+  src/providers/cloud/CloudClients.cpp src/providers/cloud/ErrorShape.cpp src/providers/cloud/HttpExchange.cpp
   src/providers/aws/SigV4.cpp src/providers/aws/Credentials.cpp src/providers/aws/EventStream.cpp
   src/providers/aws/BedrockClient.cpp
   src/providers/gcp/GoogleAuth.cpp src/providers/gcp/VertexClient.cpp)

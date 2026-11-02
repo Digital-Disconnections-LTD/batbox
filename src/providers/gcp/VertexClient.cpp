@@ -28,7 +28,7 @@ transport::MessagesProtocol vertexProtocol() {
   protocol.betaHeader = "anthropic-beta";
   return protocol;
 }
-void dispatch(const transport::ServerSentEvent& event, const Json& headers, const cloud::WireClient::OnEvent& onEvent) {
+void dispatch(const transport::ServerSentEvent& event, const Json& headers, const transport::OnEvent& onEvent) {
   if (event.event) { transport::dispatchSSE(event,headers,onEvent); return; }
   // Events without an event: line still carry their type in the JSON.
   if (event.data.empty()) return;
@@ -95,20 +95,24 @@ VertexClient::VertexClient(VertexConfig settings, GoogleAuthOptions authOptions)
   : config(std::move(settings)),
     tokens([&] {
       authOptions.network = config.network;
-      return GoogleTokenSource(std::move(authOptions));
+      return std::make_shared<GoogleTokenSource>(std::move(authOptions));
     }()),
     http(config.network) {}
-transport::Response VertexClient::request(const Json& anthropicBody, bool stream, const OnEvent& onEvent, std::stop_token stop,
-                                          const OnResponse& onResponse, Timeout timeout) {
+VertexClient::VertexClient(VertexConfig settings, std::shared_ptr<GoogleTokenSource> source)
+  : config(std::move(settings)), tokens(std::move(source)), http(config.network) {
+  if (!tokens) throw std::invalid_argument("VertexClient needs a token source");
+}
+transport::Response VertexClient::request(const Json& anthropicBody, bool stream, const transport::OnEvent& onEvent, std::stop_token stop,
+                                          const transport::OnResponse& onResponse, transport::Timeout timeout) {
   std::lock_guard lock(mutex);
   if (stop.stop_requested()) throw transport::APIUserAbortError();
   if (stream && !onEvent) throw std::invalid_argument("Streaming requests require an event consumer");
-  const auto project = vertexProject(config,&tokens);
+  const auto project = vertexProject(config,tokens.get());
   const auto region = vertexRegion(config);
   for (int attempt = 0;; ++attempt) {
     std::string accessToken = config.bearerToken;
     if (accessToken.empty()) {
-      try { accessToken = tokens.token().token; }
+      try { accessToken = tokens->token().token; }
       catch (const std::exception& error) { cloud::throwMapped({401,"authentication_error",error.what()},Json::object()); }
     }
     cloud::HttpRequest prepared;
@@ -130,7 +134,7 @@ transport::Response VertexClient::request(const Json& anthropicBody, bool stream
     response.headers = result.headers;
     if (result.status < 200 || result.status >= 300) {
       if (result.status == 401 && attempt == 0 && config.bearerToken.empty()) {
-        tokens.invalidate();
+        tokens->invalidate();
         continue;
       }
       cloud::throwGoogleError(result.status,result.body,result.headers);

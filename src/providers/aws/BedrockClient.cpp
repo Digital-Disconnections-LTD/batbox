@@ -112,7 +112,7 @@ void throwBedrockHttpError(long status, const std::string& body, Json headers) {
   if (message.empty() && !parsed.is_object()) message = body.substr(0,2000);
   cloud::throwMapped(cloud::mapAwsException(type,status,message),withRequestId(std::move(headers)));
 }
-void BedrockStreamTranslator::handle(const EventStreamMessage& message, const cloud::WireClient::OnEvent& onEvent) {
+void BedrockStreamTranslator::handle(const EventStreamMessage& message, const transport::OnEvent& onEvent) {
   const auto kind = message.header(":message-type");
   if (kind == "event") {
     if (message.header(":event-type") != "chunk") return;
@@ -136,7 +136,7 @@ void BedrockStreamTranslator::handle(const EventStreamMessage& message, const cl
   }
   if (kind == "error") cloud::throwMapped(cloud::mapAwsException(message.header(":error-code"),500,message.header(":error-message")),headers);
 }
-void BedrockStreamTranslator::feed(std::string_view bytes, const cloud::WireClient::OnEvent& onEvent) {
+void BedrockStreamTranslator::feed(std::string_view bytes, const transport::OnEvent& onEvent) {
   for (const auto& message : decoder.decode(bytes)) handle(message,onEvent);
 }
 void BedrockStreamTranslator::finish() const {
@@ -148,24 +148,29 @@ BedrockClient::BedrockClient(BedrockConfig settings, CredentialOptions credentia
     credentials([&] {
       if (credentialOptions.bearerToken.empty()) credentialOptions.bearerToken = config.bearerToken;
       credentialOptions.network = config.network;
-      return CredentialChain(std::move(credentialOptions));
+      return std::make_shared<CredentialChain>(std::move(credentialOptions));
     }()),
     now([] { return std::chrono::system_clock::now(); }),
     http(config.network) {}
+BedrockClient::BedrockClient(BedrockConfig settings, std::shared_ptr<CredentialChain> chain)
+  : config(std::move(settings)), credentials(std::move(chain)), now([] { return std::chrono::system_clock::now(); }),
+    http(config.network) {
+  if (!credentials) throw std::invalid_argument("BedrockClient needs a credential chain");
+}
 std::string BedrockClient::region() {
   if (!config.region.empty()) return config.region;
-  if (auto region = credentials.region(); !region.empty()) return region;
+  if (auto region = credentials->region(); !region.empty()) return region;
   return "us-east-1";
 }
-transport::Response BedrockClient::request(const Json& anthropicBody, bool stream, const OnEvent& onEvent, std::stop_token stop,
-                                           const OnResponse& onResponse, Timeout timeout) {
+transport::Response BedrockClient::request(const Json& anthropicBody, bool stream, const transport::OnEvent& onEvent, std::stop_token stop,
+                                           const transport::OnResponse& onResponse, transport::Timeout timeout) {
   std::lock_guard lock(mutex);
   if (stop.stop_requested()) throw transport::APIUserAbortError();
   if (stream && !onEvent) throw std::invalid_argument("Streaming requests require an event consumer");
   const auto signingRegion = region();
   for (int attempt = 0;; ++attempt) {
     BedrockAuth auth;
-    try { auth = credentials.resolve(); }
+    try { auth = credentials->resolve(); }
     catch (const std::exception& error) { cloud::throwMapped({401,"authentication_error",error.what()},Json::object()); }
     auto prepared = prepareBedrockRequest(config,auth,signingRegion,anthropicBody,stream,now());
     prepared.timeout = timeout;
@@ -190,7 +195,7 @@ transport::Response BedrockClient::request(const Json& anthropicBody, bool strea
       try { throwBedrockHttpError(result.status,result.body,response.headers); }
       catch (const transport::APIError& error) {
         if (attempt == 0 && auth.kind == BedrockAuth::Kind::SigV4 && authFailure(error.body)) {
-          credentials.invalidate();
+          credentials->invalidate();
           continue;
         }
         throw;
@@ -216,7 +221,7 @@ Json BedrockClient::listModels() {
   std::lock_guard lock(mutex);
   const auto signingRegion = region();
   BedrockAuth auth;
-  try { auth = credentials.resolve(); }
+  try { auth = credentials->resolve(); }
   catch (const std::exception& error) { cloud::throwMapped({401,"authentication_error",error.what()},Json::object()); }
   const auto control = bedrockControlUrl(signingRegion);
   Json data = Json::array();

@@ -53,7 +53,7 @@ int eventStream(const std::string& file, std::size_t chunk) {
   std::cout << value::stringify(out) << '\n';
   return 0;
 }
-Json run(cloud::WireClient& client, const std::string& action, const Json& body, int repeat) {
+Json run(transport::WireClient& client, const std::string& action, const Json& body, int repeat) {
   Json results = Json::array();
   for (int i = 0; i < repeat; ++i) {
     Json result{{"events",Json::array()}};

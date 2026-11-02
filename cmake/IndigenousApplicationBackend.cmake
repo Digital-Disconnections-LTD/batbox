@@ -10,7 +10,7 @@ add_library(batbox_application_model
   src/application_model/ServicesRetry.cpp src/application_model/ContextImports.cpp
   src/application_model/Microcompact.cpp)
 target_link_libraries(batbox_application_model PUBLIC batbox_query batbox_model
-  batbox_diagnostics batbox_bats batbox_indigenous_tls)
+  batbox_diagnostics batbox_bats batbox_indigenous_tls batbox_cloud_providers)
 target_compile_options(batbox_application_model PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(batbox_application_engine src/application_engine/Engine.cpp

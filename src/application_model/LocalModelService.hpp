@@ -50,6 +50,9 @@ struct ModelProfile {
   // came from, and openai-chat quirks.
   std::string provider="anthropic";
   std::string preset;
+  // Bedrock and Vertex location settings.
+  std::string region;
+  std::string project;
   Json quirks=Json::object();
 };
 struct Config {

@@ -10,7 +10,7 @@ target_sources(batbox_application_commands PRIVATE
   src/application_config/ConfigPanel.cpp
   src/application_config/ConfigPanelViews.cpp
   src/application_config/ConfigPanelEdit.cpp)
-target_link_libraries(batbox_application_commands PUBLIC batbox_mcp_runtime)
+target_link_libraries(batbox_application_commands PUBLIC batbox_mcp_runtime batbox_cloud_providers)
 if(BUILD_TESTING)
   add_executable(batbox-endpoint-config-indigenous
     tests/phase6/endpoint_config_indigenous.cpp)

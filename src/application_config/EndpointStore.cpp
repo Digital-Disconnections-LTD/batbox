@@ -1,4 +1,5 @@
 #include "application_config/EndpointStore.hpp"
+#include "providers/cloud/CloudKinds.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "transport/WireClient.hpp"
 #include <algorithm>
@@ -90,6 +91,13 @@ std::string profileId(const std::string& endpointId,const std::string& modelId){
 std::string modelsUrl(const application::EndpointRecord& endpoint){
   return transport::modelsUrl(baseBeforeMessages(endpoint),endpoint.modelsPath);
 }
+namespace {
+void validateLocation(const std::string& value,const char* name){
+  for(const char c:value)
+    if(!((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='-'||c=='.'||c==':'))
+      throw std::invalid_argument(std::string("Endpoint ")+name+" may contain only lowercase letters, digits, '-', '.' and ':'");
+}
+}
 void validateEndpoint(const std::string& id,const application::EndpointRecord& endpoint){
   if(id.empty()||id.find("::")!=std::string::npos||id.find_first_of("\n\r\t")!=std::string::npos)
     throw std::invalid_argument("Endpoint ID must be nonempty and cannot contain :: or controls");
@@ -97,15 +105,20 @@ void validateEndpoint(const std::string& id,const application::EndpointRecord& e
   if(endpoint.label.find_first_of("\r\n")!=std::string::npos)
     throw std::invalid_argument("Endpoint label must be one line");
   const auto& url=endpoint.baseUrl;
-  const auto scheme=url.starts_with("http://")?7u:url.starts_with("https://")?8u:0u;
-  if(scheme==0||url.size()<=scheme||url.find_first_of("?#\r\n\t ")!=std::string::npos)
-    throw std::invalid_argument("Endpoint URL must be an HTTP(S) base URL");
-  const auto authorityEnd=url.find('/',scheme);
-  const auto authority=url.substr(scheme,authorityEnd==std::string::npos?
-    authorityEnd:authorityEnd-scheme);
-  if(authority.empty())throw std::invalid_argument("Endpoint URL needs a host");
-  if(authority.find('@')!=std::string::npos)
-    throw std::invalid_argument("Put credentials in the authentication field, not the URL");
+  const bool cloud=providers::cloud::isCloudKind(endpoint.provider);
+  validateLocation(endpoint.region,"region");
+  validateLocation(endpoint.project,"project");
+  if(!(cloud&&url.empty())){
+    const auto scheme=url.starts_with("http://")?7u:url.starts_with("https://")?8u:0u;
+    if(scheme==0||url.size()<=scheme||url.find_first_of("?#\r\n\t ")!=std::string::npos)
+      throw std::invalid_argument("Endpoint URL must be an HTTP(S) base URL");
+    const auto authorityEnd=url.find('/',scheme);
+    const auto authority=url.substr(scheme,authorityEnd==std::string::npos?
+      authorityEnd:authorityEnd-scheme);
+    if(authority.empty())throw std::invalid_argument("Endpoint URL needs a host");
+    if(authority.find('@')!=std::string::npos)
+      throw std::invalid_argument("Put credentials in the authentication field, not the URL");
+  }
   transport::validateProviderKind(endpoint.provider);
   if(endpoint.preset.find_first_of("\r\n")!=std::string::npos)
     throw std::invalid_argument("Endpoint preset must be one line");
@@ -131,7 +144,7 @@ void validateEndpoint(const std::string& id,const application::EndpointRecord& e
   for(const auto& model:endpoint.models)
     if(model.empty()||model.find_first_of("\r\n")!=std::string::npos)
       throw std::invalid_argument("Model IDs must be nonempty single lines");
-  (void)modelsUrl(endpoint);
+  if(!cloud)(void)modelsUrl(endpoint);
 }
 application::InferenceProfile inferenceProfile(const application::EndpointRecord& endpoint,
     const std::string& model){
@@ -143,6 +156,7 @@ application::InferenceProfile inferenceProfile(const application::EndpointRecord
     profile.messagesPath=profile.messagesPath.substr(3);
   profile.modelsPath=endpoint.modelsPath;
   profile.provider=endpoint.provider;profile.preset=endpoint.preset;
+  profile.region=endpoint.region;profile.project=endpoint.project;
   profile.quirks=endpoint.quirks;
   profile.authToken=endpoint.authToken;profile.apiKeyEnv=endpoint.apiKeyEnv;
   profile.authHeader=endpoint.authHeader;profile.headers=endpoint.headers;
@@ -165,6 +179,8 @@ void loadEndpoints(application::Config& config,const Json& source){
     endpoint.baseUrl=field(row,"base_url");
     endpoint.provider=field(row,"provider",std::string(transport::kProviderAnthropic));
     endpoint.preset=field(row,"preset");
+    endpoint.region=field(row,"region");
+    endpoint.project=field(row,"project");
     if(row.contains("quirks"))endpoint.quirks=row.at("quirks");
     endpoint.messagesPath=field(row,"messages_path",
       transport::isProviderKind(endpoint.provider)?
@@ -206,6 +222,8 @@ Json endpointDocument(const std::map<std::string,application::EndpointRecord>& e
       {"send_disabled_thinking",endpoint.sendDisabledThinking}};
     if(endpoint.provider!=transport::kProviderAnthropic)rows[id]["provider"]=endpoint.provider;
     if(!endpoint.preset.empty())rows[id]["preset"]=endpoint.preset;
+    if(!endpoint.region.empty())rows[id]["region"]=endpoint.region;
+    if(!endpoint.project.empty())rows[id]["project"]=endpoint.project;
     if(endpoint.quirks.is_object()&&!endpoint.quirks.empty())rows[id]["quirks"]=endpoint.quirks;
     if(!endpoint.modelsPath.empty())rows[id]["models_path"]=endpoint.modelsPath;
     if(!endpoint.authToken.empty())rows[id]["auth_token"]=endpoint.authToken;

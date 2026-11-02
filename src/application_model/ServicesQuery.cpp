@@ -1,4 +1,5 @@
 #include "application_model/Internal.hpp"
+#include "providers/cloud/CloudClients.hpp"
 #include "runtime/Platform.hpp"
 #include "transport/WireClient.hpp"
 #include <algorithm>
@@ -14,6 +15,12 @@ std::shared_ptr<transport::WireClient> makeWireClient(const ModelProfile& profil
     transport::ClientConfig config){
   if(profile.provider==transport::kProviderAnthropic)
     return std::make_shared<transport::AnthropicMessagesClient>(std::move(config));
+  if(providers::cloud::isCloudKind(profile.provider)){
+    auto token=config.authToken;
+    if(token.empty()&&config.headers.contains("x-api-key")&&config.headers["x-api-key"].is_string())
+      token=config.headers["x-api-key"].get<std::string>();
+    return providers::cloud::makeCloudClient({profile.provider,profile.region,profile.project,{},token},std::move(config));
+  }
   transport::validateProviderKind(profile.provider);
   throw std::invalid_argument("Provider "+profile.provider+
     " is not available in this build of Batbox");

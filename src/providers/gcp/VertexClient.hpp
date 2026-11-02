@@ -1,7 +1,8 @@
 #pragma once
 #include "providers/cloud/HttpExchange.hpp"
-#include "providers/cloud/LocalWireClient.hpp"
+#include "transport/WireClient.hpp"
 #include "providers/gcp/GoogleAuth.hpp"
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -32,18 +33,20 @@ std::string vertexModelUrl(const VertexConfig& config, const std::string& projec
 Json vertexBody(const Json& anthropicBody, bool stream);
 cloud::HttpRequest prepareVertexRequest(const VertexConfig& config, const std::string& project, const std::string& region,
                                         const std::string& accessToken, const Json& anthropicBody, bool stream);
-class VertexClient final : public cloud::WireClient {
+class VertexClient final : public transport::WireClient {
   VertexConfig config;
-  GoogleTokenSource tokens;
+  std::shared_ptr<GoogleTokenSource> tokens;
   cloud::HttpExchange http;
   std::mutex mutex;
 public:
   explicit VertexClient(VertexConfig config, GoogleAuthOptions authOptions = {});
-  transport::Response request(const Json& anthropicBody, bool stream, const OnEvent& onEvent = {},
-                              std::stop_token stop = {}, const OnResponse& onResponse = {},
-                              Timeout timeout = std::nullopt) override;
+  // Clients sharing a token source share its stashed access token.
+  VertexClient(VertexConfig config, std::shared_ptr<GoogleTokenSource> tokens);
+  transport::Response request(const Json& anthropicBody, bool stream, const transport::OnEvent& onEvent = {},
+                              std::stop_token stop = {}, const transport::OnResponse& onResponse = {},
+                              transport::Timeout timeout = std::nullopt) override;
   // Vertex has no inexpensive listing of Anthropic models, so this is the endpoint's models or the built-in list.
   Json listModels() override;
-  std::string kind() const override { return "vertex"; }
+  std::string kind() override { return "vertex"; }
 };
 } // namespace batbox::providers::gcp

@@ -65,6 +65,8 @@ application_model::ModelProfile runtimeProfile(const std::string& id,
   profile.provider=configured.provider;
   profile.preset=configured.preset;
   profile.quirks=configured.quirks;
+  profile.region=configured.region;
+  profile.project=configured.project;
   profile.costs={{"inputTokens",0},{"outputTokens",0},
     {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
     {"webSearchRequests",0}};

@@ -2,7 +2,8 @@
 #include "providers/aws/Credentials.hpp"
 #include "providers/aws/EventStream.hpp"
 #include "providers/cloud/HttpExchange.hpp"
-#include "providers/cloud/LocalWireClient.hpp"
+#include "transport/WireClient.hpp"
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -34,14 +35,14 @@ class BedrockStreamTranslator {
   Json headers;
 public:
   explicit BedrockStreamTranslator(Json responseHeaders = Json::object()) : headers(std::move(responseHeaders)) {}
-  void feed(std::string_view bytes, const cloud::WireClient::OnEvent& onEvent);
-  void handle(const EventStreamMessage& message, const cloud::WireClient::OnEvent& onEvent);
+  void feed(std::string_view bytes, const transport::OnEvent& onEvent);
+  void handle(const EventStreamMessage& message, const transport::OnEvent& onEvent);
   void finish() const;
 };
 [[noreturn]] void throwBedrockHttpError(long status, const std::string& body, Json headers);
-class BedrockClient final : public cloud::WireClient {
+class BedrockClient final : public transport::WireClient {
   BedrockConfig config;
-  CredentialChain credentials;
+  std::shared_ptr<CredentialChain> credentials;
   cloud::SystemClock now;
   cloud::HttpExchange http;
   std::mutex mutex;
@@ -49,10 +50,12 @@ class BedrockClient final : public cloud::WireClient {
   cloud::HttpResult signedGet(const std::string& url, const BedrockAuth& auth, const std::string& signingRegion);
 public:
   explicit BedrockClient(BedrockConfig config, CredentialOptions credentialOptions = {});
-  transport::Response request(const Json& anthropicBody, bool stream, const OnEvent& onEvent = {},
-                              std::stop_token stop = {}, const OnResponse& onResponse = {},
-                              Timeout timeout = std::nullopt) override;
+  // Clients sharing a chain share its stashed credentials.
+  BedrockClient(BedrockConfig config, std::shared_ptr<CredentialChain> credentials);
+  transport::Response request(const Json& anthropicBody, bool stream, const transport::OnEvent& onEvent = {},
+                              std::stop_token stop = {}, const transport::OnResponse& onResponse = {},
+                              transport::Timeout timeout = std::nullopt) override;
   Json listModels() override;
-  std::string kind() const override { return "bedrock"; }
+  std::string kind() override { return "bedrock"; }
 };
 } // namespace batbox::providers::aws

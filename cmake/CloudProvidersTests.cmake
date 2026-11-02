@@ -11,3 +11,15 @@ if(NOT WIN32)
   add_test(NAME phase2-cloud-providers COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/tests/phase2/cloud_providers.py --probe $<TARGET_FILE:batbox-cloud-providers-probe>)
 endif()
+if(UNIX)
+  add_test(NAME phase6-indigenous-cloud-providers-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/indigenous_cloud_providers_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-indigenous-cloud-providers-smoke PROPERTIES TIMEOUT 150)
+endif()
+if(NOT WIN32)
+  add_executable(batbox-cloud-provider-config-indigenous tests/phase6/cloud_provider_config_indigenous.cpp)
+  target_link_libraries(batbox-cloud-provider-config-indigenous PRIVATE
+    batbox_application_commands batbox_application_config)
+  target_compile_options(batbox-cloud-provider-config-indigenous PRIVATE -UNDEBUG)
+  add_test(NAME phase6-cloud-provider-config-indigenous COMMAND batbox-cloud-provider-config-indigenous)
+endif()
