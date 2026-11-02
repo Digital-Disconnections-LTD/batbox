@@ -64,11 +64,25 @@ Json Searxng::search(const Json& input, const std::string& gadgetUseId, std::chr
   curl_easy_setopt(http.get(), CURLOPT_XFERINFODATA,&signal);
   const auto result = curl_easy_perform(http.get());
   checkConnectorAbort(signal);
+  if (result == CURLE_COULDNT_CONNECT || result == CURLE_COULDNT_RESOLVE_HOST ||
+      result == CURLE_OPERATION_TIMEDOUT || result == CURLE_URL_MALFORMAT)
+    throw std::runtime_error("SearXNG is not reachable at " + endpoint + " (" +
+      curl_easy_strerror(result) + "). Web search is unavailable; run: batbox setup web, "
+      "or set searxng_url to your own instance's /search endpoint");
   if (result != CURLE_OK) throw std::runtime_error(std::string("SearXNG request failed: ") + curl_easy_strerror(result));
   long status = 0;
   curl_easy_getinfo(http.get(), CURLINFO_RESPONSE_CODE, &status);
-  if (status < 200 || status >= 300) throw std::runtime_error("SearXNG returned HTTP " + std::to_string(status));
-  auto response = value::parse(payload);
+  if (status == 403) throw std::runtime_error("SearXNG at " + endpoint +
+    " refused JSON output (HTTP 403). Add json to search.formats in its settings.yml, "
+    "or run: batbox setup web");
+  if (status < 200 || status >= 300) throw std::runtime_error("SearXNG at " + endpoint +
+    " returned HTTP " + std::to_string(status) +
+    (status >= 300 && status < 400 ? "; set searxng_url to the full /search endpoint" : ""));
+  Json response;
+  try { response = value::parse(payload); } catch (...) { response = nullptr; }
+  if (!response.is_object() || !response.contains("results") || !response.at("results").is_array())
+    throw std::runtime_error("SearXNG at " + endpoint + " did not return JSON search results; "
+      "searxng_url must name the /search endpoint of an instance with JSON output enabled");
   Json hits = Json::array();
   const auto& allowed = value::property(input, "allowed_domains");
   const auto& blocked = value::property(input, "blocked_domains");

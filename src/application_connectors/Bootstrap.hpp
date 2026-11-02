@@ -26,8 +26,10 @@ struct Bundle final {
   Bundle& operator=(const Bundle&)=delete;
 };
 
-// Read-only discovery. Explicit Config values take precedence. The bundle
-// owns connector processes until shutdown after active gadget turns finish.
+// Read-only discovery. Explicit Config values take precedence. No web helper
+// starts here: Scrapling starts on first use and SearXNG is contacted only by
+// a search. The bundle owns connector processes until shutdown after active
+// gadget turns finish.
 std::shared_ptr<Bundle> bootstrap(event_loop::Loop& owner,
   const application::Config& config,DiscoveryPaths paths={},
   std::function<void(const std::string& server,const std::string& message)>

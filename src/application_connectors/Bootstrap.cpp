@@ -1,6 +1,6 @@
 #include "application_connectors/Bootstrap.hpp"
+#include "application_connectors/Status.hpp"
 #include "runtime/JsonValue.hpp"
-#include <cstdlib>
 #include <fstream>
 #include <future>
 #include <map>
@@ -8,40 +8,9 @@
 
 namespace batbox::application_connectors {
 namespace {
-std::filesystem::path home(){
-  const char* value=std::getenv("HOME");
-  if(!value||!*value)value=std::getenv("USERPROFILE");
-  if(!value||!*value)throw std::runtime_error("Home directory is unavailable");
-  return value;
-}
-std::string trim(std::string value){return value::trim(value);}
 std::string field(const Json& value,const char* name){
   return value.is_object()&&value.contains(name)&&value.at(name).is_string()
     ?value.at(name).get<std::string>():"";
-}
-std::string privateSearxngEndpoint(const std::filesystem::path& path){
-  std::ifstream input(path);
-  std::string line,bindAddress;
-  int port=0;
-  while(std::getline(input,line)){
-    line=trim(std::move(line));
-    if(line.starts_with("bind_address:")){
-      bindAddress=trim(line.substr(sizeof("bind_address:")-1));
-      if(bindAddress.size()>=2&&
-         ((bindAddress.front()=='\"'&&bindAddress.back()=='\"')||
-          (bindAddress.front()=='\''&&bindAddress.back()=='\'')))
-        bindAddress=bindAddress.substr(1,bindAddress.size()-2);
-    }else if(line.starts_with("port:")){
-      const auto selected=trim(line.substr(sizeof("port:")-1));
-      try{std::size_t used=0;const auto value=std::stoi(selected,&used);
-        if(used==selected.size()&&value>0&&value<=65535)port=value;
-      }catch(...){}
-    }
-  }
-  if(port&&(
-      bindAddress=="127.0.0.1"||bindAddress=="localhost"||bindAddress=="::1"))
-    return "http://127.0.0.1:"+std::to_string(port)+"/search";
-  return "http://127.0.0.1:8888/search";
 }
 Json privateMcpServers(const std::filesystem::path& path){
   std::ifstream input(path);
@@ -96,21 +65,18 @@ std::shared_ptr<Bundle> bootstrap(event_loop::Loop& owner,
   if(!owner.isOwnerThread())throw std::logic_error("Connector bootstrap requires owner thread");
   if(paths.privateMcpConfig.empty())paths.privateMcpConfig=
     application::configurationDirectory(config)/"mcp.json";
-  if(paths.privateSearxngSettings.empty()){
-    paths.privateSearxngSettings=application::configurationDirectory(config)/
-      "searxng"/"settings.yml";
-    if(!std::filesystem::exists(paths.privateSearxngSettings))
-      paths.privateSearxngSettings=home()/".config"/"claude-private"/"searxng"/"settings.yml";
-  }
+  if(paths.privateSearxngSettings.empty())
+    paths.privateSearxngSettings=searxngSettingsPath(config);
   auto bundle=std::make_shared<Bundle>();
   auto diagnostic=[bundle,logDiagnostic](const std::string& server,
       const std::string& message){
     bundle->diagnostics.emplace_back(server,message);
     if(logDiagnostic)try{logDiagnostic(server,message);}catch(...){}
   };
-  bundle->searxngEndpoint=config.searxngUrl.empty()?
-    privateSearxngEndpoint(paths.privateSearxngSettings):config.searxngUrl;
+  bundle->searxngEndpoint=searxngTarget(config,paths.privateSearxngSettings).url;
   bundle->searxng=std::make_shared<Searxng>(bundle->searxngEndpoint);
+  // Scrapling starts on the first web Gadget call, so a missing helper costs
+  // nothing here.
   bundle->scrapling=std::make_shared<Scrapling>(scraplingServerArgv(config));
   if(manageMcp)return bundle;
   Json servers=config.mcpServers;

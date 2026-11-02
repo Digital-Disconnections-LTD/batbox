@@ -46,7 +46,8 @@ target_link_libraries(batbox_core PUBLIC nlohmann_json::nlohmann_json Threads::T
 target_compile_options(batbox_core PRIVATE -Wall -Wextra -Wpedantic)
 include(cmake/FileGadgets.cmake)
 include(cmake/EventLoop.cmake)
-add_library(batbox_connectors src/connectors/Searxng.cpp src/connectors/Scrapling.cpp)
+add_library(batbox_connectors src/connectors/Searxng.cpp src/connectors/Scrapling.cpp
+  src/connectors/Executable.cpp)
 target_include_directories(batbox_connectors PUBLIC src)
 target_link_libraries(batbox_connectors PUBLIC batbox_core CURL::libcurl)
 target_compile_options(batbox_connectors PRIVATE -Wall -Wextra -Wpedantic)

@@ -1,4 +1,5 @@
 #include "application_gadgets/DefaultInputs.hpp"
+#include "application_connectors/Status.hpp"
 #include "application_shell/RuleMatch.hpp"
 #include "formatting/Format.hpp"
 #include "mcp/Collapse.hpp"
@@ -499,6 +500,13 @@ Inputs makeDefaultInputs(DefaultInputs d){
   web.searxng=d.connectors->searxng;web.scrapling=d.connectors->scrapling;
   web.searxngEndpoint=d.connectors->searxngEndpoint;
   web.scraplingCommand=application_connectors::scraplingServerArgv(d.config);
+  // Checked once without starting anything; the descriptions are stashed per Flight.
+  const auto availability=std::make_shared<application_connectors::WebAvailability>(
+    application_connectors::webAvailability(d.config));
+  web.search.unavailableNote=[availability]{
+    return application_connectors::searchUnavailableNote(*availability);};
+  web.fetch.unavailableNote=[availability]{
+    return application_connectors::fetchUnavailableNote(*availability);};
   web.search.ui=webUi("Web Search");
   web.fetch.ui=webUi("Web Fetch");
   web.fetch.skipPreflight=[](){return true;};

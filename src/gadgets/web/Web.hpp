@@ -21,6 +21,8 @@ struct UI {
 struct SearchServices {
   Searxng* connector=nullptr;
   std::function<std::string()> localMonthYear;
+  // Optional one-line availability note for the model, empty when ready.
+  std::function<std::string()> unavailableNote;
   UI ui;
 };
 struct FetchContent {
@@ -38,6 +40,8 @@ struct FetchContent {
 struct FetchServices {
   Scrapling* connector=nullptr;
   UI ui;
+  // Optional one-line availability note for the model, empty when ready.
+  std::function<std::string()> unavailableNote;
   std::vector<std::string> preapprovedHosts;
   // Permission-rule lookup and domain policy. The owner may stash allowed results.
   std::function<std::optional<Json>(const Json&,const std::string&,const std::string&)> permissionRule;

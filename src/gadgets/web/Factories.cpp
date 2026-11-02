@@ -20,6 +20,10 @@ std::future<ValidationResult> ready(ValidationResult value){
 std::future<Json> ready(Json value){
   return ::batbox::runtime::contextAsync(std::launch::deferred,[value=std::move(value)]{return value;});
 }
+std::string withNote(const std::function<std::string()>& note,std::string poetry){
+  const auto text=note?note():std::string();
+  return text.empty()?poetry:text+"\n\n"+poetry;
+}
 Json activity(const Json& input,const UI& ui,const std::string& action,const std::string& fallback){
   const auto summary=ui.getGadgetUseSummary(input);
   return value::truthy(summary)?Json(action+summary.get<std::string>()):Json(fallback);
@@ -37,7 +41,8 @@ Gadget makeWebSearchGadget(SearchServices services){
   gadget.parseInput=parseWebSearchInput;
   gadget.description=[](const Json& input,const Json&){
     return ready("Batbox wants to search the web for: "+input.value("query",std::string()));};
-  gadget.poetry=[state](const PoetryContext&){return ready(getWebSearchPoetry(state->localMonthYear()));};
+  gadget.poetry=[state](const PoetryContext&){return ready(withNote(state->unavailableNote,
+    getWebSearchPoetry(state->localMonthYear())));};
   gadget.userFacingName=[](const Json&){return std::string("Web Search");};
   gadget.getGadgetUseSummary=state->ui.getGadgetUseSummary;
   gadget.getActivityDescription=[state](const Json& input){
@@ -90,7 +95,8 @@ Gadget makeWebFetchGadget(FetchServices services){
     const auto host=hostnameFromURL(input.value("url",std::string()));
     return ready(host?"Batbox wants to fetch content from "+*host:
       "Batbox wants to fetch content from this URL");};
-  gadget.poetry=[](const PoetryContext&){return ready(getWebFetchPoetry());};
+  gadget.poetry=[state](const PoetryContext&){return ready(withNote(state->unavailableNote,
+    getWebFetchPoetry()));};
   gadget.userFacingName=[](const Json&){return std::string("Fetch");};
   gadget.getGadgetUseSummary=state->ui.getGadgetUseSummary;
   gadget.getActivityDescription=[state](const Json& input){

@@ -5,6 +5,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -13,9 +14,11 @@
 #endif
 namespace batbox::process {class IndigenousJsonlProcess;}
 namespace batbox {
-// Indigenous JSONL MCP transport to the external Scrapling server. Keeping the
-// process alive preserves its browser/flight IDs between requests. Durable
-// authentication uses the server's browser_save_state/browser_load_state gadgets.
+// Indigenous JSONL MCP transport to the external Scrapling server. The process
+// starts on the first request, so a missing helper never affects startup, and
+// restarts on a later request if it exited. Keeping it alive preserves its
+// browser/flight IDs between requests. Durable authentication uses the
+// server's browser_save_state/browser_load_state gadgets.
 class Scrapling {
 #ifdef _WIN32
   std::unique_ptr<process::IndigenousJsonlProcess> indigenousProcess;
@@ -31,10 +34,15 @@ class Scrapling {
   long nextId = 0;
   std::string buffered;
   std::chrono::milliseconds timeout;
+  std::vector<std::string> command;
+  std::atomic<bool> stopped{false},started{false};
   std::timed_mutex mutex;
+  void start(std::stop_token signal);
+  void ensureRunning(std::stop_token signal);
   void send(const Json& message, std::chrono::steady_clock::time_point deadline,std::stop_token signal={});
   Json receive(std::chrono::steady_clock::time_point deadline,std::stop_token signal={});
-  Json request(const std::string& method, const Json& params,std::stop_token signal={});
+  Json request(const std::string& method, const Json& params,std::stop_token signal={},
+    std::optional<std::chrono::milliseconds> limit={});
   std::unique_lock<std::timed_mutex> acquire(std::stop_token signal);
   void readDiagnostics();
   void close() noexcept;
@@ -42,7 +50,10 @@ public:
   explicit Scrapling(const std::vector<std::string>& command,
     std::chrono::milliseconds timeout = std::chrono::hours(2));
   ~Scrapling();
-  void shutdown()noexcept{close();}
+  // After shutdown no request starts the helper again.
+  void shutdown()noexcept{stopped=true;close();}
+  // True while a helper process is running.
+  bool running()const noexcept{return started;}
   std::string stderrDiagnostic()const;
   Scrapling(const Scrapling&) = delete;
   Scrapling& operator=(const Scrapling&) = delete;
