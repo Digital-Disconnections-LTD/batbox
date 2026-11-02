@@ -6,6 +6,11 @@ class Batbox < Formula
   license "MIT"
   head "https://github.com/Digital-Disconnections-LTD/batbox.git", branch: "main"
 
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
+
   depends_on "cmake" => :build
   depends_on "libwebsockets" => :build
   depends_on "ninja" => :build
