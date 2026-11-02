@@ -1,9 +1,12 @@
 #include "application_connectors/Status.hpp"
+#include "application_connectors/Bootstrap.hpp"
 #include "connectors/Executable.hpp"
+#include "connectors/Scrapling.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/JsonValue.hpp"
 #include <curl/curl.h>
 #include <fstream>
+#include <future>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -195,13 +198,56 @@ std::optional<std::string> scraplingVersion(const std::filesystem::path& executa
   return std::nullopt;
 }
 
-HelperCheck checkScrapling(const WebAvailability& availability){
+std::optional<std::string> installedScraplingVersion(const std::string& command){
+  const auto executable=connectors::findExecutable(command);
+  return executable?scraplingVersion(*executable):std::nullopt;
+}
+
+ScraplingProbe probeScrapling(const application::Config& config,std::chrono::milliseconds timeout){
+  ScraplingProbe probe;
+  try{
+    Scrapling client(scraplingServerArgv(config),timeout);
+    try{
+      const auto offered=client.advertisedGadgets();
+      probe.started=true;
+      for(const auto& tool:offered)probe.tools.push_back(tool.name);
+      if(const auto* tool=chooseScraplingTool(offered,scraplingPlainFetchTools()))
+        probe.fetchTool=tool->name;
+    }catch(...){client.shutdown();throw;}
+    client.shutdown();
+  }catch(const std::exception& error){probe.error=error.what();}
+  return probe;
+}
+
+HelperCheck checkScrapling(const WebAvailability& availability,
+    const std::optional<ScraplingProbe>& probe){
   HelperCheck check;check.name="Scrapling";
   if(availability.scrapling){
-    check.ok=true;check.state="ready";
     check.detail=path(*availability.scrapling);
-    if(auto version=scraplingVersion(*availability.scrapling))check.detail+=" · "+*version;
-    check.detail+=" · starts on first web fetch";
+    const auto version=scraplingVersion(*availability.scrapling);
+    if(version)check.detail+=" · "+*version;
+    if(!probe){
+      check.ok=true;check.state="ready";
+      check.detail+=" · starts on first web fetch";
+      return check;
+    }
+    if(!probe->started){
+      check.state="not starting";
+      check.detail+=" · "+probe->error;
+      check.fix="batbox setup web, or set scrapling_command to a scrapling with its MCP "
+        "server (scrapling[ai])";
+      return check;
+    }
+    if(probe->fetchTool.empty()){
+      check.state="incompatible";
+      check.detail+=" · "+scraplingToolMissingMessage(scraplingPlainFetchTools(),
+        probe->tools,version,false);
+      check.fix=std::string("batbox setup web (Batbox needs Scrapling >= ")+
+        minimumScraplingVersion+")";
+      return check;
+    }
+    check.ok=true;check.state="ready";
+    check.detail+=" · MCP server answers · fetch uses "+probe->fetchTool;
     return check;
   }
   check.state="missing";
@@ -239,8 +285,13 @@ HelperCheck checkSearxng(const WebAvailability& availability,const SearxngProbe&
 }
 std::vector<HelperCheck> checkWebHelpers(const application::Config& config){
   const auto availability=webAvailability(config);
-  return {checkScrapling(availability),
-    checkSearxng(availability,probeSearxng(availability.searxng.url))};
+  std::future<ScraplingProbe> scrapling;
+  if(availability.scrapling)
+    scrapling=std::async(std::launch::async,[&config]{return probeScrapling(config);});
+  const auto searxng=probeSearxng(availability.searxng.url);
+  std::optional<ScraplingProbe> probe;
+  if(scrapling.valid())probe=scrapling.get();
+  return {checkScrapling(availability,probe),checkSearxng(availability,searxng)};
 }
 
 Json configuredMcpServers(const application::Config& config){

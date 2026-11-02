@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Minimal actual MCP transport fixture for the WebFetch Scrapling adapter."""
+"""Minimal actual MCP transport fixture for the WebFetch Scrapling adapter.
+
+It advertises Scrapling 0.4.15's plain fetch tool, make_request."""
 import json,os,sys
 for line in sys.stdin:
  req=json.loads(line)
  if 'id' not in req:continue
  method=req['method']
  if method=='initialize': result={'protocolVersion':'2025-03-26','capabilities':{'tools':{}}}
+ elif method=='tools/call' and req['params']['name']!='make_request':
+  result={'isError':True,'content':[{'type':'text','text':'Unknown tool: '+req['params']['name']}]}
  elif method=='tools/call':
   url=req['params']['arguments']['url']
   log=os.environ.get('BATBOX_WEB_FETCH_LOG')
@@ -15,5 +19,6 @@ for line in sys.stdin:
   text='# Documentation' if 'docs.example.org' in url else '# Article\nA fact.'
   page={'status':200,'content':[text],'url':actual}
   result={'isError':False,'content':[{'type':'text','text':json.dumps(page)}]}
- else:result={'tools':[{'name':'make_request'}]}
+ else:result={'tools':[{'name':'make_request','inputSchema':{'type':'object','required':['url'],
+  'properties':{'url':{'type':'string'},'extraction_type':{'type':'string','default':'markdown'}}}}]}
  print(json.dumps({'jsonrpc':'2.0','id':req['id'],'result':result}),flush=True)

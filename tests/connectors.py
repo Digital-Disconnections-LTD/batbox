@@ -41,17 +41,25 @@ def main():
         result=run([args.probe,'session','-'],env,'\n'.join(map(json.dumps,calls))+'\n')
         assert result.returncode==0,result.stderr
         rows=list(map(json.loads,result.stdout.splitlines()))
-        assert rows[0]['tools'][0]['name']=='make_request'
+        assert [tool['name'] for tool in rows[0]['tools']][3]=='get'
         assert json.loads(rows[1]['content'][0]['text'])=={'name':'browser_open','arguments':{'session_id':'durable'}}
         assert json.loads(rows[2]['content'][0]['text'])=={'name':'browser_save_state','arguments':{'session_id':'durable','path':'/tmp/session.json'}}
         assert rows[3]['isError'] is True,'Tool errors must reach the agent intact'
+        result=run([args.probe,'fetch','https://example.org/page'],env)
+        assert result.returncode==0,result.stderr
+        sent=json.loads(json.loads(result.stdout)['content'][0]['text'])
+        assert sent=={'name':'get','arguments':{'url':'https://example.org/page','extraction_type':'markdown'}},sent
+        result=run([args.probe,'fetch','https://example.org/page'],dict(env,FAKE_SCRAPLING_TOOLS='unknown'))
+        assert result.returncode==1,result.stdout
+        assert 'has no tool named make_request or get (it offers: browser_open, browser_fetch)' in result.stderr,result.stderr
+        assert 'Batbox needs Scrapling >= 0.3. Run: batbox setup web' in result.stderr,result.stderr
         result=run([args.probe,'session','-'],env,json.dumps({'name':'disconnect'})+'\n')
         assert result.returncode==1,result.stderr
         assert 'disconnected' in result.stderr or 'ended before' in result.stderr,result.stderr
         env['BATBOX_CONNECTOR_TIMEOUT_MS']='150'
         result=run([args.probe,'session','-'],env,json.dumps({'name':'hang'})+'\n')
         assert result.returncode==1 and 'timed out' in result.stderr,result.stderr
-        print('Native search filtering, MCP framing, persistent calls, errors, disconnect and timeout passed')
+        print('Native search filtering, MCP framing, persistent calls, fetch tool choice, errors, disconnect and timeout passed')
     finally:server.shutdown();server.server_close()
 
 if __name__=='__main__':main()

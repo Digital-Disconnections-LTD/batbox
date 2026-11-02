@@ -20,13 +20,24 @@ std::string statusText(int code){
 std::string upgraded(const std::string& url){
   return url.rfind("http://",0)==0?"https://"+url.substr(7):url;
 }
+std::string errorText(const Json& response){
+  std::string text;
+  const auto& blocks=value::property(response,"content");
+  if(blocks.is_array())for(const auto& block:blocks){
+    const auto& piece=value::property(block,"text");
+    if(!piece.is_string())continue;
+    if(!text.empty())text+='\n';
+    text+=piece.get<std::string>();
+  }
+  return text.empty()?value::stringify(response):text;
+}
 } // namespace
 
 FetchContent fetchThroughScrapling(const std::string& url,Scrapling& connector,std::stop_token stopToken){
   checkConnectorAbort(stopToken);
   const auto response=connector.fetch(upgraded(url),stopToken);
   checkConnectorAbort(stopToken);
-  if(response.value("isError",false))throw std::runtime_error("Scrapling fetch failed: "+value::stringify(response));
+  if(response.value("isError",false))throw std::runtime_error("Scrapling fetch failed: "+errorText(response));
   const auto& blocks=response.at("content");
   if(!blocks.is_array()||blocks.empty())throw std::runtime_error("Scrapling returned no page response");
   const auto text=blocks.front().at("text").get<std::string>();

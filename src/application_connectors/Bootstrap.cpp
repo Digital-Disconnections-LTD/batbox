@@ -77,7 +77,9 @@ std::shared_ptr<Bundle> bootstrap(event_loop::Loop& owner,
   bundle->searxng=std::make_shared<Searxng>(bundle->searxngEndpoint);
   // Scrapling starts on the first web Gadget call, so a missing helper costs
   // nothing here.
-  bundle->scrapling=std::make_shared<Scrapling>(scraplingServerArgv(config));
+  bundle->scrapling=std::make_shared<Scrapling>(scraplingServerArgv(config),
+    Scrapling::defaultTimeout,[command=config.scraplingCommand]{
+      return installedScraplingVersion(command);});
   if(manageMcp)return bundle;
   Json servers=config.mcpServers;
   if(!config.mcpServersConfigured)servers=privateMcpServers(paths.privateMcpConfig);

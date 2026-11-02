@@ -4,7 +4,8 @@ Batbox works without any web helpers. Two optional open-source projects add web
 search and page fetching:
 
 - **[Scrapling](https://github.com/D4Vinci/Scrapling)** fetches pages for the
-  WebFetch Gadget and provides browser tools through its MCP server.
+  WebFetch Gadget and provides browser tools through its MCP server. Batbox
+  needs Scrapling 0.3 or later.
 - **[SearXNG](https://github.com/searxng/searxng)** answers WebSearch through
   an instance you run or choose.
 
@@ -20,6 +21,17 @@ missing, the welcome card and `/status` show one line such as
 `Web search and fetch are not set up · run: batbox setup web`, and the model
 is told in the Gadget's description. A call made anyway returns a tool error
 that names the problem and the fix; nothing hangs or crashes.
+
+## Which Scrapling tool WebFetch calls
+
+Batbox talks to `scrapling mcp` through the same MCP client it uses for your
+own MCP servers. The first time WebFetch runs, it lists the server's tools once
+and picks the plain HTTP fetch tool by name: `make_request` (Scrapling 0.4.15
+and later) or `get` (Scrapling 0.3 to 0.4.14). Both take `url` and
+`extraction_type` (Batbox asks for `markdown`) and return the page's status,
+content and final URL. When the server offers neither, the call fails with a
+message such as `Scrapling 0.2.9 has no tool named make_request or get (it
+offers: ...); Batbox needs Scrapling >= 0.3. Run: batbox setup web`.
 
 ## `batbox setup web`
 
@@ -39,10 +51,12 @@ write, keeping a `.bak`), and `--write-scrapling-command PATH`.
 
 What it does for Scrapling:
 
-1. Keeps an existing `scrapling` on PATH if its Python has the MCP extras.
-2. Otherwise runs `pipx install 'scrapling[ai]'`, or `uv tool install
-   'scrapling[ai]'` when pipx is missing. With neither, it prints how to install
-   pipx (`brew install pipx` or `python3 -m pip install --user pipx`).
+1. Keeps an existing `scrapling` on PATH if its Python has the MCP extras and
+   it is Scrapling 0.3 or later.
+2. Otherwise runs `pipx install 'scrapling[ai]>=0.3'`, or `uv tool install
+   'scrapling[ai]>=0.3'` when pipx is missing, adding `--force` to replace an
+   older Scrapling. With neither, it prints how to install pipx (`brew install
+   pipx` or `python3 -m pip install --user pipx`).
 3. Runs `scrapling install` for the browser dependencies.
 4. Changes no configuration when `scrapling` is on PATH. If the install
    directory is not on PATH, it sets `scrapling_command` in
@@ -79,15 +93,18 @@ Windows has no setup script yet. Install Scrapling with pipx and set
 
 ## Checking status
 
-`/connectors` opens a dialog listing Scrapling (the executable found, and its
-version when the package metadata is readable), SearXNG (the URL, whether it
+`/connectors` opens a dialog listing Scrapling (the executable found, its
+version when the package metadata is readable, and whether its MCP server
+answers with a fetch tool Batbox can use), SearXNG (the URL, whether it
 answered, whether JSON output is on) and each MCP server Batbox loaded, each
 with its state and the exact fix. **Set up now** shows the
 setup command; run it in a terminal, then restart Batbox.
 
 `batbox doctor` (also `batbox --doctor`) prints the same checks as plain text
-and exits 0 when every check passes, 1 otherwise. It starts no helper and only
-reads MCP server commands; it does contact SearXNG with one search.
+and exits 0 when every check passes, 1 otherwise. It starts `scrapling mcp`
+once to list its tools, then stops it, and flags a Scrapling that offers no
+fetch tool Batbox can use as `incompatible`. It only reads your MCP server
+commands, and it contacts SearXNG with one search.
 
 ## Your own instances
 

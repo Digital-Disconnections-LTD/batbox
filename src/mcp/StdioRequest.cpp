@@ -102,6 +102,10 @@ Json StdioClient::listGadgets(std::stop_token signal){
 Json StdioClient::invoke(const std::string& method,const Json& params,std::stop_token signal){
   return request(method,params,signal);
 }
+Json StdioClient::callGadgetResult(const std::string& name,const Json& arguments,
+  std::stop_token signal){
+  return request("tools/call",{{"name",name},{"arguments",arguments}},signal,{},name);
+}
 GadgetCallResult StdioClient::callGadget(const std::string& name,const Json& arguments,
   std::stop_token signal,const std::function<void(const Json&)>& onProgress){
   Json result=request("tools/call",{{"name",name},{"arguments",arguments}},

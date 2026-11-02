@@ -13,6 +13,9 @@ SEARXNG_COMMIT=54ca1d9cfb08674f66261d7f351b063558dfcc62
 SEARXNG_VERSION=2026.10.25+54ca1d9cf
 SEARXNG_ARCHIVE="https://github.com/searxng/searxng/archive/${SEARXNG_COMMIT}.tar.gz"
 SETTINGS_MARKER='# Written by batbox setup web.'
+# Batbox fetches pages with Scrapling's MCP tool make_request (0.4.15 on) or
+# get (0.3 to 0.4.14); 0.3 is the first release with an MCP server.
+SCRAPLING_MINIMUM=0.3
 SERVICE_LABEL=com.batbox.searxng
 SYSTEMD_UNIT=batbox-searxng.service
 
@@ -218,14 +221,36 @@ scrapling_mcp_version() {
   [[ -n $interpreter && -x $interpreter ]] || return 1
   "$interpreter" -I -c 'import importlib.metadata as m, scrapling, mcp; print(m.version("scrapling"))' 2>/dev/null
 }
+# True when dotted version $1 is at least $2, comparing numeric fields.
+version_at_least() {
+  local index have want
+  local -a a b
+  IFS=. read -r -a a <<<"$1"
+  IFS=. read -r -a b <<<"$2"
+  for ((index = 0; index < 3; index++)); do
+    have=${a[index]:-0}; want=${b[index]:-0}
+    have=${have%%[!0-9]*}; want=${want%%[!0-9]*}
+    have=$((10#${have:-0})); want=$((10#${want:-0}))
+    ((have > want)) && return 0
+    ((have < want)) && return 1
+  done
+  return 0
+}
 install_scrapling() {
   step 'Scrapling'
-  local installer='' bin_dir='' existing version
+  local installer='' bin_dir='' existing version force_install=()
+  local spec="scrapling[ai]>=$SCRAPLING_MINIMUM"
   existing=$(command -v scrapling 2>/dev/null || true)
   if [[ -n $existing ]] && version=$(scrapling_mcp_version "$existing"); then
-    scrapling_path=$existing
-    say "  already installed: $existing (Scrapling $version, MCP server available)"
-  else
+    if version_at_least "$version" "$SCRAPLING_MINIMUM"; then
+      scrapling_path=$existing
+      say "  already installed: $existing (Scrapling $version, MCP server available)"
+    else
+      say "  $existing is Scrapling $version; Batbox needs Scrapling $SCRAPLING_MINIMUM or later"
+      force_install=(--force)
+    fi
+  fi
+  if [[ -z $scrapling_path ]]; then
     if have pipx; then installer=pipx
     elif have uv; then installer=uv
     else
@@ -237,21 +262,22 @@ install_scrapling() {
       return
     fi
     if [[ $installer = pipx ]]; then
-      run pipx install 'scrapling[ai]'
+      run pipx install ${force_install[@]+"${force_install[@]}"} "$spec"
       $dry_run || bin_dir=$(pipx environment --value PIPX_BIN_DIR 2>/dev/null || true)
       [[ -n $bin_dir ]] || bin_dir="${PIPX_BIN_DIR:-$HOME/.local/bin}"
     else
-      run uv tool install 'scrapling[ai]'
+      run uv tool install ${force_install[@]+"${force_install[@]}"} "$spec"
       $dry_run || bin_dir=$(uv tool dir --bin 2>/dev/null || true)
       [[ -n $bin_dir ]] || bin_dir="${UV_TOOL_BIN_DIR:-$HOME/.local/bin}"
     fi
     scrapling_path="$bin_dir/scrapling"
     if $dry_run; then
       say "  would check that $scrapling_path has Scrapling's MCP server"
-    elif version=$(scrapling_mcp_version "$scrapling_path"); then
+    elif version=$(scrapling_mcp_version "$scrapling_path") &&
+        version_at_least "$version" "$SCRAPLING_MINIMUM"; then
       say "  OK: Scrapling $version with its MCP server at $scrapling_path"
     else
-      say "  $scrapling_path lacks Scrapling's MCP server; reinstall with: $installer install --force 'scrapling[ai]'"
+      say "  $scrapling_path lacks Scrapling $SCRAPLING_MINIMUM or later with its MCP server; reinstall with: $installer install --force '$spec'"
       failures=$((failures + 1))
       return
     fi

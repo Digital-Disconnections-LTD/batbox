@@ -56,9 +56,22 @@ SearxngProbe probeSearxng(const std::string& url,
   std::chrono::milliseconds timeout=std::chrono::seconds(5));
 // Read from the installed package metadata beside the executable; no process runs.
 std::optional<std::string> scraplingVersion(const std::filesystem::path& executable);
-HelperCheck checkScrapling(const WebAvailability& availability);
+// The version of the Scrapling that scrapling_command resolves to, if readable.
+std::optional<std::string> installedScraplingVersion(const std::string& command);
+struct ScraplingProbe {
+  bool started=false;
+  std::vector<std::string> tools;
+  std::string fetchTool,error;
+};
+// Starts `scrapling mcp`, lists its tools once and stops it. Blocking.
+ScraplingProbe probeScrapling(const application::Config& config,
+  std::chrono::milliseconds timeout=std::chrono::seconds(30));
+// Without a probe the check only finds the executable.
+HelperCheck checkScrapling(const WebAvailability& availability,
+  const std::optional<ScraplingProbe>& probe=std::nullopt);
 HelperCheck checkSearxng(const WebAvailability& availability,const SearxngProbe& probe);
-// Scrapling and SearXNG, probing SearXNG over the network. Blocking.
+// Scrapling and SearXNG: starts Scrapling once to list its MCP tools and
+// probes SearXNG over the network. Blocking.
 std::vector<HelperCheck> checkWebHelpers(const application::Config& config);
 
 // MCP servers from the configuration (native-client.json or mcp.json).

@@ -2,7 +2,7 @@
 """Check gadgets/setup-web.sh and `batbox doctor` in throwaway homes.
 
 Nothing is installed: the script runs its config merge, dry runs and option
-handling; doctor talks to a local fake SearXNG and a fake Scrapling.
+handling; doctor talks to a local fake SearXNG and a fake Scrapling MCP server.
 """
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -16,6 +16,25 @@ import threading
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "gadgets" / "setup-web.sh"
+SCRAPLING_047_TOOLS = ["open_session", "close_session", "list_sessions", "get", "bulk_get",
+                       "fetch", "bulk_fetch", "stealthy_fetch", "bulk_stealthy_fetch", "screenshot"]
+# An MCP server that advertises the tool names listed in tools.json beside it.
+FAKE_SCRAPLING = """#!/usr/bin/env python3
+import json, sys
+from pathlib import Path
+names = json.loads(Path(__file__).with_name("tools.json").read_text())
+for line in sys.stdin:
+    request = json.loads(line)
+    if "id" not in request:
+        continue
+    if request["method"] == "initialize":
+        result = {"protocolVersion": "2025-03-26", "capabilities": {"tools": {}}}
+    elif request["method"] == "tools/list":
+        result = {"tools": [{"name": name, "inputSchema": {"type": "object"}} for name in names]}
+    else:
+        result = {"content": [{"type": "text", "text": "Unknown tool"}], "isError": True}
+    print(json.dumps({"jsonrpc": "2.0", "id": request["id"], "result": result}), flush=True)
+"""
 
 
 def environment(home, **extra):
@@ -109,6 +128,7 @@ def dry_runs(base, binary):
           ("batbox-searxng.service" in out), "dry run does not name the service")
     leftovers = [path for path in home.rglob("*")]
     check(not leftovers, f"dry run wrote files: {leftovers}")
+    outdated(base)
     script(home, "--uninstall", "--dry-run")
     script(home, "--port", "0", success=False)
     script(home, "--bogus", success=False)
@@ -120,6 +140,28 @@ def dry_runs(base, binary):
     usage = subprocess.run([str(binary), "setup"], env=environment(home), text=True,
                            capture_output=True, timeout=30)
     check(usage.returncode == 2 and "setup web" in usage.stderr, "bare `batbox setup` usage")
+
+
+def outdated(base):
+    home = base / "outdated home"
+    tools = base / "outdated-tools"
+    tools.mkdir()
+    for version in ("0.2.9", "0.4.7"):
+        python = tools / f"python-{version}"
+        python.write_text(f"#!/bin/sh\necho {version}\n")
+        python.chmod(0o755)
+        bin_dir = tools / f"bin-{version}"
+        bin_dir.mkdir()
+        (bin_dir / "scrapling").write_text(f"#!{python}\n")
+        (bin_dir / "scrapling").chmod(0o755)
+    old = script(home, "--dry-run", "--scrapling-only", "--no-browsers",
+                 env=environment(home, PATH=f"{tools / 'bin-0.2.9'}:/usr/bin:/bin")).stdout
+    check("is Scrapling 0.2.9; Batbox needs Scrapling 0.3 or later" in old and
+          "already installed" not in old, "outdated Scrapling was kept:\n" + old)
+    current = script(home, "--dry-run", "--scrapling-only", "--no-browsers",
+                     env=environment(home, PATH=f"{tools / 'bin-0.4.7'}:/usr/bin:/bin")).stdout
+    check("already installed" in current and "Scrapling 0.4.7" in current,
+          "a current Scrapling was not kept:\n" + current)
 
 
 def doctor(base, binary):
@@ -143,8 +185,10 @@ def doctor(base, binary):
         venv = home / "tools" / "venv"
         executable = venv / "bin" / "scrapling"
         executable.parent.mkdir(parents=True)
-        executable.write_text("#!/bin/sh\nexit 0\n")
+        executable.write_text(FAKE_SCRAPLING)
         executable.chmod(0o755)
+        advertised = executable.with_name("tools.json")
+        advertised.write_text(json.dumps(SCRAPLING_047_TOOLS))
         (venv / "lib" / "python3.12" / "site-packages" / "scrapling-9.9.dist-info").mkdir(parents=True)
         config = home / ".batbox"
         config.mkdir()
@@ -157,7 +201,16 @@ def doctor(base, binary):
         healthy = run("doctor")
         check(healthy.returncode == 0, "healthy doctor failed:\n" + healthy.stdout + healthy.stderr)
         check(healthy.stdout.count("[ok]") == 3 and "9.9" in healthy.stdout and
-              "1 results" in healthy.stdout, "healthy doctor output:\n" + healthy.stdout)
+              "fetch uses get" in healthy.stdout and "1 results" in healthy.stdout,
+              "healthy doctor output:\n" + healthy.stdout)
+        advertised.write_text(json.dumps(["browser_open", "browser_fetch"]))
+        incompatible = run("doctor")
+        check(incompatible.returncode == 1 and "Scrapling: incompatible" in incompatible.stdout and
+              "Scrapling 9.9 has no tool named make_request or get (it offers: browser_open, "
+              "browser_fetch); Batbox needs Scrapling >= 0.3" in incompatible.stdout and
+              "fix: batbox setup web" in incompatible.stdout,
+              "incompatible doctor output:\n" + incompatible.stdout)
+        advertised.write_text(json.dumps(SCRAPLING_047_TOOLS))
         state["status"] = 403
         blocked = run("--doctor")
         check(blocked.returncode == 1 and "JSON off" in blocked.stdout and "search.formats" in

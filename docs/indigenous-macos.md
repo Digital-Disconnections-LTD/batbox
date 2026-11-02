@@ -29,7 +29,7 @@ Scrapling with its MCP dependencies on PATH, or its executable in
 `scrapling_command`. Install the helper in your preferred Python environment:
 
 ```sh
-python3 -m pip install 'scrapling[ai]'
+python3 -m pip install 'scrapling[ai]>=0.3'
 scrapling install
 ```
 

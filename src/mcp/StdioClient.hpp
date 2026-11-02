@@ -37,6 +37,8 @@ class StdioClient:public std::enable_shared_from_this<StdioClient> {
   Json invoke(const std::string& method,const Json& params=Json::object(),std::stop_token signal={});
   GadgetCallResult callGadget(const std::string& name,const Json& arguments,
     std::stop_token signal={},const std::function<void(const Json&)>& onProgress={});
+  // The raw tools/call result; isError results are returned, not thrown.
+  Json callGadgetResult(const std::string& name,const Json& arguments,std::stop_token signal={});
   bool hasGadgetCapability() const{return gadgetsCapability_;}
   const std::string& instructions() const{return instructions_;}
   const Json& capabilities()const{return capabilities_;}

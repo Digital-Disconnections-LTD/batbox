@@ -1,5 +1,6 @@
-// Optional web helpers: lazy Scrapling, clear unavailable errors, SearXNG
-// discovery without personal fallbacks, and the startup availability line.
+// Optional web helpers: lazy Scrapling, fetch tool discovery, clear unavailable
+// errors, SearXNG discovery without personal fallbacks, the startup availability
+// line and the doctor's Scrapling handshake.
 #include "application_connectors/Bootstrap.hpp"
 #include "application_connectors/Status.hpp"
 #include "connectors/Executable.hpp"
@@ -60,12 +61,122 @@ void lazyScrapling(const fs::path& root,const fs::path& fixture){
   client.listGadgets();
   check(client.running()&&fs::exists(marker),"The first request did not start Scrapling");
   fs::remove(marker);
-  client.callGadget("make_request",{{"url","https://example.invalid"}});
+  client.callGadget("get",{{"url","https://example.invalid"}});
   check(!fs::exists(marker),"A second request started another Scrapling process");
   client.shutdown();
   check(!client.running(),"Shutdown left Scrapling marked running");
   check(contains(thrown([&]{client.listGadgets();}),"shutting down"),
     "A request after shutdown restarted Scrapling");
+}
+
+fs::path wrapper(const fs::path& path,const std::string& body){
+  write(path,"#!/bin/sh\n"+body+"\n");
+  fs::permissions(path,fs::perms::owner_all,fs::perm_options::replace);
+  return path;
+}
+std::string firstText(const Json& result){
+  return result.at("content").at(0).at("text").get<std::string>();
+}
+gadgets::web::FetchServices fetchServices(Scrapling& connector){
+  gadgets::web::FetchServices fetch;
+  fetch.connector=&connector;fetch.ui=ui();
+  fetch.permissionRule=[](const Json&,const std::string&,const std::string&)->std::optional<Json>{
+    return std::nullopt;};
+  fetch.skipPreflight=[]{return true;};
+  fetch.nowMs=[]{return 1.0;};
+  fetch.querySmallModel=[](const Json&,std::stop_token){return Json::object();};
+  fetch.unavailableNote=[]{return std::string();};
+  return fetch;
+}
+
+void fetchToolDiscovery(const fs::path& fixture){
+  {
+    Scrapling current({fixture.string()},std::chrono::seconds(10));
+    check(current.fetchGadget().name=="get","Scrapling 0.4.7 tools did not select get");
+    const auto page=gadgets::web::fetchThroughScrapling("https://example.org/page",current,{});
+    check(page.code==200&&page.finalUrl=="https://example.org/page"&&
+      contains(page.content,"Fetched with get as markdown"),"get fetch content: "+page.content);
+    gadgets::web::fetchThroughScrapling("https://example.org/again",current,{});
+    check(firstText(current.callGadget("fixture_tools_list_count",Json::object()))=="1",
+      "tools/list ran more than once for one Scrapling process");
+    const auto failed=thrown([&]{
+      gadgets::web::fetchThroughScrapling("https://error.example/page",current,{});});
+    check(failed=="Scrapling fetch failed: Failed to fetch https://error.example/page: connection refused",
+      "A Scrapling tool error was not shown as its text: "+failed);
+    const auto unknown=current.callGadget("make_request",{{"url","https://example.org/page"}});
+    check(unknown.value("isError",false)&&firstText(unknown)=="Unknown tool: make_request",
+      "An unadvertised tool did not return the server's tool error");
+  }
+  {
+    Scrapling newer({fixture.string(),"--tools=0.4.15"},std::chrono::seconds(10));
+    check(newer.fetchGadget().name=="make_request","Scrapling 0.4.15 tools did not select make_request");
+    const auto page=gadgets::web::fetchThroughScrapling("https://example.org/page",newer,{});
+    check(contains(page.content,"Fetched with make_request as markdown"),
+      "make_request fetch content: "+page.content);
+  }
+  {
+    Scrapling old({fixture.string(),"--tools=unknown"},std::chrono::seconds(10),
+      []{return std::optional<std::string>("0.2.9");});
+    const auto expected="Scrapling 0.2.9 has no tool named make_request or get (it offers: "
+      "browser_open, browser_fetch, browser_screenshot, close_session); Batbox needs "
+      "Scrapling >= 0.3. Run: batbox setup web";
+    const auto error=thrown([&]{old.fetch("https://example.org/page");});
+    check(error==expected,"Unclear missing fetch tool error: "+error);
+    bool typed=false;
+    try{old.fetchGadget();}
+    catch(const ScraplingToolMissing& missing){
+      typed=missing.wanted==scraplingPlainFetchTools()&&missing.offered.size()==4;
+    }
+    check(typed,"A missing fetch tool did not raise ScraplingToolMissing");
+    auto gadget=gadgets::web::makeWebFetchGadget(fetchServices(old));
+    const auto shown=thrown([&]{
+      gadget.call({{"url","https://docs.example.org/page"},{"prompt","Summarize"}},{},{},Json(),{}).get();});
+    check(shown==expected,"WebFetch did not show the missing tool error: "+shown);
+  }
+  {
+    Scrapling anonymous({fixture.string(),"--tools=unknown"},std::chrono::seconds(10));
+    const auto error=thrown([&]{anonymous.fetch("https://example.org/page");});
+    check(error.rfind("This Scrapling has no tool named make_request or get",0)==0,
+      "A missing tool error without a version is unclear: "+error);
+  }
+}
+
+void doctorHandshake(const fs::path& root,const fs::path& fixture){
+  application::Config config;
+  config.configDirectory=root/"doctor-config";
+  config.scraplingCommand=fixture.string();
+  auto probe=ac::probeScrapling(config,std::chrono::seconds(10));
+  check(probe.started&&probe.fetchTool=="get"&&probe.tools.size()==10&&probe.error.empty(),
+    "The doctor probe misread Scrapling 0.4.7 tools: "+probe.error);
+  const auto ready=ac::checkScrapling(ac::webAvailability(config),probe);
+  check(ready.ok&&ready.state=="ready"&&contains(ready.detail,"fetch uses get"),
+    "A compatible Scrapling did not pass: "+ready.detail);
+
+  config.scraplingCommand=wrapper(root/"old-scrapling",
+    "exec '"+fixture.string()+"' --tools=unknown \"$@\"").string();
+  probe=ac::probeScrapling(config,std::chrono::seconds(10));
+  check(probe.started&&probe.fetchTool.empty()&&probe.tools.size()==4,
+    "The doctor probe missed an incompatible tool set");
+  const auto incompatible=ac::checkScrapling(ac::webAvailability(config),probe);
+  check(!incompatible.ok&&incompatible.state=="incompatible"&&
+    contains(incompatible.detail,"has no tool named make_request or get")&&
+    contains(incompatible.detail,"it offers: browser_open")&&
+    !contains(incompatible.detail,"Run:")&&
+    contains(incompatible.fix,"batbox setup web")&&contains(incompatible.fix,">= 0.3"),
+    "Incompatible Scrapling check is unclear: "+incompatible.detail+" / "+incompatible.fix);
+  check(contains(ac::formatDoctor({incompatible},{}),"[--]  Scrapling: incompatible"),
+    "Doctor text does not flag the incompatible Scrapling");
+  config.searxngUrl="http://127.0.0.1:"+std::to_string(closedPort())+"/search";
+  const auto web=ac::checkWebHelpers(config);
+  check(web.size()==2&&web.front().state=="incompatible",
+    "checkWebHelpers did not run the Scrapling handshake");
+
+  config.scraplingCommand=wrapper(root/"silent-scrapling","exit 0").string();
+  probe=ac::probeScrapling(config,std::chrono::seconds(10));
+  const auto silent=ac::checkScrapling(ac::webAvailability(config),probe);
+  check(!probe.started&&!silent.ok&&silent.state=="not starting"&&
+    contains(silent.detail,"could not start")&&contains(silent.fix,"batbox setup web"),
+    "A Scrapling without an MCP server passed: "+silent.detail);
 }
 
 void missingScrapling(){
@@ -74,7 +185,7 @@ void missingScrapling(){
   const auto first=thrown([&]{missing.listGadgets();});
   check(contains(first,"not installed")&&contains(first,"batbox setup web"),
     "Missing Scrapling error lacks the fix: "+first);
-  check(contains(thrown([&]{missing.callGadget("make_request",Json::object());}),
+  check(contains(thrown([&]{missing.callGadget("get",Json::object());}),
     "batbox setup web"),"A retry after a missing Scrapling changed its error");
 
   gadgets::web::FetchServices fetch;
@@ -194,11 +305,14 @@ int main(int argc,char** argv){
     const auto root=fs::temp_directory_path()/("batbox-web-connectors-"+std::to_string(::getpid()));
     fs::remove_all(root);fs::create_directories(root);
     lazyScrapling(root,fixture);
+    fetchToolDiscovery(fixture);
+    doctorHandshake(root,fixture);
     missingScrapling();
     unreachableSearxng();
     discovery(root);
     availability(root,fixture);
     fs::remove_all(root);
-    std::cout<<"lazy Scrapling, unavailable web Gadgets, discovery and availability passed\n";
+    std::cout<<"lazy Scrapling, fetch tool discovery, doctor handshake, unavailable web Gadgets, "
+      "discovery and availability passed\n";
   }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 }

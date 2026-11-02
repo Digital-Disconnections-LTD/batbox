@@ -4,7 +4,7 @@ target_link_libraries(batbox_indigenous_jsonl_process PUBLIC batbox_core
   PkgConfig::LIBUV Threads::Threads)
 target_compile_options(batbox_indigenous_jsonl_process PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(batbox_mcp PUBLIC batbox_indigenous_jsonl_process)
-target_link_libraries(batbox_connectors PUBLIC batbox_indigenous_jsonl_process)
+target_link_libraries(batbox_connectors PUBLIC batbox_indigenous_jsonl_process batbox_mcp)
 if(WIN32)
   target_link_libraries(batbox_instruction_async PUBLIC batbox_indigenous_jsonl_process ws2_32)
   target_link_libraries(batbox_model_stash PUBLIC batbox_indigenous_jsonl_process)

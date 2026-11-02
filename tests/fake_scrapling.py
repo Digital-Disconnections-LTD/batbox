@@ -6,6 +6,13 @@ import sys
 import time
 import threading
 
+PAGE_SCHEMA={'type':'object','required':['url'],'properties':{
+    'url':{'type':'string'},
+    'extraction_type':{'type':'string','default':'markdown','enum':['text','html','markdown']}}}
+# Scrapling 0.4.7's tools; FAKE_SCRAPLING_TOOLS=unknown advertises no plain fetch tool.
+TOOLS={'0.4.7':['open_session','close_session','list_sessions','get','bulk_get','fetch',
+                'bulk_fetch','stealthy_fetch','bulk_stealthy_fetch','screenshot'],
+       'unknown':['browser_open','browser_fetch']}[os.environ.get('FAKE_SCRAPLING_TOOLS','0.4.7')]
 lock=threading.Lock()
 cancelled=[]
 pending_ping={}
@@ -32,7 +39,7 @@ for line in sys.stdin:
         continue
     method=request['method']
     if method=='initialize':result={'protocolVersion':'2025-03-26','serverInfo':{'name':'fixture','version':'1'},'capabilities':{'tools':{}}}
-    elif method=='tools/list':result={'tools':[{'name':'make_request','inputSchema':{'type':'object'}}]}
+    elif method=='tools/list':result={'tools':[{'name':name,'inputSchema':PAGE_SCHEMA if name in ('get','fetch','stealthy_fetch') else {'type':'object'}} for name in TOOLS]}
     elif method=='tools/call':
         name=request['params']['name']
         if name=='disconnect':sys.exit(0)
