@@ -39,7 +39,7 @@ void dispatch(const transport::ServerSentEvent& event, const Json& headers, cons
   onEvent(json);
 }
 } // namespace
-const std::vector<std::string>& vertexClaudeModels() {
+const std::vector<std::string>& vertexAnthropicModels() {
   static const std::vector<std::string> models{
     "claude-opus-5-5","claude-sonnet-5-5","claude-haiku-5-5","claude-fable-5-1","claude-opus-5","claude-sonnet-5",
     "claude-fable-5","claude-opus-4-8","claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-opus-4-5",
@@ -149,7 +149,7 @@ transport::Response VertexClient::request(const Json& anthropicBody, bool stream
 }
 Json VertexClient::listModels() {
   Json data = Json::array();
-  for (const auto& id : config.models.empty() ? vertexClaudeModels() : config.models) data.push_back(Json{{"id",id}});
+  for (const auto& id : config.models.empty() ? vertexAnthropicModels() : config.models) data.push_back(Json{{"id",id}});
   return Json{{"data",std::move(data)}};
 }
 } // namespace batbox::providers::gcp

@@ -85,7 +85,7 @@ std::string listingTarget(const application::EndpointRecord& endpoint){
       " (signed with your AWS credentials)";
   if(endpoint.provider==transport::kProviderVertex)
     return "Vertex AI"+(endpoint.region.empty()?std::string{}:" in "+endpoint.region)+
-      " (Claude models; no listing request)";
+      " (Anthropic models; no listing request)";
   try{return "GET "+application_config::modelsUrl(endpoint);}
   catch(const std::exception&){return "GET "+endpoint.baseUrl;}
 }

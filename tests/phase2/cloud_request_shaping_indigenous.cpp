@@ -160,7 +160,7 @@ int main() {
     same(gcp::vertexProject(config),"configured","endpoint project wins");
     same(gcp::vertexRegion(config),"us-east5","endpoint region wins");
     gcp::VertexClient client(config);
-    check(client.listModels()["data"][0]["id"] == gcp::vertexClaudeModels().front(),"built-in Vertex model list");
+    check(client.listModels()["data"][0]["id"] == gcp::vertexAnthropicModels().front(),"built-in Vertex model list");
     config.models = {"claude-custom"};
     gcp::VertexClient listed(config);
     check(listed.listModels() == Json::parse(R"({"data":[{"id":"claude-custom"}]})"),"endpoint models win");

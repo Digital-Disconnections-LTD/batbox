@@ -19,11 +19,11 @@ struct VertexConfig {
   // A ready access token (endpoint auth_token or api_key_helper output); skips ADC when set.
   std::string bearerToken;
   Json headers = Json::object();
-  // Endpoint models[]; listModels falls back to the built-in Claude list when empty.
+  // Endpoint models[]; listModels falls back to the built-in Anthropic model list when empty.
   std::vector<std::string> models;
   transport::ClientConfig network;
 };
-const std::vector<std::string>& vertexClaudeModels();
+const std::vector<std::string>& vertexAnthropicModels();
 std::string vertexProject(const VertexConfig& config, const GoogleTokenSource* tokens = nullptr);
 std::string vertexRegion(const VertexConfig& config);
 std::string vertexHost(const std::string& region);
