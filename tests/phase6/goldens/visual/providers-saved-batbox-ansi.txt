@@ -1,0 +1,6 @@
+ ◆ plan · night-owl-7b · ~/roost             Added openrouter · qwen/qwen3-coder · /model to switch
+# styles
+0:1-6 fg=36 bg=- b
+0:7-9 fg=90 bg=-
+0:22-31 fg=90 bg=-
+0:45-98 fg=90 bg=-

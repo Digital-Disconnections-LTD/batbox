@@ -1,5 +1,6 @@
 #include "application_commands/Commands.hpp"
 #include "application_commands/ConnectorsCommand.hpp"
+#include "application_commands/ProvidersCommand.hpp"
 #include "application_commands/CommandsMcp.hpp"
 #include "application_commands/MemoryPanel.hpp"
 #include "application_commands/ProjectCommand.hpp"
@@ -518,6 +519,19 @@ void Bundle::initialize(){
     entries_.push_back(makeMcpCommand(router_,inputs_.mcpRuntime,
       inputs_.mcpAuthUi));
   {
+    ProvidersInputs providers;
+    providers.configPath=inputs_.config.configPath;
+    if(!inputs_.config.legacyConfigDirectory.empty())
+      providers.legacyPath=inputs_.config.legacyConfigDirectory/"native-client.json";
+    providers.model=inputs_.model;providers.store=inputs_.store;
+    providers.interactive=!inputs_.config.print;
+    providers.activeProfile=[weak]{
+      auto self=weak.lock();
+      return self?selected(self->inputs_):std::string{};
+    };
+    entries_.push_back(makeProvidersCommand(inputs_.owner,router_,std::move(providers)));
+  }
+  {
     ConnectorsInputs connectors;
     connectors.config=inputs_.config;connectors.mcpRuntime=inputs_.mcpRuntime;
     connectors.interactive=!inputs_.config.print;
@@ -646,9 +660,11 @@ bool Bundle::openUiCommand(const std::string& requested,const std::string& args)
   };
   for(const auto& entry:entries_)if(matches(entry.descriptor)){
     if(!entry.invokeUi)return false;
-    entry.invokeUi(args).then([report=inputs_.onError](
-        const user_input::UiCompletion*,const std::exception_ptr& error){
+    entry.invokeUi(args).then([report=inputs_.onError,notice=inputs_.showNotice](
+        const user_input::UiCompletion* completion,const std::exception_ptr& error){
       if(error&&report)report(error);
+      if(!error&&completion&&completion->result&&completion->display=="system"&&notice)
+        notice(*completion->result);
     });
     return true;
   }

@@ -1,0 +1,48 @@
+╭─ ✦ OpenRouter  ·  API key ───────────────────────────────────────────────────╮
+│ Key  ***************▌                                                        │
+│ Saved to native-client.json, readable only by you. Set $OPENROUTER_API_KEY   │
+│ instead and Batbox will offer it.                                            │
+│ Get a key: https://openrouter.ai/keys                                        │
+│ Private input · hidden from poetry history                                   │
+│                                                                              │
+│ paste or type · enter continue · esc back                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+# styles
+0:0-1 fg=- bg=- d
+0:4-27 fg=- bg=- b
+0:28-79 fg=- bg=- d
+1:0-0 fg=- bg=- d
+1:79-79 fg=- bg=- d
+2:0-0 fg=- bg=- d
+2:79-79 fg=- bg=- d
+3:0-0 fg=- bg=- d
+3:79-79 fg=- bg=- d
+4:0-0 fg=- bg=- d
+4:79-79 fg=- bg=- d
+5:0-0 fg=- bg=- d
+5:2-77 fg=- bg=- d
+5:79-79 fg=- bg=- d
+6:0-0 fg=- bg=- d
+6:79-79 fg=- bg=- d
+7:0-0 fg=- bg=- d
+7:2-6 fg=- bg=- b
+7:7-17 fg=- bg=- d
+7:18-22 fg=- bg=- b
+7:23-34 fg=- bg=- d
+7:35-37 fg=- bg=- b
+7:38-42 fg=- bg=- d
+7:79-79 fg=- bg=- d
+8:0-79 fg=- bg=- d

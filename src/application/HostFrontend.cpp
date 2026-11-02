@@ -1,6 +1,7 @@
 #include "application/HostInternal.hpp"
 #include "application/ErrorReport.hpp"
 #include "application_connectors/Status.hpp"
+#include "providers/LocalDiscovery.hpp"
 #include "application_commands/FlightTitles.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
 #include "interactive/text_input/TextEditorIndigenous.hpp"
@@ -83,6 +84,8 @@ std::shared_ptr<application_commands::Bundle> Host::Impl::makeCommands(){
   commandInputs.compactionPolicy=compactionPolicy;
   commandInputs.model=model;commandInputs.poetry=poetry;
   commandInputs.flight=flight;
+  commandInputs.showNotice=[this](const std::string& text){
+    statusText=text;++view.revision;if(shell)shell->requestRedraw();};
   commandInputs.resume=restore->makeResumeServices();
   commandInputs.compactor=compactor;
   commandInputs.mcpRuntime=mcpRuntime;
@@ -816,6 +819,20 @@ void Host::Impl::bindFrontend(){
       owner.queueNextTurn([this]{releaseRetiredProviders();platform::releaseFreeMemory();});
     });return result;
   };
+  if(config.providerSetup&&!config.print)
+    bindings.onTurnRequested=[this](const interactive::TurnRequest&){
+      const auto state=store->getState()->snapshot();
+      std::string current;
+      for(const auto* field:{"mainLoopModelForSession","mainLoopModel"}){
+        const auto& selected=value::property(state,field);
+        if(selected.is_string()&&!selected.get<std::string>().empty()){
+          current=selected.get<std::string>();break;
+        }
+      }
+      if(!current.empty()&&current!=kProviderSetupProfile)return;
+      owner.queueNextTurn([this]{if(commands&&!closing)(void)commands->openUiCommand("providers","not-connected");});
+      throw std::runtime_error("No model is connected yet. Pick one in /providers.");
+    };
   runtime=application_runtime::ApplicationRuntime::create(std::move(bindings));
 
   terminal_ftxui::Options options;
@@ -980,8 +997,35 @@ void Host::Impl::bindFrontend(){
   application_presentation::Inputs presentInputs;
   presentInputs.theme=theme.get();
   presentInputs.homeDirectory=homeDirectory;
-  presentInputs.notice=[notice=application_connectors::webNotice(
-      application_connectors::webAvailability(config))]{return notice;};
+  // With no endpoints configured, look for local model servers once and
+  // mention the first one on the welcome card.
+  auto providerNotice=std::make_shared<std::string>(config.providerSetup?
+    "Not connected · /providers to pick a model server":"");
+  if(!config.print&&config.endpoints.empty()){
+    auto found=std::make_shared<std::vector<providers::LocalServer>>();
+    owner.queueWork([found]{*found=providers::discoverLocalServers();},
+      [this,found,providerNotice,configured=config.baseUrl,
+          setup=config.providerSetup](std::exception_ptr failure){
+        if(failure||closing)return;
+        for(const auto& server:*found){
+          if(!setup&&server.baseUrl==configured)continue;
+          *providerNotice="Found "+providers::describeLocalServer(server)+
+            " · /providers to connect";
+          ++view.revision;if(shell)shell->requestRedraw();
+          break;
+        }
+      });
+  }
+  presentInputs.notice=[this,providerNotice,web=application_connectors::webNotice(
+      application_connectors::webAvailability(config))]{
+    // Once an endpoint profile is in use the provider hint has done its job.
+    const auto state=store->getState()->snapshot();
+    const auto& selected=value::property(state,"mainLoopModel");
+    const bool connected=selected.is_string()&&
+      selected.get<std::string>().find("::")!=std::string::npos;
+    if(providerNotice->empty()||connected)return web;
+    return web.empty()?*providerNotice:*providerNotice+"\n"+web;
+  };
   presentInputs.gitBranch=[roost=roost,cached=std::make_shared<std::pair<double,std::string>>(-1e9,"")]{
     // HEAD changes rarely; read it at most every two seconds while painting.
     const auto now=static_cast<double>(platform::nowMillis());

@@ -66,7 +66,12 @@ struct Config {
   // Whether this launch chose a model or permission mode itself. A resumed
   // Flight restores the ones it recorded only when the launch did not.
   bool modelRequested=false,permissionModeRequested=false;
+  // First run with nothing configured: the session starts on a placeholder
+  // profile and opens /providers.
+  bool providerSetup=false;
 };
+// Profile id the first run uses until a provider is connected.
+inline constexpr const char* kProviderSetupProfile="not connected";
 Config loadConfig(const std::vector<std::string>& arguments);
 bool bypassPermissionsDisabled(const Config& config,const Json& effectiveSettings);
 inline std::filesystem::path configurationDirectory(const Config& config){

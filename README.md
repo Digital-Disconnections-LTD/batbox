@@ -102,9 +102,12 @@ own, pull up a pumpkin. Here is what we are building around:
   Node.js, or Bun runtime. Browser and search helpers remain separate services.
 - **Privacy without a switch.** No telemetry collection or third-party analytics
   uploads. There is nothing to opt out of.
-- **Your infrastructure, your call.** Use an Anthropic Messages-compatible model
-  endpoint, your chosen SearXNG instance, Scrapling, and configurable MCP servers.
-  Keep saved Flights local and decide which services receive your work.
+- **Your infrastructure, your call.** Batbox talks to Anthropic Messages servers
+  natively and to OpenAI-compatible servers through its translator. `/providers`
+  picks from a built-in catalog of 238 providers and finds Ollama, LM Studio,
+  llama.cpp and vLLM on your machine. Add your chosen SearXNG instance, Scrapling,
+  and MCP servers, keep saved Flights local, and decide which services receive
+  your work.
 - **Let the whole crew fly.** `/permissions` changes the active Flight;
   `--yolo` skips Gadget approval dialogs for it and its launched Bats. Headless
   `--print` runs without approval dialogs by default. Explicit deny rules still

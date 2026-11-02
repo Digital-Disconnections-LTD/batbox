@@ -63,6 +63,8 @@ struct Inputs {
   std::function<std::shared_ptr<interactive::conversation_shell::Shell>()> getShell;
   std::function<std::shared_ptr<interactive::presentation_providers::ThemeState>()> theme;
   std::function<void()> openRewind;
+  // Shows the system result of a command opened by the application itself.
+  std::function<void(const std::string&)> showNotice;
   std::function<void(std::vector<std::string>)> updateWatchPaths;
   std::function<void(const std::string&)> log;
   std::function<void(std::exception_ptr)> onError;

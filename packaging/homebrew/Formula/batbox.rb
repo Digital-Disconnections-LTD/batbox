@@ -1,5 +1,5 @@
 class Batbox < Formula
-  desc "Terminal coding agent for Anthropic Messages API servers"
+  desc "Terminal coding agent for local and cloud model servers"
   homepage "https://github.com/Digital-Disconnections-LTD/batbox"
   url "https://github.com/Digital-Disconnections-LTD/batbox/archive/refs/tags/v0.1.0.tar.gz"
   sha256 "a4a3ce8fc21cd83a3d9e081806a15c47d7c735999770ecb77acf8f4d1be09721"

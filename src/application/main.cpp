@@ -25,6 +25,12 @@ int run(std::vector<std::string> arguments){
     auto config=batbox::application::loadConfig(arguments);
     if(config.help){std::cout<<batbox::application::commandLineHelp()<<
       batbox::application::subcommandHelp();return 0;}
+    if(batbox::application::needsProviderSetup(config)){
+      if(config.print){
+        std::cerr<<"Batbox: "<<batbox::application::providerSetupHint()<<'\n';return 1;
+      }
+      batbox::application::beginProviderSetup(config);
+    }
     batbox::application::Host host(std::move(config));
     return host.run();
   }catch(const std::exception& error){

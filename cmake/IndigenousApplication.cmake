@@ -55,3 +55,4 @@ target_link_libraries(batbox_application_runtime PUBLIC batbox_conversation_shel
   batbox_application_config batbox_interactive_lifecycle)
 target_compile_options(batbox_application_runtime PRIVATE -Wall -Wextra -Wpedantic)
 include(cmake/IndigenousApplicationBackend.cmake)
+include(cmake/Providers.cmake)
