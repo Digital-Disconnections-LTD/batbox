@@ -19,25 +19,16 @@ bool wellFormedUtf8(std::string_view bytes) {
   }
   return true;
 }
-bool asciiSpace(char c){return (c>=9 && c<=13) || c==' ';}
-// Trimming only touches the ends, so the per-rune decode of the whole line
-// is deferred to lines whose ends are not plain ASCII.
-std::string_view trimLine(std::string_view line,std::string& decoded) {
-  while(!line.empty() && asciiSpace(line.front()))line.remove_prefix(1);
-  while(!line.empty() && asciiSpace(line.back()))line.remove_suffix(1);
-  if(line.empty() || (static_cast<unsigned char>(line.front())<0x80 && static_cast<unsigned char>(line.back())<0x80))return line;
-  decoded=value::trim(line);return decoded;
-}
 // Parses one JSONL entry at a time so callers can move entries into place
 // without first materializing the whole file as a Json array.
 template<class Visit>void forEachJSONLEntry(const std::string& buffer,Visit&& visit) {
   std::size_t start=buffer.starts_with("\xef\xbb\xbf") ? 3 : 0;
-  std::string decoded,trimmed;
+  std::string decoded;
   while(start<buffer.size()) {
     auto end=buffer.find('\n',start);if(end==std::string::npos)end=buffer.size();
     std::string_view line=std::string_view(buffer).substr(start,end-start);start=end+1;
     if(!wellFormedUtf8(line)){decoded=value::decodeUtf8(line);line=decoded;}
-    line=trimLine(line,trimmed);
+    line=value::trimView(line);
     if(line.empty())continue;
     Json entry;
     try{entry=value::parse(line);}catch(const std::exception&){continue;}
