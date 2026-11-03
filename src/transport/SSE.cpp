@@ -7,15 +7,18 @@
 namespace batbox::transport {
 namespace {
 std::string decodeUTF8(std::string_view input) {
+  // Valid runs are appended in one piece; only malformed sequences are
+  // replaced byte by byte.
   std::string output;
+  output.reserve(input.size());
+  std::size_t runStart = 0;
   for (std::size_t i = 0; i < input.size();) {
     const auto start = i;
     const unsigned char lead = input[i++];
-    if (lead < 0x80) { output += static_cast<char>(lead); continue; }
+    if (lead < 0x80) continue;
     int count = lead >= 0xc2 && lead <= 0xdf ? 1 : lead >= 0xe0 && lead <= 0xef ? 2 : lead >= 0xf0 && lead <= 0xf4 ? 3 : 0;
-    if (!count) { output += "\xef\xbf\xbd"; continue; }
-    bool valid = true;
-    for (int n = 0; n < count; ++n) {
+    bool valid = count != 0;
+    for (int n = 0; valid && n < count; ++n) {
       if (i == input.size()) { valid = false; break; }
       const unsigned char byte = input[i];
       const unsigned char lower = n == 0 && lead == 0xe0 ? 0xa0 : n == 0 && lead == 0xf0 ? 0x90 : 0x80;
@@ -23,9 +26,13 @@ std::string decodeUTF8(std::string_view input) {
       if (byte < lower || byte > upper) { valid = false; break; }
       ++i;
     }
-    if (valid) output.append(input.substr(start,i-start));
-    else output += "\xef\xbf\xbd";
+    if (valid) continue;
+    output.append(input.substr(runStart,start-runStart));
+    output += "\xef\xbf\xbd";
+    runStart = i;
   }
+  if (runStart == 0 && !input.starts_with("\xef\xbb\xbf")) return std::string(input);
+  output.append(input.substr(runStart));
   if (output.starts_with("\xef\xbb\xbf")) output.erase(0,3);
   return output;
 }
@@ -40,21 +47,28 @@ std::optional<Newline> findNewlineIndex(std::string_view buffer, std::optional<s
 std::vector<std::string> LineDecoder::decode(std::string_view chunk) {
   buffer.append(chunk);
   std::vector<std::string> result;
-  while (const auto pattern = findNewlineIndex(buffer,carriageReturnIndex)) {
+  // Consumed bytes are dropped once per chunk instead of once per line.
+  std::size_t start = 0;
+  const std::string_view view(buffer);
+  while (const auto pattern = findNewlineIndex(view,carriageReturnIndex.value_or(start))) {
     if (pattern->carriage && !carriageReturnIndex) {
       carriageReturnIndex = pattern->index;
       continue;
     }
     if (carriageReturnIndex && (pattern->index != *carriageReturnIndex+1 || pattern->carriage)) {
-      result.push_back(decodeUTF8(buffer.substr(0,*carriageReturnIndex-1)));
-      buffer.erase(0,*carriageReturnIndex);
+      result.push_back(decodeUTF8(view.substr(start,*carriageReturnIndex-1-start)));
+      start = *carriageReturnIndex;
       carriageReturnIndex.reset();
       continue;
     }
     const auto endIndex = carriageReturnIndex ? pattern->preceding-1 : pattern->preceding;
-    result.push_back(decodeUTF8(buffer.substr(0,endIndex)));
-    buffer.erase(0,pattern->index);
+    result.push_back(decodeUTF8(view.substr(start,endIndex-start)));
+    start = pattern->index;
     carriageReturnIndex.reset();
+  }
+  if (start) {
+    buffer.erase(0,start);
+    if (carriageReturnIndex) *carriageReturnIndex -= start;
   }
   return result;
 }
@@ -62,27 +76,29 @@ std::vector<std::string> LineDecoder::flush() {
   if (buffer.empty()) return {};
   return decode("\n");
 }
-std::vector<ServerSentEvent> SSEDecoder::consume(const std::vector<std::string>& input) {
+std::vector<ServerSentEvent> SSEDecoder::consume(std::vector<std::string>&& input) {
   std::vector<ServerSentEvent> result;
-  for (auto line : input) {
+  for (auto& line : input) {
     if (line.ends_with('\r')) line.pop_back();
     if (line.empty()) {
       if ((!event || event->empty()) && data.empty()) continue;
       std::string joined;
-      for (std::size_t i = 0; i < data.size(); ++i) { if (i) joined += '\n'; joined += data[i]; }
-      result.push_back({event,joined,chunks});
+      if (data.size() == 1) joined = std::move(data.front());
+      else for (std::size_t i = 0; i < data.size(); ++i) { if (i) joined += '\n'; joined += data[i]; }
+      result.push_back({std::move(event),std::move(joined),std::move(chunks)});
       chunks.clear();
       event.reset(); data.clear();
       continue;
     }
-    chunks.push_back(line);
-    if (line.starts_with(':')) continue;
-    const auto colon = line.find(':');
-    const auto field = line.substr(0,colon);
-    auto value = colon == std::string::npos ? "" : line.substr(colon+1);
-    if (value.starts_with(' ')) value.erase(0,1);
-    if (field == "event") event = value;
-    else if (field == "data") data.push_back(value);
+    chunks.push_back(std::move(line));
+    const std::string_view kept = chunks.back();
+    if (kept.starts_with(':')) continue;
+    const auto colon = kept.find(':');
+    const auto field = kept.substr(0,colon);
+    auto value = colon == std::string_view::npos ? std::string_view{} : kept.substr(colon+1);
+    if (value.starts_with(' ')) value.remove_prefix(1);
+    if (field == "event") event = std::string(value);
+    else if (field == "data") data.emplace_back(value);
   }
   return result;
 }
