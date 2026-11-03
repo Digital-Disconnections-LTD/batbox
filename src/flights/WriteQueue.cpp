@@ -3,6 +3,21 @@
 #include <algorithm>
 #include <filesystem>
 namespace batbox::flights {
+namespace {
+// UTF-16 unit count of serialized JSON without materializing a rune vector;
+// anything that is not well-formed UTF-8 takes the shared decoder's path.
+std::size_t lineUnitCount(const std::string& line) {
+  std::size_t units=0;
+  for(std::size_t i=0;i<line.size();) {
+    const unsigned char lead=line[i];
+    const int width=lead<0x80 ? 1 : (lead & 0xe0)==0xc0 ? 2 : (lead & 0xf0)==0xe0 ? 3 : (lead & 0xf8)==0xf0 ? 4 : 0;
+    if(!width || i+width>line.size())return value::stringLength(line);
+    for(int n=1;n<width;++n)if((static_cast<unsigned char>(line[i+n]) & 0xc0)!=0x80)return value::stringLength(line);
+    units+=width==4 ? 2 : 1;i+=width;
+  }
+  return units;
+}
+}
 WriteQueue::WriteQueue(QueueServices services,Duration interval,std::size_t maxChunkUnits)
   :services(std::move(services)),interval(interval),maxChunkUnits(maxChunkUnits),worker([this]{run();}){}
 WriteQueue::~WriteQueue() {
@@ -41,7 +56,7 @@ void WriteQueue::drainWriteQueue() {
     std::string content;std::size_t units=0;
     std::vector<std::shared_ptr<std::promise<void>>> resolvers;
     try {for(const auto& entry:batch) {
-      const auto line=value::stringify(entry.read())+'\n';const auto lineUnits=value::stringLength(line);
+      const auto line=value::stringify(entry.read())+'\n';const auto lineUnits=lineUnitCount(line);
       if(units+lineUnits>=maxChunkUnits) {
         appendToFile(file,content);for(const auto& resolver:resolvers)resolver->set_value();
         resolvers.clear();content.clear();units=0;
