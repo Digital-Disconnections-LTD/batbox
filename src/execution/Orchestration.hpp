@@ -6,9 +6,11 @@ struct Batch {
   bool isConcurrencySafe=false;
   std::vector<Json> blocks;
 };
+// newContext refers to the context runGadgets owns for the duration of the
+// yield; consumers copy what they keep.
 struct MessageUpdate {
   std::optional<Json> message;
-  Context newContext;
+  const Context& newContext;
 };
 
 int getMaxGadgetUseConcurrency(const std::string& configuredValue);

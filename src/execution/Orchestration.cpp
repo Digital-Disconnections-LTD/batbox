@@ -89,12 +89,14 @@ void runGadgets(const std::vector<Json>& gadgetUseMessages,const std::vector<Jso
     std::map<std::string,std::vector<std::function<Json(const Json&)>>> modifiers;
     std::map<std::string,std::vector<std::function<Json(const Json&)>>> appStateModifiers;
     const int cap=getMaxGadgetUseConcurrency(concurrencyValue);
+    // Blocks and assistant messages outlive every worker: each batch joins
+    // its workers before the next one starts.
     auto start=[&](std::size_t index){
-      const Json block=batch.blocks[index];
-      const Json assistant=assistantFor(block,assistantMessages);
-      const std::string id=internal::stringField(block,"id");
+      const Json& block=batch.blocks[index];
+      const Json& assistant=assistantFor(block,assistantMessages);
+      std::string id=internal::stringField(block,"id");
       ++active;
-      workers.emplace_back([&,block,assistant,id]{
+      workers.emplace_back([&,id=std::move(id)]{
         try {
           if(services.markGadgetUseInProgress)services.markGadgetUseInProgress(id);
           runGadgetUse(block,assistant,context,services,[&](const Update& update){
