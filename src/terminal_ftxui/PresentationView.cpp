@@ -89,6 +89,15 @@ ftxui::Element renderPresentation(const interactive::PresentationState& state,
       layoutPresentation(state, dimensions.dimx, dimensions.dimy, &excluded), dimensions);
 }
 
+ftxui::Element renderPresentation(const interactive::PresentationState& state,
+                                  ftxui::Dimensions dimensions,
+                                  const std::unordered_set<std::string>& excluded,
+                                  TranscriptLineCache& cache) {
+  return std::make_shared<PresentationNode>(
+      layoutPresentation(state, dimensions.dimx, dimensions.dimy, &excluded, &cache),
+      dimensions);
+}
+
 std::string drainPresentationPlain(const interactive::PresentationState& state,
                                    PlainCursor& cursor) {
   std::string output;
