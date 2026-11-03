@@ -3,10 +3,12 @@
 
 namespace batbox::execution::internal {
 namespace {
-Json userArgs(const Json& content,const Json& assistant,const Json& gadgetUseResult,
+Json userArgs(Json content,const Json& assistant,Json gadgetUseResult,
               const std::optional<Json>& imageIds=std::nullopt,const std::optional<Json>& mcpMeta=std::nullopt) {
-  Json args={{"content",content},{"sourceToolAssistantUUID",field(assistant,"uuid")}};
-  if(!gadgetUseResult.is_discarded())args["toolUseResult"]=gadgetUseResult;
+  Json args=Json::object();
+  args["content"]=std::move(content);
+  args["sourceToolAssistantUUID"]=field(assistant,"uuid");
+  if(!gadgetUseResult.is_discarded())args["toolUseResult"]=std::move(gadgetUseResult);
   if(imageIds)args["imagePasteIds"]=*imageIds;
   if(mcpMeta)args["mcpMeta"]=*mcpMeta;
   return args;
@@ -67,13 +69,14 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     return;
   }
   if(gadget.validateInputWithContext||gadget.validateInput) {
-    gadgets::GadgetCallContext validationContext;
-    validationContext.data=context.data;
-    validationContext.stopToken=context.stop;
-    validationContext.readFileState=context.readFileState;
-    const auto validation=gadget.validateInputWithContext?
-      gadget.validateInputWithContext(parsedInput,validationContext).get():
-      gadget.validateInput(parsedInput,context.data).get();
+    gadgets::ValidationResult validation;
+    if(gadget.validateInputWithContext) {
+      gadgets::GadgetCallContext validationContext;
+      validationContext.data=context.data;
+      validationContext.stopToken=context.stop;
+      validationContext.readFileState=context.readFileState;
+      validation=gadget.validateInputWithContext(parsedInput,validationContext).get();
+    } else validation=gadget.validateInput(parsedInput,context.data).get();
     if(!validation.result) {
       const std::string message=validation.message.value_or("undefined");
       Json content=Json::array({createResult(gadgetUseID,"<tool_use_error>"+message+"</tool_use_error>")});
@@ -204,8 +207,10 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     const auto liveReason=services.currentAbortReason;
     const std::string initialReason=liveReason?liveReason():context.abortReason;
     if(!initialReason.empty())callContext["abortReason"]=initialReason;
-    gadgets::GadgetCallContext indigenousContext{callContext,context.stop,
-      [liveReason,fallback=context.abortReason]{return liveReason?liveReason():fallback;}};
+    gadgets::GadgetCallContext indigenousContext;
+    indigenousContext.stopToken=context.stop;
+    indigenousContext.currentAbortReason=
+      [liveReason,fallback=context.abortReason]{return liveReason?liveReason():fallback;};
     indigenousContext.readFileState=context.readFileState;
     indigenousContext.nestedMemoryAttachmentTriggers=
       context.nestedMemoryAttachmentTriggers;
@@ -214,7 +219,8 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     indigenousContext.discoveredSkillNames=context.discoveredSkillNames;
     if(services.makeBatContext)
       indigenousContext.batContext=services.makeBatContext(context,callContext);
-    const auto result=gadget.call(callInput,indigenousContext,services.canUseGadget,assistantMessage,
+    indigenousContext.data=std::move(callContext);
+    auto result=gadget.call(callInput,indigenousContext,services.canUseGadget,assistantMessage,
       [&](const gadgets::GadgetProgress& progress){
         emitProgress(Json{{"toolUseID",progress.gadgetUseID},{"data",progress.data}},gadgetUseID,services,yield);
       }).get();
@@ -229,7 +235,7 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     const Json mapped=gadget.mapGadgetResultWithPresentationMetadata?
       gadget.mapGadgetResultWithPresentationMetadata(result.data,gadgetUseID,result.presentationMetadata):
       gadget.mapGadgetResultToGadgetResultBlockParam(result.data,gadgetUseID);
-    Json output=result.data;
+    Json output=std::move(result.data);
     std::vector<Update> hookResults;
     const bool isMcp=gadget.isMcp.value_or(false);
     auto addGadgetResult=[&](const Json& gadgetOutput,const std::optional<Json>& preMapped){
@@ -248,7 +254,7 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
       const bool preserve=value::truthy(field(context.data,"preserveToolUseResults"));
       Json keptResult=bat&&!preserve?Json(Json::value_t::discarded):Json(gadgetOutput);
       std::optional<Json> meta=!bat&&!result.mcpMeta.is_null()?std::optional<Json>(result.mcpMeta):std::nullopt;
-      Update update{resultMessage(services,userArgs(blocks,assistantMessage,keptResult,
+      Update update{resultMessage(services,userArgs(std::move(blocks),assistantMessage,std::move(keptResult),
         imageIds.is_null()?std::nullopt:std::optional<Json>(imageIds),meta)),{},gadgetUseID};
       if(result.contextModifier)update.contextModifier=result.contextModifier;
       if(result.appStateModifier)update.appStateModifier=result.appStateModifier;
