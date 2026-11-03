@@ -171,7 +171,7 @@ Json normalizeMessagesForAPI(const Json& messages,const Json& gadgets,const Depe
     }
   }
   need(static_cast<bool>(deps.featureGate),"featureGate");
-  Json relocated=deps.featureGate("tengu_toolref_defer_j8m")?relocateGadgetReferenceSiblings(result):result;
+  Json relocated=deps.featureGate("tengu_toolref_defer_j8m")?relocateGadgetReferenceSiblings(result):std::move(result);
   Json withFilteredOrphans=filterOrphanedThinkingOnlyMessages(relocated);
   Json withFilteredThinking=filterTrailingThinkingFromLastAssistant(withFilteredOrphans);
   Json withFilteredWhitespace=filterWhitespaceOnlyAssistantMessages(withFilteredThinking,deps);
@@ -203,7 +203,7 @@ Json prepareMessagesForRequest(const Json& messages,const Json& gadgets,
   need(deps.messageServices!=nullptr,"messageServices");
   normalized=messages::ensureGadgetResultPairing(normalized,*deps.messageServices);
   if(!advisorBetaEnabled) normalized=stripAdvisorBlocks(normalized);
-  return requests::stripExcessMediaItems(normalized,100);
+  return requests::stripExcessMediaItems(std::move(normalized),100);
 }
 
 } // namespace batbox::normalization

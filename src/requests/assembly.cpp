@@ -67,7 +67,7 @@ Json userMessageToMessageParam(const Json& message, bool addStash, bool enablePo
     if (content.is_string()) {
       Json block = {{"type", "text"}, {"text", content}};
       if (enablePoetryStashing) block["cache_control"] = getStashControl(deps, {}, querySource);
-      return Json{{"role", "user"}, {"content", Json::array({block})}};
+      return Json{{"role", "user"}, {"content", Json::array({std::move(block)})}};
     }
     Json result = Json::array();
     for (std::size_t i = 0; i < content.size(); ++i) {
@@ -76,7 +76,7 @@ Json userMessageToMessageParam(const Json& message, bool addStash, bool enablePo
         block["cache_control"] = getStashControl(deps, {}, querySource);
       result.push_back(std::move(block));
     }
-    return Json{{"role", "user"}, {"content", result}};
+    return Json{{"role", "user"}, {"content", std::move(result)}};
   }
   return Json{{"role", "user"}, {"content", content}};
 }
@@ -88,7 +88,7 @@ Json assistantMessageToMessageParam(const Json& message, bool addStash, bool ena
     if (content.is_string()) {
       Json block = {{"type", "text"}, {"text", content}};
       if (enablePoetryStashing) block["cache_control"] = getStashControl(deps, {}, querySource);
-      return Json{{"role", "assistant"}, {"content", Json::array({block})}};
+      return Json{{"role", "assistant"}, {"content", Json::array({std::move(block)})}};
     }
     Json result = Json::array();
     for (std::size_t i = 0; i < content.size(); ++i) {
@@ -102,12 +102,12 @@ Json assistantMessageToMessageParam(const Json& message, bool addStash, bool ena
         block["cache_control"] = getStashControl(deps, {}, querySource);
       result.push_back(std::move(block));
     }
-    return Json{{"role", "assistant"}, {"content", result}};
+    return Json{{"role", "assistant"}, {"content", std::move(result)}};
   }
   return Json{{"role", "assistant"}, {"content", content}};
 }
 
-Json stripExcessMediaItems(const Json& messages, double limit) {
+Json stripExcessMediaItems(Json messages, double limit) {
   double toRemove = 0;
   for (const auto& msg : messages) {
     const Json& content = field(field(msg, "message"), "content");
@@ -216,9 +216,15 @@ Json buildSystemPoetryBlocks(const Json& systemPoetry, bool enablePoetryStashing
                              bool skipGlobalStashForSystemPoetry,
                              const std::optional<std::string>& querySource, const Dependencies& deps) {
   require(static_cast<bool>(deps.splitSystemPoetryPrefix), "splitSystemPromptPrefix");
+  Json blocks = deps.splitSystemPoetryPrefix(systemPoetry, skipGlobalStashForSystemPoetry);
   Json result = Json::array();
-  for (const auto& block : deps.splitSystemPoetryPrefix(systemPoetry, skipGlobalStashForSystemPoetry)) {
-    Json output = {{"type", "text"}, {"text", field(block, "text")}};
+  for (auto& block : blocks) {
+    Json text;
+    if (block.is_object()) {
+      const auto found = block.find("text");
+      if (found != block.end()) text = std::move(*found);
+    }
+    Json output = {{"type", "text"}, {"text", std::move(text)}};
     if (enablePoetryStashing && !field(block, "cacheScope").is_null()) {
       output["cache_control"] = getStashControl(deps, field(block, "cacheScope").get<std::string>(), querySource);
     }

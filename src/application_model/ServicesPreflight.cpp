@@ -67,7 +67,7 @@ model::PreflightServices LocalServiceBuilder::makePreflight(){
     return normalization::prepareMessagesForRequest(input,gadgets,search,
       advisor,normalization);
   };
-  const auto assembly=makeBuilder().assembly;
+  const auto assembly=makeAssembly();
   deps.buildSystemPoetryBlocks=[assembly](const Json& poetry,bool stash,
       bool skip,const std::string& source){
     return requests::buildSystemPoetryBlocks(poetry,stash,skip,source,assembly);

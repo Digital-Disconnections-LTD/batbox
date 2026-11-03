@@ -32,7 +32,7 @@ Json userMessageToMessageParam(const Json& message, bool addStash, bool enablePo
                                const std::optional<std::string>& querySource, const Dependencies& deps);
 Json assistantMessageToMessageParam(const Json& message, bool addStash, bool enablePoetryStashing,
                                     const std::optional<std::string>& querySource, const Dependencies& deps);
-Json stripExcessMediaItems(const Json& messages, double limit);
+Json stripExcessMediaItems(Json messages, double limit);
 Json addStashBreakpoints(const Json& messages, bool enablePoetryStashing,
                          const std::optional<std::string>& querySource, bool useStashedMC,
                          const Json& newStashEdits, const Json& pinnedEdits,

@@ -1,6 +1,8 @@
 #include "application_model/Internal.hpp"
 #include "requests/assembly.hpp"
 #include "runtime/JsonValue.hpp"
+#include <map>
+#include <memory>
 
 namespace batbox::application_model {
 namespace {
@@ -12,14 +14,14 @@ const ModelProfile& findProfile(const std::map<std::string,ModelProfile>& profil
   return found->second;
 }
 }
-requests::BuilderDependencies LocalServiceBuilder::makeBuilder(){
-  requests::BuilderDependencies deps;
+requests::Dependencies LocalServiceBuilder::makeAssembly(){
+  requests::Dependencies deps;
   const auto& config=runtime.config;
-  deps.assembly.shouldUseOneHourStash=[enabled=config.oneHourStash](const auto& source){
+  deps.shouldUseOneHourStash=[enabled=config.oneHourStash](const auto& source){
     (void)source;
     return enabled;
   };
-  deps.assembly.splitSystemPoetryPrefix=[base=config.poetrySplit,
+  deps.splitSystemPoetryPrefix=[base=config.poetrySplit,
       global=config.globalPoetryStash](
       const Json& poetry,bool skip){
     requests::PoetrySplitConfig settings=base;
@@ -27,38 +29,44 @@ requests::BuilderDependencies LocalServiceBuilder::makeBuilder(){
     settings.skipGlobalStashForSystemPoetry=skip;
     return requests::splitSystemPoetryPrefix(poetry,settings);
   };
-  deps.assembly.connectorTextFeature=config.connectorText;
-  deps.assembly.isConnectorTextBlock=[](const Json& block){
+  deps.connectorTextFeature=config.connectorText;
+  deps.isConnectorTextBlock=[](const Json& block){
     return value::property(block,"type")=="connector_text";
   };
-  deps.assembly.safeParseJSON=[](const std::string& value){
+  deps.safeParseJSON=[](const std::string& value){
     return value::parse(value);
   };
-  deps.assembly.logForDebugging=[&host=host](const auto& value){
+  deps.logForDebugging=[&host=host](const auto& value){
     host.imports_.debug("debug",value);
   };
-  deps.getLargeContextTreatment=[profiles=config.profiles](const auto& model){
-    return findProfile(profiles,model).contextTokens>200000;
+  return deps;
+}
+requests::BuilderDependencies LocalServiceBuilder::makeBuilder(){
+  requests::BuilderDependencies deps;
+  const auto& config=runtime.config;
+  deps.assembly=makeAssembly();
+  const auto profiles=std::make_shared<const std::map<std::string,ModelProfile>>(
+    config.profiles);
+  deps.getLargeContextTreatment=[profiles](const auto& model){
+    return findProfile(*profiles,model).contextTokens>200000;
   };
-  deps.modelSupportsEffort=[profiles=config.profiles](const auto& model){
-    return findProfile(profiles,model).effort;
+  deps.modelSupportsEffort=[profiles](const auto& model){
+    return findProfile(*profiles,model).effort;
   };
-  deps.modelSupportsStructuredOutputs=[profiles=config.profiles](
-      const auto& model){
-    return findProfile(profiles,model).structuredOutputs;
+  deps.modelSupportsStructuredOutputs=[profiles](const auto& model){
+    return findProfile(*profiles,model).structuredOutputs;
   };
-  deps.getMaxOutputTokensForModel=[profiles=config.profiles](const auto& model){
-    return Json(findProfile(profiles,model).maxOutputTokens);
+  deps.getMaxOutputTokensForModel=[profiles](const auto& model){
+    return Json(findProfile(*profiles,model).maxOutputTokens);
   };
-  deps.modelSupportsThinking=[profiles=config.profiles](const auto& model){
-    return findProfile(profiles,model).thinking;
+  deps.modelSupportsThinking=[profiles](const auto& model){
+    return findProfile(*profiles,model).thinking;
   };
-  deps.modelSupportsAdaptiveThinking=[profiles=config.profiles](
-      const auto& model){
-    return findProfile(profiles,model).adaptiveThinking;
+  deps.modelSupportsAdaptiveThinking=[profiles](const auto& model){
+    return findProfile(*profiles,model).adaptiveThinking;
   };
-  deps.getMaxThinkingTokensForModel=[profiles=config.profiles](const auto& model){
-    return Json(findProfile(profiles,model).maxOutputTokens-1);
+  deps.getMaxThinkingTokensForModel=[profiles](const auto& model){
+    return Json(findProfile(*profiles,model).maxOutputTokens-1);
   };
   deps.getAPIContextManagement=[](const Json& options){
     const bool hasThinking=value::truthy(value::property(options,"hasThinking"));
@@ -71,8 +79,8 @@ requests::BuilderDependencies LocalServiceBuilder::makeBuilder(){
     return Json{{"edits",Json::array({
       Json{{"type","clear_thinking_20251015"},{"keep",std::move(keep)}}})}};
   };
-  deps.getPoetryStashingEnabled=[profiles=config.profiles](const auto& model){
-    return findProfile(profiles,model).poetryStashing;
+  deps.getPoetryStashingEnabled=[profiles](const auto& model){
+    return findProfile(*profiles,model).poetryStashing;
   };
   deps.isFastModeEnabled=[&host=host,enabled=config.fastMode]{
     std::lock_guard lock(host.mutex_);
@@ -84,12 +92,12 @@ requests::BuilderDependencies LocalServiceBuilder::makeBuilder(){
     return static_cast<double>(platform::nowMillis())<
       host.state_.fastModeCooldownUntilMs;
   };
-  deps.isFastModeSupportedByModel=[profiles=config.profiles](const auto& name){
-    return findProfile(profiles,name).fastModeSupported;
+  deps.isFastModeSupportedByModel=[profiles](const auto& name){
+    return findProfile(*profiles,name).fastModeSupported;
   };
-  deps.normalizeModelStringForAPI=[profiles=config.profiles](
+  deps.normalizeModelStringForAPI=[profiles](
       const std::string& name){
-    const auto& profile=findProfile(profiles,name);
+    const auto& profile=findProfile(*profiles,name);
     return model_config::normalizeModelStringForAPI(
       profile.wireModel.empty()?name:profile.wireModel);
   };

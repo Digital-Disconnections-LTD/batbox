@@ -23,6 +23,7 @@ struct LocalServiceBuilder {
   normalization::Dependencies makeNormalization();
   api_errors::Providers makeErrors();
   model::PreflightServices makePreflight();
+  requests::Dependencies makeAssembly();
   requests::BuilderDependencies makeBuilder();
   retry::Dependencies makeRetry();
   streaming::ReducerConfig makeReducer();
