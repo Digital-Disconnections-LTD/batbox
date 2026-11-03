@@ -13,6 +13,8 @@ using Json = nlohmann::ordered_json;
 namespace value {
 std::size_t stringLength(std::string_view text);
 std::string trim(std::string_view text);
+// trim without the copy: the result points into text.
+std::string_view trimView(std::string_view text);
 bool truthy(const Json& value);
 double round(double value);
 double parseInt10(std::string_view text);

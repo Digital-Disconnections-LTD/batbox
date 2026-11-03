@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <regex>
 #include <stdexcept>
@@ -12,31 +13,36 @@
 
 namespace batbox::value {
 namespace {
-struct Rune { std::uint32_t value; std::size_t begin, end; };
-std::vector<Rune> runes(std::string_view text) {
-  std::vector<Rune> result;
-  for (std::size_t i = 0; i < text.size();) {
-    const auto start = i;
-    auto c = static_cast<unsigned char>(text[i++]);
-    std::uint32_t cp = c;
-    int remaining = 0;
-    if ((c & 0xe0) == 0xc0) { cp = c & 0x1f; remaining = 1; }
-    else if ((c & 0xf0) == 0xe0) { cp = c & 0x0f; remaining = 2; }
-    else if ((c & 0xf8) == 0xf0) { cp = c & 0x07; remaining = 3; }
-    else if (c >= 0x80) throw std::invalid_argument("Invalid UTF-8");
-    const auto width = remaining;
-    while (remaining--) {
-      if (i == text.size()) throw std::invalid_argument("Incomplete UTF-8");
-      c = static_cast<unsigned char>(text[i++]);
-      if ((c & 0xc0) != 0x80) throw std::invalid_argument("Invalid UTF-8 continuation");
-      cp = (cp << 6) | (c & 0x3f);
-    }
-    if ((width == 1 && cp < 0x80) || (width == 2 && cp < 0x800) ||
-        (width == 3 && cp < 0x10000) || cp > 0x10ffff)
-      throw std::invalid_argument("Invalid UTF-8 scalar");
-    result.push_back({cp, start, i});
+// Decodes the scalar that starts at text[i] and advances i past it.
+std::uint32_t decodeRune(std::string_view text, std::size_t& i) {
+  auto c = static_cast<unsigned char>(text[i++]);
+  std::uint32_t cp = c;
+  int remaining = 0;
+  if ((c & 0xe0) == 0xc0) { cp = c & 0x1f; remaining = 1; }
+  else if ((c & 0xf0) == 0xe0) { cp = c & 0x0f; remaining = 2; }
+  else if ((c & 0xf8) == 0xf0) { cp = c & 0x07; remaining = 3; }
+  else if (c >= 0x80) throw std::invalid_argument("Invalid UTF-8");
+  const auto width = remaining;
+  while (remaining--) {
+    if (i == text.size()) throw std::invalid_argument("Incomplete UTF-8");
+    c = static_cast<unsigned char>(text[i++]);
+    if ((c & 0xc0) != 0x80) throw std::invalid_argument("Invalid UTF-8 continuation");
+    cp = (cp << 6) | (c & 0x3f);
   }
-  return result;
+  if ((width == 1 && cp < 0x80) || (width == 2 && cp < 0x800) ||
+      (width == 3 && cp < 0x10000) || cp > 0x10ffff)
+    throw std::invalid_argument("Invalid UTF-8 scalar");
+  return cp;
+}
+// Length of the ASCII run that starts at text[i], checked eight bytes at a time.
+std::size_t asciiRun(std::string_view text, std::size_t i) {
+  const auto start = i;
+  for (std::uint64_t word; i + 8 <= text.size(); i += 8) {
+    std::memcpy(&word, text.data() + i, 8);
+    if (word & 0x8080808080808080ull) break;
+  }
+  while (i < text.size() && static_cast<unsigned char>(text[i]) < 0x80) ++i;
+  return i - start;
 }
 bool space(std::uint32_t c) {
   return (c >= 9 && c <= 13) || c == 0x20 || c == 0xa0 || c == 0x1680 ||
@@ -81,17 +87,35 @@ std::optional<std::uint32_t> arrayIndex(std::string_view key) {
 
 std::size_t stringLength(std::string_view text) {
   std::size_t length = 0;
-  for (auto rune : runes(text)) length += rune.value > 0xffff ? 2 : 1;
+  for (std::size_t i = 0; i < text.size();) {
+    const auto ascii = asciiRun(text, i);
+    i += ascii;
+    length += ascii;
+    if (i < text.size()) length += decodeRune(text, i) > 0xffff ? 2 : 1;
+  }
   return length;
 }
-std::string trim(std::string_view text) {
-  auto decoded = runes(text);
-  std::size_t begin = 0, end = decoded.size();
-  while (begin < end && space(decoded[begin].value)) ++begin;
-  while (end > begin && space(decoded[end - 1].value)) --end;
-  if (begin == end) return {};
-  return std::string(text.substr(decoded[begin].begin, decoded[end - 1].end - decoded[begin].begin));
+std::string_view trimView(std::string_view text) {
+  // The whole string is validated first, so malformed UTF-8 throws even when
+  // it sits between the trimmed ends.
+  stringLength(text);
+  std::size_t begin = 0;
+  while (begin < text.size()) {
+    auto next = begin;
+    if (!space(decodeRune(text, next))) break;
+    begin = next;
+  }
+  std::size_t end = text.size();
+  while (end > begin) {
+    auto start = end - 1;
+    while ((static_cast<unsigned char>(text[start]) & 0xc0) == 0x80) --start;
+    auto next = start;
+    if (!space(decodeRune(text, next))) break;
+    end = start;
+  }
+  return text.substr(begin, end - begin);
 }
+std::string trim(std::string_view text) { return std::string(trimView(text)); }
 bool truthy(const Json& value) {
   if (value.is_null() || value.is_discarded()) return false;
   if (value.is_boolean()) return value.get<bool>();
