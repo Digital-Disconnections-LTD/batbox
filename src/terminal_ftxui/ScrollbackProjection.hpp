@@ -7,6 +7,7 @@ namespace batbox::terminal_ftxui {
 
 struct ScrollbackCursor {
   std::unordered_set<std::string> committed;
+  TranscriptLineCache lines;
 };
 
 std::vector<CommittedRow> advanceInlineScrollback(
@@ -15,6 +16,6 @@ std::vector<CommittedRow> advanceInlineScrollback(
 
 ftxui::Element renderPresentationWithScrollback(
     const interactive::PresentationState& state, ftxui::Dimensions dimensions,
-    const ScrollbackCursor& cursor, bool inlineMode);
+    ScrollbackCursor& cursor, bool inlineMode);
 
 } // namespace batbox::terminal_ftxui

@@ -6,6 +6,7 @@
 #include "terminal_ftxui/StyleProjection.hpp"
 #include "ftxui/screen/string.hpp"
 #include <algorithm>
+#include <deque>
 #include <string_view>
 #include <unordered_map>
 
@@ -115,19 +116,6 @@ std::string visibleRowText(const interactive::TranscriptRow& row) {
       (hidden == 1 ? " line" : " lines");
 }
 
-void appendWrapped(std::vector<VisualLine>& destination,
-                   const interactive::TranscriptRow& row, std::size_t width,
-                   const std::string& rowId = {}) {
-  auto lines = wrap(value::encodeUtf8(visibleRowText(row)), prefix(row.kind), width, row.kind);
-  for (std::size_t i = 0; i < lines.size(); ++i) {
-    if (!rowId.empty()) lines[i].id = rowId + ":" + std::to_string(i);
-    lines[i].transient = row.transient;
-  }
-  destination.insert(destination.end(),
-                     std::make_move_iterator(lines.begin()),
-                     std::make_move_iterator(lines.end()));
-}
-
 std::vector<VisualLine> inputLines(const interactive::InputState& input,
                                    std::size_t width) {
   return wrap(value::encodeUtf8(input.text), value::encodeUtf8(input.poetry),
@@ -167,13 +155,53 @@ std::string status(const interactive::PresentationState& state) {
 }
 } // namespace
 
+std::vector<VisualLine> wrapTranscriptRow(const interactive::TranscriptRow& row,
+                                          std::size_t width) {
+  auto lines = wrap(value::encodeUtf8(visibleRowText(row)), prefix(row.kind), width, row.kind);
+  for (std::size_t i = 0; i < lines.size(); ++i) {
+    if (!row.scrollbackId.empty())
+      lines[i].id = row.scrollbackId + ":" + std::to_string(i);
+    lines[i].transient = row.transient;
+  }
+  return lines;
+}
+
+const std::vector<VisualLine>& TranscriptLineCache::lines(
+    const interactive::TranscriptRow& row, std::size_t width) {
+  auto& entry = entries_[row.scrollbackId];
+  if (!entry.valid || entry.used != generation_) ++touched_;
+  if (!entry.valid || entry.kind != row.kind || entry.transient != row.transient ||
+      entry.width != width || entry.text != row.text) {
+    entry.text = row.text;
+    entry.kind = row.kind;
+    entry.transient = row.transient;
+    entry.width = width;
+    entry.lines = wrapTranscriptRow(row, width);
+    entry.valid = true;
+  }
+  entry.used = generation_;
+  return entry.lines;
+}
+
+void TranscriptLineCache::sweep() {
+  if (entries_.size() > touched_) {
+    for (auto it = entries_.begin(); it != entries_.end();) {
+      if (it->second.used != generation_) it = entries_.erase(it);
+      else ++it;
+    }
+  }
+  ++generation_;
+  touched_ = 0;
+}
+
 std::vector<VisualLine> projectTranscriptLines(
     const interactive::PresentationState& state, int columns) {
   if (columns <= 0) throw ProjectionError("Positive FTXUI viewport required");
   std::vector<VisualLine> body;
-  for (std::size_t i = 0; i < state.transcriptRows.size(); ++i) {
-    const auto& row = state.transcriptRows[i];
-    appendWrapped(body, row, static_cast<std::size_t>(columns), row.scrollbackId);
+  for (const auto& row : state.transcriptRows) {
+    auto lines = wrapTranscriptRow(row, static_cast<std::size_t>(columns));
+    body.insert(body.end(), std::make_move_iterator(lines.begin()),
+                std::make_move_iterator(lines.end()));
   }
   return body;
 }
@@ -195,17 +223,34 @@ std::vector<VisualLine> projectCopyLines(
 PresentationLayout layoutPresentation(const interactive::PresentationState& state,
                                       int columns, int rows,
                                       const std::unordered_set<std::string>* excluded) {
+  return layoutPresentation(state, columns, rows, excluded, nullptr);
+}
+
+PresentationLayout layoutPresentation(const interactive::PresentationState& state,
+                                      int columns, int rows,
+                                      const std::unordered_set<std::string>* excluded,
+                                      TranscriptLineCache* cache) {
   if (columns <= 0 || rows <= 0)
     throw ProjectionError("Positive FTXUI viewport required");
   const auto width = static_cast<std::size_t>(columns);
   const auto height = static_cast<std::size_t>(rows);
-  std::vector<VisualLine> body = projectTranscriptLines(state, columns);
-  if (excluded) body.erase(std::remove_if(body.begin(), body.end(),
-      [excluded](const VisualLine& line) {
-        return !line.id.empty() && excluded->contains(line.id);
-      }), body.end());
+  // Only the visible slice is copied; the rest of the body is referenced in
+  // place, in the cache or in the rows wrapped for this call.
+  std::deque<std::vector<VisualLine>> owned;
+  std::vector<const VisualLine*> body;
+  const auto take = [&](const std::vector<VisualLine>& lines) {
+    for (const auto& line : lines)
+      if (!excluded || line.id.empty() || !excluded->contains(line.id))
+        body.push_back(&line);
+  };
+  for (const auto& row : state.transcriptRows) {
+    if (cache && !row.scrollbackId.empty()) take(cache->lines(row, width));
+    else take(owned.emplace_back(wrapTranscriptRow(row, width)));
+  }
+  if (cache) cache->sweep();
   if (const auto preview = interactive::visibleStreamingText(state))
-    appendWrapped(body, {Kind::Assistant, "", *preview, true, {}}, width);
+    take(owned.emplace_back(wrapTranscriptRow(
+        {Kind::Assistant, "", *preview, true, {}}, width)));
   for (const auto& gadget : state.streamingGadgetUses) {
     std::string text = gadget.contentBlock.is_object() &&
         gadget.contentBlock.contains("name") &&
@@ -213,7 +258,8 @@ PresentationLayout layoutPresentation(const interactive::PresentationState& stat
         gadget.contentBlock["name"].get<std::string>() : "Gadget";
     if (!gadget.unparsedGadgetInput.empty())
       text += " " + gadget.unparsedGadgetInput;
-    appendWrapped(body, {Kind::Gadget, "", std::move(text), true, {}}, width);
+    take(owned.emplace_back(wrapTranscriptRow(
+        {Kind::Gadget, "", std::move(text), true, {}}, width)));
   }
 
   const bool showInput = !state.modal || !state.modal->hidePoetry;
@@ -238,7 +284,7 @@ PresentationLayout layoutPresentation(const interactive::PresentationState& stat
   layout.bodyHeight = bodyHeight;
   layout.topRow = top;
   for (std::size_t i = top; i < std::min(body.size(), top + bodyHeight); ++i)
-    layout.visibleLines.push_back(std::move(body[i]));
+    layout.visibleLines.push_back(*body[i]);
   while (layout.visibleLines.size() < bodyHeight)
     layout.visibleLines.push_back({Kind::System, {}, false, {}, false});
   if (!statusText.empty() && statusHeight) {

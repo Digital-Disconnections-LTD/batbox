@@ -5,7 +5,9 @@
 #include "ftxui/screen/color.hpp"
 #include "ftxui/screen/terminal.hpp"
 #include <cstddef>
+#include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -42,9 +44,39 @@ struct PresentationLayout {
   bool caretVisible = false;
 };
 
+// Wrapped rows keyed by scrollback id. The inline view re-wraps only rows
+// whose text or width changed since the previous frame; rows without an id
+// are wrapped by the caller.
+class TranscriptLineCache {
+public:
+  const std::vector<VisualLine>& lines(const interactive::TranscriptRow& row,
+                                       std::size_t width);
+  // Drops rows not requested since the previous sweep.
+  void sweep();
+
+private:
+  struct Entry {
+    std::string text;
+    interactive::TranscriptRow::Kind kind = interactive::TranscriptRow::Kind::System;
+    bool transient = false;
+    bool valid = false;
+    std::size_t width = 0;
+    std::uint64_t used = 0;
+    std::vector<VisualLine> lines;
+  };
+  std::unordered_map<std::string, Entry> entries_;
+  std::uint64_t generation_ = 0;
+  std::size_t touched_ = 0;
+};
+std::vector<VisualLine> wrapTranscriptRow(const interactive::TranscriptRow& row,
+                                          std::size_t width);
 PresentationLayout layoutPresentation(const interactive::PresentationState& state,
                                       int columns, int rows,
                                       const std::unordered_set<std::string>* excluded = nullptr);
+PresentationLayout layoutPresentation(const interactive::PresentationState& state,
+                                      int columns, int rows,
+                                      const std::unordered_set<std::string>* excluded,
+                                      TranscriptLineCache* cache);
 std::vector<VisualLine> projectTranscriptLines(
     const interactive::PresentationState& state, int columns);
 std::vector<VisualLine> projectCopyLines(
@@ -54,6 +86,10 @@ ftxui::Element renderPresentation(const interactive::PresentationState& state,
 ftxui::Element renderPresentation(const interactive::PresentationState& state,
                                   ftxui::Dimensions dimensions,
                                   const std::unordered_set<std::string>& excluded);
+ftxui::Element renderPresentation(const interactive::PresentationState& state,
+                                  ftxui::Dimensions dimensions,
+                                  const std::unordered_set<std::string>& excluded,
+                                  TranscriptLineCache& cache);
 
 struct PlainCursor {
   std::vector<interactive::MessageRef> emitted;
