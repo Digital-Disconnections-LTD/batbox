@@ -13,8 +13,8 @@ std::string text(const Json& object, const char* name) {
 Json delta(std::size_t index, Json body) {
   return Json{{"type","content_block_delta"},{"index",index},{"delta",std::move(body)}};
 }
-std::string preview(const std::string& data) {
-  return data.size() > 200 ? data.substr(0,200) + "..." : data;
+std::string preview(std::string_view data) {
+  return data.size() > 200 ? std::string(data.substr(0,200)) + "..." : std::string(data);
 }
 } // namespace
 
@@ -34,14 +34,14 @@ std::vector<Json> StreamDecoder::consume(const ServerSentEvent& event) {
 std::vector<Json> StreamDecoder::consumeData(const std::string& data) {
   std::vector<Json> out;
   if (complete_) return out;
-  const auto trimmed = value::trim(data);
+  const auto trimmed = value::trimView(data);
   if (trimmed.empty()) return out;
   if (trimmed == "[DONE]") { end(out); return out; }
   auto chunk = value::parse(trimmed,false);
   if (chunk.is_discarded() || !chunk.is_object())
     throw std::runtime_error("Malformed stream chunk from the server: " + preview(trimmed));
   if (!field(chunk,"error").is_null())
-    throw translateError(std::nullopt,chunk,trimmed,Json::object(),baseUrl_);
+    throw translateError(std::nullopt,chunk,std::string(trimmed),Json::object(),baseUrl_);
   start(out);
   if (field(chunk,"usage").is_object()) usage_ = field(chunk,"usage");
   const auto& choices = field(chunk,"choices");
@@ -53,14 +53,14 @@ std::vector<Json> StreamDecoder::consumeData(const std::string& data) {
   if (reasoning.empty()) reasoning = text(change,"reasoning");
   if (!reasoning.empty()) {
     if (openKind_ != Block::Thinking) open(out,Block::Thinking,{{"type","thinking"},{"thinking",""},{"signature",""}});
-    out.push_back(delta(openIndex_,{{"type","thinking_delta"},{"thinking",reasoning}}));
     generatedBytes_ += reasoning.size();
+    out.push_back(delta(openIndex_,{{"type","thinking_delta"},{"thinking",std::move(reasoning)}}));
   }
-  const auto content = text(change,"content");
+  auto content = text(change,"content");
   if (!content.empty()) {
     if (openKind_ != Block::Text) open(out,Block::Text,{{"type","text"},{"text",""}});
-    out.push_back(delta(openIndex_,{{"type","text_delta"},{"text",content}}));
     generatedBytes_ += content.size();
+    out.push_back(delta(openIndex_,{{"type","text_delta"},{"text",std::move(content)}}));
   }
   const auto& calls = field(change,"tool_calls");
   if (calls.is_array()) for (const auto& call : calls) toolDelta(out,call);
@@ -126,7 +126,7 @@ void StreamDecoder::toolDelta(std::vector<Json>& out, const Json& call) {
   const auto name = text(function,"name");
   if (!name.empty() && tool.name.empty()) tool.name = name;
   const auto& rawArguments = field(function,"arguments");
-  const std::string arguments = rawArguments.is_string() ? rawArguments.get<std::string>() :
+  std::string arguments = rawArguments.is_string() ? rawArguments.get<std::string>() :
     (rawArguments.is_object() ? rawArguments.dump() : std::string{});
   generatedBytes_ += arguments.size();
   if (!tool.index) {
@@ -138,7 +138,7 @@ void StreamDecoder::toolDelta(std::vector<Json>& out, const Json& call) {
   if (arguments.empty()) return;
   if (tool.closed || openToolKey_ != key)
     throw std::runtime_error("The server interleaved arguments for parallel tool calls");
-  out.push_back(delta(*tool.index,{{"type","input_json_delta"},{"partial_json",arguments}}));
+  out.push_back(delta(*tool.index,{{"type","input_json_delta"},{"partial_json",std::move(arguments)}}));
 }
 
 void StreamDecoder::startTool(std::vector<Json>& out, Tool& tool) {
@@ -147,7 +147,7 @@ void StreamDecoder::startTool(std::vector<Json>& out, Tool& tool) {
   tool.index = openIndex_;
   sawToolCall_ = true;
   if (!tool.pending.empty()) {
-    out.push_back(delta(openIndex_,{{"type","input_json_delta"},{"partial_json",tool.pending}}));
+    out.push_back(delta(openIndex_,{{"type","input_json_delta"},{"partial_json",std::move(tool.pending)}}));
     tool.pending.clear();
   }
 }
