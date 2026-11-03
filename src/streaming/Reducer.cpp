@@ -8,9 +8,10 @@
 namespace batbox::streaming {
 namespace {
 const Json& field(const Json& object, const char* name) { return value::property(object, name); }
-std::string stringField(const Json& object, const char* name) {
+const std::string& stringField(const Json& object, const char* name) {
+  static const std::string empty;
   const auto& value = field(object, name);
-  return value.is_string() ? value.get<std::string>() : std::string{};
+  return value.is_string() ? value.get_ref<const Json::string_t&>() : empty;
 }
 Json parsedInput(const std::string& text) {
   if (text.empty()) return Json::object();
@@ -89,8 +90,8 @@ Emissions Reducer::consume(const Json& part){
 std::optional<MessageRef> Reducer::beginEvent(const Json& part){
   if(pendingEvent_)throw std::logic_error("Previous stream event still has emissions");
   if(stringField(part,"type")!="message_delta"){
+    // Buffered emissions already hold their own copies of the part.
     PendingEvent pending;
-    pending.part=part;
     pending.phase=PendingEvent::Phase::Buffered;
     pending.buffered=consumeUnphased(part);
     pendingEvent_=std::move(pending);
@@ -153,7 +154,7 @@ std::optional<MessageRef> Reducer::nextEmission(){
 
 Emissions Reducer::consumeUnphased(const Json& part) {
   Emissions emitted;
-  const std::string type = stringField(part, "type");
+  const std::string& type = stringField(part, "type");
   if (type == "message_start") {
     partialMessage_ = field(part, "message");
     ttftMs_ = (config_.nowMillis ? config_.nowMillis() : currentMillis()) - config_.startMillis;
@@ -161,7 +162,7 @@ Emissions Reducer::consumeUnphased(const Json& part) {
   } else if (type == "content_block_start") {
     const auto& original = field(part, "content_block");
     Json block = original;
-    const std::string blockType = stringField(original, "type");
+    const std::string& blockType = stringField(original, "type");
     if (blockType == "tool_use" || blockType == "server_tool_use") {
       block["input"] = "";
       if (blockType == "server_tool_use" && stringField(original, "name") == "advisor")
@@ -183,8 +184,8 @@ Emissions Reducer::consumeUnphased(const Json& part) {
       throw StreamError(StreamErrorKind::MissingBlock, "Content block not found");
     Json& block = *contentBlocks_[index];
     const Json& delta = field(part, "delta");
-    const std::string deltaType = stringField(delta, "type");
-    const std::string blockType = stringField(block, "type");
+    const std::string& deltaType = stringField(delta, "type");
+    const std::string& blockType = stringField(block, "type");
     if (config_.connectorTextEnabled && deltaType == "connector_text_delta") {
       if (blockType != "connector_text") throw StreamError(StreamErrorKind::TypeMismatch, "Content block is not a connector_text block");
       appendString(block, "connector_text", field(delta, "connector_text"));

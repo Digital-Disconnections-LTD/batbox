@@ -25,7 +25,7 @@ class SSEDecoder {
   std::optional<std::string> event;
   std::vector<std::string> data;
   std::vector<std::string> chunks;
-  std::vector<ServerSentEvent> consume(const std::vector<std::string>& input);
+  std::vector<ServerSentEvent> consume(std::vector<std::string>&& input);
 public:
   std::vector<ServerSentEvent> decode(std::string_view chunk);
   std::vector<ServerSentEvent> flush();
