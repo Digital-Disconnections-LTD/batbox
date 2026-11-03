@@ -51,7 +51,10 @@ void Project::insertMessageChainImpl(const Json& messages,const std::vector<Mess
       for(const auto* field:{"teamName","agentName"})if(team.is_object() && team.contains(field))entry[field]=team.at(field);
       if(message.at("type")=="user")if(const auto poetry=services.getPoetryId())entry["promptId"]=*poetry;
       if(bat)entry["agentId"]=*bat;
-      for(const auto& [key,value]:message.items())entry[key]=value;
+      // The delayed reader re-reads the body at drain time, so the body is
+      // not copied here; a null keeps the key's position in the output.
+      const bool delayed=!references.empty() && message.contains("message");
+      for(const auto& [key,value]:message.items())if(delayed && key=="message")entry[key]=nullptr;else entry[key]=value;
       entry["userType"]=services.getUserType();entry["entrypoint"]=services.getEntrypoint();entry["cwd"]=services.getCwd();
       entry["sessionId"]=flight;entry["version"]=services.getVersion();
       // An undefined property after the spread removes an inherited value in
@@ -59,11 +62,11 @@ void Project::insertMessageChainImpl(const Json& messages,const std::vector<Mess
       if(branch)entry["gitBranch"]=*branch;else entry.erase("gitBranch");
       if(slug)entry["slug"]=*slug;else entry.erase("slug");
       WriteQueue::EntryReader reader;
-      if(!references.empty() && message.contains("message")) {
+      if(delayed) {
         const auto reference=references.at(messageIndex);
-        reader=[entry,reference]{
-          auto result=entry;const auto current=runtime::snapshotMessage(reference);
-          result["message"]=current.at("message");return result;
+        reader=[shared=std::make_shared<const Json>(entry),reference]{
+          auto result=*shared;const runtime::MessageLock lock(reference);
+          result["message"]=lock.value().at("message");return result;
         };
       }
       appendEntryInternal(entry,std::nullopt,std::move(reader));
@@ -91,7 +94,7 @@ void Project::appendEntryInternal(const Json& entry,const std::optional<std::str
     if(!existing){services.logError("appendEntry: session file not found for other session "+flight);return;}file=*existing;
   }
   const auto type=entry.at("type").get<std::string>();
-  const auto enqueue=[&](const std::string& target){if(reader)(void)queue->enqueueWrite(target,reader);else (void)queue->enqueueWrite(target,entry);};
+  const auto enqueue=[&](const std::string& target){if(reader)(void)queue->enqueueWrite(target,std::move(reader));else (void)queue->enqueueWrite(target,entry);};
   static const std::set<std::string> metadata={"summary","custom-title","ai-title","last-prompt","task-summary","tag","agent-name","agent-color","agent-setting","pr-link","file-history-snapshot","attribution-snapshot","speculation-accept","mode","worktree-state","marble-origami-commit","marble-origami-snapshot","flight-end"};
   if(metadata.contains(type)){enqueue(file);return;}
   if(type=="content-replacement") {
