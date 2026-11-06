@@ -23,6 +23,7 @@ struct CompactorInputs {
   std::function<Json(const Json&,const gadgets::Gadgets&)> normalize;
   AttachmentNormalizer normalizeAttachment;
   std::function<void(const Json&)> progress,notification;
+  std::function<void(const std::string&)> log;
   std::function<void()> markPostCompaction;
   std::function<void(const std::optional<std::string>&)> cleanupAfterCompact;
   std::function<void(const std::vector<std::string>&)> clearInvokedSkills;
@@ -37,8 +38,11 @@ public:
     std::shared_ptr<bats::StashSafeParams> indigenous={});
   event_loop::Deferred<Json> automatic(const Json& messages,
     const execution::Context& context,const Json& stash,
-    const std::string& source,const Json& tracking,double freed,
+    const std::string& source,const Json& tracking,
     std::shared_ptr<bats::StashSafeParams> indigenous={});
+  // False when automatic() would only report that it skipped.
+  bool automaticWouldRun(const Json& messages,const execution::Context& context,
+    const std::string& source,const Json& tracking);
   void postCompactCleanup(const std::optional<std::string>& source={});
   void clearInvokedSkills(const std::vector<std::string>& preservedBatIds);
 private:
@@ -49,6 +53,11 @@ private:
   compaction::SummaryServices summaryFor(const execution::Context& context);
   compaction::AutoServices automaticServices(const execution::Context& context,
     std::shared_ptr<bats::StashSafeParams> indigenous);
+  bool automaticWouldRun(const Json& messages,const execution::Context& context,
+    const std::string& source,const Json& tracking,
+    compaction::AutoServices& services);
+  Json settings()const;
+  bool localModel(const execution::Context& context)const;
   CompactorInputs inputs_;
 };
 } // namespace batbox::application_engine

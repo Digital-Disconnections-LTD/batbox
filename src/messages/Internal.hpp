@@ -8,7 +8,10 @@ const std::string SYNTHETIC_MODEL = "<synthetic>";
 const std::string SYNTHETIC_GADGET_RESULT_PLACEHOLDER = "[Tool result missing due to internal error]";
 
 inline bool has(const Json& object, const std::string& key) { return object.is_object() && object.contains(key); }
-inline Json get(const Json& object, const std::string& key) { return has(object, key) ? object.at(key) : Json(); }
+inline const Json& get(const Json& object, const std::string& key) {
+  static const Json missing;
+  return has(object, key) ? object.at(key) : missing;
+}
 inline std::string str(const Json& value) { return value.is_string() ? value.get<std::string>() : std::string(); }
 inline std::string field(const Json& object, const std::string& key) { return str(get(object, key)); }
 inline void copyIf(Json& target, const Json& source, const std::string& key) {
@@ -24,6 +27,8 @@ inline std::string requireNow(Services& services) {
 }
 inline Json textBlock(const std::string& text) { return Json{{"type", "text"}, {"text", text}}; }
 inline bool isBlock(const Json& block, const std::string& type) {
-  return block.is_object() && field(block, "type") == type;
+  if (!block.is_object()) return false;
+  const Json& value = get(block, "type");
+  return value.is_string() ? value.get_ref<const std::string&>() == type : type.empty();
 }
 } // namespace batbox::messages::internal

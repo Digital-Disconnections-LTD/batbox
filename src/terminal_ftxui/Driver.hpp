@@ -6,6 +6,7 @@
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/loop.hpp>
 #include <ftxui/dom/node.hpp>
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -26,6 +27,10 @@ struct Options {
   // frame, or redraw request) the interval doubles up to the idle ceiling.
   double idlePumpIntervalMs=32;
   int quietPumpsBeforeBackoff=32;
+  // Redraw requests within this long of the last frame wait for the first
+  // pump after it passes, so a fast stream paints at most every other pump;
+  // input is painted by the pump that reads it.
+  double minFrameIntervalMs=12;
 };
 struct CommittedRow {
   std::string id;
@@ -98,6 +103,8 @@ private:
   std::unique_ptr<ftxui::Loop> loop_;
   ftxui::Component component_;
   event_loop::Loop::TimerHandle pumpTimer_;
+  std::chrono::steady_clock::time_point lastFrame_;
+  bool painted_=false,redrawHeld_=false;
   std::optional<PumpSchedule> pumpSchedule_;
   double scheduledPumpMs_=0;
   std::optional<ftxui::Dimensions> lastSize_;

@@ -23,8 +23,6 @@ int main(int argc,char** argv){
       {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
       {"webSearchRequests",0}},Json()});
   config.policyURL="https://batbox.local/policy";
-  config.statusURL="https://batbox.local/status";
-  config.usageURL="https://batbox.local/usage";
   config.retryWire.retryAfter="retry-after";
   config.retryWire.shouldRetry="x-should-retry";
   application_model::Imports imports;

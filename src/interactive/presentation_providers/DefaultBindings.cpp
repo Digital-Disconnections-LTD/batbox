@@ -29,8 +29,6 @@ std::vector<BindingBlock> baseBlocks(){
       {"enter","chat:submit"},
       {"up","history:previous"},
       {"down","history:next"},
-      {"ctrl+_","chat:undo"},
-      {"ctrl+shift+-","chat:undo"},
       {"ctrl+x ctrl+e","chat:externalEditor"},
       {"ctrl+g","chat:externalEditor"},
       {"ctrl+s","chat:stash"},
@@ -169,36 +167,11 @@ std::vector<BindingBlock> baseBlocks(){
     }},
   };
 }
-BindingBlock messageActionsBlock(){
-  return {"MessageActions",{
-    {"up","messageActions:prev"},
-    {"down","messageActions:next"},
-    {"k","messageActions:prev"},
-    {"j","messageActions:next"},
-    {"meta+up","messageActions:top"},
-    {"meta+down","messageActions:bottom"},
-    {"super+up","messageActions:top"},
-    {"super+down","messageActions:bottom"},
-    {"shift+up","messageActions:prevUser"},
-    {"shift+down","messageActions:nextUser"},
-    {"escape","messageActions:escape"},
-    {"ctrl+c","messageActions:ctrlc"},
-    {"enter","messageActions:enter"},
-    {"c","messageActions:c"},
-    {"p","messageActions:p"},
-  }};
-}
 BindingBlock& block(std::vector<BindingBlock>& blocks,const std::string& context){
   auto found=std::find_if(blocks.begin(),blocks.end(),
     [&](const auto& item){return item.context==context;});
   if(found==blocks.end())throw std::logic_error("Missing default binding context");
   return *found;
-}
-void insertBefore(BindingBlock& value,const std::string& before,
-    std::string key,std::string action){
-  auto found=std::find_if(value.bindings.begin(),value.bindings.end(),
-    [&](const auto& item){return item.first==before;});
-  value.bindings.insert(found,{std::move(key),std::move(action)});
 }
 void replaceKey(BindingBlock& value,const std::string& oldKey,
     std::string newKey){
@@ -209,31 +182,11 @@ void replaceKey(BindingBlock& value,const std::string& oldKey,
 }
 } // namespace
 std::vector<BindingBlock> defaultBindingBlocks(const DefaultBindingOptions& options){
-  if(!options.feature)throw std::invalid_argument("Feature selector required");
   auto blocks=baseBlocks();
-  auto& global=block(blocks,"Global");
-  if(options.feature("KAIROS")||options.feature("KAIROS_BRIEF"))
-    insertBefore(global,"ctrl+shift+o","ctrl+shift+b","app:toggleBrief");
-  if(options.feature("QUICK_SEARCH")){
-    global.bindings.push_back({"ctrl+shift+f","app:globalSearch"});
-    global.bindings.push_back({"cmd+shift+f","app:globalSearch"});
-    global.bindings.push_back({"ctrl+shift+p","app:quickOpen"});
-    global.bindings.push_back({"cmd+shift+p","app:quickOpen"});
-  }
-  if(options.feature("TERMINAL_PANEL"))
-    global.bindings.push_back({"meta+j","app:toggleTerminal"});
   auto& chat=block(blocks,"Chat");
   if(options.platform=="windows"){
     if(!options.terminalVtMode)replaceKey(chat,"shift+tab","meta+m");
     replaceKey(chat,"ctrl+v","alt+v");
-  }
-  if(options.feature("MESSAGE_ACTIONS"))
-    chat.bindings.push_back({"shift+up","chat:messageActions"});
-  if(options.feature("VOICE_MODE"))chat.bindings.push_back({"space","voice:pushToTalk"});
-  if(options.feature("MESSAGE_ACTIONS")){
-    auto found=std::find_if(blocks.begin(),blocks.end(),
-      [](const auto& item){return item.context=="MessageSelector";});
-    blocks.insert(found+1,messageActionsBlock());
   }
   return blocks;
 }

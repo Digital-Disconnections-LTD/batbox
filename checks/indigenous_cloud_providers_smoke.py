@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tests' / 'phase2')
 from cloud_fakes import FakeCloud  # noqa: E402
 
 MARKER = 'batbox-cloud-marker-4471'
+BETAS = ['context-1m-2025-08-07', 'interleaved-thinking-2025-05-14']
 
 
 def responder(note):
@@ -76,20 +77,22 @@ def main():
             bedrock_model = 'us.anthropic.claude-opus-5-5-v1:0'
             run_case(binary, server, root, 'bedrock', {
                 'label': 'Bedrock', 'provider': 'bedrock', 'region': 'us-west-2', 'base_url': server.url,
-                'models': [bedrock_model], 'context_window': 200000, 'max_output_tokens': 4096}, bedrock_model,
-                {'AWS_ACCESS_KEY_ID': 'AKIASMOKE', 'AWS_SECRET_ACCESS_KEY': 'smokesecret'})
+                'models': [bedrock_model], 'context_window': 200000, 'max_output_tokens': 4096, 'betas': BETAS},
+                bedrock_model, {'AWS_ACCESS_KEY_ID': 'AKIASMOKE', 'AWS_SECRET_ACCESS_KEY': 'smokesecret'})
             calls = [r for r in server.requests if r['kind'] == 'bedrock']
             assert len(calls) == 2 and all(c['who'] == 'AKIASMOKE' and c['stream'] and c['model'] == bedrock_model for c in calls), calls
+            assert all(c['body'].get('anthropic_beta') == BETAS and 'betas' not in c['body'] for c in calls), calls
 
             server.reset()
             server.bearer = 'ya29.smoke'
             run_case(binary, server, root, 'vertex', {
                 'label': 'Vertex', 'provider': 'vertex', 'project': 'smoke-project', 'region': 'us-east5', 'base_url': server.url,
-                'auth_token': 'ya29.smoke', 'models': ['claude-opus-5-5'], 'context_window': 200000, 'max_output_tokens': 4096},
-                'claude-opus-5-5', {})
+                'auth_token': 'ya29.smoke', 'models': ['claude-opus-5-5'], 'context_window': 200000, 'max_output_tokens': 4096,
+                'betas': BETAS}, 'claude-opus-5-5', {})
             calls = [r for r in server.requests if r['kind'] == 'vertex']
             assert len(calls) == 2 and all(c['project'] == 'smoke-project' and c['region'] == 'us-east5' and c['stream'] for c in calls), calls
             assert all(c['auth'] == 'Bearer ya29.smoke' for c in calls), calls
+            assert all(c['beta'] == ','.join(BETAS) and 'betas' not in c['body'] for c in calls), calls
     finally:
         server.shutdown()
     print('batbox --print Bedrock and Vertex AI Read round trips passed')

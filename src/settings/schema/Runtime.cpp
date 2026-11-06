@@ -34,40 +34,21 @@ ParseResult parseNode(const Json& node,const Json& input,bool present,
     return {true,false,nullptr,Json::array()};
   }
   if(type=="string"||type=="number"||type=="boolean"||
-      type=="enum"||type=="literal"||type=="undefined")
+      type=="enum"||type=="literal")
     return parseScalar(node,input,present,path,config,imports);
   if(type=="native"){
     const auto name=node.at("name").get<std::string>();
-    if(name=="strictPluginOnlyCustomization"){
-      if(!present)return {true,false,nullptr,Json::array()};
-      if(input.is_boolean())return {true,true,input,Json::array()};
-      if(input.is_array()){
-        Json values=Json::array();
-        for(const auto& item:input)
-          if(item=="skills"||item=="agents"||item=="hooks"||item=="mcp")
-            values.push_back(item);
-        return {true,true,values,Json::array()};
-      }
-      return {true,false,nullptr,Json::array()};
-    }
     if(!present)throw std::runtime_error("Missing native settings field");
     if(name=="environmentVariables")
       return fromSchema(environmentVariables(input),path);
     if(name=="permissions")
-      return fromSchema(permissions(input,{config.transcriptClassifier},
-        imports.permissionRules),path);
-    if(name=="allowedMcpServerEntry")
-      return fromSchema(allowedMcpServerEntry(input),path);
-    if(name=="deniedMcpServerEntry")
-      return fromSchema(deniedMcpServerEntry(input),path);
+      return fromSchema(permissions(input,imports.permissionRules),path);
     throw std::runtime_error("Unbound native settings schema: "+name);
   }
   if(type=="import"){
     const auto name=node.at("name").get<std::string>();
     const std::function<SchemaResult(const Json&)>* callback=nullptr;
     if(name=="hooks")callback=&imports.hooks;
-    else if(name=="sandbox")callback=&imports.sandbox;
-    else if(name=="MarketplaceSourceSchema")callback=&imports.marketplaceSource;
     if(!callback||!*callback)
       throw std::runtime_error("Missing settings schema import: "+name);
     return fromSchema((*callback)(input),path);
@@ -115,27 +96,6 @@ ParseResult parseNode(const Json& node,const Json& input,bool present,
           if(!declared)output[it.key()]=it.value();
         }
     }
-    if(type=="record"&&node.contains("checks")&&issues.empty())
-      for(const auto& check:node["checks"]){
-        if(check.value("name",std::string())!="marketplaceKeyMatch")
-          throw std::runtime_error("Unbound settings record check");
-        for(auto it=output.begin();it!=output.end();++it){
-          const auto& entry=it.value();
-          if(!entry.is_object()||!entry.contains("source")||
-              !entry["source"].is_object())continue;
-          const auto& source=entry["source"];
-          if(source.value("source",std::string())!="settings"||
-              !source.contains("name")||!source["name"].is_string())continue;
-          const auto name=source["name"].get<std::string>();
-          if(name==it.key())continue;
-          issues.push_back({{"code","custom"},
-            {"path",childPath(childPath(childPath(path,it.key()),"source"),
-              "name")},
-            {"message","Settings-sourced marketplace name must match "
-              "its extraKnownMarketplaces key (got key \""+it.key()+
-              "\" but source.name \""+name+"\")"}});
-        }
-      }
     return {issues.empty(),true,issues.empty()?output:Json(nullptr),issues};
   }
   if(type=="union"){

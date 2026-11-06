@@ -11,12 +11,20 @@
 #ifndef BATBOX_VERSION
 #define BATBOX_VERSION "unknown"
 #endif
+#ifndef BATBOX_COMMIT
+#define BATBOX_COMMIT "unknown"
+#endif
+#ifndef BATBOX_BUILD_DATE
+#define BATBOX_BUILD_DATE "unknown"
+#endif
 
 namespace {
 int run(std::vector<std::string> arguments){
   // Answer before reading any configuration, so packagers can probe the binary.
   if(batbox::application::requestsVersion(arguments)){
-    std::cout<<"batbox "<<BATBOX_VERSION<<'\n';return 0;
+    // The first line stays "batbox X.Y.Z" for scripts and the Homebrew test.
+    std::cout<<"batbox "<<BATBOX_VERSION<<"\ncommit "<<BATBOX_COMMIT<<
+      "\nbuilt "<<BATBOX_BUILD_DATE<<'\n';return 0;
   }
   try{
     if(const auto status=batbox::application::runSubcommand(arguments))return *status;

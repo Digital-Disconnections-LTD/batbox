@@ -33,18 +33,9 @@ gadgets::GadgetResult callBash(const Json& input,const gadgets::GadgetCallContex
   const auto command=stringField(input,"command");
   const auto description=stringField(input,"description");
   const bool mainThread=stringField(context.data,"agentId").empty();
-  const bool sandbox=services.shouldUseSandbox(input);
   shell::RunOptions options;
   options.command=command;
   options.description=description;
-  if(sandbox){
-    if(!services.getSandboxTmpDir||!services.logDebug)
-      throw std::invalid_argument("sandbox temp directory and diagnostic services required");
-    options.useSandbox=true;options.sandboxTmpDir=services.getSandboxTmpDir();
-    options.sandboxWrap=[&services,input,context](const std::string& built){
-      return services.sandboxCommand(built,input,context.data);};
-    options.logDebug=services.logDebug;
-  }
   if(input.contains("timeout")&&input["timeout"].is_number()){
     const double requested=input["timeout"].get<double>();
     if(requested!=0)options.timeoutMs=requested;
@@ -118,6 +109,7 @@ gadgets::GadgetResult callBash(const Json& input,const gadgets::GadgetCallContex
   }
   const auto prepared=prepareBashCompletion(input,context,std::move(result),services);
   const auto persisted=persistBashOutput(prepared.command,services);
+  throwIfBashFailed(prepared,persisted);
   return finishBashCompletion(input,prepared,persisted,services);
 }
 } // namespace
@@ -131,9 +123,6 @@ gadgets::Gadget makeBashGadget(Services services){
   require(bool(services.readOnlyAllowed),"readOnlyAllowed");
   require(bool(services.commandHasAnyCd),"commandHasAnyCd");
   require(bool(services.preparePermissionMatcher),"preparePermissionMatcher");
-  require(bool(services.shouldUseSandbox),"shouldUseSandbox");
-  require(bool(services.sandboxCommand),"sandboxCommand");
-  require(bool(services.annotateSandboxFailures),"annotateSandboxFailures");
   require(bool(services.resetCwdIfOutsideProject),"resetCwdIfOutsideProject");
   require(bool(services.extractHints),"extractHints");require(bool(services.recordHint),"recordHint");
   require(bool(services.resizeImage),"resizeImage");require(bool(services.applySedEdit),"applySedEdit");
@@ -187,7 +176,7 @@ gadgets::Gadget makeBashGadget(Services services){
       if(!edit.is_null())return shared->fileEditUserFacingName(
         Json{{"file_path",edit.at("filePath")},{"old_string","x"}});
     }
-    return std::string(shared->sandboxIndicatorEnabled&&shared->shouldUseSandbox(input)?"SandboxedBash":"Bash");
+    return std::string("Bash");
   };
   gadget.getGadgetUseSummary=[shared](const Json& input)->Json{
     const auto command=stringField(input,"command");if(command.empty())return nullptr;

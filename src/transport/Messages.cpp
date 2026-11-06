@@ -101,4 +101,28 @@ MessageRequest prepareMessageRequest(const Json& params,const Json& overrides,co
   for (const auto& key: {"betas","user_profile_id","workspace_id"}) body.erase(key);
   return {std::move(body),messageHeaders(modified,overrides,protocol)};
 }
+SerializedMessageRequest serializeMessageRequest(const Json& params,bool stream,
+    const Json& overrides,const MessagesProtocol& protocol) {
+  if (!params.is_object() || value::truthy(value::property(params,"output_format"))) {
+    auto prepared=prepareMessageRequest(params,overrides,protocol);
+    prepared.body["stream"]=stream;
+    return {value::stringify(prepared.body),std::move(prepared.headers)};
+  }
+  auto headers=messageHeaders(params,overrides,protocol);
+  static const std::string streamKey="stream";
+  const Json streamValue=stream;
+  std::vector<std::pair<std::string_view,const Json*>> members;
+  members.reserve(params.size()+1);
+  bool streamSeen=false;
+  for (auto it=params.begin();it!=params.end();++it) {
+    const auto& key=it.key();
+    if (key=="betas"||key=="user_profile_id"||key=="workspace_id") continue;
+    if (key==streamKey) { members.emplace_back(key,&streamValue); streamSeen=true; }
+    else members.emplace_back(key,&it.value());
+  }
+  if (!streamSeen) members.emplace_back(streamKey,&streamValue);
+  std::string body;
+  value::appendStringifiedObject(body,members);
+  return {std::move(body),std::move(headers)};
+}
 } // namespace batbox::transport

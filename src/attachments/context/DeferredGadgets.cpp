@@ -5,10 +5,6 @@
 
 namespace batbox::attachments::context {
 namespace {
-bool flag(const DeferralConfig& config,const std::string& name){
-  if(!config.feature)throw std::invalid_argument("Tool deferral feature import required");
-  return config.feature(name);
-}
 bool jsLess(const std::string& left,const std::string& right){
   return value::utf16CodeUnits(left)<value::utf16CodeUnits(right);
 }
@@ -17,19 +13,6 @@ bool isDeferredGadget(const gadgets::Gadget& gadget,const DeferralConfig& config
   if(gadget.alwaysLoad==true)return false;
   if(gadget.isMcp==true)return true;
   if(gadget.name==config.searchGadgetName)return false;
-  if(flag(config,"FORK_SUBAGENT")&&gadget.name==config.batGadgetName){
-    if(!config.forkSubagentEnabled)
-      throw std::invalid_argument("Forked-agent feature import required");
-    if(config.forkSubagentEnabled())return false;
-  }
-  if((flag(config,"KAIROS")||flag(config,"KAIROS_BRIEF"))&&
-     config.briefGadgetName&&gadget.name==*config.briefGadgetName)return false;
-  if(flag(config,"KAIROS")&&config.sendUserFileGadgetName&&
-     gadget.name==*config.sendUserFileGadgetName){
-    if(!config.replBridgeActive)
-      throw std::invalid_argument("Interactive bridge import required");
-    if(config.replBridgeActive())return false;
-  }
   return gadget.shouldDefer==true;
 }
 bool isGadgetSearchGadgetAvailable(const gadgets::Gadgets& pool,

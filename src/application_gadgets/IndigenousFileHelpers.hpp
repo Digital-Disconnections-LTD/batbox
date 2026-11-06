@@ -26,8 +26,6 @@ class IndigenousFileReadStash {
   struct Stats {std::size_t size;std::vector<std::string> entries;};
   ReadResult readFile(const std::string& path);
   std::string read(const std::string& path);
-  void invalidate(const std::string& path);
-  void clear();
   std::size_t size()const;
   Stats getStats()const;
 };

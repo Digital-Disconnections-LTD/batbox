@@ -59,9 +59,6 @@ struct Selection {
 std::shared_ptr<Snapshot> makeSnapshot(FactoryInputs inputs);
 Selection select(const std::shared_ptr<const Snapshot>& snapshot,
   const Json& permissionContext,const CatalogSettings& settings);
-Selection selectFull(const std::shared_ptr<const Snapshot>& snapshot,
-  const Json& permissionContext,const CatalogSettings& settings,
-  const std::function<CatalogImports(const Snapshot&)>& imports);
 
 class Roster {
   mutable std::mutex mutex_;

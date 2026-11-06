@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -33,6 +34,7 @@ struct InlinePalette {
   ftxui::Color progress = ftxui::Color::GrayDark;
   ftxui::Color system = ftxui::Color::Cyan;
   ftxui::Color error = ftxui::Color::Red;
+  ftxui::Color queued = ftxui::Color::GrayDark;
 };
 void setInlinePalette(const InlinePalette& palette);
 struct PresentationLayout {
@@ -51,20 +53,53 @@ class TranscriptLineCache {
 public:
   const std::vector<VisualLine>& lines(const interactive::TranscriptRow& row,
                                        std::size_t width);
+  // The number of lines, without wrapping a committed row's text again.
+  std::size_t lineCount(const interactive::TranscriptRow& row, std::size_t width);
+  // Whether every line of the row is in the committed set kept beside this
+  // cache (ScrollbackCursor). A row wrapped again starts uncommitted.
+  // Committed rows keep only their line count; the terminal holds the text.
+  bool committed(const interactive::TranscriptRow& row) const;
+  void markCommitted(const interactive::TranscriptRow& row);
+  // A live row `lead + text` whose text only grows (the streaming preview, a
+  // Gadget's partial input), wrapped as wrapTranscriptRow wraps it. Lines
+  // already wrapped are kept; only appended text is wrapped. The row is
+  // `head`'s first `headCount` lines followed by `tail`.
+  struct Growing {
+    const std::vector<VisualLine>* head = nullptr;
+    std::size_t headCount = 0;
+    const std::vector<VisualLine>* tail = nullptr;
+  };
+  Growing growing(const std::string& key, interactive::TranscriptRow::Kind kind,
+                  std::string_view lead, std::string_view text, std::size_t width);
   // Drops rows not requested since the previous sweep.
   void sweep();
 
 private:
   struct Entry {
+    // Rows with a revision are matched by it; others by their text.
+    std::uint64_t revision = 0;
     std::string text;
     interactive::TranscriptRow::Kind kind = interactive::TranscriptRow::Kind::System;
     bool transient = false;
     bool valid = false;
-    std::size_t width = 0;
+    bool committed = false;
+    std::size_t width = 0, count = 0;
     std::uint64_t used = 0;
     std::vector<VisualLine> lines;
   };
+  Entry& refresh(const interactive::TranscriptRow& row, std::size_t width);
+  struct GrowingEntry {
+    std::string lead,source;
+    // Bytes of source already wrapped into `lines`; the rest is re-wrapped
+    // into `tail` on each call.
+    std::size_t wrapped = 0;
+    interactive::TranscriptRow::Kind kind = interactive::TranscriptRow::Kind::System;
+    std::size_t width = 0;
+    std::uint64_t used = 0;
+    std::vector<VisualLine> lines, tail;
+  };
   std::unordered_map<std::string, Entry> entries_;
+  std::unordered_map<std::string, GrowingEntry> growing_;
   std::uint64_t generation_ = 0;
   std::size_t touched_ = 0;
 };
@@ -77,15 +112,18 @@ PresentationLayout layoutPresentation(const interactive::PresentationState& stat
                                       int columns, int rows,
                                       const std::unordered_set<std::string>* excluded,
                                       TranscriptLineCache* cache);
-std::vector<VisualLine> projectTranscriptLines(
-    const interactive::PresentationState& state, int columns);
+// Line counts and the top row of the body without copying any lines; the
+// visible lines are left empty.
+PresentationLayout layoutPresentationHeights(const interactive::PresentationState& state,
+                                             int columns, int rows,
+                                             TranscriptLineCache& cache);
+// The first body line the inline view shows, without copying any lines.
+std::size_t layoutTopRow(const interactive::PresentationState& state,
+                         int columns, int rows, TranscriptLineCache& cache);
 std::vector<VisualLine> projectCopyLines(
     const interactive::PresentationState& state, int columns);
 ftxui::Element renderPresentation(const interactive::PresentationState& state,
                                   ftxui::Dimensions dimensions);
-ftxui::Element renderPresentation(const interactive::PresentationState& state,
-                                  ftxui::Dimensions dimensions,
-                                  const std::unordered_set<std::string>& excluded);
 ftxui::Element renderPresentation(const interactive::PresentationState& state,
                                   ftxui::Dimensions dimensions,
                                   const std::unordered_set<std::string>& excluded,

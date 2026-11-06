@@ -25,7 +25,6 @@ void ApplicationRuntime::initialize(){
   require(static_cast<bool>(inputs_.readFileState),"file state cache");
   require(static_cast<bool>(inputs_.engine),"query engine");
   require(static_cast<bool>(inputs_.nowMs),"clock");
-  require(static_cast<bool>(inputs_.feature),"feature flags");
   require(static_cast<bool>(inputs_.onDetachedError),"detached error handler");
   require(static_cast<bool>(inputs_.makeQueryParams),"query parameters");
   require(static_cast<bool>(inputs_.bindSubmitProviders),"submit providers");
@@ -35,13 +34,22 @@ void ApplicationRuntime::initialize(){
   redrawSink_=inputs_.requestRedraw;
   auto weak=weak_from_this();
   queue_=std::make_unique<interactive::submit::CommandQueue>(inputs_.owner);
+  // Poetry sent while a turn runs is drawn from the queue until its message
+  // exists; nothing here is recorded in the Flight.
+  queue_->subscribe([weak]{if(auto self=weak.lock())
+    self->publishQueuedInputs(self->queuedInputs_.syncQueue(*self->queue_->snapshot(),
+      self->inputs_.presentation.messages));});
   auto messageServices=interactive::lifecycle::bindPresentationMessages(
     inputs_.presentation,[weak]{if(auto self=weak.lock())self->requestRedraw();});
   auto publishMessages=std::move(messageServices.publishMessages);
   messageServices.publishMessages=[weak,publish=std::move(publishMessages)](
       const interactive::TurnMessagesRef& values){
     publish(values);
-    if(auto self=weak.lock())self->recordTranscriptChanges(values);
+    if(auto self=weak.lock()){
+      self->publishQueuedInputs(self->queuedInputs_.syncMessages(
+        self->inputs_.presentation.messages));
+      self->recordTranscriptChanges(values);
+    }
   };
   messages_=std::make_unique<interactive::lifecycle::MessageState>(
     inputs_.initialMessages,std::move(messageServices));
@@ -51,6 +59,10 @@ void ApplicationRuntime::initialize(){
   ++inputs_.presentation.revision;
 
   turnState_=std::make_shared<interactive::QueryTurnState>();
+  turnState_->guard.subscribe(std::make_shared<bootstrap::Signal<>::Listener>([weak]{
+    if(auto self=weak.lock();self&&!self->turnState_->guard.isActive())
+      self->publishQueuedInputs(self->queuedInputs_.settle());
+  }));
   executionState_=std::make_shared<interactive::QueryExecutionState>();
   auto loadingServices=std::move(inputs_.loading);
   loadingServices.store=inputs_.store;
@@ -125,17 +137,24 @@ void ApplicationRuntime::setStreamSink(
   require(inputs_.owner.isOwnerThread(),"owner thread");
   streamSink_=std::move(sink);
 }
-void ApplicationRuntime::setModalSink(
-    std::function<void(std::optional<interactive::UiRequest>)> sink){
-  require(inputs_.owner.isOwnerThread(),"owner thread");
-  modalSink_=std::move(sink);
-}
 void ApplicationRuntime::setRedrawSink(std::function<void()> sink){
   require(inputs_.owner.isOwnerThread(),"owner thread");
   redrawSink_=std::move(sink);
 }
 void ApplicationRuntime::requestRedraw()const{
   if(redrawSink_)redrawSink_();
+}
+void ApplicationRuntime::publishQueuedInputs(bool changed){
+  if(!changed)return;
+  inputs_.presentation.queuedInputs=queuedInputs_.rows();
+  ++inputs_.presentation.revision;
+  requestRedraw();
+}
+std::optional<interactive::submit::PopEditableResult> ApplicationRuntime::takeQueued(
+    bool newestOnly,const std::string& input,std::size_t caret){
+  require(inputs_.owner.isOwnerThread(),"owner thread");
+  return interactive::submit::takeQueuedPoetry(*queue_,queuedInputs_,newestOnly,
+    input,caret,inputs_.nowMs());
 }
 interactive::submit::PoetrySubmitRequest ApplicationRuntime::poetryRequest(
     const std::string& text,const interactive::InputState& input)const{

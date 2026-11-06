@@ -1,5 +1,6 @@
-#include "interactive/InteractionController.hpp"
+#include "interactive/PresentationState.hpp"
 #include "interactive/text_input/TextEditorIndigenous.hpp"
+#include "keyboard_input/Keyboard.hpp"
 #include "text_width/IndigenousLayout.hpp"
 #include <iostream>
 #include <stdexcept>
@@ -33,42 +34,33 @@ int main(){
     ti::indigenousMetricsServices(intl,width,wrap),editorOptions,
     ti::indigenousEditorCallbacks(std::move(editorCallbacks)));
 
-  ix::InteractionImports imports;
-  imports.editPoetryKey=ti::bindPoetryEditor(editor);
-  imports.onTerminalResponse=[&](termio::ResponseRef response){
-    expect(response&&response->is_object(),"terminal reply object");
-    events.push_back("response");
+  keyboard_input::KeyParseState parser;
+  const auto feed=[&](const std::string& bytes){
+    auto parsed=keyboard_input::parseMultipleKeypresses(parser,
+      keyboard_input::Input{Json(bytes)});
+    parser=std::move(parsed.state);
+    for(const auto& item:parsed.keys){
+      if(const auto response=std::get_if<keyboard_input::ParsedResponse>(&item)){
+        expect(response->response&&response->response->is_object(),"terminal reply object");
+        events.push_back("response");continue;
+      }
+      if(const auto key=std::get_if<keyboard_input::KeyRef>(&item);key&&*key)
+        editor->onParsedKey(**key,state.input);
+    }
   };
-  imports.onMouse=[](keyboard_input::MouseRef){};
-  imports.onTerminalFocus=[](bool){};
-  imports.onSuspend=[]{throw std::logic_error("unexpected suspend");};
-  imports.onQueueBlocked=[](bool){};
-  imports.onCommandSettled=[](const ix::CommandDescriptor&,
-                              const ix::CommandCompletion&,bool){};
-  imports.onCommandError=[](const std::string& error){
-    throw std::runtime_error(error);};
-  std::string plain;
-  imports.writePlain=[&](std::string_view text){plain+=text;};
-  imports.onExit=[]{};
-  terminal_ftxui::Options driverOptions;
-  driverOptions.interactive=false;
-  auto app=ix::InteractionController::create(owner,driverOptions,state,
-                                             std::move(imports));
-  app->start();
-  app->onRawInput("a");
-  app->onRawInput("b");
-  app->onRawInput("\x1b[D");
-  app->onRawInput("Z");
+  feed("a");
+  feed("b");
+  feed("\x1b[D");
+  feed("Z");
   expect(state.input.text=="aZb"&&state.input.caretUtf16==2,
          "raw input to native grapheme editor");
-  app->onRawInput("\x7f");
+  feed("\x7f");
   expect(state.input.text=="ab"&&state.input.caretUtf16==1,
          "raw backspace to editor");
-  app->onRawInput("\x1b[?1;2c");
-  app->onRawInput("\r");
+  feed("\x1b[?1;2c");
+  feed("\r");
   expect(events.back()=="submit:ab","native submit");
   expect(events[events.size()-2]=="response","response before submit");
-  app->stop();
   const auto metrics=ti::indigenousMetricsServices(intl,width,wrap);
   for(const auto& chip:{std::string("[Pasted text #7 +40 lines]"),
                        std::string("[Pasted text #8 (4500 characters)]")}){

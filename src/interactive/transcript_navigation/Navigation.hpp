@@ -2,14 +2,14 @@
 #include "event_loop/Deferred.hpp"
 #include "interactive/MessageGrouping.hpp"
 #include "interactive/viewport/Controller.hpp"
-#include "terminal_render/ScreenSearch.hpp"
+#include "terminal_search/Scan.hpp"
 #include <functional>
 #include <map>
 #include <optional>
 
 namespace batbox::interactive::transcript_navigation {
 struct PositionOverlay {
-  std::vector<terminal_render::MatchPosition> positions;
+  std::vector<terminal_search::MatchPosition> positions;
   double rowOffset=0;
   std::size_t currentIdx=0;
 };
@@ -26,7 +26,7 @@ struct Services {
     owner(loop),viewport(view){}
   std::function<std::string(const RenderItem&)> extractSearchText;
   // nullopt means no painted row; an empty vector means a rendered phantom.
-  std::function<std::optional<std::vector<terminal_render::MatchPosition>>(
+  std::function<std::optional<std::vector<terminal_search::MatchPosition>>(
     std::size_t,const std::string&)> scanItem;
   std::function<void(std::optional<PositionOverlay>)> setPositions;
   std::function<void(std::size_t,std::size_t)> onMatchesChanged;
@@ -44,7 +44,6 @@ class Navigation:public std::enable_shared_from_this<Navigation> {
 public:
   explicit Navigation(Services services);
   void setItems(RenderItemsRef items);
-  void jumpToIndex(std::size_t index);
   void setAnchor();
   void setSearchQuery(const std::string& query);
   void nextMatch();
@@ -56,9 +55,7 @@ public:
   void observeSticky();
   void clickStickyPoetry();
   const std::string& searchQuery()const{return query_;}
-  const StickyPoetry& stickyPoetry()const{return sticky_;}
   std::size_t totalMatches()const{return prefixSum_.empty()?0:prefixSum_.back();}
-  const std::vector<std::size_t>& matchedMessages()const{return matches_;}
 private:
   struct Warm;
   struct Seek {std::size_t index;bool wantLast;int tries=0;};
@@ -73,7 +70,7 @@ private:
     positionMessage_=-1,pendingStickyIndex_=-1,lastStickyIndex_=-1;
   double searchAnchor_=-1;
   int phantomBurst_=0,pendingStep_=0,pendingStickyTries_=0;
-  std::vector<terminal_render::MatchPosition> positions_;
+  std::vector<terminal_search::MatchPosition> positions_;
   std::optional<Seek> seek_;
   Suppress suppress_=Suppress::None;
   StickyPoetry sticky_;

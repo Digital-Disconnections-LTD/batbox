@@ -24,7 +24,6 @@ struct HookResult {
   bool succeeded=false,blocked=false;
   std::optional<std::vector<std::string>> watchPaths;
   std::optional<std::string> systemMessage;
-  Json toJson()const;
 };
 struct CommandOutcome {
   std::string stdoutText,stderrText,output;
@@ -89,9 +88,6 @@ struct ExecutorServices {
 event_loop::Deferred<std::vector<HookResult>> executeHooksOutsideRepl(
   event_loop::Loop& loop,const HookDispatch& dispatch,
   const ExecutorServices& services,std::stop_token signal={});
-// Existing InstructionsLoaded boundary expects JSON array from this executor.
-std::function<event_loop::Deferred<Json>(HookDispatch)> bindOutsideReplExecutor(
-  event_loop::Loop& loop,ExecutorServices services,std::stop_token signal={});
 bool isAsyncHookJsonOutput(const Json& json);
 bool isSyncHookJsonOutput(const Json& json);
 } // namespace batbox::instructions::hooks::runtime

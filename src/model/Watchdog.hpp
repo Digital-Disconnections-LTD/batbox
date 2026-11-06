@@ -28,6 +28,13 @@ class StreamWatchdog {
   void run();
   void fireWarning(std::uint64_t generation);
   void fireTimeout(std::uint64_t generation);
+  // Scheduler timers stay armed across resets; when one fires before the
+  // idle time since the last reset is up, it re-arms for the rest. A fired
+  // timer's cancel stays stored, so clear() still waits for the owner loop.
+  void scheduleWarning(double delayMs,std::uint64_t generation);
+  void scheduleTimeout(double delayMs,std::uint64_t generation);
+  void onWarningTimer(std::uint64_t generation);
+  void onTimeoutTimer(std::uint64_t generation);
   WatchdogSettings settings_;
   std::function<void()> abort_;
   std::function<void()> warning_,timeout_;
@@ -38,6 +45,9 @@ class StreamWatchdog {
   std::thread timer_;
   std::chrono::steady_clock::time_point deadline_;
   std::chrono::steady_clock::time_point warningDeadline_;
+  std::chrono::steady_clock::time_point lastReset_;
+  bool warningPending_ = false;
+  bool timeoutPending_ = false;
   std::uint64_t generation_ = 0;
   bool armed_ = false;
   bool stopped_ = false;

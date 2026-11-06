@@ -2,6 +2,7 @@
 #include "application_shell/RuleMatch.hpp"
 #include "app_state/provider/PermissionHelpers.hpp"
 #include "runtime/JsonValue.hpp"
+#include "gadgets/files/FileWrite.hpp"
 #include "gadgets/web/Web.hpp"
 #include "interactive/gadget_views/GadgetViewModel.hpp"
 #include <stdexcept>
@@ -149,8 +150,11 @@ std::future<Json> PermissionProvider::check(const std::string& gadget,
   if(deniedByRule(gadget,content,permissionContext))
     return ready(deny("Permission denied by rule: "+exactRule));
   const auto mode=asString(field(rules,"mode"));
-  if(mode=="plan"&&(gadget=="Bash"||gadget=="Write"||gadget=="Edit"))
-    return ready(deny("Current permission mode does not allow this action"));
+  if(mode=="plan"&&gadget=="Bash")
+    return ready(deny("Plan mode is on, so Bash commands are blocked. Describe the command "
+      "you would run instead; the user can leave plan mode with /permissions."));
+  if(mode=="plan"&&(gadget=="Write"||gadget=="Edit"))
+    return ready(deny(gadgets::files::planModeFileChangeMessage));
   bool flightAllowed=false;
   {std::lock_guard lock(flightRulesMutex_);
     flightAllowed=flightAllowRules_.contains(exactRule);}

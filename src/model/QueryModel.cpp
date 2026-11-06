@@ -79,18 +79,13 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
   auto preflight = services.preparePreflightSegment
     ? services.preparePreflightSegment(input, services.preflight)
     : prepareQueryModel(input, services.preflight);
-  if (preflight.offSwitch) {
-    emitValue(yield, preflight.offSwitchMessage);
-    return result;
-  }
   if (services.addToTotalDurationState && !services.nowMillis)
     throw std::invalid_argument("API duration clock is required");
   const auto startIncludingRetries=services.nowMillis
     ?services.nowMillis():std::int64_t{};
   const std::string model = stringField(input.options, "model");
   const std::string querySource = stringField(input.options, "querySource");
-  auto paramsFromContext = [&](const retry::RetryContext& context) {
-    const Json retryContext=contextJson(context);
+  auto buildParams = [&](const Json& retryContext) {
     return services.buildParamsSegment
       ? services.buildParamsSegment(retryContext, preflight.capture,
           services.builder, services.wire, services.headers)
@@ -102,7 +97,23 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
   retry::RetryContext initialContext;
   initialContext.model = model;
   initialContext.thinkingConfig = input.thinkingConfig;
-  (void)paramsFromContext(initialContext);
+  Json initialRetryContext = contextJson(initialContext);
+  Json initialParams = buildParams(initialRetryContext);
+  // The next build sees the same capture, so the first attempt takes this
+  // result when it asks with the same retry context. Stashed microcompact
+  // consumes its edits per build, so those requests always rebuild.
+  std::optional<std::pair<Json, Json>> initialBuild;
+  if (!(preflight.capture.stashedMCEnabled && preflight.capture.provider == "firstParty"))
+    initialBuild.emplace(std::move(initialRetryContext), std::move(initialParams));
+  auto paramsFromContext = [&](const retry::RetryContext& context) {
+    const Json retryContext=contextJson(context);
+    if (initialBuild) {
+      auto built = std::move(*initialBuild);
+      initialBuild.reset();
+      if (built.first == retryContext) return std::move(built.second);
+    }
+    return buildParams(retryContext);
+  };
 
   StreamingAttemptState attemptState;
   std::shared_ptr<transport::WireClient> currentClient;
@@ -151,7 +162,7 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
     if (preflight.isFastMode) retryOptions.fastMode = true;
     Json response = executeNonStreamingRequest(retryOptions, std::move(nonstream));
     auto construct=[&]{return makeFallbackAssistantMessage(response,
-      services.normalizeFallbackContent,requestId,preflight.advisorModel,
+      services.normalizeFallbackContent,requestId,
       services.reducer.randomUUID,services.reducer.timestamp);};
     Json message=services.makeFallbackMessageSegment
       ? services.makeFallbackMessageSegment(construct) : construct();
@@ -201,17 +212,17 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
         attemptDeps.firstPartyProvider = preflight.capture.provider == "firstParty";
         attemptDeps.firstPartyBaseUrl = false;
         attemptDeps.injectCorrelationId = false;
-        attemptDeps.openStream = [&](const Json& params, const std::optional<std::string>& id) {
-          return openLiveStream(*currentClient, params, services.signal, id);
+        attemptDeps.openStream = [&](Json&& params, const std::optional<std::string>& id) {
+          return openLiveStream(*currentClient, std::move(params), services.signal, id);
         };
         try {
           if (services.prepareStreamingAttemptSegment ||
               services.finishStreamingAttemptSegment) {
-            const auto prepared=services.prepareStreamingAttemptSegment
+            auto prepared=services.prepareStreamingAttemptSegment
               ? services.prepareStreamingAttemptSegment(attempt,context,
                   attemptState,attemptDeps)
               : prepareStreamingAttempt(attempt,context,attemptState,attemptDeps);
-            auto response=attemptDeps.openStream(prepared.requestParams,
+            auto response=attemptDeps.openStream(std::move(prepared.requestParams),
               prepared.clientRequestId);
             opened=std::make_shared<OpenedStream>(
               services.finishStreamingAttemptSegment
@@ -241,7 +252,6 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
       services.reducer.model = model;
       services.reducer.resolvedModel = preflight.resolvedModel;
       services.reducer.requestId = result.streamRequestId.value_or("");
-      services.reducer.advisorModel = preflight.advisorModel.value_or("");
       services.reducer.maxOutputTokens = static_cast<int>(attemptState.maxOutputTokens);
       services.reducer.startMillis = attemptState.start;
       services.reducer.stashedMicrocompact = preflight.stashedMCEnabled;
@@ -321,8 +331,7 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
         fallback(is529Exception(streamingError) ? 1 : 0, result.streamRequestId);
       }
       if (!result.didFallBackToNonStreaming) {
-        PostStreamInputs completedStream{input.options,reducer.usage(),
-          input.messages,result.streamRequestId,&attemptState.streamResponse.headers};
+        PostStreamInputs completedStream{&attemptState.streamResponse.headers};
         if(services.processPostStreamSegment)
           services.processPostStreamSegment(completedStream,services.postStream);
         else processCompletedStream(completedStream,services.postStream);

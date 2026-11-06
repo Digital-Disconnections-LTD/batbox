@@ -1,10 +1,8 @@
 #include "diagnostics/LogDates.hpp"
 #include "runtime/IndigenousTime.hpp"
 #include <cmath>
-#include <cstdio>
 #include <ctime>
 #include <limits>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -50,34 +48,5 @@ double parseLogISOString(const std::string& text){
   if(!std::isfinite(milliseconds)||std::abs(milliseconds)>8.64e15)
     return std::numeric_limits<double>::quiet_NaN();
   return std::trunc(milliseconds);
-}
-
-std::string logDateISOString(double milliseconds){
-  if(!std::isfinite(milliseconds)||std::abs(milliseconds)>8.64e15)
-    throw std::range_error("Invalid time value");
-  const long long total=static_cast<long long>(std::trunc(milliseconds));
-  long long seconds=total/1000;
-  long long fraction=total%1000;
-  if(fraction<0){fraction+=1000;--seconds;}
-  const auto epoch=static_cast<std::time_t>(seconds);
-  std::tm utc{};
-  if(!runtime::gmtimeUtc(epoch,utc))throw std::range_error("Invalid time value");
-  const long long year=static_cast<long long>(utc.tm_year)+1900;
-  char result[64];
-  if(year>=0&&year<=9999)
-    std::snprintf(result,sizeof(result),"%04lld-%02d-%02dT%02d:%02d:%02d.%03lldZ",
-      year,utc.tm_mon+1,utc.tm_mday,utc.tm_hour,utc.tm_min,utc.tm_sec,fraction);
-  else
-    std::snprintf(result,sizeof(result),"%c%06lld-%02d-%02dT%02d:%02d:%02d.%03lldZ",
-      year<0?'-':'+',year<0?-year:year,utc.tm_mon+1,utc.tm_mday,
-      utc.tm_hour,utc.tm_min,utc.tm_sec,fraction);
-  return result;
-}
-
-std::string dateToFilename(double milliseconds){
-  auto filename=logDateISOString(milliseconds);
-  for(auto& character:filename)
-    if(character==':'||character=='.')character='-';
-  return filename;
 }
 }

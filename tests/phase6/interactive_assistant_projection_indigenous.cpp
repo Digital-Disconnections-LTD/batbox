@@ -80,10 +80,5 @@ int main() {
   assert(redacted);
   const auto redactedScreen = draw(*redacted);
   assert(redactedScreen.CellAt(0, 0).character == "✻");
-  const auto rateCard = projectRateLimitCard(
-      {"limited", "Opening your options…", true}, imports.palette);
-  const auto rateCardScreen = draw(rateCard);
-  assert(rateCardScreen.CellAt(5, 0).character == "l");
-  assert(rateCardScreen.CellAt(5, 1).character == "O");
-  std::cout << "8 native assistant projection cases pass\n";
+  std::cout << "7 native assistant projection cases pass\n";
 }

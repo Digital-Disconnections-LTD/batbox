@@ -13,6 +13,12 @@ error” works better with the error text, the command you ran, and what you exp
 File and shell gadgets run in your selected project. Use `--cwd PATH` at launch
 to choose it. Gadget approvals follow your configured permission mode.
 
+On Linux and macOS, Bash commands run in bash or zsh. Batbox uses
+`BATBOX_SHELL` when it names a bash or zsh it can run, then your `SHELL` when
+that is bash or zsh, then the first bash or zsh it finds on `PATH` or in
+`/bin`, `/usr/bin`, `/usr/local/bin` and `/opt/homebrew/bin`. With neither
+installed, it uses `/bin/sh`. On Windows, Bash commands run in Git Bash.
+
 ## The handy commands
 
 | Command | What it does |
@@ -26,13 +32,16 @@ to choose it. Gadget approvals follow your configured permission mode.
 | `/status` | Check the current flight, model, and usage. |
 | `/bats` | Watch every Bat's progress, open its conversation, or message it. |
 | `/missions` | See running Bats, background shells, and the Mission board. |
-| `/leader` | Return from a child conversation to the main conversation. |
+| `/leader` (or `/back`) | Return from a child conversation to the main conversation. |
 | `/memory` | Browse, edit, and refresh project and bat memory. |
+| `/project` | Show the `.batbox/` recovery files (`Makefile`, `00_project.md`, `10_memory.md`) and whether each loaded. `/project init` creates any that are missing at the project root, and `/project reload` reads them again. |
 | `/mcp` | Manage connected gadget servers. |
 | `/resume` | Pick a saved Flight; type to filter. `/resume <slug or title>` jumps straight to one. |
 | `/continue` | Resume the most recent Flight for this directory and its worktrees. |
 | `/rename` | Name the current Flight; with no name, Batbox suggests one. |
 | `/compact` | Summarize the current conversation. |
+| `/clear` (or `/reset`, `/new`) | Start a new Flight in the same window. The conversation empties, foreground Bats and shells stop, background Bats keep running, and the working directory returns to where you started. The old Flight stays in `/resume`. |
+| `/rewind` (or `/checkpoint`) | Pick one of your earlier messages and restore the conversation to just before it, the files Batbox's edit Gadgets changed since then, or both. Changes made through Bash or by hand are not restored. A restored conversation puts the message back in the input to edit. |
 | `/monster` | Meet your terminal’s little resident. |
 | `/exit` | Close Batbox cleanly. |
 
@@ -56,15 +65,18 @@ shows its saved transcript.
 Inside a Bat's conversation you follow its poetry, reasoning, gadgets, and
 replies, and send follow-ups directly. A message to a running Bat shows as queued
 until its next Gadget round delivers it; a message to a settled Bat resumes its
-existing history. `/bats` switches to another Bat, and `/leader` returns to your
-main conversation.
+existing history. `/bats` switches to another Bat, and `/leader` (or `/back`)
+returns to your main conversation.
 
 Ctrl+B from the leader view can background a foreground child. The Active
 Missions list under the input box shows running Bats, foreground or background,
 with their runtime, Gadget count, and latest line; a sub-Bat sits indented under
 the Bat that launched it. Alt+↓ and Alt+↑ step through the Bats, Alt+← (with an
 empty input) goes straight home to the main Flight, and Esc goes back one level.
-Click a row to open it, or press Ctrl+T to fold the list to one line. The Bat
+Click a row to open it, or press Ctrl+T to fold the list to one line. While the
+list shows Bats launched together, the conversation keeps a single line for
+them, such as `2 Bats launched`; when they finish, that row lists each Bat and
+its result again. The Bat
 you are in is marked with `▸`, and the status row turns into a breadcrumb such as
 `Flight › Audit the parser · Alt+↑↓ move · Alt+← home · Ctrl+T list`. See
 [Keyboard shortcuts](keyboard.md) for terminal setup. Custom Bat poetry live in
@@ -91,6 +103,13 @@ Agent progress shows each task's status and latest tool. Foreground agents retur
 their final results before the leader continues; progress events are display
 updates and are excluded from the leader's model requests.
 
+A background Bat's launch result tells the model that the Bat's result will
+arrive as a notification. When the model's next step needs that result, it waits
+with TaskOutput (`block: true`) instead of launching the Bat again; work that does
+not depend on the result comes first. A TaskOutput wait on a Bat lasts up to one
+hour by default (30 seconds for a background shell command), and a wait that ends
+first reports the Bat as still running, not failed.
+
 ## Choose how you fly
 
 Open `/permissions` (or `/permission`), move with the arrow keys, and press Enter
@@ -102,7 +121,7 @@ the selection applies to the current Flight and its launched Bats.
 | `default` | Ask when an action needs approval. |
 | `acceptEdits` | Approve ordinary file edits automatically. |
 | `bypassPermissions` | Skip all Gadget approval dialogs for the Flight and its Bats. |
-| `plan` | Keep the Flight in planning mode. |
+| `plan` | Keep the Flight in planning mode: Bash commands and file changes are blocked, and the model is told why. |
 | `dontAsk` | Deny actions that would need approval. |
 
 Launch directly with `batbox --yolo` or `batbox --dangerously-skip-permissions`.
@@ -151,6 +170,10 @@ At launch:
 - `batbox --resume dazzling-whistling-tide` resumes by slug, Flight id or title
   words. An ambiguous value lists the matches instead of guessing.
 
+When you leave Batbox it prints `batbox --resume <id>` (or the name you gave
+the Flight with `/rename`) so you can come straight back. Rewinding file edits
+works after a resume too, including edits made before it.
+
 A resumed Flight keeps the model and permission mode it last used unless you
 pass `--model`, `--profile`, `--permission-mode` or `--yolo` at launch.
 `bypassPermissions` is never restored on its own; pass `--yolo` again if you
@@ -163,10 +186,35 @@ On Windows, the same configuration root lives under `%USERPROFILE%\.batbox`.
 Fullscreen is the default; `--inline` selects the inline layout. Scrolling above
 live output holds your place. **Go to the action** returns to the latest output.
 `NO_COLOR=1` selects neutral colors.
+You can keep typing while Batbox works. Press Enter and the message appears at
+once at the bottom of the conversation, in the band your sent messages use but
+quieter, marked `queued · delivered at the next Gadget round`. The turn keeps
+running: the model reads the message after its current Gadgets finish, told
+that it arrived while it was working, and can change course before the turn
+ends. If the model is writing its final answer instead, the message goes out
+as soon as that answer ends, with the same note. Several messages stack in the
+order you sent them. When a message is delivered its row turns into an ordinary
+message where the model read it, and a resumed Flight shows it there too.
+Slash commands and `!` commands typed during a turn are queued the same way and
+marked `queued · runs when this turn ends`; they run on their own afterwards.
+Pasted images travel with their message. With the input empty, ↑ takes the
+newest queued message back into the input to edit; send it again with Enter.
+
+When a request to the model server fails and Batbox retries it, the error shows
+with a countdown, `Retrying in 2 seconds… (attempt 1/2)`. While Stop hooks run,
+the spinner shows what they report (their `statusMessage`) instead of its verb.
+
+Ask the model to do something later or on a schedule ("every weekday at 9",
+"in 20 minutes") and it can use CronCreate; the job runs as a prompt when
+Batbox is idle. See the `cron` settings in
+[Make your Roost comfortable](indigenous-configuration.md#settings-added-for-scheduling-cleanup-and-the-shell).
+
 Press Esc while a response is running to stop that turn. Batbox adds
 “Interrupted the Batbox. What should the model do differently?” to the
-transcript. Type your next instruction to continue. At the idle prompt, Esc
-retains its input editing behavior.
+transcript, and any messages still queued come back into the input, oldest
+first and ahead of anything you had typed, so nothing runs that you did not
+confirm and nothing is lost. Edit them or press Enter to continue. At the idle
+prompt, Esc retains its input editing behavior.
 
 To copy a range longer than the visible screen, press Ctrl+O for the transcript,
 then `c` for its copy view. Drag to select; hold the drag at the top or bottom
@@ -187,3 +235,12 @@ for JSON, or `--output-format stream-json --verbose` for streaming events. Run
 default and never wait for an approval dialog, including child Bats. An explicit
 `--permission-mode` overrides that default; actions requiring approval in a
 restrictive mode return a denial. A policy disabling bypass remains in effect.
+
+To see what Batbox is doing, start it with `--debug` (or `-d`). It copies every
+line of the application log for that run to `debug/<Flight id>.txt` in the
+state folder (`~/.batbox/state/` by default), and `debug/latest` points at the
+newest one. `--debug-file PATH` writes to PATH instead, and `--debug-to-stderr`
+writes to stderr, which suits `--print`. `--debug=hooks,checkpoint` keeps only
+lines that start with one of those words; `--debug=!checkpoint` drops them.
+Without these flags no debug log is written; `native.log` in the state folder
+keeps its usual record.

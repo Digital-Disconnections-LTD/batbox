@@ -1,5 +1,4 @@
 #include "skills/SkillGadgetFactory.hpp"
-#include "skills/usage/SkillUsage.hpp"
 #include "connectors/Abort.hpp"
 #include "runtime/JsonValue.hpp"
 #include <iostream>
@@ -30,17 +29,6 @@ int main(){
     ->std::vector<Json>{throw std::runtime_error("remote called local registry");};
   services.execution.lookup.findCommand=[](const std::string&,
       const std::vector<Json>&){return Json(nullptr);};
-  batbox::skills::usage::State usageState;
-  batbox::skills::usage::Services usageServices;
-  Json config=Json::object();
-  usageServices.nowMillis=[]{return std::int64_t{100000};};
-  usageServices.getGlobalConfig=[&]{return config;};
-  usageServices.saveGlobalConfig=[&](const std::function<Json(const Json&)>& update){
-    config=update(config);
-  };
-  services.execution.recordSkillUsage=[&](const std::string& name){
-    batbox::skills::usage::recordSkillUsage(name,usageState,usageServices);
-  };
   auto& remote=services.execution.remote;
   remote.enabled=[]{return true;};
   remote.stripCanonicalPrefix=[](const std::string& name)->std::optional<std::string>{
@@ -115,7 +103,5 @@ int main(){
     "See /cache/demo/README and session-1.","frontmatter and placeholders");
   check(invoked.at("content")==content&&invoked.at("agentId")=="worker-1",
     "compaction invoked-skill state");
-  check(config.at("skillUsage").at("_canonical_demo").at("usageCount")==1,
-    "native local usage persisted");
   std::cout<<"SkillTool remote factory native dispatch passed\n";
 }

@@ -11,7 +11,6 @@ int main(){
   imports.logForDebugging=[](const std::string&){};
   imports.dateNow=[](){return 111.0;};
   imports.random=[](){return 0.25;};
-  imports.defaultHookShell="bash";
   imports.hookEvents={"Stop"};
   auto store=std::make_shared<hooks::FlightHookStore>(std::move(imports));
   hooks::BatHookServices bat;

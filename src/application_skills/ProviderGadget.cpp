@@ -101,8 +101,6 @@ gadgets::Gadget Provider::makeGadget(){
       const std::string& id){
     application::onOwnerAndWait<void>(dispatcher,[invoked,id]{
       bootstrap::clearInvokedSkillsForBat(*invoked,id);});};
-  gadget.execution.recordSkillUsage=[diagnostic=inputs_.diagnostic](
-      const std::string& name){if(diagnostic)diagnostic("Skill invoked: "+name);};
   gadget.execution.has1mContext=[](const std::string&){return false;};
   gadget.execution.parseUserSpecifiedModel=[](const std::string& id){return id;};
   gadget.execution.modelSupports1M=[](const std::string&){return false;};

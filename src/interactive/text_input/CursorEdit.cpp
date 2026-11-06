@@ -34,11 +34,6 @@ CursorDeleteResult Cursor::deleteToLineEnd()const{
   const auto end=endOfLine();
   return {modifyText(end),value::slice(text(),offset_,end.offset_)};
 }
-Cursor Cursor::deleteToLogicalLineEnd()const{
-  const auto units=value::utf16CodeUnits(text());
-  if(offset_<units.size()&&units[offset_]==u'\n')return modifyText(right());
-  return modifyText(endOfLogicalLine());
-}
 CursorDeleteResult Cursor::deleteWordBefore()const{
   if(isAtStart())return {*this,{}};
   const auto target=snapOutOfReference(prevWord().offset_,true);

@@ -140,7 +140,7 @@ bool Controller::scrollToMounted(std::size_t index,double offset){
   if(!geometry||geometry->width<=0)return false;
   anchor_=geometry;anchorOffset_=offset;scroll_.sticky=false;scroll_.pendingDelta=0;requestRedraw_();return true;
 }
-std::optional<std::vector<terminal_render::MatchPosition>> Controller::scanItem(
+std::optional<std::vector<terminal_search::MatchPosition>> Controller::scanItem(
     std::size_t index,const std::string& query)const{
   const auto geometry=ranges_.itemGeometry(index);
   if(!geometry||geometry->height<=0||geometry->width<=0||index>=ranges_.keys().size())return {};

@@ -249,8 +249,6 @@ void highlight(){
     "diff lines");
   check(md::supportsSyntaxLanguage("TypeScript")&&!md::supportsSyntaxLanguage("cobol"),
     "language support");
-  check(md::languageForPath("src/lib.rs")=="rs"&&md::languageForPath("notes.txt").empty(),
-    "languages by file extension");
 }
 
 void markdownBlocks(){

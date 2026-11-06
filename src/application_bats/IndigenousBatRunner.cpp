@@ -57,7 +57,9 @@ std::string IndigenousBatApplication::nestingPoetry(std::size_t depth,
   return "You can launch Bats of your own with the Agent Gadget, nested up to "+
     std::to_string(below)+(below==1?" level":" levels")+" below you. They run in "
     "the foreground: you wait for each result, run_in_background is ignored, and "
-    "a Bat you launch stops when you finish or are stopped.";
+    "a Bat you launch stops when you finish or are stopped. Its result comes back "
+    "to you as the Agent result, so do not launch a second Bat for work one has "
+    "already done.";
 }
 void IndigenousBatApplication::prepareNestedRun(bats::RunBatParams& params)const{
   const auto& id=field(params.override,"agentId");
@@ -121,8 +123,6 @@ bats::RunBatPreflightServices IndigenousBatApplication::makeRunPreflight(){
   else services.getSystemContext=[get=inputs_.getSystemContext,dispatcher]{
     return application::onOwnerAndWait<Json>(dispatcher,get);
   };
-  services.getFeatureValue=[](const std::string&,bool fallback){return fallback;};
-  services.feature=[](const std::string&){return false;};
   return services;
 }
 bats::RunBatSetupServices IndigenousBatApplication::makeRunSetup(){
@@ -138,8 +138,6 @@ bats::RunBatSetupServices IndigenousBatApplication::makeRunSetup(){
   filters.exitPlanModeGadgetName="ExitPlanMode";
   filters.batGadgetName="Agent";
   filters.gadgetMatchesName=gadgets::gadgetMatchesName;
-  filters.isBatSwarmsEnabled=[]{return false;};
-  filters.isInProcessPartner=[]{return false;};
   filters.permissionRuleValueFromString=[](const std::string& spec){
     const auto parsed=settings::permissionRuleValueFromString(spec,
       settings::PermissionRuleServices{});
@@ -334,14 +332,12 @@ bats::RunBatLoopServices IndigenousBatApplication::makeRunLoop(){
   services.isBuiltInBat=[](const Json& definition){
     return field(definition,"source")=="built-in";
   };
-  services.feature=[](const std::string&){return false;};
   services.clearFlightHooks=[hooks=inputs_.hooks,
       dispatcher=inputs_.owner.dispatcher()](const auto&,
       const std::string& id){
     if(!hooks)return;
     application::onOwnerAndWait<void>(dispatcher,[hooks,id]{
       hooks->clearFlightHooks(id);});};
-  services.cleanupBatTracking=[](const std::string&){};
   services.clearReadFileStateStash=[](Json& stash){
     if(stash.is_array()||stash.is_object())stash.clear();
   };
@@ -354,8 +350,6 @@ bats::RunBatLoopServices IndigenousBatApplication::makeRunLoop(){
   };
   services.killShellMissionsForBat=[kill=inputs_.killShellMissionsForBat](
       const std::string& id,const bats::GetAppState&,const auto&){kill(id);};
-  services.killMonitorMcpMissionsForBat=[](const std::string&,
-      const bats::GetAppState&,const auto&){};
   return services;
 }
 } // namespace batbox::application_bats

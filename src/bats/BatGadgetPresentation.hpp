@@ -3,10 +3,10 @@
 #include <string>
 
 namespace batbox::bats {
-// Map a bat result into a gadget-result block using display names
-// supplied by the caller's Batbox gadget roster.
-Json mapBatGadgetResult(const Json& data,const std::string& gadgetUseId,
-  const std::string& fileReadGadgetName,const std::string& bashGadgetName);
+// The Gadget a caller blocks on to wait for a background Bat.
+inline constexpr const char* missionOutputGadgetName="TaskOutput";
+// Map a bat result into a gadget-result block.
+Json mapBatGadgetResult(const Json& data,const std::string& gadgetUseId);
 std::string batGadgetAutoClassifierInput(const Json& input);
 Json batGadgetActivityDescription(const Json& input);
 std::string batGadgetProgressText(const Json& progressMessages);

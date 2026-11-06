@@ -27,7 +27,7 @@ event_loop::Deferred<AsyncShellCommand> execManagedOnLoop(event_loop::Loop& loop
 struct AsyncExecRequest {
   std::string command;
   double timeoutMs=0;
-  bool preventCwdChanges=false,useSandbox=false,shouldAutoBackground=false;
+  bool preventCwdChanges=false,shouldAutoBackground=false;
 };
 struct AsyncRunInput {
   std::string command,description;
@@ -50,7 +50,6 @@ struct AsyncRunImports {
     std::function<void(const shell::PollSample&)>,
     std::function<void(std::exception_ptr)>)> startPolling;
   std::function<bool(const std::string&)> isAutoBackgroundAllowed;
-  std::function<bool(const AsyncRunInput&)> shouldUseSandbox;
   std::function<double()> nowMs,getDefaultTimeoutMs;
   std::function<void(std::exception_ptr)> onUnobservedError;
 };
@@ -65,7 +64,6 @@ struct AsyncRunStep {
   bool done=false;
   std::optional<shell::Progress> progress;
   std::optional<shell::ExecResult> result;
-  Json toJson()const;
 };
 class AsyncRunShellCommand {
   struct State;
@@ -76,9 +74,6 @@ public:
   // Demand-driven async-generator next(). Concurrent calls queue in order; each
   // yielded progress leaves the producer suspended.
   event_loop::Deferred<AsyncRunStep> next();
-  event_loop::Deferred<AsyncRunStep> returnValue(
-    std::optional<shell::ExecResult> value=std::nullopt);
-  event_loop::Deferred<AsyncRunStep> throwError(std::exception_ptr error);
   std::weak_ptr<void> lifetimeToken()const{return state_;}
 };
 } // namespace batbox::bash_gadget

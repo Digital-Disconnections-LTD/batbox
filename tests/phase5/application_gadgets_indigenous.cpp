@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include "application_gadgets/ApplicationGadgets.hpp"
 #include "application_gadgets/IndigenousFileHelpers.hpp"
-#include "gadgets/live_roster/ContextBinding.hpp"
+#include "interactive/context/ContextFactory.hpp"
 #include "mcp/ProcessResult.hpp"
 #include "mcp/StdioClient.hpp"
 #include "event_loop/Loop.hpp"
@@ -60,8 +60,6 @@ int main(int argc,char** argv){
     f.notifyEditor=[](const std::string&,const std::optional<std::string>&,
       const std::string&){};
     f.historyEnabled=f.lspAvailable=f.remoteDiffEnabled=[](){return false;};
-    f.checkTeamMemorySecrets=[](const std::string&,const std::string&)
-      ->std::optional<std::string>{return {};};
     f.localeCompare=[](const std::string& a,const std::string& b){return a.compare(b);};
     f.nowMs=[](){return 1000.0;};
     f.media.getGadgetResultsDir=[root]{return (root/"results").string();};
@@ -91,9 +89,6 @@ int main(int argc,char** argv){
     bash.commandHasAnyCd=[](const std::string&){return false;};
     bash.preparePermissionMatcher=[](const Json&){return ready(std::function<bool(const std::string&)>(
       [](const std::string&){return true;}));};
-    bash.shouldUseSandbox=[](const Json&){return false;};
-    bash.sandboxCommand=[](const std::string& command,const Json&,const Json&){return command;};
-    bash.annotateSandboxFailures=[](const std::string&,const std::string& text){return text;};
     bash.logDebug=[](const std::string&){};
     bash.recordHint=[](const Json&){};
     bash.resizeImage=[](const std::string&,const shell::ExecResult&)
@@ -152,7 +147,11 @@ int main(int argc,char** argv){
       const Json&){return false;};
     contextBindings.catalogSettings.localeCompare=[](const std::string& a,
       const std::string& b){return a.compare(b);};
-    gadgets::live_roster::bindContextGadgets(contextBindings,roster);
+    contextBindings.getMcpGadgets=[roster](const app_state::AppStateRef&){
+      return roster->current()->mcp;};
+    contextBindings.assembleGadgets=[roster,settings=contextBindings.catalogSettings](
+        const Json& permissions,const gadgets::Gadgets&){
+      return roster->selectCurrent(permissions,settings).gadgets;};
     const auto selected=contextBindings.assembleGadgets(Json::object(),
       contextBindings.getMcpGadgets({}));
     check(selected.size()==12&&selected.front()==live.snapshot->find("Agent"),

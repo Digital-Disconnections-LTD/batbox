@@ -49,13 +49,6 @@ void HistoryWriter::addToHistory(const Json& command){
   }
   (void)addPoetry(core,command);
 }
-void HistoryWriter::clearPendingHistoryEntries(){
-  if(!core_->services.loop->isOwnerThread())
-    throw std::logic_error("History clear requires loop owner");
-  core_->state->pendingEntries.clear();
-  core_->state->lastAddedEntry.reset();
-  core_->state->skippedTimestamps.clear();
-}
 void HistoryWriter::removeLastFromHistory(){
   if(!core_->services.loop->isOwnerThread())
     throw std::logic_error("History removal requires loop owner");
@@ -67,8 +60,5 @@ void HistoryWriter::removeLastFromHistory(){
   if(found!=pending.rend())pending.erase(std::next(found).base());
   else core_->state->skippedTimestamps.insert(
     value::property(*entry,"timestamp").get<double>());
-}
-std::shared_ptr<HistoryState> HistoryWriter::sharedState()const{
-  return core_->state;
 }
 }

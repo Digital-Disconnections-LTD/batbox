@@ -1,6 +1,5 @@
 #include "gadgets/bash/Accumulator.hpp"
 #include "runtime/JsonValue.hpp"
-#include "shell/ManagedShellInternal.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -19,15 +18,10 @@ void EndTruncatingAccumulator::append(std::string_view text){
     isTruncated_=true;
   }else content_+=text;
 }
-void EndTruncatingAccumulator::appendBuffer(std::string_view utf8Bytes){
-  append(shell::utf8WithReplacement(utf8Bytes));
-}
 std::string EndTruncatingAccumulator::toString()const{
   if(!isTruncated_)return content_;
   const auto removed=static_cast<double>(totalBytesReceived_)-maxSize_;
   const auto kilobytes=std::floor(removed/1024+0.5);
   return content_+"\n... [output truncated - "+value::numberToString(kilobytes)+"KB removed]";
 }
-void EndTruncatingAccumulator::clear(){content_.clear();isTruncated_=false;totalBytesReceived_=0;}
-std::size_t EndTruncatingAccumulator::length()const{return value::utf16CodeUnits(content_).size();}
 } // namespace batbox::bash_gadget

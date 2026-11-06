@@ -5,6 +5,7 @@
 #include "application_media/ClipboardImage.hpp"
 #include "runtime/AsyncLaunch.hpp"
 #include "runtime/JsonValue.hpp"
+#include <chrono>
 #include <algorithm>
 #include <cerrno>
 #include <charconv>
@@ -297,7 +298,6 @@ void Bundle::acceptPastedImage(const Json& content){
       self->inputs_.log("Pasted image cache write failed");
   });
 }
-void Bundle::clearStoredImagePaths(){storedPaths_.clear();pathOrder_.clear();}
 Deferred<Json> Bundle::getImageFromClipboard(){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Clipboard image owner required");
   return worker(inputs_.owner,[]{return indigenous::getImageFromClipboard();});
@@ -343,15 +343,24 @@ Deferred<Json> Bundle::extractPastedImages(const std::string& text){
     return Json{{"images",std::move(images)},{"text",std::move(remaining)}};
   });
 }
-Deferred<Unit> Bundle::cleanupOldImageStashes(){
+Deferred<Unit> Bundle::cleanupOldImageStashes(double cutoffMs,std::set<std::string> held){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Image cleanup owner required");
+  held.insert(inputs_.flightId());
   return worker(inputs_.owner,[base=inputs_.stateDirectory/"image-cache",
-      current=inputs_.flightId()]{
+      held=std::move(held),cutoffMs]{
+    const auto now=std::filesystem::file_time_type::clock::now();
+    const auto wall=std::chrono::system_clock::now();
     std::error_code error;
     for(std::filesystem::directory_iterator it(base,error),end;!error&&it!=end;
         it.increment(error)){
-      if(it->is_directory(error)&&it->path().filename()!=current)
-        std::filesystem::remove_all(it->path(),error);
+      if(!it->is_directory(error)||held.contains(it->path().filename().string())){
+        error.clear();continue;}
+      const auto changed=std::filesystem::last_write_time(it->path(),error);
+      if(error){error.clear();continue;}
+      const auto changedMs=std::chrono::duration_cast<std::chrono::milliseconds>(
+        (wall+std::chrono::duration_cast<std::chrono::system_clock::duration>(changed-now))
+          .time_since_epoch()).count();
+      if(static_cast<double>(changedMs)<cutoffMs)std::filesystem::remove_all(it->path(),error);
       error.clear();
     }
     return Unit{};

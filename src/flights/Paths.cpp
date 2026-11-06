@@ -10,7 +10,6 @@
 #include <vector>
 namespace batbox::flights {
 using shell::joinPosixPath;
-std::string Paths::getProjectsDir()const{return joinPosixPath(services.getConfigHome(),"projects");}
 std::string Paths::getTranscriptPath()const {
   const auto override=services.getFlightProjectDir();
   const auto project=override ? *override : services.getProjectDir(services.getOriginalCwd());
@@ -20,10 +19,6 @@ std::string Paths::getTranscriptPath()const {
 std::string Paths::getTranscriptPathForFlight(const std::string& flight)const {
   if(flight==services.getFlightId())return getTranscriptPath();
   return joinPosixPath(services.getProjectDir(services.getOriginalCwd()),flight+".jsonl");
-}
-std::string Paths::getFlightProjectTranscriptPath(const std::string& flight)const {
-  const auto override=services.getFlightProjectDir();
-  return joinPosixPath(override ? *override : services.getProjectDir(services.getOriginalCwd()),flight+".jsonl");
 }
 void Paths::setBatTranscriptSubdir(const std::string& bat,const std::string& subdir){subdirectories[bat]=subdir;}
 void Paths::clearBatTranscriptSubdir(const std::string& bat){subdirectories.erase(bat);}

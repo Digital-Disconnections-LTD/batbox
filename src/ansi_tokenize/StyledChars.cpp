@@ -11,15 +11,4 @@ StyledChars styledCharsFromTokens(const Tokens& tokens){
   }
   return result;
 }
-std::string styledCharsToString(const StyledChars& chars){
-  std::string result;
-  for(std::size_t i=0;i<chars.size();++i){
-    const auto& item=chars[i];
-    if(i==0)result+=ansiCodesToString(item.styles);
-    else result+=ansiCodesToString(diffAnsiCodes(chars[i-1].styles,item.styles));
-    result+=item.value;
-    if(i+1==chars.size())result+=ansiCodesToString(diffAnsiCodes(item.styles,{}));
-  }
-  return result;
-}
 } // namespace batbox::ansi_tokenize

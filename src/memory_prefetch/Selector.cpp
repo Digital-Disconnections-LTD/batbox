@@ -1,5 +1,9 @@
 #include "memory_prefetch/IndigenousIO.hpp"
+#include <algorithm>
+#include <cctype>
 #include <stdexcept>
+#include <string_view>
+#include <unordered_set>
 
 namespace batbox::memory_prefetch {
 namespace {
@@ -17,6 +21,84 @@ std::string joinGadgets(const std::vector<std::string>& gadgets){
   for(const auto& gadget:gadgets){if(!result.empty())result+=", ";result+=gadget;}
   return result;
 }
+// The selector needs the gist of the request, not a pasted log.
+constexpr std::size_t selectorQueryBytes=2000;
+const std::unordered_set<std::string>& stopWords(){
+  static const std::unordered_set<std::string> words{"the","and","for","with","that",
+    "this","from","what","how","are","was","were","you","your","can","not","but","all",
+    "any","use","using","into","about","have","has","does","did","why","when","where",
+    "which","will","would","should","could","there","their","them","then","than","its",
+    "our","out","get","got","let","may","also","just","make","more","some","such","only",
+    "please","need","want","like","here","these","those","been","being","each","other",
+    "very","now","one","two","new","see","way","who","yes","her","his","she","him","they"};
+  return words;
+}
+// Lowercase ASCII words of three or more bytes (UTF-8 letters kept whole),
+// with common English endings removed so that note/notes and deploy/deploying
+// compare equal.
+std::vector<std::string> keywords(std::string_view text){
+  std::vector<std::string> result;
+  std::string word;
+  const auto flush=[&]{
+    if(word.size()>=3&&!stopWords().contains(word)){
+      if(word.size()>4&&word.ends_with('s')&&!word.ends_with("ss"))word.pop_back();
+      for(const char* suffix:{"ing","ment","ed"}){
+        const std::string_view tail=suffix;
+        if(word.size()>tail.size()+3&&word.ends_with(tail)){
+          word.resize(word.size()-tail.size());break;
+        }
+      }
+      result.push_back(word);
+    }
+    word.clear();
+  };
+  for(const char c:text){
+    const auto byte=static_cast<unsigned char>(c);
+    if(byte>=0x80||std::isalnum(byte))
+      word.push_back(byte<0x80?static_cast<char>(std::tolower(byte)):c);
+    else flush();
+  }
+  flush();
+  return result;
+}
+}
+std::string boundedQuery(const std::string& text,std::size_t limit){
+  if(text.size()<=limit)return text;
+  auto cut=limit;
+  while(cut>0&&(static_cast<unsigned char>(text[cut])&0xC0)==0x80)--cut;
+  return text.substr(0,cut)+"\n[... "+std::to_string(text.size()-cut)+" more bytes not shown]";
+}
+std::vector<std::string> selectMemoriesByKeywords(const std::string& query,
+    const std::vector<instructions::MemoryHeader>& memories){
+  std::unordered_set<std::string> wanted;
+  for(auto& word:keywords(query))wanted.insert(std::move(word));
+  std::vector<std::pair<int,std::size_t>> scored;
+  for(std::size_t index=0;index<memories.size();++index){
+    const auto& memory=memories[index];
+    auto name=memory.filename;
+    if(name.ends_with(".md"))name.resize(name.size()-3);
+    std::unordered_set<std::string> nameWords,descriptionWords;
+    for(auto& word:keywords(name))nameWords.insert(std::move(word));
+    if(memory.description.is_string())
+      for(auto& word:keywords(memory.description.get<std::string>()))
+        descriptionWords.insert(std::move(word));
+    int score=0;
+    for(const auto& word:wanted){
+      if(nameWords.contains(word))score+=2;
+      else if(descriptionWords.contains(word))score+=1;
+    }
+    // One shared description word is too weak a signal on its own.
+    if(score>=2)scored.emplace_back(score,index);
+  }
+  std::stable_sort(scored.begin(),scored.end(),
+    [](const auto& a,const auto& b){return a.first>b.first;});
+  std::vector<std::string> selected;
+  for(const auto& [score,index]:scored){
+    (void)score;
+    selected.push_back(memories[index].filename);
+    if(selected.size()==5)break;
+  }
+  return selected;
 }
 event_loop::Deferred<std::vector<std::string>> selectRelevantMemories(
   const std::string& query,const std::vector<instructions::MemoryHeader>& memories,
@@ -27,7 +109,7 @@ event_loop::Deferred<std::vector<std::string>> selectRelevantMemories(
     throw std::invalid_argument("Memory selector requires model and sideQuery bindings");
   std::unordered_set<std::string> valid;
   for(const auto& memory:memories)valid.insert(memory.filename);
-  std::string user="Query: "+query+"\n\nAvailable memories:\n"+
+  std::string user="Query: "+boundedQuery(query,selectorQueryBytes)+"\n\nAvailable memories:\n"+
     instructions::formatMemoryManifest(memories);
   if(!recentGadgets.empty())user+="\n\nRecently used tools: "+joinGadgets(recentGadgets);
   Json schema={{"type","object"},
@@ -102,7 +184,10 @@ event_loop::Deferred<std::vector<RelevantMemory>> findRelevantMemories(
       if(!alreadySurfaced.contains(header.filePath))available.push_back(header);
     if(available.empty()){output.resolve({});return;}
     try{
-      auto selected=selectRelevantMemories(query,available,recentGadgets,
+      event_loop::Deferred<std::vector<std::string>> selected(services.loop);
+      if(services.selectByKeywords)
+        selected.resolve(selectMemoriesByKeywords(query,available));
+      else selected=selectRelevantMemories(query,available,recentGadgets,
         signal,services);
       selected.then([output,available=std::move(available)](
           const std::vector<std::string>* names,const std::exception_ptr& failure){

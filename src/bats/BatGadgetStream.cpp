@@ -88,9 +88,6 @@ ObservedBatMessage BatGadgetStream::nextObserved(){
   return {future,completion};
 }
 
-std::shared_future<std::optional<query::MessageRef>> BatGadgetStream::next(){
-  return nextObserved().future;
-}
 
 bool BatGadgetStream::returnWithin(std::chrono::milliseconds timeout){
   {

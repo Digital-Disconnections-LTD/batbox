@@ -71,17 +71,14 @@ std::shared_ptr<Compactor> makeCompactor(CompactBindingInputs inputs){
       return value::property(store->getState()->snapshot(),"settings");});
   };
   compact.progress=host->progress;compact.notification=host->notification;
+  compact.log=host->log;
   // Remote analytics collection is disabled; this callback does not
   // invalidate poetry stashes.
   compact.markPostCompaction=[]{ };
   compact.cleanupAfterCompact=[host](const std::optional<std::string>& source){
     compaction::CleanupServices cleanup;
-    cleanup.feature=host->messages->featureGate;
     // The enabled indigenous time-based microcompactor has no retained state.
     cleanup.resetMicrocompactState=[]{ };
-    cleanup.resetContextCollapse=[]{
-      throw std::logic_error("Context collapse cleanup needs a native provider");
-    };
     cleanup.clearUserContextStash=[poetry=host->poetry]{
       poetry->contextStash().clearUserContextStash();
     };
@@ -106,9 +103,6 @@ std::shared_ptr<Compactor> makeCompactor(CompactBindingInputs inputs){
     bootstrap::clearInvokedSkills(*state,preserved);
   };
   auto& workflow=compact.workflow;
-  workflow.feature=host->messages->featureGate;
-  workflow.poetry.feature=workflow.feature;
-  workflow.poetry.isProactiveActive=[]{return false;};
   workflow.createAttachmentMessage=[messages=host->messages](const Json& value){
     return *interactive::background::createAttachmentMessage(value,
       messages->randomUUID,messages->nowISO);
@@ -260,13 +254,17 @@ std::shared_ptr<Compactor> makeCompactor(CompactBindingInputs inputs){
 void bindCompactor(Inputs& engine,std::shared_ptr<Compactor> compactor){
   if(!compactor)throw std::invalid_argument("Compaction owner required");
   engine.autocompact=[compactor](const Json& messages,const execution::Context& context,
-      const Json& stash,const std::string& source,const Json& tracking,double freed){
-    return compactor->automatic(messages,context,stash,source,tracking,freed);
+      const Json& stash,const std::string& source,const Json& tracking){
+    return compactor->automatic(messages,context,stash,source,tracking);
   };
   engine.autocompactIndigenous=[compactor](const Json& messages,const execution::Context& context,
       const std::shared_ptr<bats::StashSafeParams>& stash,const std::string& source,
-      const Json& tracking,double freed){
-    return compactor->automatic(messages,context,stashJson(stash),source,tracking,freed,stash);
+      const Json& tracking){
+    return compactor->automatic(messages,context,stashJson(stash),source,tracking,stash);
+  };
+  engine.autocompactWouldRun=[compactor](const Json& messages,const execution::Context& context,
+      const std::string& source,const Json& tracking){
+    return compactor->automaticWouldRun(messages,context,source,tracking);
   };
 }
 } // namespace batbox::application_engine

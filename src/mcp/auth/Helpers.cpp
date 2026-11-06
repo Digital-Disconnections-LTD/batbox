@@ -1,12 +1,8 @@
 #include "mcp/auth/Provider.hpp"
 #include "mcp/auth/TokenSchema.hpp"
-#include "auth/oauth_client/FormUrl.hpp"
-#include "runtime/Url.hpp"
 #include "runtime/ArrayJoin.hpp"
 #include <openssl/evp.h>
 #include <array>
-#include <algorithm>
-#include <set>
 #include <stdexcept>
 
 namespace batbox::mcp::auth {
@@ -44,28 +40,6 @@ std::string getScopeFromMetadata(const Json& metadata){
   if(!scopes.is_array())return {};
   return value::arrayJoin(scopes," ");
 }
-std::string redactSensitiveUrlParams(const std::string& url){
-  const auto parsed=runtime::parseUrl(url);if(!parsed)return url;
-  const auto href=parsed->at("href").get<std::string>();
-  const auto question=href.find('?');if(question==std::string::npos)return href;
-  const auto fragment=href.find('#',question);
-  auto query=::batbox::auth::oauth_client::parseFormQuery(
-    std::string_view(href).substr(question+1,fragment==std::string::npos?
-      std::string::npos:fragment-question-1));
-  static const std::set<std::string> sensitive={"state","nonce","code_challenge","code_verifier","code"};
-  bool changed=false;
-  for(const auto& key:sensitive){
-    bool first=true;
-    query.erase(std::remove_if(query.begin(),query.end(),[&](auto& entry){
-      if(entry.first!=key)return false;
-      changed=true;if(!first)return true;
-      first=false;entry.second="[REDACTED]";return false;
-    }),query.end());
-  }
-  if(!changed)return href;
-  return href.substr(0,question)+'?'+::batbox::auth::oauth_client::serializeFormQuery(query)+
-    (fragment==std::string::npos?std::string{}:href.substr(fragment));
-}
 http::Response normalizeOAuthErrorBody(http::Response response){
   if(!response.ok())return response;
   const auto parsed=Json::parse(response.body,nullptr,false);
@@ -96,19 +70,5 @@ void clearServerTokensFromLocalStorage(const std::string& name,const Json& confi
     const ::batbox::auth::storage::Storage& storage){
   auto data=read(storage);auto& entries=data["mcpOAuth"];
   if(entries.is_object()&&entries.erase(getServerKey(name,config)))storage.update(data);
-}
-void saveMcpClientSecret(const std::string& name,const Json& config,const std::string& secret,
-    const ::batbox::auth::storage::Storage& storage){
-  auto data=read(storage);data["mcpOAuthClientConfig"][getServerKey(name,config)]=
-    Json{{"clientSecret",secret}};storage.update(data);
-}
-void clearMcpClientConfig(const std::string& name,const Json& config,
-    const ::batbox::auth::storage::Storage& storage){
-  auto data=read(storage);auto& entries=data["mcpOAuthClientConfig"];
-  if(entries.is_object()&&entries.erase(getServerKey(name,config)))storage.update(data);
-}
-Json getMcpClientConfig(const std::string& name,const Json& config,
-    const ::batbox::auth::storage::Storage& storage){
-  return value::property(property(read(storage),"mcpOAuthClientConfig"),getServerKey(name,config));
 }
 } // namespace batbox::mcp::auth

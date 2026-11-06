@@ -55,8 +55,6 @@ class FileStateStash {
   Entries entries()const;
   Dump dump()const;
   void load(const Dump& entries);
-  Json dumpJson()const;
-  void loadJson(const Json& entries);
  private:
   struct Entry {std::string key;Value value;std::size_t size;};
   std::size_t maxEntries_,maxSizeBytes_,calculatedSize_=0;
@@ -70,10 +68,7 @@ class FileStateStash {
 
 std::shared_ptr<FileStateStash> createFileStateStashWithSizeLimit(
   std::size_t maxEntries,std::size_t maxSizeBytes=DEFAULT_MAX_STASH_SIZE_BYTES);
-FileStateStash::Entries stashToObject(const FileStateStash& stash);
 Json stashToJson(const FileStateStash& stash);
 std::vector<std::string> stashKeys(const FileStateStash& stash);
 std::shared_ptr<FileStateStash> cloneFileStateStash(const FileStateStash& stash);
-std::shared_ptr<FileStateStash> mergeFileStateStashes(
-  const FileStateStash& first,const FileStateStash& second);
 } // namespace batbox::file_state_stash

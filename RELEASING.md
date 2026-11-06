@@ -12,7 +12,7 @@ update in the Homebrew tap
    ```sh
    cmake --build build/indigenous-checks -j8
    ctest --test-dir build/indigenous-checks -j8
-   ./build/indigenous-checks/batbox --version   # batbox x.y.z
+   ./build/indigenous-checks/batbox --version   # batbox x.y.z, then commit and build date
    ```
 
    Merge the bump to `main`.

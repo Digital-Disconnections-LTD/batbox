@@ -9,6 +9,5 @@ std::function<app_state::AppStateRef()> createTypedBatGetAppState(
   std::function<app_state::AppStateRef()> parentGetAppState,
   Json batDefinition,bool isAsync,
   std::optional<bool> canShowPermissionPoetryEntries,
-  std::optional<Json> allowedGadgets,
-  std::function<bool(const std::string&)> feature);
+  std::optional<Json> allowedGadgets);
 } // namespace batbox::bats

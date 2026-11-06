@@ -36,7 +36,7 @@ instructions::MemoryPathServices memoryPaths(const application::Config& config,
   else if(const auto home=environment("USERPROFILE"))paths.homeDirectory=*home;
 #endif
   for(const auto& key:{paths.keys.disableAutoMemory,paths.keys.simpleMode,
-      paths.keys.remoteMode,paths.keys.remoteMemoryDir,
+      paths.keys.remoteMemoryDir,
       paths.keys.fullPathOverride})
     if(const auto value=environment(key.c_str()))paths.environment[key]=*value;
   auto finder=git_filesystem::indigenousRootFinder();
@@ -72,14 +72,13 @@ std::string loadBatMemoryPoetry(const Json& definition,
     runtime::pathToUtf8(config.cwd),paths);
   instructions::MemoryPoetryServices services;
   services.paths=std::move(paths);
-  services.originalCwd=runtime::pathToUtf8(config.cwd);
   services.logDebug=diagnostic;
   instructions::ensureMemoryDirExists(directory,services);
   std::vector<std::string> guidelines={scopeNote(scope)};
   if(const auto extra=environment("BATBOX_COWORK_MEMORY_EXTRA_GUIDELINES"))
     if(!value::trim(*extra).empty())guidelines.emplace_back(*extra);
   return instructions::buildMemoryPoetry("Persistent Agent Memory",
-    directory,guidelines,services);
+    directory,guidelines);
 }
 std::string batSystemPoetryText(const Json& definition,
     const std::string& fallback,const application::Config& config,

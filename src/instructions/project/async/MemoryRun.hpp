@@ -37,7 +37,6 @@ struct MemoryRun:std::enable_shared_from_this<MemoryRun> {
   void additionalDot();
   void additionalRules();
   void autoMemory();
-  void teamMemory();
   void finish();
 };
 } // namespace batbox::instructions::project::async

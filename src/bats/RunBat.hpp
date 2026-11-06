@@ -36,8 +36,6 @@ struct RunBatPreflightServices {
   std::function<Json(std::size_t)> createFileStateStashWithSizeLimit;
   std::size_t readFileStateStashSize=file_state_stash::READ_FILE_STATE_STASH_SIZE;
   std::function<Json()> getUserContext,getSystemContext;
-  std::function<bool(const std::string& name,bool fallback)> getFeatureValue;
-  std::function<bool(const std::string&)> feature;
 };
 struct RunBatPreflight {
   Json appState,permissionMode;
@@ -121,13 +119,11 @@ struct RunBatLoopServices {
   std::function<bool(const Json&)> isBuiltInBat;
   std::function<void(const std::function<void(const std::function<Json(const Json&)>&)>&,
     const std::string& batId)> clearFlightHooks;
-  std::function<bool(const std::string&)> feature;
-  std::function<void(const std::string&)> cleanupBatTracking;
   std::function<void(Json&)> clearReadFileStateStash;
   std::function<void(const std::string&)> clearBatTranscriptSubdir;
   std::function<void(const std::string& batId,const GetAppState&,
     const std::function<void(const std::function<Json(const Json&)>&)>&)>
-    killShellMissionsForBat,killMonitorMcpMissionsForBat;
+    killShellMissionsForBat;
 };
 void runBat(const RunBatParams& params,RunBatPreflightServices& preflightServices,
   RunBatSetupServices& setupServices,RunBatLoopServices& loopServices,

@@ -93,7 +93,9 @@ void appendMessageRows(PresentationState& state, const MessageRef& message) {
   const auto rowStart = state.transcriptRows.size();
   const auto type = string(*message, "type");
   const auto id = string(*message, "uuid");
-  if (type == "assistant" || type == "user") {
+  if (type == "user" && value::truthy(value::property(*message, "isMeta"))) {
+    // Context for the model only; the full-screen list hides it too.
+  } else if (type == "assistant" || type == "user") {
     const auto* inner = member(*message, "message");
     const auto* content = inner ? member(*inner, "content") : nullptr;
     if (content)
@@ -114,11 +116,20 @@ void appendMessageRows(PresentationState& state, const MessageRef& message) {
   } else if (type == "attachment") {
     const auto* attachment = member(*message, "attachment");
     auto text = attachment ? string(*attachment, "type") : "attachment";
-    append(state, TranscriptRow::Kind::System, id, "[" + text + "]");
+    const auto mode = attachment ? string(*attachment, "commandMode") : "";
+    if (text == "queued_command" && (mode.empty() || mode == "prompt") &&
+        !member(*attachment, "origin") &&
+        !value::truthy(value::property(*attachment, "isMeta"))) {
+      // Poetry delivered mid-turn is the user's message.
+      const auto* prompt = member(*attachment, "prompt");
+      append(state, TranscriptRow::Kind::User, id, prompt ? contentText(*prompt) : "");
+    } else append(state, TranscriptRow::Kind::System, id, "[" + text + "]");
   }
-  for (std::size_t i = rowStart; i < state.transcriptRows.size(); ++i)
+  for (std::size_t i = rowStart; i < state.transcriptRows.size(); ++i) {
     state.transcriptRows[i].scrollbackId = std::to_string(token->second) +
         ":" + std::to_string(i - rowStart);
+    state.transcriptRows[i].revision = state.nextTranscriptRowRevision++;
+  }
 }
 } // namespace
 
@@ -157,12 +168,25 @@ void rebuildTranscriptRows(PresentationState& state) {
     }
 }
 
-std::optional<std::string> visibleStreamingText(const PresentationState& state) {
+std::string queuedInputMarker(const QueuedInput& input) {
+  return input.kind == QueuedInput::Kind::Shell ? "!" : "❯";
+}
+
+std::vector<std::string> queuedInputLabels(const QueuedInput& input) {
+  // Same voice as a Bat's follow-up notice; commands and ! runs wait for
+  // the turn to finish.
+  if (input.kind == QueuedInput::Kind::Poetry)
+    return {"queued · delivered at the next Gadget round",
+            "queued · next Gadget round", "queued"};
+  return {"queued · runs when this turn ends", "queued"};
+}
+
+std::optional<std::string_view> visibleStreamingTextView(const PresentationState& state) {
   if (!state.loading || !state.showStreamingText || !state.streamingText ||
       state.streamingText->empty()) return std::nullopt;
   const auto last = state.streamingText->rfind('\n');
   if (last == std::string::npos) return std::nullopt;
-  const auto visible = state.streamingText->substr(0, last + 1);
-  return visible.empty() ? std::nullopt : std::optional<std::string>{visible};
+  return std::string_view(*state.streamingText).substr(0, last + 1);
 }
+
 } // namespace batbox::interactive

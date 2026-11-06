@@ -12,9 +12,6 @@ ThinkingCard classifyThinking(const std::string& thinking, bool addMargin,
   return {ThinkingKind::Expanded, thinking, addMargin};
 }
 
-ThinkingCard classifyRedactedThinking(bool addMargin) {
-  return {ThinkingKind::Redacted, {}, addMargin};
-}
 
 ThinkingCard thinkingFromBlock(const Json& block, bool addMargin,
                                bool transcriptMode, bool verbose,

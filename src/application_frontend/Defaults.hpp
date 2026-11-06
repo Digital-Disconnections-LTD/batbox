@@ -38,16 +38,13 @@ struct Inputs {
   std::shared_ptr<application_history::Bundle> history;
   std::shared_ptr<application_file_history::History> fileHistory;
   bool persistOnTurnComplete=true;
-  std::function<bool(const std::string&)> feature;
   std::function<void(const std::string&)> log;
   std::function<void(const std::string&)> showImmediateNotice;
   std::function<void(std::exception_ptr)> onError;
   std::function<void()> redraw,shutdown;
   std::function<std::shared_ptr<application_runtime::ApplicationRuntime>()> getRuntime;
   std::function<std::shared_ptr<interactive::conversation_shell::Shell>()> getShell;
-  std::function<void()> resetMicrocompactState,resetContextCollapse;
-  std::function<event_loop::Deferred<bool>(value::ValueRef,const std::string&)>
-    fileHistoryHasAnyChanges;
+  std::function<void()> resetMicrocompactState;
   std::function<event_loop::Deferred<Json>(const std::string&,const Json&,
     const Json&,const Json&,const std::optional<std::string>&)> attachments;
   std::function<event_loop::Deferred<Json>(const Json&)> resizeImage,storeImages;
@@ -64,9 +61,7 @@ struct Inputs {
   std::function<event_loop::Deferred<std::optional<std::string>>(
     const std::string&)> generateFlightTitle;
   std::function<std::shared_ptr<interactive::TurnAbort>()> activeAbort;
-  std::function<bool()> hasInterruptibleGadgetInProgress;
   std::function<void(const interactive::InteractiveQueryContext&)> onQueryContextCreated;
-  std::function<void(const interactive::TurnMessagesRef&)> launchMonsterObserver;
   Json initialMcpClients=Json::array();
 };
 class Bundle final:public std::enable_shared_from_this<Bundle> {
@@ -77,7 +72,6 @@ public:
     std::vector<user_input::CommandEntry> commands,
     Json initialMcpClients=Json(),
     std::shared_ptr<application_file_history::History> fileHistory={});
-  event_loop::Deferred<event_loop::Unit> editMessage(interactive::MessageRef message);
   void openRewind();
 private:
   Bundle(application_runtime::Inputs& runtime,Inputs inputs);
@@ -94,8 +88,6 @@ private:
   std::shared_ptr<app_state::AppStateStore> store_;
   Inputs inputs_;
   std::vector<user_input::CommandEntry> commands_;
-  std::size_t submitCount_=0;
-  double lastInteractionMs_=0;
   std::shared_ptr<interactive::navigation::Rewind> rewind_;
 };
 bool selectableUserMessage(const interactive::TurnMessageRef& message);

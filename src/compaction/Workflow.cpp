@@ -22,7 +22,9 @@ void append(Json& target,const Json& source) {for(const auto& item:source)target
 }
 void addErrorNotificationIfNeeded(const std::string& error,Context& context) {
   if(error!=ERROR_USER_ABORT && error!=ERROR_NOT_ENOUGH_MESSAGES && context.addNotification)
-    context.addNotification({{"key","error-compacting-conversation"},{"text","Error compacting conversation"},
+    context.addNotification({{"key","error-compacting-conversation"},
+      {"text",error.empty()?std::string("Error compacting conversation"):
+        "Error compacting conversation: "+error},
       {"priority","immediate"},{"color","error"}});
 }
 Json createCompactCanUseGadget() {
@@ -57,7 +59,7 @@ Json compactConversation(const Json& messages,Context& context,const Json& stash
       summary=messages::getAssistantMessageText(response);
       if(!summary || !summary->starts_with("Prompt is too long"))break;
       ++attempts;
-      auto truncated=attempts<=3 ? truncateHeadForPTLRetry(summarize,response,services.helpers) : Json();
+      auto truncated=attempts<=services.promptTooLongRetries ? truncateHeadForPTLRetry(summarize,response,services.helpers) : Json();
       if(truncated.is_null())throw std::runtime_error(ERROR_POETRY_TOO_LONG);
       summarize=truncated;
       if(retryIndigenous) {
@@ -67,7 +69,10 @@ Json compactConversation(const Json& messages,Context& context,const Json& stash
       retryStash["forkContextMessages"]=std::move(truncated);
     }
     if(!summary || summary->empty())throw std::runtime_error("Failed to generate conversation summary - response did not contain valid text content");
-    if(services.startsWithApiErrorPrefix(*summary))throw std::runtime_error(*summary);
+    if(services.startsWithApiErrorPrefix(*summary)){
+      if(isTimeoutText(*summary))throw CompactionTimeout("The summary request timed out ("+*summary+")");
+      throw std::runtime_error(*summary);
+    }
     const auto readState=context.snapshotReadFileState();
     context.clearReadFileState();
     if(context.clearLoadedNestedMemoryPaths)context.clearLoadedNestedMemoryPaths();
@@ -104,14 +109,13 @@ Json compactConversation(const Json& messages,Context& context,const Json& stash
       boundary["compactMetadata"]["preCompactDiscoveredTools"]=std::move(names);
     }
     auto summaries=Json::array({services.createUserMessage({{"content",getCompactUserSummaryMessage(*summary,suppress,
-      services.getTranscriptPath(),false,services.poetry)},{"isCompactSummary",true},{"isVisibleInTranscriptOnly",true}})});
+      services.getTranscriptPath())},{"isCompactSummary",true},{"isVisibleInTranscriptOnly",true}})});
     const auto callTokens=services.tokenCountFromLastAPIResponse(Json::array({response}));
     Json after=Json::array({boundary});append(after,summaries);append(after,attachments);append(after,hookMessages);
     const auto postTokens=services.roughTokenCountEstimationForMessages(after);
     const auto usage=services.getTokenUsage(response);
     services.markPostCompaction();
     services.reAppendFlightMetadata();
-    if(services.feature("KAIROS") && services.writeFlightTranscriptSegment)services.writeFlightTranscriptSegment(messages);
     progress(context,{{"type","hooks_start"},{"hookType","post_compact"}});
     const auto postHooks=services.executePostCompactHooks({{"trigger",automatic ? "auto" : "manual"},
       {"compactSummary",*summary}},context.signal);

@@ -51,7 +51,6 @@ int main(){
     messages->randomUUID=platform::randomUUID;
     messages->nowISO=[]{return platform::isoTimestamp();};
     messages->strictGadgetResultPairing=[]{return true;};
-    messages->featureGate=[](const std::string&){return false;};
     messages->logError=[](const std::string&){};
     application_flights::Inputs flightInputs(owner);
     flightInputs.config=config;flightInputs.flightId="fixture-session";

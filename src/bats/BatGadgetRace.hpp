@@ -15,10 +15,4 @@ struct BatGadgetRaceResult {
 BatGadgetRaceResult raceBatMessageAndBackground(
   ObservedBatMessage nextMessage,
   const std::optional<ObservedBackgroundSignal>& backgroundSignal);
-
-// Legacy shared_future bridge retained for isolated callers without producer
-// observation. It samples readiness and is not used by BatGadgetForeground.
-BatGadgetRaceResult raceBatMessageAndBackground(
-  std::shared_future<std::optional<query::MessageRef>> nextMessage,
-  const std::optional<std::shared_future<void>>& backgroundSignal);
 } // namespace batbox::bats

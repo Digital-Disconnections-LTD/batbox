@@ -49,7 +49,6 @@ model::QueryServices LocalServiceBuilder::makeServices(){
     local.state_.totalAPIDuration+=includingRetries;
     local.state_.totalAPIDurationWithoutRetries+=finalAttempt;
   };
-  service.postStream.poetryStashBreakFeature=[]{return false;};
   service.postStream.extractQuotaStatusFromHeaders=[&local](const Json& headers){
     std::lock_guard lock(local.mutex_);local.state_.lastQuotaHeaders=headers;
   };
@@ -67,10 +66,17 @@ model::QueryServices LocalServiceBuilder::makeServices(){
     throw std::invalid_argument("Unconfigured local model: "+modelName);
   const auto profile=found->second;
   const auto& baseUrl=profile.client?profile.client->baseUrl:runtime.config.client.baseUrl;
-  if(profile.provider!=transport::kProviderAnthropic||transport::isLoopbackUrl(baseUrl)){
+  if(profile.provider!=transport::kProviderAnthropic||profile.local||
+      transport::isLoopbackUrl(baseUrl)){
     service.retry.maxRetriesCap=2;
     service.retry.maxRetryDelayMs=2000;
   }
+  // Endpoint request limits reach the model layer through its environment
+  // keys (docs/request-limits.md).
+  service.disableFallbackFeature=service.disableFallbackFeature||!profile.nonStreamingFallback;
+  service.environment["API_TIMEOUT_MS"]=value::numberToString(profile.nonStreamingTimeoutMs);
+  if(profile.maxRetries)
+    service.retry.env["BATBOX_MAX_RETRIES"]=std::to_string(*profile.maxRetries);
   if(const auto baseSegment=local.imports_.buildParamsSegment){
     std::map<std::string,bool> sendDisabledByProfile;
     for(const auto& [id,configured]:runtime.config.profiles)

@@ -2,6 +2,7 @@
 #include "application_connectors/Status.hpp"
 #include "application_shell/RuleMatch.hpp"
 #include "formatting/Format.hpp"
+#include "fs_operations/IndigenousPathChecks.hpp"
 #include "mcp/Collapse.hpp"
 #include "mcp/OutputStorage.hpp"
 #include "mcp/ProcessResult.hpp"
@@ -11,6 +12,7 @@
 #include "gadgets/mission_stop/MissionStop.hpp"
 #include "gadgets/mission_management/Gadgets.hpp"
 #include "runtime/JsonValue.hpp"
+#include "process/IndigenousJsonlProcess.hpp"
 #include "interactive/gadget_views/GadgetViewModel.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
@@ -79,13 +81,6 @@ std::string inputSummary(const Json& input){
     if(text.size()>120)break;
   }
   return gv::sanitize(text);
-}
-bool isSettingsFile(const std::string& file){
-  auto path=std::filesystem::path(file).lexically_normal().generic_string();
-  std::transform(path.begin(),path.end(),path.begin(),[](unsigned char c){
-    return static_cast<char>(std::tolower(c));});
-  return path.ends_with("/.claude/settings.json")||
-    path.ends_with("/.claude/settings.local.json");
 }
 std::string settingsIssues(const Json& issues){
   std::string result;
@@ -158,11 +153,25 @@ bool underDirectory(const std::filesystem::path& source,
   const auto relative=source.lexically_relative(directory);
   return !relative.empty()&&!relative.is_absolute()&&*relative.begin()!="..";
 }
-bool inWorkingDirectories(const std::string& requested,const std::string& cwd,
-    const Json& context){
-  const auto absolute=std::filesystem::path(requested).is_absolute()
-    ?std::filesystem::path(requested):(std::filesystem::path(cwd)/requested);
-  const auto lexical=absolute.lexically_normal();
+std::filesystem::path absolutePath(const std::string& requested,const std::string& cwd){
+  return (std::filesystem::path(requested).is_absolute()?std::filesystem::path(requested):
+    (std::filesystem::path(cwd)/requested)).lexically_normal();
+}
+// Every name a path goes by: as written, each symlink hop and the real path.
+std::vector<std::filesystem::path> permissionPaths(const std::string& requested,
+    const std::string& cwd){
+  const auto written=requested.starts_with('~')?requested:absolutePath(requested,cwd).string();
+  std::vector<std::filesystem::path> paths;
+  try{
+    for(const auto& path:fs_operations::getPathsForPermissionCheck(written,
+        fs_operations::indigenousFileView(),
+        fs_operations::indigenousPathImports([cwd]{return cwd;},homeDirectory)))
+      paths.push_back(absolutePath(path,cwd));
+  }catch(...){paths={absolutePath(written,cwd)};}
+  return paths;
+}
+// The Roost and each added working directory, as written and as real paths.
+std::vector<std::filesystem::path> workingRoots(const std::string& cwd,const Json& context){
   std::vector<std::filesystem::path> roots={cwd};
   const auto& nested=value::property(context,"toolPermissionContext");
   const auto& permission=nested.is_object()?nested:context;
@@ -171,32 +180,65 @@ bool inWorkingDirectories(const std::string& requested,const std::string& cwd,
     roots.emplace_back(it.key());
   else if(additional.is_array())for(const auto& item:additional)
     if(item.is_string())roots.emplace_back(item.get<std::string>());
-  std::error_code error;
-  const auto resolved=std::filesystem::weakly_canonical(lexical,error);
-  if(error)return false;
+  std::vector<std::filesystem::path> bases;
   for(const auto& root:roots){
     const auto base=std::filesystem::absolute(root).lexically_normal();
-    if(!underDirectory(lexical,base))continue;
-    error.clear();const auto canonical=std::filesystem::weakly_canonical(base,error);
-    if(!error&&underDirectory(resolved,canonical))return true;
+    bases.push_back(base);
+    std::error_code error;const auto real=std::filesystem::weakly_canonical(base,error);
+    if(!error&&real!=base)bases.push_back(real);
   }
-  return false;
+  return bases;
 }
-bool fileRuleMatches(const application_permissions::PermissionProvider& permission,
-    const std::string& gadget,const std::string& requested,const std::string& cwd,
-    const Json& context,const std::string& behavior){
-  const auto absolute=(std::filesystem::path(requested).is_absolute()
-    ?std::filesystem::path(requested):(std::filesystem::path(cwd)/requested))
-    .lexically_normal();
-  std::set<std::string> candidates={requested,absolute.string()};
-  const auto relative=absolute.lexically_relative(cwd);
-  if(!relative.empty()&&!relative.is_absolute()&&*relative.begin()!=".."){
-    candidates.insert(relative.generic_string());
-    candidates.insert("./"+relative.generic_string());
+// Inside only when every name of the path, the real one included, is inside.
+bool inWorkingDirectories(const std::string& requested,const std::string& cwd,
+    const Json& context){
+  const auto bases=workingRoots(cwd,context);
+  auto names=permissionPaths(requested,cwd);
+  std::error_code error;
+  names.push_back(std::filesystem::weakly_canonical(absolutePath(requested,cwd),error));
+  if(error)return false;
+  for(const auto& name:names)
+    if(std::none_of(bases.begin(),bases.end(),[&](const auto& base){
+        return underDirectory(name,base);}))return false;
+  return true;
+}
+// The spellings a rule may use for one path: absolute, and relative to the
+// Roost (with or without "./") whether the rule names it as written or real.
+void addRuleNames(std::set<std::string>& names,const std::filesystem::path& path,
+    const std::string& cwd){
+  names.insert(path.string());
+  const std::filesystem::path written=std::filesystem::path(cwd).lexically_normal();
+  std::error_code error;
+  const auto real=std::filesystem::weakly_canonical(written,error);
+  for(const auto& root:{written,error?written:real}){
+    const auto relative=path.lexically_relative(root);
+    if(relative.empty()||relative.is_absolute()||*relative.begin()=="..")continue;
+    names.insert(relative.generic_string());
+    names.insert("./"+relative.generic_string());
+    names.insert((written/relative).lexically_normal().string());
   }
-  for(const auto& path:candidates)if(permission.matchingRule(gadget,path,context,behavior))
+}
+bool anyRuleMatches(const application_permissions::PermissionProvider& permission,
+    const std::string& gadget,const std::set<std::string>& names,const Json& context,
+    const std::string& behavior){
+  for(const auto& name:names)if(permission.matchingRule(gadget,name,context,behavior))
     return true;
   return false;
+}
+// Deny and ask rules hold for any name of the path, so a symlink cannot walk
+// past them. Allow rules match the path as written. Searching a folder reads
+// what is in it, so a deny or ask rule on its contents ("dir/**") covers it.
+bool fileRuleMatches(const application_permissions::PermissionProvider& permission,
+    const std::string& gadget,const std::string& requested,const std::string& cwd,
+    const Json& context,const std::string& behavior,bool folder=false){
+  std::set<std::string> names={requested};
+  if(behavior=="allow")addRuleNames(names,absolutePath(requested,cwd),cwd);
+  else for(const auto& path:permissionPaths(requested,cwd))addRuleNames(names,path,cwd);
+  if(folder&&behavior!="allow"){
+    const std::vector<std::string> plain(names.begin(),names.end());
+    for(const auto& name:plain)if(!name.ends_with('/'))names.insert(name+"/");
+  }
+  return anyRuleMatches(permission,gadget,names,context,behavior);
 }
 std::vector<std::string> readDenyPatterns(const Json& context,
     const std::string& configRoot,const std::string& home){
@@ -287,16 +329,17 @@ gadgets::files::FileGadgetBindings fileBinding(const std::string& name,
       field(input,"file_path");
     const auto path=requested.empty()?cwd:requested;
     const auto ruleGadget=read?"Read":"Edit";
-    const auto denied=fileRuleMatches(*permission,ruleGadget,path,cwd,context,"deny")||
-      fileRuleMatches(*permission,name,path,cwd,context,"deny");
+    const bool folder=name=="Glob"||name=="Grep";
+    const auto denied=fileRuleMatches(*permission,ruleGadget,path,cwd,context,"deny",folder)||
+      fileRuleMatches(*permission,name,path,cwd,context,"deny",folder);
     if(denied)return readyDecision(Json{{"behavior","deny"},
       {"message","Permission denied by file rule"}});
     const auto& nested=value::property(context,"toolPermissionContext");
     const auto& settings=nested.is_object()?nested:context;
     const auto mode=field(settings,"mode");
     if(!read&&mode=="plan")return permission->check(name,input,context);
-    const bool ask=fileRuleMatches(*permission,ruleGadget,path,cwd,context,"ask")||
-      fileRuleMatches(*permission,name,path,cwd,context,"ask");
+    const bool ask=fileRuleMatches(*permission,ruleGadget,path,cwd,context,"ask",folder)||
+      fileRuleMatches(*permission,name,path,cwd,context,"ask",folder);
     const bool inside=inWorkingDirectories(path,cwd,context);
     const bool explicitAllow=fileRuleMatches(*permission,ruleGadget,path,cwd,context,"allow")||
       fileRuleMatches(*permission,name,path,cwd,context,"allow");
@@ -323,6 +366,19 @@ gadgets::files::FileGadgetBindings fileBinding(const std::string& name,
     return value::property(output,"truncated")==true;};
   return result;
 }
+// git check-ignore exits 0 for an ignored path, 1 for one that is not, and
+// 128 outside a repository. Skills in ignored folders are not loaded.
+bool isPathGitignored(const std::string& path,const std::string& cwd){
+  try{
+    process::IndigenousChildOptions options;
+    options.lineMode=false;options.cwd=cwd;
+    options.onData=[](const std::string&,bool){};
+    process::IndigenousJsonlProcess git({"git","check-ignore","-q","--",path},{},
+      std::move(options));
+    git.closeStdin();
+    return git.waitForExit(std::chrono::steady_clock::now()+std::chrono::seconds(5))==0;
+  }catch(...){return false;}
+}
 gadgets::web::UI webUi(const std::string&){
   gadgets::web::UI result;
   result.getGadgetUseSummary=[](const Json& input)->Json{return target(input);};
@@ -346,6 +402,13 @@ Json shellGadgetResultView(const Json& output,const Json& options){
   return gv::shellView(output,expanded(options));
 }
 
+bool isSettingsFile(const std::string& file){
+  auto path=std::filesystem::path(file).lexically_normal().generic_string();
+  std::transform(path.begin(),path.end(),path.begin(),[](unsigned char c){
+    return static_cast<char>(std::tolower(c));});
+  return path.ends_with("/.batbox/settings.json")||
+    path.ends_with("/.batbox/settings.local.json");
+}
 Inputs makeDefaultInputs(DefaultInputs d){
   if(!d.store||!d.messages||!d.fileStash||!d.permission||!d.connectors||
       !d.model||!d.shell.shell||!d.shell.poller||!d.shell.missions)
@@ -363,8 +426,7 @@ Inputs makeDefaultInputs(DefaultInputs d){
   if(files.skillServices.homeDir.empty())files.skillServices.homeDir=out.homeDirectory();
   if(files.skillServices.configHomeDir.empty())
     files.skillServices.configHomeDir=application::configurationDirectory(d.config).string();
-  if(!files.skillServices.isPathGitignored)
-    files.skillServices.isPathGitignored=[](const std::string&,const std::string&){return false;};
+  if(!files.skillServices.isPathGitignored)files.skillServices.isPathGitignored=isPathGitignored;
   if(!files.skillServices.ignorePatternsMatch)
     files.skillServices.ignorePatternsMatch=[](const std::vector<std::string>& patterns,
         const std::string& path){
@@ -381,9 +443,11 @@ Inputs makeDefaultInputs(DefaultInputs d){
     return denied;};
   files.editDenied=[permission=d.permission,store=d.store,onOwner,cwd](const std::string& path){
     bool denied=false;onOwner([&]{const auto context=currentPermission(store);
-      denied=field(context,"mode")=="plan"||
-        fileRuleMatches(*permission,"Edit",path,cwd,context,"deny")||
+      denied=fileRuleMatches(*permission,"Edit",path,cwd,context,"deny")||
         fileRuleMatches(*permission,"Write",path,cwd,context,"deny");});return denied;};
+  files.planModeActive=[store=d.store,onOwner]{
+    bool plan=false;onOwner([&]{plan=field(currentPermission(store),"mode")=="plan";});
+    return plan;};
   files.readIgnorePatterns=[configRoot=application::configurationDirectory(d.config).string(),
       home=out.homeDirectory](const Json& context){
     return readDenyPatterns(context,configRoot,home());};
@@ -439,8 +503,6 @@ Inputs makeDefaultInputs(DefaultInputs d){
     }));
   }
   files.remoteDiffEnabled=[](){return false;};
-  files.checkTeamMemorySecrets=[](const std::string&,
-    const std::string&)->std::optional<std::string>{return std::nullopt;};
   files.localeCompare=[](const std::string& a,const std::string& b){return a.compare(b);};
   files.nowMs=[](){return static_cast<double>(nowMs());};
   files.media.getGadgetResultsDir=[storage=d.storage]{return gadget_results::getGadgetResultsDir(storage);};
@@ -455,15 +517,21 @@ Inputs makeDefaultInputs(DefaultInputs d){
   application_shell::bindConservativeBashClassification(bash.services);
   d.permission->bindBash(bash.services);
   bash.services.poetry=[](const gadgets::PoetryContext&){
-    std::promise<std::string> ready;ready.set_value("Execute a shell command in the current project.");
+    std::promise<std::string> ready;ready.set_value(
+      "Execute a shell command in the current project.\n"
+      "- Commands time out after 2 minutes unless you set timeout (milliseconds). A command "
+      "still running at its timeout usually moves to the background: you get its ID and "
+      "output file and are notified when it finishes.\n"
+      "- Use run_in_background, when offered, for servers and other long-running commands.\n"
+      "- A failed command returns its exit code and its output.\n"
+      "- Output longer than 30000 characters is saved to a file; you get the file path and "
+      "the start and end of the output.\n"
+      "- Prefer the Read, Grep and Glob tools over cat, grep and find. Quote paths that "
+      "contain spaces.");
     return ready.get_future();};
-  bash.services.shouldUseSandbox=[](const Json&){return false;};
-  bash.services.sandboxCommand=[](const std::string& command,const Json&,const Json&){return command;};
-  bash.services.getSandboxTmpDir=[state=d.config.stateDirectory]{return (state/"tmp").string();};
   bash.services.logDebug=d.log?d.log:[](const std::string&){};
   bash.services.recordHint=[log=bash.services.logDebug](const Json& hint){
     log("Bash command hint: "+hint.dump());};
-  bash.services.annotateSandboxFailures=[](const std::string& text,const std::string&){return text;};
   bash.services.resizeImage=[](const std::string&,const shell::ExecResult&)->std::optional<std::string>{return std::nullopt;};
   bash.services.parseSedEdit=[](const std::string&)->Json{return Json();};
   bash.services.applySedEdit=[](const Json&,const gadgets::GadgetCallContext&,const Json&)->gadgets::GadgetResult{
@@ -481,12 +549,8 @@ Inputs makeDefaultInputs(DefaultInputs d){
     return gv::errorView(visible(error),false);};
   bash.services.clearGadgetJSX=[](const Json&){};
   bash.cwdPolicy.shouldMaintainProjectWorkingDir=[](){return false;};
-  bash.cwdPolicy.pathInAllowedWorkingPath=[cwd](const std::string& path,const Json&){
-    const auto root=std::filesystem::weakly_canonical(cwd);
-    const auto candidate=std::filesystem::weakly_canonical(path);
-    const auto relative=candidate.lexically_relative(root);
-    return !relative.empty()&&!relative.is_absolute()&&
-      *relative.begin()!=std::filesystem::path("..");};
+  bash.cwdPolicy.pathInAllowedWorkingPath=[cwd](const std::string& path,const Json& context){
+    return inWorkingDirectories(path,cwd,context);};
   application_shell::AsyncHostInputs async{d.owner,d.shell,d.storage,{},{},{},{}};
   async.getGadgetPermissionContext=[store=d.store]{return currentPermission(store);};
   async.applySedEdit=[&owner=d.owner](const Json&,const gadgets::GadgetCallContext&,

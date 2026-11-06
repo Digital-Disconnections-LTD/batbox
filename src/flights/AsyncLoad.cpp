@@ -6,7 +6,7 @@ namespace {
 struct ReadState:std::enable_shared_from_this<ReadState> {
   event_loop::Loop& loop;
   std::string path;
-  bool keepAllLeaves,preserved=false;
+  bool keepAllLeaves;
   AsyncLoadServices services;
   event_loop::Deferred<LoadedTranscript> result;
   LoadedTranscript output;
@@ -20,7 +20,7 @@ struct ReadState:std::enable_shared_from_this<ReadState> {
   }
   void parse(){
     try{
-      if(!keepAllLeaves&&!preserved&&!services.disablePrecompactSkip&&buffer->size()>services.skipThreshold)
+      if(!keepAllLeaves&&!services.disablePrecompactSkip&&buffer->size()>services.skipThreshold)
         buffer=services.walkChainBeforeParse(*buffer);
       parseLoadedTranscriptBuffers(*buffer,metadata,output);
     }catch(const std::exception&){} // Retain map entries populated before the failure.
@@ -37,7 +37,7 @@ struct ReadState:std::enable_shared_from_this<ReadState> {
     const auto self=shared_from_this();
     try{services.readTranscriptForLoad(path,size).then([self](const ScanResult* scan,const auto& error){
       if(error){self->finish();return;}
-      self->buffer=scan->postBoundaryBuf;self->preserved=scan->hasPreservedSegment;
+      self->buffer=scan->postBoundaryBuf;
       if(!scan->boundaryStartOffset){self->read();return;}
       try{self->services.scanPreBoundaryMetadata(self->path,scan->boundaryStartOffset).then(
         [self](const auto* metadata,const auto& failure){

@@ -31,14 +31,9 @@ void appendMessage(PresentationState& state, const MessageRef& message,
     state.messages.push_back(message);
     require(imports.newConversationId, "newConversationId");
     state.conversationId = imports.newConversationId();
-    if (imports.proactive || imports.kairos) {
-      state.contextBlocked = false;
-      if (imports.setContextBlocked) imports.setContextBlocked(false);
-    }
   } else if (value::property(*message, "type") == "progress" &&
              flights::isEphemeralGadgetProgress(
-                 value::property(field(*message, "data"), "type"),
-                 imports.proactive, imports.kairos)) {
+                 value::property(field(*message, "data"), "type"))) {
     if (!state.messages.empty()) {
       const auto& last = state.messages.back();
       if (last && value::property(*last, "type") == "progress" &&
@@ -50,14 +45,6 @@ void appendMessage(PresentationState& state, const MessageRef& message,
       } else state.messages.push_back(message);
     } else state.messages.push_back(message);
   } else state.messages.push_back(message);
-
-  if (imports.proactive || imports.kairos) {
-    if (value::property(*message, "type") == "assistant") {
-      const auto blocked = value::truthy(value::property(*message, "isApiErrorMessage"));
-      state.contextBlocked = blocked;
-      if (imports.setContextBlocked) imports.setContextBlocked(blocked);
-    }
-  }
   rebuildTranscriptRows(state);
 }
 } // namespace

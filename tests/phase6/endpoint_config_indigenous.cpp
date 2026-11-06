@@ -1,4 +1,5 @@
 #include "application_config/ConfigPanelInternal.hpp"
+#include "application_commands/ProvidersCommand.hpp"
 #include "application_config/Discovery.hpp"
 #include "providers/WireClients.hpp"
 #include "transport/Errors.hpp"
@@ -7,6 +8,7 @@
 #include "application_model/LocalModelService.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "app_state/State.hpp"
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
@@ -15,6 +17,7 @@
 #include <memory>
 #include <iterator>
 #include <string>
+#include <thread>
 #ifdef _WIN32
 #include <cstdlib>
 #else
@@ -141,10 +144,174 @@ std::shared_ptr<application_model::LocalModelService> backend(event_loop::Loop& 
     std::move(settings),std::move(imports));
 }
 }
+void endpointBetas(const std::filesystem::path& root){
+  using namespace application_config;
+  ConfigRoot environment(root);
+  const auto path=root/"betas-client.json";
+  application::EndpointRecord endpoint;
+  endpoint.label="Betas";endpoint.baseUrl="http://127.0.0.1:8000";
+  endpoint.contextWindow=16384;endpoint.maxOutputTokens=2048;
+  endpoint.models={"alpha"};
+  saveEndpoints(path,{{"plain",endpoint}},profileId("plain","alpha"));
+  {std::ifstream file(path);
+    assert(!Json::parse(file).at("endpoints").at("plain").contains("betas"));}
+  assert(readEndpoints(path)->at("plain").betas.empty());
+  assert(inferenceProfile(endpoint,"alpha").betas.empty());
+  assert(application_model::requestBetas(
+    runtimeProfile(profileId("plain","alpha"),endpoint,"alpha")).empty());
+  const std::vector<std::string> betas{"context-1m-2025-08-07",
+    "interleaved-thinking-2025-05-14"};
+  endpoint.betas=betas;
+  saveEndpoints(path,{{"beta",endpoint}},profileId("beta","alpha"));
+  {std::ifstream file(path);
+    assert(Json::parse(file).at("endpoints").at("beta").at("betas")==Json(betas));}
+  assert(readEndpoints(path)->at("beta").betas==betas);
+  assert(inferenceProfile(endpoint,"alpha").betas==betas);
+  auto profile=runtimeProfile(profileId("beta","alpha"),endpoint,"alpha");
+  assert(profile.betas==betas&&application_model::requestBetas(profile)==betas);
+  for(const auto* kind:{"bedrock","vertex"}){
+    profile.provider=kind;assert(application_model::requestBetas(profile)==betas);
+  }
+  profile.provider="openai-chat";
+  assert(profile.betas==betas&&application_model::requestBetas(profile).empty());
+  {std::ofstream file(path);file<<Json{{"profile","named"},{"profiles",{{"named",{
+    {"model","alpha"},{"base_url","http://127.0.0.1:8000"},{"betas",betas}}}}},
+    {"endpoints",{{"beta",{{"label","Betas"},{"base_url","http://127.0.0.1:8000"},
+      {"context_window",16384},{"max_output_tokens",2048},{"models",{"alpha"}},
+      {"betas",betas}}}}}}.dump();}
+  const auto loaded=application::loadConfig({"--help","--config",runtime::pathToUtf8(path)});
+  assert(loaded.profiles.at("named").betas==betas);
+  assert(loaded.endpoints.at("beta").betas==betas);
+  for(const auto* bad:{R"([""])",R"(["a,b"])",R"(["a b"])",R"(["\u00e9"])",R"([1])",
+      R"("context-1m-2025-08-07")"}){
+    application::Config rejected;
+    bool threw=false;
+    try{loadEndpoints(rejected,Json{{"endpoints",{{"bad",{{"label","Bad"},
+      {"base_url","http://127.0.0.1:8000"},{"context_window",16384},
+      {"max_output_tokens",2048},{"models",{"alpha"}},{"betas",Json::parse(bad)}}}}}});}
+    catch(const std::invalid_argument&){threw=true;}
+    assert(threw);
+  }
+}
+const std::vector<std::string> bothBetas{"context-1m-2025-08-07",
+  "interleaved-thinking-2025-05-14"};
+const Json bothLimits={{"local",false},{"nonstreaming_fallback",false},
+  {"request_timeout_ms",0},{"stream_idle_timeout_ms",900000},{"connect_timeout_ms",3000},
+  {"nonstreaming_timeout_ms",1800000},{"max_retries",2}};
+application::EndpointRecord endpointWithBoth(){
+  application::EndpointRecord endpoint;
+  endpoint.label="Both";endpoint.baseUrl="http://192.168.1.20:8000";
+  endpoint.authHeader="x-api-key";endpoint.authToken="both-key";
+  endpoint.contextWindow=16384;endpoint.maxOutputTokens=2048;
+  endpoint.models={"alpha"};
+  endpoint.betas=bothBetas;
+  endpoint.limits=application::parseRequestLimits(bothLimits,"endpoint both");
+  return endpoint;
+}
+void requireBoth(const application::EndpointRecord& endpoint){
+  assert(endpoint.betas==bothBetas);
+  assert(application::requestLimitsDocument(endpoint.limits)==bothLimits);
+}
+void requireBothInProfile(const application_model::ModelProfile& profile){
+  assert(profile.betas==bothBetas&&application_model::requestBetas(profile)==bothBetas);
+  assert(!profile.local&&!profile.nonStreamingFallback);
+  assert(profile.nonStreamingTimeoutMs==1800000&&profile.maxRetries==2u);
+  assert(profile.client&&profile.client->requestTimeout==std::chrono::milliseconds(0));
+  assert(profile.client->streamIdleTimeout==std::chrono::milliseconds(900000));
+  assert(profile.client->connectTimeout==std::chrono::milliseconds(3000));
+}
+void endpointBetasAndLimits(const std::filesystem::path& root){
+  using namespace application_config;
+  ConfigRoot environment(root);
+  const auto path=root/"both-client.json";
+  const auto endpoint=endpointWithBoth();
+  saveEndpoints(path,{{"both",endpoint}},profileId("both","alpha"));
+  {std::ifstream file(path);const auto row=Json::parse(file).at("endpoints").at("both");
+    assert(row.at("betas")==Json(bothBetas));
+    for(auto it=bothLimits.begin();it!=bothLimits.end();++it)
+      assert(row.at(it.key())==it.value());}
+  requireBoth(readEndpoints(path)->at("both"));
+  const auto configured=inferenceProfile(endpoint,"alpha");
+  assert(configured.betas==bothBetas&&
+    application::requestLimitsDocument(configured.limits)==bothLimits);
+  requireBothInProfile(runtimeProfile(profileId("both","alpha"),endpoint,"alpha"));
+
+  Json profileRow={{"model","alpha"},{"base_url","http://192.168.1.20:8000"},
+    {"betas",bothBetas}};
+  profileRow.update(bothLimits);
+  Json endpointRow=endpointDocument({{"both",endpoint}}).at("both");
+  {std::ofstream file(path);file<<Json{{"profile","named"},
+    {"profiles",{{"named",profileRow}}},{"endpoints",{{"both",endpointRow}}}}.dump();}
+  const auto loaded=application::loadConfig({"--help","--config",runtime::pathToUtf8(path)});
+  assert(loaded.profiles.at("named").betas==bothBetas);
+  assert(application::requestLimitsDocument(loaded.profiles.at("named").limits)==bothLimits);
+  requireBoth(loaded.endpoints.at("both"));
+  const auto rejects=[](Json row){
+    application::Config rejected;
+    try{loadEndpoints(rejected,Json{{"endpoints",{{"bad",std::move(row)}}}});}
+    catch(const std::invalid_argument&){return true;}
+    return false;
+  };
+  auto badBeta=endpointRow;badBeta["betas"]=Json::array({"a,b"});
+  assert(rejects(badBeta));
+  auto badLimit=endpointRow;badLimit["max_retries"]=-1;
+  assert(rejects(badLimit));
+
+  // A /providers re-edit rebuilds the record from the catalog walk-through;
+  // the betas and request limits it has no step for must survive the save.
+  event_loop::Loop loop;
+  application_commands::ProvidersInputs inputs;
+  inputs.configPath=path;inputs.animate=false;
+  inputs.environment=[](const std::string&)->std::optional<std::string>{return std::nullopt;};
+  inputs.discover=[]{return std::vector<providers::LocalServer>{};};
+  inputs.test=[](const application::EndpointRecord&){
+    providers::ConnectionResult result;
+    result.reached=result.ok=true;result.status=200;result.models={"alpha"};
+    result.message="Connected · 1 model";
+    return result;
+  };
+  std::optional<interactive::UiRequest> shown;
+  interactive::CommandUi::Action act;
+  std::optional<std::string> finished;
+  application_commands::startProvidersDialog(loop,
+    application_commands::completeProvidersInputs(std::move(inputs)),
+    [&](interactive::CommandCompletion done){finished=done.result.value_or("");},
+    [&](std::optional<interactive::UiRequest> request,interactive::CommandUi::Action action){
+      shown=std::move(request);act=std::move(action);});
+  const auto settle=[&](const std::function<bool()>& ready){
+    for(int i=0;i<1000&&!ready();++i){
+      loop.runReady();
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    assert(ready());
+  };
+  const auto position=[&](const std::string& choice)->std::optional<std::size_t>{
+    if(!shown)return std::nullopt;
+    const auto found=std::find(shown->choices.begin(),shown->choices.end(),choice);
+    if(found==shown->choices.end())return std::nullopt;
+    return static_cast<std::size_t>(found-shown->choices.begin());
+  };
+  settle([&]{return shown&&shown->id=="providers"&&position("Both").has_value()&&
+    !position("Looking for local servers…").has_value();});
+  act({interactive::UiAction::Kind::Activate,*position("Both"),{}});
+  assert(shown&&shown->id=="providers-key"&&position("Keep the saved key")==0u);
+  act({interactive::UiAction::Kind::Activate,0,{}});
+  assert(shown&&shown->id=="providers-base-url");
+  act({interactive::UiAction::Kind::Activate,0,{}});
+  settle([&]{return shown&&shown->id=="providers-models";});
+  act({interactive::UiAction::Kind::Activate,*position("alpha"),{}});
+  settle([&]{return finished.has_value();});
+  const auto reedited=readEndpoints(path)->at("both");
+  requireBoth(reedited);
+  assert(reedited.authToken=="both-key");
+  requireBothInProfile(runtimeProfile(profileId("both","alpha"),reedited,"alpha"));
+}
 int main(){
   using namespace application_config;
   Temporary temporary;
   permissionConfig(temporary.path);
+  endpointBetas(temporary.path);
+  endpointBetasAndLimits(temporary.path);
   const auto path=temporary.path/"native-client.json";
   {std::ofstream file(path);file<<"{\"unknown\":{\"keep\":true}}";}
   application::EndpointRecord endpoint;
@@ -222,7 +389,11 @@ int main(){
   // The same UiRequest path used by the FTXUI host must never echo a typed key.
   application::Config panelConfig;
   panelConfig.configPath=path;panelConfig.model="seed";
-  panelConfig.endpoints={{"local",endpoint}};
+  auto panelEndpoint=endpoint;
+  panelEndpoint.betas=bothBetas;
+  panelEndpoint.limits=application::parseRequestLimits(bothLimits,"endpoint local");
+  panelConfig.endpoints={{"local",panelEndpoint}};
+  saveEndpoints(path,panelConfig.endpoints,"seed",Json::object(),false);
   auto state=std::make_shared<app_state::AppState>();
   state->fields=std::make_shared<value::SharedRecord>(value::SharedRecord::fromJson(
     Json{{"mainLoopModel","seed"}}));
@@ -267,7 +438,9 @@ int main(){
   action({interactive::UiAction::Kind::Activate,visible->selectedIndex,{}});
   loop.run();
   assert(readEndpoints(path)->at("local").authToken==typed);
+  requireBoth(readEndpoints(path)->at("local"));
   assert(service->config().profiles.contains(profileId("local","alpha")));
+  requireBothInProfile(service->config().profiles.at(profileId("local","alpha")));
 
   // Max Bat depth sits with the other Bat limits; 0 is a valid depth.
   auto depthConfig=std::make_shared<application::Config>(panelConfig);

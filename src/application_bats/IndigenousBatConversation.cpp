@@ -259,8 +259,6 @@ void IndigenousBatApplication::publishStream(const std::string& id,const Json& m
       Json{{"index",item.index},{"contentBlock",item.contentBlock},{"unparsedToolInput",item.unparsedGadgetInput}});
   };
   interactive::StreamImports imports;
-  imports.connectorTextEnabled=[]{return false;};
-  imports.isConnectorTextBlock=[](const Json&){return false;};
   imports.nowMs=[]{return static_cast<double>(platform::nowMillis());};
   interactive::handleMessageFromStream(message,callbacks,imports);
   const auto& event=field(message,"event");

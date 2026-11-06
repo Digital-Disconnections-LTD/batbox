@@ -15,10 +15,6 @@ std::string value(const Json& object, const char* key) {
 template<class T> void need(const T& callback, const char* name) {
   if (!callback) throw std::logic_error(std::string(name) + " import required");
 }
-bool hasFeature(const GadgetClassificationImports& imports, const std::string& name) {
-  need(imports.feature, "feature");
-  return imports.feature(name);
-}
 bool fullscreen(const GadgetClassificationImports& imports) {
   need(imports.isFullscreen, "isFullscreen");
   return imports.isFullscreen();
@@ -70,9 +66,7 @@ SearchOrReadResult getGadgetSearchOrReadInfo(const std::string& gadgetName,
     return {.isCollapsible=true, .isREPL=true, .isAbsorbedSilently=true};
   if (isMemoryWriteOrEdit(gadgetName, input, imports))
     return {.isCollapsible=true, .isMemoryWrite=true};
-  if ((hasFeature(imports, "HISTORY_SNIP") && imports.snipGadgetName &&
-       gadgetName == *imports.snipGadgetName) ||
-      (fullscreen(imports) && gadgetName == imports.gadgetSearchName))
+  if (fullscreen(imports) && gadgetName == imports.gadgetSearchName)
     return {.isCollapsible=true, .isAbsorbedSilently=true};
 
   const auto* gadget = gadgets::findGadgetByName(available, gadgetName);

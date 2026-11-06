@@ -4,8 +4,6 @@ add_library(batbox_text_editor
   src/interactive/text_input/CursorRender.cpp
   src/interactive/text_input/CursorWords.cpp
   src/interactive/text_input/KillRing.cpp
-  src/interactive/text_input/InputBuffer.cpp
-  src/interactive/text_input/InputModes.cpp
   src/interactive/text_input/MeasuredTextCore.cpp
   src/interactive/text_input/MeasuredTextLines.cpp
   src/interactive/text_input/MeasuredTextIndigenous.cpp

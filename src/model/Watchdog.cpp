@@ -2,6 +2,8 @@
 #include "model/Watchdog.hpp"
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <optional>
 #include <utility>
 
 namespace batbox::model {
@@ -9,6 +11,13 @@ namespace {
 std::chrono::steady_clock::duration duration(double ms){
   return std::chrono::duration_cast<std::chrono::steady_clock::duration>(
     std::chrono::duration<double,std::milli>(ms));
+}
+// Whole milliseconds left until due, at least one so a re-armed timer cannot
+// fire early and spin.
+std::optional<double> remainingMs(std::chrono::steady_clock::time_point due){
+  const auto now=std::chrono::steady_clock::now();
+  if(now>=due)return std::nullopt;
+  return std::max(1.0,std::ceil(std::chrono::duration<double,std::milli>(due-now).count()));
 }
 }
 StreamWatchdog::StreamWatchdog(WatchdogSettings settings,
@@ -22,29 +31,21 @@ StreamWatchdog::~StreamWatchdog(){clear();}
 void StreamWatchdog::reset(){
   if(!settings_.enabled)return;
   if(scheduler_){
-    std::function<void()> oldWarning,oldTimeout;
+    // Each reset only records the time; the scheduler is reached again only
+    // when a timer has already fired.
+    bool armWarning=false,armTimeout=false;
     std::uint64_t generation;
     {
       std::lock_guard lock(mutex_);
       if(stopped_)return;
-      ++generation_;generation=generation_;
+      generation=generation_;
+      lastReset_=std::chrono::steady_clock::now();
       armed_=true;warned_=false;
-      oldWarning=std::move(cancelWarning_);
-      oldTimeout=std::move(cancelTimeout_);
+      armWarning=!warningPending_;armTimeout=!timeoutPending_;
+      warningPending_=timeoutPending_=true;
     }
-    if(oldWarning)oldWarning();
-    if(oldTimeout)oldTimeout();
-    auto cancelWarning=scheduler_(settings_.warningMs,[this,generation]{
-      fireWarning(generation);});
-    auto cancelTimeout=scheduler_(settings_.timeoutMs,[this,generation]{
-      fireTimeout(generation);});
-    bool cancelled=false;
-    {
-      std::lock_guard lock(mutex_);
-      if(stopped_||generation_!=generation)cancelled=true;
-      else{cancelWarning_=cancelWarning;cancelTimeout_=cancelTimeout;}
-    }
-    if(cancelled){if(cancelWarning)cancelWarning();if(cancelTimeout)cancelTimeout();}
+    if(armWarning)scheduleWarning(settings_.warningMs,generation);
+    if(armTimeout)scheduleTimeout(settings_.timeoutMs,generation);
     return;
   }
   {
@@ -57,6 +58,44 @@ void StreamWatchdog::reset(){
     deadline_=now+duration(settings_.timeoutMs);
   }
   changed_.notify_all();
+}
+void StreamWatchdog::scheduleWarning(double delayMs,std::uint64_t generation){
+  auto cancel=scheduler_(delayMs,[this,generation]{onWarningTimer(generation);});
+  {
+    std::lock_guard lock(mutex_);
+    if(!stopped_&&generation_==generation){cancelWarning_=std::move(cancel);return;}
+  }
+  if(cancel)cancel();
+}
+void StreamWatchdog::scheduleTimeout(double delayMs,std::uint64_t generation){
+  auto cancel=scheduler_(delayMs,[this,generation]{onTimeoutTimer(generation);});
+  {
+    std::lock_guard lock(mutex_);
+    if(!stopped_&&generation_==generation){cancelTimeout_=std::move(cancel);return;}
+  }
+  if(cancel)cancel();
+}
+void StreamWatchdog::onWarningTimer(std::uint64_t generation){
+  std::optional<double> rest;
+  {
+    std::lock_guard lock(mutex_);
+    if(stopped_||generation_!=generation)return;
+    rest=warned_?std::nullopt:remainingMs(lastReset_+duration(settings_.warningMs));
+    if(!rest)warningPending_=false;
+  }
+  if(rest)scheduleWarning(*rest,generation);
+  else fireWarning(generation);
+}
+void StreamWatchdog::onTimeoutTimer(std::uint64_t generation){
+  std::optional<double> rest;
+  {
+    std::lock_guard lock(mutex_);
+    if(stopped_||generation_!=generation)return;
+    rest=remainingMs(lastReset_+duration(settings_.timeoutMs));
+    if(!rest)timeoutPending_=false;
+  }
+  if(rest)scheduleTimeout(*rest,generation);
+  else fireTimeout(generation);
 }
 void StreamWatchdog::clear() noexcept{
   std::function<void()> warning,timeout;

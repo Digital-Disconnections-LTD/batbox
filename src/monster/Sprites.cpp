@@ -20,26 +20,4 @@ std::vector<std::string> renderSprite(const Json& bones,double frame){
       [](const Json& f){return value::trim(f.at(0).get<std::string>()).empty();}))lines.erase(lines.begin());
   return lines;
 }
-std::size_t spriteFrameCount(const std::string& species){return spriteData().bodies.at(species).size();}
-std::optional<std::string> renderFace(const Json& bones){
-  const auto eye=bones.at("eye").get<std::string>(),species=bones.at("species").get<std::string>();
-  if(species=="bat"||species=="gargoyle")return "("+eye+">";
-  if(species=="ooze")return "("+eye+eye+")";
-  if(species=="imp")return "="+eye+"ω"+eye+"=";
-  if(species=="dragon")return "<"+eye+"~"+eye+">";
-  if(species=="kraken")return "~("+eye+eye+")~";
-  if(species=="cyclops")return "("+eye+")("+eye+")";
-  if(species=="gremlin")return "("+eye+">)";
-  if(species=="troll")return "["+eye+"_"+eye+"]";
-  if(species=="wurm")return eye+"(@)";
-  if(species=="ghost")return "/"+eye+eye+"\\";
-  if(species=="aberration")return "}"+eye+"."+eye+"{";
-  if(species=="ogre")return "("+eye+"oo"+eye+")";
-  if(species=="mandrake")return "|"+eye+"  "+eye+"|";
-  if(species=="golem")return "["+eye+eye+"]";
-  if(species=="jackalope")return "("+eye+".."+eye+")";
-  if(species=="myconid")return "|"+eye+"  "+eye+"|";
-  if(species=="behemoth")return "("+eye+"."+eye+")";
-  return {};
-}
 } // namespace batbox::monster

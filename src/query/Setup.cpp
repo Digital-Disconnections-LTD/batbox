@@ -16,16 +16,12 @@ Json stashSafeParams(const Params& params,const execution::Context& context,cons
 }
 
 PreparedIteration prepareIteration(const Params& params,const State& state,
-  const QueryConfig& config,SetupServices& services,std::optional<double>& missionBudgetRemaining,
+  SetupServices& services,std::optional<double>& missionBudgetRemaining,
   const Yield& yield) {
-  need(services.feature,"feature");need(services.uuid,"uuid");need(yield,"yield");
+  need(services.uuid,"uuid");need(yield,"yield");
   PreparedIteration out;
   out.gadgetUseContext=state.gadgetUseContext;
   out.executionServices=services.executionServices;
-  if(services.feature("EXPERIMENTAL_SKILL_SEARCH")) {
-    need(services.startSkillDiscoveryPrefetch,"startSkillDiscoveryPrefetch");
-    out.pendingSkillPrefetch=services.startSkillDiscoveryPrefetch(state.messages,out.gadgetUseContext);
-  }
   yield(Json{{"type","stream_request_start"}});
   const Json& priorTracking=field(out.gadgetUseContext.data,"queryTracking");
   if(value::truthy(priorTracking))out.queryTracking=Json{{"chainId",field(priorTracking,"chainId")},
@@ -59,24 +55,9 @@ PreparedIteration prepareIteration(const Params& params,const State& state,
       field(out.gadgetUseContext.data,"contentReplacementState"),persist,unlimited);
   }
 
-  if(services.feature("HISTORY_SNIP")) {
-    need(services.snipCompactIfNeeded,"snipCompactIfNeeded");
-    const Json snipped=services.snipCompactIfNeeded(out.messagesForQuery);
-    out.messagesForQuery=field(snipped,"messages");
-    const Json& freed=field(snipped,"tokensFreed");
-    if(freed.is_number())out.snipTokensFreed=freed.get<double>();
-    if(!field(snipped,"boundaryMessage").is_null())yield(field(snipped,"boundaryMessage"));
-  }
   need(services.microcompact,"microcompact");
   const Json micro=services.microcompact(out.messagesForQuery,out.gadgetUseContext,params.querySource);
   out.messagesForQuery=field(micro,"messages");
-  if(services.feature("CACHED_MICROCOMPACT"))
-    out.pendingStashEdits=field(field(micro,"compactionInfo"),"pendingCacheEdits");
-  if(services.feature("CONTEXT_COLLAPSE")) {
-    need(services.applyCollapsesIfNeeded,"applyCollapsesIfNeeded");
-    out.messagesForQuery=field(services.applyCollapsesIfNeeded(out.messagesForQuery,
-      out.gadgetUseContext,params.querySource),"messages");
-  }
 
   need(services.appendSystemContext,"appendSystemContext");
   out.fullSystemPoetry=services.appendSystemContext(params.systemPoetry,params.systemContext);
@@ -89,11 +70,11 @@ PreparedIteration prepareIteration(const Params& params,const State& state,
       params.systemPoetry,params.userContext,params.systemContext,
       out.gadgetUseContext,out.messagesForQuery);
     compact=services.autocompactIndigenous(out.messagesForQuery,out.gadgetUseContext,
-      snapshot,params.querySource,out.tracking,out.snipTokensFreed);
+      snapshot,params.querySource,out.tracking);
   }else{
     need(services.autocompact,"autocompact");
     compact=services.autocompact(out.messagesForQuery,out.gadgetUseContext,
-      serializedStash,params.querySource,out.tracking,out.snipTokensFreed);
+      serializedStash,params.querySource,out.tracking);
   }
   const Json& result=field(compact,"compactionResult");
   if(value::truthy(result)) {
@@ -114,12 +95,7 @@ PreparedIteration prepareIteration(const Params& params,const State& state,
       {"turnId",""},{"turnCounter",0}};
     out.tracking["consecutiveFailures"]=field(compact,"consecutiveFailures");
   }
-  out.gadgetUseContext.data["messages"]=out.messagesForQuery;
-  if(config.streamingGadgetExecution) {
-    if(!services.executionServices)throw std::invalid_argument("Unbound query import: executionServices");
-    out.streamingGadgetExecutor=std::make_unique<execution::StreamingGadgetExecutor>(
-      out.gadgetUseContext,*services.executionServices);
-  }
+  execution::shareConversation(out.gadgetUseContext,out.messagesForQuery);
 
   need(services.getAppState,"getAppState");
   out.appState=execution::effectiveAppState(out.gadgetUseContext,
@@ -137,27 +113,12 @@ PreparedIteration prepareIteration(const Params& params,const State& state,
     {"mainLoopModel",field(field(out.gadgetUseContext.data,"options"),"mainLoopModel")},
     {"exceeds200kTokens",over200k}});
 
-  bool collapseOwnsIt=false;
-  if(services.feature("CONTEXT_COLLAPSE")) {
-    need(services.isContextCollapseEnabled,"isContextCollapseEnabled");
-    need(services.isAutoCompactEnabled,"isAutoCompactEnabled");
-    collapseOwnsIt=services.isContextCollapseEnabled()&&services.isAutoCompactEnabled();
-  }
-  if(services.feature("REACTIVE_COMPACT")) {
-    need(services.isReactiveCompactEnabled,"isReactiveCompactEnabled");
-    out.mediaRecoveryEnabled=services.isReactiveCompactEnabled();
-  }
-  bool reactiveOwnsIt=false;
-  if(services.feature("REACTIVE_COMPACT")&&out.mediaRecoveryEnabled) {
-    need(services.isAutoCompactEnabled,"isAutoCompactEnabled");
-    reactiveOwnsIt=services.isAutoCompactEnabled();
-  }
   if(!out.compacted && params.querySource!="compact" &&
-     params.querySource!="session_memory" && !reactiveOwnsIt && !collapseOwnsIt) {
+     params.querySource!="session_memory") {
     need(services.tokenCountWithEstimation,"tokenCountWithEstimation");
     need(services.calculateTokenWarningState,"calculateTokenWarningState");
     const Json warning=services.calculateTokenWarningState(
-      services.tokenCountWithEstimation(out.messagesForQuery)-out.snipTokensFreed,
+      services.tokenCountWithEstimation(out.messagesForQuery),
       field(field(out.gadgetUseContext.data,"options"),"mainLoopModel"));
     if(value::truthy(field(warning,"isAtBlockingLimit"))) {
       need(services.createAssistantAPIErrorMessage,"createAssistantAPIErrorMessage");

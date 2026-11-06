@@ -2,7 +2,6 @@
 add_library(batbox_application_media
   src/application_media/Bindings.cpp
   src/application_media/ClipboardImage.cpp
-  src/application_media/Attachments.cpp
   src/application_media/AttachmentAggregate.cpp
   src/application_media/AttachmentCollectors.cpp)
 target_link_libraries(batbox_application_media PUBLIC batbox_media

@@ -11,8 +11,7 @@ ix::MessageListSettings settings(){
   ix::MessageListSettings s;
   s.gadgets=std::make_shared<ix::GroupingGadgetSet>();
   s.backgroundProtocol={"task-notification","status","summary","Background command "};
-  s.visibility={"NO_CONTENT","INTERRUPT",[](const std::string&){return false;}};
-  s.readSearch.classification.feature=[](const std::string&){return false;};
+  s.visibility={"NO_CONTENT","INTERRUPT"};
   s.readSearch.classification.isFullscreen=[]{return false;};
   return s;
 }

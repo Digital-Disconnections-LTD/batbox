@@ -84,17 +84,4 @@ std::optional<ftxui::Element> projectAdvisor(const AdvisorCard& card,
   return response(dim(card.text,palette.subtle),palette.subtle);
 }
 
-std::optional<ftxui::Element> projectPartnerHeader(
-    const PartnerHeaderCard& card,
-    const std::function<ftxui::Color(const std::string&)>& toColor,
-    const LeafPalette& palette){
-  if(!card.visible)return {};
-  if(!toColor)throw std::logic_error("Partner color resolver required");
-  auto line=ftxui::hbox({ftxui::text("Viewing "),
-    ftxui::text(value::encodeUtf8("@"+card.name))|
-      ftxui::color(toColor(card.color))|ftxui::bold,
-    dim(" · "+card.exitHint,palette.subtle)});
-  return ftxui::vbox({std::move(line),dim(card.poetry,palette.subtle),
-                      ftxui::text("")});
-}
 }

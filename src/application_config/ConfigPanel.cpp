@@ -1,5 +1,6 @@
 #include "application_config/ConfigPanelInternal.hpp"
 #include "application/Async.hpp"
+#include "providers/ModelRequestSettings.hpp"
 #include "runtime/JsonValue.hpp"
 #include <algorithm>
 #include <cctype>
@@ -67,6 +68,8 @@ application_model::ModelProfile runtimeProfile(const std::string& id,
   profile.quirks=configured.quirks;
   profile.region=configured.region;
   profile.project=configured.project;
+  providers::applyRequestSettings(profile,configured);
+  profile.betas=configured.betas;
   profile.costs={{"inputTokens",0},{"outputTokens",0},
     {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
     {"webSearchRequests",0}};

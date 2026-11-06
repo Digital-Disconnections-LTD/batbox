@@ -541,13 +541,6 @@ std::vector<MissionNotice> parseMissionNotifications(std::string_view text){
   return notices;
 }
 
-std::string missionNoticeText(const MissionNotice& notice){
-  std::string text=notice.kind;
-  if(!notice.name.empty())text+=" "+notice.name;
-  text+=" "+notice.outcome;
-  if(!notice.detail.empty())text+=" · "+notice.detail;
-  return text;
-}
 
 std::string visibleText(const Json& value){
   if(value.is_null()||value.is_discarded())return {};
@@ -579,5 +572,21 @@ std::string visibleText(const Json& value){
     }
   }
   return value.dump(2);
+}
+Json launchedGroupView(Json view,std::size_t refused){
+  if(!view.is_object()||value::property(view,viewKey)!="group")return view;
+  const auto& title=value::property(view,"title");
+  if(title.is_string()&&refused>0){
+    const auto text=title.get<std::string>();
+    std::size_t count=0,used=0;
+    try{count=std::stoul(text,&used);}catch(...){used=0;}
+    if(used>0&&count>=refused){
+      const auto accepted=count-refused;
+      view["title"]=std::to_string(accepted)+(accepted==1?" Bat":" Bats")+" launched · "+
+        std::to_string(refused)+" refused";
+    }else view["title"]=text+" launched";
+  }else if(title.is_string())view["title"]=title.get<std::string>()+" launched";
+  view["entries"]=Json::array();
+  return view;
 }
 } // namespace batbox::interactive::gadget_views

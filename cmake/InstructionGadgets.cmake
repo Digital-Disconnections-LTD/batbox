@@ -3,7 +3,7 @@ add_library(batbox_instructions
   src/instructions/MemoryLines.cpp src/instructions/MemoryLoad.cpp
   src/instructions/MemoryPath.cpp src/instructions/MemoryScan.cpp
   src/instructions/MemoryTruncation.cpp src/instructions/MemoryTypes.cpp
-  src/instructions/MemoryTypesCombined.cpp src/instructions/MemoryTypesIndividual.cpp
+  src/instructions/MemoryTypesIndividual.cpp
   src/instructions/FrontmatterYaml.cpp src/instructions/FrontmatterFields.cpp
   src/instructions/FrontmatterPaths.cpp)
 target_link_libraries(batbox_instructions PUBLIC batbox_core yaml-cpp ICU::uc)
@@ -19,4 +19,4 @@ target_compile_options(batbox_skills PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_skills PRIVATE src/skills/process/PoetryPolicy.cpp
   src/skills/process/PoetryMetadata.cpp src/skills/process/PoetryCommand.cpp)
 target_sources(batbox_skills PRIVATE src/skills/remote/RemoteSkill.cpp
-  src/skills/remote/RemoteSkillText.cpp src/skills/usage/SkillUsage.cpp)
+  src/skills/remote/RemoteSkillText.cpp)

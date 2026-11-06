@@ -21,7 +21,7 @@ int main(){
     []{return std::optional<std::string>{};},[&](const auto&){return root;}});
   s::AsyncLoadServices reads;s::bindIndigenousAsyncFileReads(loop,reads);
   auto makeStash=[&]{return std::make_shared<s::AsyncFlightMessageStash>(loop,[&](const auto& flight){
-    return s::loadFlightFileAsync(loop,flight,paths,[&](const auto& path){return s::loadTranscriptFileAsync(loop,path,false,reads);});
+    return s::loadTranscriptFileAsync(loop,paths.getTranscriptPathForFlight(flight),false,reads);
   });};
   auto makeProject=[&](const std::shared_ptr<s::AsyncFlightMessageStash>& stash){
     auto queue=std::make_shared<s::async_queue::Queue>(loop,s::async_queue::indigenousQueueImports(loop,
@@ -91,17 +91,11 @@ int main(){
   wait(loop,project->insertContentReplacement(records,"kid"));wait(loop,project->flush());
   s::GraphServices graph;graph.parseTimestamp=[](const auto&){return 0.;};
   graph.localeCompare=[](const std::string& a,const std::string& b){return a<b?-1:a>b?1:0;};graph.logError=[](const auto&){assert(false);};
-  const auto sidechain=wait(loop,s::getBatTranscriptAsync(loop,"kid",paths,reads,graph));
+  s::LoadServices load;s::bindIndigenousFileReads(load);
+  const auto sidechain=s::getBatTranscript("kid",paths,load,graph);
   assert(sidechain&&sidechain->at("messages").size()==1);
   assert(!sidechain->at("messages")[0].contains("parentUuid")&&!sidechain->at("messages")[0].contains("isSidechain"));
   assert(sidechain->at("contentReplacements")==records);
-  assert(!wait(loop,s::getBatTranscriptAsync(loop,"missing",paths,reads,graph)));
-  s::PathServices broken;
-  broken.getFlightProjectDir=[]()->std::optional<std::string>{throw std::runtime_error("path lookup");};
-  s::Paths brokenPaths(broken);
-  bool rejected=false;
-  try{wait(loop,s::getBatTranscriptAsync(loop,"kid",brokenPaths,reads,graph));}
-  catch(const std::runtime_error& e){rejected=std::string(e.what())=="path lookup";}
-  assert(rejected);
+  assert(!s::getBatTranscript("missing",paths,load,graph));
   std::filesystem::remove_all(root);
 }

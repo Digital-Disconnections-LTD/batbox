@@ -158,7 +158,6 @@ void IndigenousBatApplication::bindForeground(bats::BatGadgetCallServices& gadge
   final.isSyntheticMessage=[](const Json& message){
     return value::truthy(field(message,"isSynthetic"));
   };
-  final.feature=[](const std::string&){return false;};
 }
 void IndigenousBatApplication::bindAsync(bats::BatGadgetCallServices& gadget){
   auto& asynchronous=gadget.async;
@@ -189,7 +188,6 @@ void IndigenousBatApplication::launchLifecycle(bats::AsyncLifecycleParams params
     imports.result=bats::indigenousBatResultImports();
     bats::bindLocalBatMissionLifecycle(imports,self->missionState_,
       self->notification_,self->progress_);
-    imports.feature=[](const std::string&){return false;};
     imports.errorMessage=errorText;
     imports.clearInvokedSkillsForBat=[](const std::string&){};
     try{bats::runAsyncBatLifecycle(params,imports);}
@@ -244,7 +242,6 @@ void IndigenousBatApplication::launchContinuation(
       auto adapter=self->notification_;adapter.setAppState=set;
       bats::enqueueBatNotification(value,adapter);
     };
-    services.feature=[](const std::string&){return false;};
     services.errorMessage=errorText;
     services.clearInvokedSkillsForBat=[](const std::string&){};
     try{bats::continueBatGadgetInBackground(std::move(state),services);}

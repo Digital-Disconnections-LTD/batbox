@@ -1,6 +1,4 @@
 #include "commands/Roster.hpp"
-#include <algorithm>
-#include <stdexcept>
 
 namespace batbox::commands {
 std::optional<ParsedSlashCommand> parseSlashCommand(const std::string& input){
@@ -40,39 +38,5 @@ std::string getCommandName(const Json& command){
   if(display.is_string())return display.get<std::string>();
   const auto& name=value::property(command,"name");
   return name.is_string()?name.get<std::string>():std::string{};
-}
-const Json* findCommand(const std::string& name,const std::vector<Json>& commands){
-  for(const auto& command:commands){
-    if(value::property(command,"name")==name||getCommandName(command)==name)
-      return &command;
-    const auto& aliases=value::property(command,"aliases");
-    if(aliases.is_array())for(const auto& alias:aliases)
-      if(alias==name)return &command;
-  }
-  return nullptr;
-}
-bool hasCommand(const std::string& name,const std::vector<Json>& commands){
-  return findCommand(name,commands)!=nullptr;
-}
-const Json& getCommand(const std::string& name,const std::vector<Json>& commands){
-  if(const auto* command=findCommand(name,commands))return *command;
-  std::vector<std::string> names;
-  for(const auto& command:commands){
-    auto display=getCommandName(command);
-    const auto& aliases=value::property(command,"aliases");
-    if(aliases.is_array()){
-      std::string joined;
-      for(const auto& alias:aliases){
-        if(!joined.empty())joined+=", ";
-        joined+=alias.is_string()?alias.get<std::string>():value::stringify(alias);
-      }
-      display+=" (aliases: "+joined+")";
-    }
-    names.push_back(std::move(display));
-  }
-  std::sort(names.begin(),names.end());
-  std::string available;
-  for(const auto& item:names){if(!available.empty())available+=", ";available+=item;}
-  throw std::runtime_error("Command "+name+" not found. Available commands: "+available);
 }
 } // namespace batbox::commands

@@ -2,6 +2,9 @@
 #include "interactive/presentation_providers/CardPalettes.hpp"
 #include "interactive/presentation_providers/Chrome.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
+#include "interactive/submit/QueuedInputs.hpp"
+#include "interactive/cards/UserTextProjection.hpp"
+#include "interactive/TranscriptRows.hpp"
 #include "text_width/IndigenousLayout.hpp"
 #include "history/References.hpp"
 #include "runtime/MessageSnapshot.hpp"
@@ -9,6 +12,7 @@
 #include <ftxui/screen/screen.hpp>
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 
 using namespace batbox;
 using namespace batbox::interactive;
@@ -29,7 +33,6 @@ int main(int argc,char** argv){
   auto wrap=text_width::indigenousWrapAnsiModule().wrapAnsi();
   messages::Services messageServices;
   messageServices.strictGadgetResultPairing=[]{return false;};
-  messageServices.featureGate=[](const std::string&){return false;};
   messageServices.logError=[](const std::string&){};
   terminal_ftxui::Options options;
   options.mode=terminal_ftxui::Mode::Fullscreen;
@@ -41,17 +44,11 @@ int main(int argc,char** argv){
     submit::PoetrySubmitRequest value;value.input=text;return value;
   };
   imports.onRepin=[]{ };
-  imports.getSubmitCount=[]{return std::size_t{0};};
   imports.copyMessageText=[](const std::string&){};
-  imports.editMessage=[&](MessageRef){
-    event_loop::Deferred<event_loop::Unit> done(loop);done.resolve({});return done;
-  };
   imports.listSettings=[&](const PresentationState&){
     MessageListSettings settings;
     settings.gadgets=std::make_shared<GroupingGadgetSet>();
     settings.messageServices=&messageServices;
-    settings.visibility.feature=[](const std::string&){return false;};
-    settings.readSearch.classification.feature=[](const std::string&){return false;};
     settings.readSearch.classification.isFullscreen=[]{return true;};
     return settings;
   };
@@ -70,15 +67,12 @@ int main(int argc,char** argv){
   };
   presentation_providers::ThemeState theme({[]{return std::string("dark");},
     [](const std::string&){},[]{return std::string("dark");},[]{}});
-  auto shortcuts=presentation_providers::makeShortcutProvider({"linux",true,
-    [](const std::string&){return false;}},[]{return std::vector<presentation_providers::Binding>{};});
+  auto shortcuts=presentation_providers::makeShortcutProvider({"linux",true},[]{return std::vector<presentation_providers::Binding>{};});
   auto chrome=presentation_providers::makeChromeProviders({theme,shortcuts,
     []{return std::string{};},[]{return std::string{};},
     []{return std::string{};},[]{return std::string{};}});
   imports.projectionServices=[&theme]{
     message_view::ProjectionServices services;
-    services.user.protocol.feature=[](const std::string&){return false;};
-    services.user.protocol.batSwarmsEnabled=[]{return false;};
     services.user.poetry.logError=[](const std::string&){};
     services.user.poetry.briefModeActive=[]{return false;};
     services.user.poetry.userMessageOptIn=[]{return false;};
@@ -102,6 +96,26 @@ int main(int argc,char** argv){
   imports.setTerminalProgress=[](std::optional<message_list_view::ProgressState>){};
   imports.onDetachedError=[](std::exception_ptr error){
     if(error)std::rethrow_exception(error);
+  };
+  // Queued leader poetry, fed the way ApplicationRuntime feeds it.
+  submit::QueuedInputTracker queuedRows;
+  queue.subscribe([&]{
+    if(queuedRows.syncQueue(*queue.snapshot(),state.messages)){
+      state.queuedInputs=queuedRows.rows();++state.revision;
+    }
+  });
+  imports.takeQueued=[&](bool newestOnly,const std::string& input,std::size_t caret){
+    return submit::takeQueuedPoetry(queue,queuedRows,newestOnly,input,caret,0);
+  };
+  bool interrupted=false;
+  imports.interruptTurn=[&]{
+    if(!guard.isActive()||interrupted)return false;
+    interrupted=true;return true;
+  };
+  imports.renderQueuedInput=[&theme](const QueuedInput& input,bool margin,int columns){
+    return cards::projectQueuedPoetry({queuedInputMarker(input),input.text,
+      queuedInputLabels(input),!input.delivering,margin},columns,
+      presentation_providers::poetryPalette(theme));
   };
   int replies=0,settled=0;
   imports.input.onTerminalResponse=[&](termio::ResponseRef){++replies;};
@@ -137,12 +151,9 @@ int main(int argc,char** argv){
     if(auto current=weak.lock())return current->commands().hasActiveLocalUi();
     return false;
   };
-  runtimeServices.getSubmitCount=[]{return std::size_t{0};};
   runtimeServices.onDetachedError=[](std::exception_ptr error){
     if(error)std::rethrow_exception(error);
   };
-  runtimeServices.recordUserActivity=[]{};
-  runtimeServices.updateLastInteractionTime=[](bool){};
   repl_runtime::TranscriptServices transcript;
   transcript.setHighlight=[](const std::string&){};
   transcript.clearPositions=[]{};
@@ -315,6 +326,48 @@ int main(int argc,char** argv){
   paint();
   assert(hasRow("after-edit")&&!hasRow("before-edit"));
   state.messages.clear();paint();
+  {
+    const auto require=[](bool condition,const std::string& reason){
+      if(!condition)throw std::runtime_error("queued poetry: "+reason);
+    };
+    const auto shown=[&](const std::string& text){
+      return screen.ToString().find(text)!=std::string::npos;
+    };
+    // Poetry sent during a turn is drawn under the live rows at once, in order.
+    (void)guard.tryStart();state.loading=true;state.input.text.clear();
+    state.input.caretUtf16=0;
+    queue.enqueue(Json{{"value","QUEUED_ONE"},{"mode","prompt"},{"uuid","q1"}});
+    queue.enqueue(Json{{"value","QUEUED_TWO"},{"mode","prompt"},{"uuid","q2"}});
+    paint();
+    require(shown("❯ QUEUED_ONE")&&shown("❯ QUEUED_TWO")&&shown("queued"),
+      "both rows and their label are drawn:\n"+screen.ToString());
+    require(screen.ToString().find("QUEUED_ONE")<screen.ToString().find("QUEUED_TWO"),
+      "rows stack in the order sent");
+    require(hasRow("-queued-q1")&&hasRow("-queued-q2"),"rows are part of the scrolled list");
+    // Up with an empty input takes the newest message back for editing.
+    shell->onRawInput("\x1b[A");paint();
+    require(state.input.text=="QUEUED_TWO"&&queue.size()==1,"Up pulls back the newest");
+    require(state.queuedInputs.size()==1&&!state.queuedInputs.front().delivering,
+      "a pulled-back message is not delivered");
+    require(hasRow("-queued-q1")&&!hasRow("-queued-q2"),"its row is gone");
+    // Esc interrupts the turn and returns every queued message ahead of the draft.
+    queue.enqueue(Json{{"value","QUEUED_THREE"},{"mode","prompt"},{"uuid","q3"}});
+    state.input.text="draft";state.input.caretUtf16=5;
+    shell->onRawInput("\x1b");loop.run();
+    require(interrupted,"Esc interrupts the turn");
+    require(state.input.text=="QUEUED_ONE\nQUEUED_THREE\ndraft"&&queue.empty()&&
+      state.queuedInputs.empty(),"Esc returns queued poetry to the input: "+state.input.text);
+    // Taken for delivery, a row is drawn as sent until its message exists.
+    queue.enqueue(Json{{"value","QUEUED_FOUR"},{"mode","prompt"},{"uuid","q4"}});
+    (void)queue.dequeue();paint();
+    require(state.queuedInputs.size()==1&&state.queuedInputs.front().delivering&&
+      shown("QUEUED_FOUR")&&!shown("queued"),"a delivering row looks sent:\n"+
+      screen.ToString());
+    guard.forceEnd();state.loading=false;
+    if(queuedRows.settle())state.queuedInputs=queuedRows.rows();
+    state.input.text.clear();state.input.caretUtf16=0;paint();
+    require(!shown("QUEUED_FOUR"),"the row settles with the turn");
+  }
   shell->setTranscript(true);shell->openSearch();
   shell->onRawInput("n");
   assert(shell->navigation().searchQuery()=="n");

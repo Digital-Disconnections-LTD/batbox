@@ -138,6 +138,7 @@ void validateEndpoint(const std::string& id,const application::EndpointRecord& e
     if(!it.value().is_string()||it.key().find_first_of("\r\n")!=std::string::npos||
         (it.value().is_string()&&it.value().get<std::string>().find_first_of("\r\n")!=std::string::npos))
       throw std::invalid_argument("Endpoint headers must be single-line text");
+  transport::validateBetas(endpoint.betas);
   if(endpoint.contextWindow==0||endpoint.maxOutputTokens==0||
       endpoint.maxOutputTokens>endpoint.contextWindow)
     throw std::invalid_argument("Set positive context and output limits (output <= context)");
@@ -160,12 +161,14 @@ application::InferenceProfile inferenceProfile(const application::EndpointRecord
   profile.quirks=endpoint.quirks;
   profile.authToken=endpoint.authToken;profile.apiKeyEnv=endpoint.apiKeyEnv;
   profile.authHeader=endpoint.authHeader;profile.headers=endpoint.headers;
+  profile.betas=endpoint.betas;
   profile.contextWindow=endpoint.contextWindow;
   profile.maxOutputTokens=endpoint.maxOutputTokens;
   profile.thinking=endpoint.thinking;profile.poetryStashing=endpoint.poetryStashing;
   profile.adaptiveThinking=endpoint.adaptiveThinking;
   profile.structuredOutputs=endpoint.structuredOutputs;profile.effort=endpoint.effort;
   profile.sendDisabledThinking=endpoint.sendDisabledThinking;
+  profile.limits=endpoint.limits;
   return profile;
 }
 void loadEndpoints(application::Config& config,const Json& source){
@@ -190,6 +193,7 @@ void loadEndpoints(application::Config& config,const Json& source){
     endpoint.apiKeyEnv=field(row,"api_key_env");
     endpoint.authHeader=field(row,"auth_header","authorization");
     if(row.contains("headers"))endpoint.headers=row.at("headers");
+    if(row.contains("betas"))endpoint.betas=transport::parseBetas(row.at("betas"));
     if(row.contains("models")){
       if(!row.at("models").is_array())throw std::invalid_argument("Endpoint models must be an array");
       for(const auto& model:row.at("models"))endpoint.models.push_back(model.get<std::string>());
@@ -202,6 +206,7 @@ void loadEndpoints(application::Config& config,const Json& source){
     endpoint.structuredOutputs=flag(row,"structured_outputs");
     endpoint.effort=flag(row,"effort");
     endpoint.sendDisabledThinking=flag(row,"send_disabled_thinking");
+    endpoint.limits=application::parseRequestLimits(row,"endpoint "+it.key());
     validateEndpoint(it.key(),endpoint);
     config.endpoints.insert_or_assign(it.key(),std::move(endpoint));
   }
@@ -229,6 +234,8 @@ Json endpointDocument(const std::map<std::string,application::EndpointRecord>& e
     if(!endpoint.authToken.empty())rows[id]["auth_token"]=endpoint.authToken;
     if(!endpoint.apiKeyEnv.empty())rows[id]["api_key_env"]=endpoint.apiKeyEnv;
     if(!endpoint.headers.empty())rows[id]["headers"]=endpoint.headers;
+    rows[id].update(application::requestLimitsDocument(endpoint.limits));
+    if(!endpoint.betas.empty())rows[id]["betas"]=endpoint.betas;
   }
   return rows;
 }

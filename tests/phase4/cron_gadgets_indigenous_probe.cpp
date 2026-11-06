@@ -58,7 +58,8 @@ int main(){
   ui.renderDeleteResult=ui.renderCreateResult;
   ui.renderListResult=ui.renderCreateResult;
   auto configuration=cron::config::indigenousCronConfigurationServices(
-    [](const std::string&,const Json& fallback,double){return fallback;},true);
+    [](const std::string& key,const Json& fallback,double){
+      return key=="batbox_cron_durable"?Json(true):fallback;},true);
   bat_context::PartnerIdentityState identity;
   auto intlStash=std::make_shared<intl::Stash>(intl::indigenousServices());
   auto widths=std::make_shared<text_width::StringWidth>(

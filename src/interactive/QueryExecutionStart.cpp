@@ -36,9 +36,7 @@ void Run::start(){
     if(std::any_of(params.request.newMessages->begin(),
         params.request.newMessages->end(),s.isCompactBoundary)){
       need(s.uuid,"uuid");need(s.setConversationId,"setConversationId");
-      s.setConversationId(s.uuid());need(s.feature,"feature");
-      if((s.feature("PROACTIVE")||s.feature("KAIROS"))&&s.setContextBlocked)
-        s.setContextBlocked(false);
+      s.setConversationId(s.uuid());
     }
     need(s.resetLoadingState,"resetLoadingState");s.resetLoadingState();
     need(s.clearAbortController,"clearAbortController");s.clearAbortController();

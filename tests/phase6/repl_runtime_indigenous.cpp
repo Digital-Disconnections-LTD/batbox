@@ -57,22 +57,6 @@ int main(){
     events.push_back("query");return done();
   };
   services.mainLoopModel=[]{return "model";};
-  auto kept=std::make_shared<Json>(Json{{"name","keep"}});
-  auto safe=std::make_shared<Json>(Json{{"name","safe"}});
-  auto dropped=std::make_shared<Json>(Json{{"name","drop"}});
-  services.initialLocalCommands={kept,safe,dropped};
-  services.isRemoteSafeCommand=[safe](const LocalCommandRef& item){
-    return item==safe;
-  };
-  services.publishLocalCommands=[&](const LocalCommands& list){
-    assert(list.size()==2&&list[0]==kept&&list[1]==safe);
-  };
-  services.recordUserActivity=[&]{events.push_back("activity");};
-  services.getSubmitCount=[]{return std::size_t{0};};
-  services.updateLastInteractionTime=[&](bool immediate){
-    assert(immediate);events.push_back("interaction");
-  };
-  services.startBackgroundHousekeeping=[&]{events.push_back("housekeeping");};
   services.onDetachedError=[](std::exception_ptr error){if(error)
     std::rethrow_exception(error);};
   std::string highlight;
@@ -80,26 +64,12 @@ int main(){
   transcript.setHighlight=[&](const std::string& value){highlight=value;};
   transcript.clearPositions=[]{};
   transcript.cancelEditorTimer=[]{};
-  IdleServices idle;
-  idle.messageIdleThresholdMs=[]{return 0.0;};
-  idle.getLastInteractionTime=[]{return 0.0;};
-  idle.nowMs=[]{return 124.0;};
-  idle.focusedDialogPresent=[]{return false;};
-  idle.sendIdlePoetry=[&](const std::string& message,
-      const std::string& type){
-    assert(message=="Batbox is waiting for your input");
-    assert(type=="idle_prompt");
-    events.push_back("idle");
-  };
-  idle.idleReturnMode=[]{return "off";};
-  auto runtime=std::make_shared<Runtime>(services,transcript,idle);
+  auto runtime=std::make_shared<Runtime>(services,transcript);
   runtime->start();
   loop.runReady();
-  assert(events[0]=="activity"&&events[1]=="interaction");
-  assert(events[2]=="verify"&&events[3]=="memory");
+  assert(events[0]=="verify"&&events[1]=="memory");
   assert(stash->get("/tmp/BATBOX.md")->content=="raw");
   assert(stash->get("/tmp/BATBOX.md")->isPartialView);
-  runtime->handleRemoteInit({"keep"});
   assert(!guard.isActive());
   assert(runtime->handleIncomingPoetry("hello",true));
   assert((*currentAbort).aborted()==false);
@@ -121,13 +91,10 @@ int main(){
   runtime->handleExitTranscript();
   assert(runtime->transcriptMessages().size()==2);
   runtime->setTranscriptScreen(true,true);
-  runtime->setTranscriptSearch("needle",true,2,0);
+  runtime->setTranscriptSearch("needle");
   assert(highlight=="needle");
   runtime->setTranscriptScreen(false,true);
-  assert(highlight.empty()&&runtime->editorGeneration()>0);
-  runtime->observeIdleEffects(123,false,false,1);
-  loop.run();
-  assert(events.back()=="idle");
+  assert(highlight.empty());
   runtime->stop();
   std::cout<<"repl runtime integration passed\n";
 }

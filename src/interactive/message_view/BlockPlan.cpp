@@ -28,15 +28,6 @@ BlockPlan prepareAssistantBlock(const GadgetBlockRef& block,const std::string& t
   result.shouldShowDot=options.shouldShowDot;result.shouldAnimate=options.shouldAnimate;
   result.width=options.width;result.thinkingBlockId=thinkingId;
   result.inProgressGadgetCallCount=options.inProgressGadgetUseIDs.size();
-  need(imports.feature,"feature");
-  if(imports.feature("CONNECTOR_TEXT")){
-    need(imports.isConnectorTextBlock,"isConnectorTextBlock");
-    if(imports.isConnectorTextBlock(block.value())){
-      result.kind=BlockKind::AssistantText;
-      result.replacement={{"type","text"},{"text",value::property(block.value(),"connector_text")}};
-      return result;
-    }
-  }
   const auto& type=value::property(block.value(),"type");
   if(type=="tool_use")result.kind=BlockKind::AssistantGadgetUse;
   else if(type=="text")result.kind=BlockKind::AssistantText;

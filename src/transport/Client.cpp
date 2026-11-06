@@ -113,10 +113,8 @@ Response Client::request(const Json& body, bool stream, const std::function<void
   std::lock_guard lock(mutex);
   if (stop.stop_requested()) throw APIUserAbortError();
   if (stream && !onEvent) throw std::invalid_argument("Streaming requests require an event consumer");
-  auto prepared=prepareMessageRequest(body,config.headers,config.protocol);
-  Json request = std::move(prepared.body);
-  request["stream"] = stream;
-  const auto serialized = value::stringify(request);
+  auto prepared=serializeMessageRequest(body,stream,config.headers,config.protocol);
+  const auto serialized = std::move(prepared.body);
   auto url = config.baseUrl;
   while (url.ends_with('/')) url.pop_back();
   url += config.messagesPath;

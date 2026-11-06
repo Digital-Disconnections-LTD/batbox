@@ -13,7 +13,7 @@ struct ExecutionRun:std::enable_shared_from_this<ExecutionRun> {
   TurnMessagesRef newMessages=std::make_shared<TurnMessages>();
   std::shared_ptr<user_input::UserInputServices> currentInputServices;
   std::size_t index=0;
-  bool shouldQuery=false,finished=false;
+  bool shouldQuery=false,finished=false,workingNoted=false;
   std::vector<std::string> allowedGadgets;
   std::optional<std::string> model,effort,nextInput;
   std::optional<bool> submitNextInput;
@@ -21,7 +21,7 @@ struct ExecutionRun:std::enable_shared_from_this<ExecutionRun> {
     std::shared_ptr<SubmitServices> services);
   void start();
   void step();
-  void accept(const user_input::InputResult& value);
+  void accept(const user_input::InputResult& value,std::optional<Json> note={});
   void finishInputs();
   void afterQuery();
   void finish(std::exception_ptr error={});

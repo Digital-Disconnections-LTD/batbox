@@ -34,7 +34,8 @@ void Roster::completeLocked(MissionRecord& mission,const shell::ExecResult& resu
   const auto status=mission.status;
   const auto summary=status=="completed"?"Background command \""+mission.description+
     "\" completed (exit code "+std::to_string(result.code)+")":
-    "Background command \""+mission.description+"\" failed with exit code "+std::to_string(result.code);
+    "Background command \""+mission.description+"\" failed with exit code "+std::to_string(result.code)+
+    (result.stderrText.empty()?"":" ("+result.stderrText+")");
   if(!shell_)throw std::logic_error("managed shell not attached");
   notification="<task-notification>\n<task-id>"+mission.id+"</task-id>"+
     (mission.gadgetUseId?"\n<tool-use-id>"+*mission.gadgetUseId+"</tool-use-id>":"")+
@@ -117,14 +118,6 @@ std::vector<std::string> Roster::backgroundAllForeground(){
   std::vector<std::string> backgrounded;
   for(const auto& id:foregroundShellIds())if(backgroundExistingForeground(id))backgrounded.push_back(id);
   return backgrounded;
-}
-void Roster::registerExternal(MissionRecord record){
-  if(record.id.empty())throw std::invalid_argument("task ID required");
-  if(record.type=="local_bash")throw std::invalid_argument("external task must have external type");
-  std::lock_guard lock(mutex_);
-  if(!missions_.emplace(record.id,std::move(record)).second)
-    throw std::invalid_argument("task already registered");
-  cv_.notify_all();
 }
 void Roster::upsertExternal(MissionRecord record){
   if(record.id.empty()||record.type=="local_bash")

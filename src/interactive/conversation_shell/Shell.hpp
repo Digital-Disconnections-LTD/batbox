@@ -1,7 +1,11 @@
 #pragma once
-#include "interactive/InteractionController.hpp"
+#include "interactive/CommandUi.hpp"
+#include "interactive/PresentationState.hpp"
+#include "keyboard_input/Keyboard.hpp"
+#include "terminal_ftxui/Driver.hpp"
+#include "terminal_ftxui/PresentationView.hpp"
+#include "terminal_ftxui/ScrollbackProjection.hpp"
 #include "interactive/MessageListMemo.hpp"
-#include "interactive/message_actions/MessageActions.hpp"
 #include "interactive/message_list_view/Projection.hpp"
 #include "interactive/message_list_view/Search.hpp"
 #include "interactive/message_view/RetainedViews.hpp"
@@ -18,13 +22,27 @@
 #include <string_view>
 #include <vector>
 
+namespace batbox::interactive {
+struct InteractionImports {
+  PresentationImports presentation;
+  std::function<void(termio::ResponseRef)> onTerminalResponse;
+  std::function<void(keyboard_input::MouseRef)> onMouse;
+  std::function<void(bool)> onTerminalFocus;
+  std::function<void()> onSuspend;
+  std::function<void(bool)> onQueueBlocked;
+  std::function<void(const CommandDescriptor&,const CommandCompletion&,bool)> onCommandSettled;
+  std::function<void(const std::string&)> onCommandError;
+  std::function<void(std::string_view)> writePlain;
+  std::function<void()> onExit;
+};
+} // namespace batbox::interactive
+
 namespace batbox::interactive::conversation_shell {
 struct TranscriptExportRun;
 inline constexpr unsigned welcomeAnimationFrames=12;
 struct ViewState {
   const PresentationState& presentation;
   const transcript_navigation::StickyPoetry& sticky;
-  const std::optional<message_actions::Cursor>& cursor;
   text_input::EditorView editor;
   std::string_view searchQuery;
   std::size_t searchCount=0,searchCurrent=0,newMessageCount=0;
@@ -36,6 +54,8 @@ struct ViewState {
   // Titles from the top-level Bat down to the open one.
   std::vector<std::string> batTrail;
   bool missionsCollapsed=false;
+  // The Active Missions row picked with Down from an empty input.
+  std::optional<std::string> selectedMission;
   bool remembering=false;
   unsigned activityFrame=0;
   unsigned welcomeFrame=welcomeAnimationFrames;
@@ -43,6 +63,8 @@ struct ViewState {
   // Milliseconds since the current turn started working; zero when idle.
   double workingMs=0;
   std::string streamMode;
+  // What the Stop hooks report while they run ("Checking the build… 1/2").
+  std::string stopHookStatus;
   bool historySearch=false;
 };
 // How chrome dresses the poetry input. Framed inputs are inset by
@@ -95,10 +117,12 @@ struct Imports {
   std::function<event_loop::Deferred<event_loop::Unit>(
     const std::string&,const std::string&)> submitBatMessage;
   std::function<void(const std::string&)> releaseBatMission,stopBatMission;
-  std::function<std::size_t()> getSubmitCount;
   std::function<bool()> interruptTurn;
+  // Takes poetry queued during a turn back into the input: the newest
+  // message alone, or all of them joined by newlines ahead of the input.
+  std::function<std::optional<submit::PopEditableResult>(bool newestOnly,
+    const std::string& input,std::size_t caret)> takeQueued;
   std::function<void(const std::string&)> copyMessageText;
-  std::function<event_loop::Deferred<event_loop::Unit>(MessageRef)> editMessage;
   std::function<event_loop::Deferred<Json>()> getImageFromClipboard;
   std::function<event_loop::Deferred<Json>(const std::string&)> readPastedImagePaths;
   std::function<void(const Json&)> onImagePasted;
@@ -111,6 +135,12 @@ struct Imports {
   std::function<MessageDecisionImports()> decisionImports;
   std::function<message_view::ProjectionServices()> projectionServices;
   std::function<ftxui::Element(const std::string&,bool)> renderStreamingMarkdown;
+  // The live answer and reasoning as rows (markdown::MarkdownPiece); when
+  // unset the answer is one row from renderStreamingMarkdown.
+  std::function<std::vector<markdown::MarkdownPiece>(const std::string&)>
+    renderStreamingPieces,renderThinkingPieces;
+  std::function<ftxui::Element(const QueuedInput&,bool margin,int columns)>
+    renderQueuedInput;
   message_view::RetainedViewServices retainedViews;
   // When set, read for every paint so theme and width changes reach result
   // cards; otherwise the services above are used as bound.
@@ -155,7 +185,6 @@ public:
   void openSearch();
   void setSearchQuery(std::string query);
   void closeSearch(bool commit);
-  void dispatchMessageAction(const std::string& action);
   void scroll(double rows);
   void jumpToBottom();
   void resetHistory();
@@ -168,7 +197,6 @@ public:
   CommandUi& commands(){return *commands_;}
   viewport::Controller& viewport(){return *viewport_;}
   transcript_navigation::Navigation& navigation(){return *navigation_;}
-  message_actions::MessageActionsController& actions(){return *actions_;}
   const std::optional<transcript_navigation::PositionOverlay>& positions()const{
     return positions_;}
   const ViewState viewState()const;
@@ -190,6 +218,7 @@ private:
   bool onCopyMouse(const ftxui::Mouse& mouse);
   void scheduleCopyScroll();
   void submitPoetry(const std::string& text);
+  bool restoreQueued(bool newestOnly);
   void onPastedText(const std::string& text);
   void startTranscriptExport();
   void advanceTranscriptExport();
@@ -202,7 +231,6 @@ private:
   void syncWelcomeAnimation();
   int poetryColumns(int columns)const;
   void commitInlineScrollback();
-  void observeLastMessage();
   void reportDetached(std::exception_ptr error)const;
   void finishCommandUiReplacement();
   void refreshBatConversation();
@@ -210,6 +238,9 @@ private:
   bool submitBatPoetry(const std::string& text);
   void resetConversationNavigation();
   void stepBat(int direction);
+  // Keys while a row under the input is picked; false lets the key through.
+  bool onMissionListKey(const keyboard_input::KeyRef& key);
+  std::vector<std::string> missionListIds()const;
   void backFromBat();
   struct BatConversation {
     std::string id,label,status;
@@ -227,6 +258,7 @@ private:
   std::size_t batOpenGeneration_=0;
   // The Bat most recently asked for; Alt+Up/Down step from it while it opens.
   std::optional<std::string> pendingBatId_;
+  std::optional<std::string> selectedMission_;
   bool missionsCollapsed_=false;
   std::optional<double> leaderScrollTop_;
   bool leaderAtBottom_=true;
@@ -245,7 +277,6 @@ private:
   std::shared_ptr<viewport::Controller> viewport_;
   std::shared_ptr<transcript_navigation::Navigation> navigation_;
   std::shared_ptr<message_view::RetainedViews> retained_;
-  std::unique_ptr<message_actions::MessageActionsController> actions_;
   std::unique_ptr<text_input::TextEditor> editor_;
   std::shared_ptr<application_history::Navigator> historyNavigator_;
   std::vector<application_completion::Suggestion> suggestions_;
@@ -257,14 +288,13 @@ private:
   InputState searchInput_;
   text_input::KillRing killRing_;
   message_list_view::SurfaceState surfaceState_;
-  std::optional<StreamingThinking> previousThinking_;
   std::shared_ptr<const StreamingThinking> thinkingRef_;
+  std::vector<markdown::MarkdownPiece> responsePieces_,thinkingPieces_;
   std::optional<Json> streamingThinkingIndex_;
   message_list_view::SearchTextStash searchText_;
   std::optional<SliceAnchor> sliceAnchor_;
   std::shared_ptr<PreparedMessageList> prepared_;
   MessageListMemo listMemo_;
-  MessageRef lastObservedMessage_;
   keyboard_input::KeyParseState parser_;
   event_loop::Loop::TimerHandle incompleteEscapeTimer_;
   event_loop::Loop::TimerHandle copyScrollTimer_;
@@ -279,7 +309,6 @@ private:
   std::vector<std::string> footerMissionIds_;
   std::optional<transcript_navigation::PositionOverlay> positions_;
   transcript_navigation::StickyPoetry sticky_;
-  std::optional<message_actions::Cursor> cursor_;
   std::string searchQuery_,searchDraft_;
   std::size_t searchCount_=0,searchCurrent_=0,newMessageCount_=0;
   bool lastHasGadgetsInProgress_=false;

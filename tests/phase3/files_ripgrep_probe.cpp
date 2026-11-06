@@ -15,7 +15,9 @@ static Json evaluate(const Json& t){
   std::jthread stopper;
   if(t.value("stop",false))stopper=std::jthread([&](){
     std::this_thread::sleep_for(std::chrono::milliseconds(20));source.request_stop();});
-  return batbox::filesystem::ripGrep(args,t.at("target").get<std::string>(),source.get_token(),config);
+  const auto found=batbox::filesystem::ripGrep(args,t.at("target").get<std::string>(),source.get_token(),config);
+  if(found.incomplete.empty())return found.lines;
+  return Json{{"lines",found.lines},{"incomplete",found.incomplete}};
 }
 int main(){std::string input((std::istreambuf_iterator<char>(std::cin)),{});
   try{std::cout<<batbox::value::stringify(Json{{"result",evaluate(batbox::value::parse(input))}})<<'\n';}

@@ -89,27 +89,6 @@ void loadAttachmentsAndRoute(const std::shared_ptr<InputState>& state){
         }
       }
     }
-    if(!state->services.feature)
-      throw std::invalid_argument("Missing user input binding: feature");
-    if(state->services.feature("ULTRAPLAN")&&request.mode=="prompt"&&
-       !request.isNonInteractiveFlight&&
-       state->inputString&&!skipSlash&&
-       (state->inputString->empty()||state->inputString->front()!='/')&&
-       !value::truthy(value::property(state->services.getAppState(),"ultraplanSessionUrl"))&&
-       !value::truthy(value::property(state->services.getAppState(),"ultraplanLaunching"))){
-      if(!state->services.hasUltraplanKeyword||
-         !state->services.replaceUltraplanKeyword)
-        throw std::invalid_argument("Missing user input binding: ultraplan keyword");
-      if(state->services.hasUltraplanKeyword(request.preExpansionInput.value_or(
-           *state->inputString))){
-        const auto rewritten=value::trim(state->services.replaceUltraplanKeyword(
-          *state->inputString));
-        awaitRoute(state,processSlashCommand("/ultraplan "+rewritten,
-          state->preceding,state->imageBlocks,Json::array(),request.uuid,
-          state->services.slash));
-        return;
-      }
-    }
     // Keep this effective gate local; the original request remains unchanged.
     if(skipSlash!=request.skipSlashCommands)state->request.skipSlashCommands=skipSlash;
     loadAttachments(state,skipSlash);

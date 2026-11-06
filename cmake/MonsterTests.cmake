@@ -1,3 +1,0 @@
-batbox_probe(monster_roll batbox_monster phase5)
-batbox_probe(monster_poetry batbox_monster phase5)
-batbox_probe(monster_sprites batbox_monster phase5)

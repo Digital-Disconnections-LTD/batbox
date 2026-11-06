@@ -23,5 +23,4 @@ ExtractionResult extractHeredocs(const std::string& command,bool quotedOnly=fals
   const SaltProvider& saltProvider={});
 std::vector<std::string> restoreHeredocs(const std::vector<std::string>& parts,
   const std::vector<Entry>& heredocs);
-bool containsHeredoc(const std::string& command);
 } // namespace batbox::shell_heredoc

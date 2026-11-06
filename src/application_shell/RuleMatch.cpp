@@ -49,12 +49,4 @@ ShellRule parsePermissionRule(const std::string& rule){
   if(hasWildcards(rule))return {ShellRule::Type::Wildcard,rule};
   return {ShellRule::Type::Exact,rule};
 }
-Json suggestionForExactCommand(const std::string& name,const std::string& command){
-  return Json::array({Json{{"type","addRules"},
-    {"rules",Json::array({Json{{"toolName",name},{"ruleContent",command}}})},
-    {"behavior","allow"},{"destination","localSettings"}}});
-}
-Json suggestionForPrefix(const std::string& name,const std::string& prefix){
-  return suggestionForExactCommand(name,prefix+":*");
-}
 } // namespace batbox::application_shell

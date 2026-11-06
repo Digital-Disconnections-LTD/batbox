@@ -39,7 +39,6 @@ public:
   void trackEdit(const std::string& filePath,const std::string& messageId);
   event_loop::Deferred<event_loop::Unit> makeSnapshot(const std::string& messageId);
   event_loop::Deferred<event_loop::Unit> rewind(const std::string& messageId);
-  bool canRestore(const std::string& messageId)const;
   event_loop::Deferred<std::optional<DiffStats>> getDiffStats(
     const std::string& messageId);
   event_loop::Deferred<bool> hasAnyChanges(const std::string& messageId);

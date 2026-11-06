@@ -23,8 +23,6 @@ struct ClearServices {
   std::function<void(Json)> setMessages;
   std::function<void(const std::string&)> setConversationId;
   std::function<std::string()> randomUUID,getOriginalCwd,getFlightId;
-  std::function<bool(const std::string&)> feature;
-  std::function<void(bool)> setContextBlocked;
   std::function<void(const std::vector<std::string>&)> clearFlightStashes;
   std::function<void(const std::string&)> setCwd;
   std::shared_ptr<file_state_stash::FileStateStash> readFileState;
@@ -42,8 +40,6 @@ struct ClearServices {
   std::function<std::string(const std::string&)> getBatTranscriptPath;
   std::function<void(const std::string&,const std::string&)>
     initMissionOutputAsSymlink;
-  std::function<bool()> isCoordinatorMode;
-  std::function<void(const std::string&)> saveMode;
   std::function<std::optional<Json>()> getCurrentWorktreeFlight;
   std::function<void(const Json&)> saveWorktreeState;
   std::function<void(std::exception_ptr)> logError;

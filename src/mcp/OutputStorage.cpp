@@ -51,15 +51,6 @@ std::string extensionForMimeType(const std::optional<std::string>& mimeType){
   for(const auto& [source,ext]:types)if(mime==source)return ext;
   return "bin";
 }
-bool isBinaryContentType(const std::string& contentType){
-  const auto mime=mimeBase(contentType);
-  if(mime.empty()||mime.starts_with("text/"))return false;
-  if(mime.ends_with("+json")||mime=="application/json")return false;
-  if(mime.ends_with("+xml")||mime=="application/xml")return false;
-  if(mime.starts_with("application/javascript")||
-     mime=="application/x-www-form-urlencoded")return false;
-  return true;
-}
 Json persistBinaryContent(const std::string& bytes,const std::optional<std::string>& mimeType,
   const std::string& persistId,const StorageConfig& config){
   if(!config.ensureGadgetResultsDir||!config.getGadgetResultsDir)

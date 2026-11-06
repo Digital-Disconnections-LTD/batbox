@@ -10,12 +10,15 @@ struct SummaryModelRequest {
 struct SummaryServices {
   std::function<bool()> poetryStashSharingEnabled;
   std::function<bool()> streamingRetryEnabled;
+  // Requests for the summary without the shared prefix after the fork fails;
+  // unbound: 2 with streamingRetryEnabled, else 1.
+  std::function<int()> summaryAttempts;
+  // Why the shared-prefix fork failed before the fallback request.
+  std::function<void(const std::string&)> log;
   std::function<Json(const Json&,std::stop_token,const std::function<Json()>&,
     const std::shared_ptr<bats::StashSafeParams>&)> runForkedBat;
   std::function<bool(const Json&,const Json&,const std::function<Json()>&,const Json&,const std::string&)> isGadgetSearchEnabled;
   Json fileReadGadget,gadgetSearchGadget;
-  messages::BoundaryServices boundary;
-  std::function<bool(const std::string&)> feature;
   std::function<Json(const Json&,const Json&)> normalizeMessagesForAPI;
   std::function<double(const std::string&)> getMaxOutputTokensForModel;
   std::function<model::NextMessage(const SummaryModelRequest&)> queryModelWithStreaming;

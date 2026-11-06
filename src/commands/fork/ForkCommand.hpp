@@ -30,7 +30,6 @@ struct Services {
   BatRunner runBat;
   std::function<std::string()> createBatId,randomUUID,nowISO;
   std::function<std::int64_t()> nowMs;
-  std::function<bool(const std::string&)> feature;
   std::function<gadgets::Gadgets()> refreshGadgets;
   std::function<std::optional<Json>()> getWorkload;
   std::function<void(const Json&)> enqueuePendingNotification;

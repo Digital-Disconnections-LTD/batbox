@@ -1,6 +1,4 @@
 #include "requests/PoetryStash.hpp"
-#include "utils/envUtils.hpp"
-#include <stdexcept>
 #include <vector>
 
 namespace batbox::requests {
@@ -87,30 +85,6 @@ Json splitSystemPoetryPrefix(const Json& systemPoetry, const PoetrySplitConfig& 
   std::string restJoined = join(rest);
   if (!restJoined.empty()) push(result, std::move(restJoined), "org");
   return result;
-}
-
-bool shouldUseOneHourStash(const std::optional<std::string>& querySource,
-                           StashTTLState& state, const StashTTLConfig& config) {
-  if (config.provider == "bedrock" &&
-      isEnvTruthy(config.enableOneHourForBedrock ? Json(*config.enableOneHourForBedrock) : Json())) return true;
-  if (!state.userEligible.has_value()) {
-    state.userEligible = config.internalUser || (config.subscriber && !config.usingOverage);
-  }
-  if (!*state.userEligible) return false;
-  if (!state.allowlist.has_value()) {
-    if (!config.loadAllowlistConfig) throw std::runtime_error("Missing cache TTL dependency: loadAllowlistConfig");
-    const Json loaded = config.loadAllowlistConfig();
-    state.allowlist = loaded.is_object() && loaded.contains("allowlist") && !loaded["allowlist"].is_null()
-      ? loaded["allowlist"] : Json::array();
-  }
-  if (!querySource) return false;
-  for (const auto& item : *state.allowlist) {
-    const std::string pattern = item.get<std::string>();
-    if (!pattern.empty() && pattern.back() == '*') {
-      if (startsWith(*querySource, pattern.substr(0, pattern.size() - 1))) return true;
-    } else if (*querySource == pattern) return true;
-  }
-  return false;
 }
 
 } // namespace batbox::requests

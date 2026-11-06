@@ -7,9 +7,7 @@ inline batbox::interactive::message_view::ProjectionServices services(){
   message_view::ProjectionServices result;
   auto& user=result.user;
   user.protocol={"__NONE__","__INTERRUPT__","__INTERRUPT_TOOL__",
-    "command-message","local-command-caveat","tick","teammate-message",
-    "task-notification","GITHUB","FORK","INBOX","CHANNEL","CHANNELS",
-    [](const std::string&){return false;},[]{return false;}};
+    "command-message","local-command-caveat","tick","task-notification"};
   user.userPalette={ftxui::Color::YellowLight,ftxui::Color::White,
     ftxui::Color::GrayDark,ftxui::Color::Blue,ftxui::Color::Cyan};
   user.poetryPalette={ftxui::Color::Cyan,ftxui::Color::YellowLight,
@@ -25,8 +23,8 @@ inline batbox::interactive::message_view::ProjectionServices services(){
   user.bashResult.outputLine.expandHint=[]{return "(expand)";};
   auto& assistant=result.assistant;
   assistant.protocol={"__NONE__","__NO_RESPONSE__","Prompt is too long",
-    "__CREDIT__","low credit","__KEY__","__EXTERNAL_KEY__","__ORG__",
-    "__ORG_AUTH__","__TOKEN__","__TIMEOUT__","__MODEL_OFF__","__ABORT__",
+    "__CREDIT__","low credit","__KEY__",
+    "__TIMEOUT__","__MODEL_OFF__","__ABORT__",
     "API Error",{"You've hit your"}};
   assistant.textImports.contextUpgradeHint=[]{return std::string{};};
   assistant.textImports.isKeychainLocked=[]{return false;};

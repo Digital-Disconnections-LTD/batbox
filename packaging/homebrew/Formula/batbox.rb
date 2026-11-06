@@ -12,7 +12,6 @@ class Batbox < Formula
   end
 
   depends_on "cmake" => :build
-  depends_on "libwebsockets" => :build
   depends_on "ninja" => :build
   depends_on "nlohmann-json" => :build
   depends_on "pkgconf" => :build
@@ -54,7 +53,7 @@ class Batbox < Formula
     ]
     system "cmake", "-S", ".", "-B", "build", "-G", "Ninja", *args, *std_cmake_args
     system "cmake", "--build", "build", "--target", "batbox"
-    system "cmake", "--install", "build"
+    system "cmake", "--install", "build", "--strip"
   end
 
   def caveats

@@ -21,7 +21,7 @@ std::string draw(const std::optional<ftxui::Element>& element,int width=64){
 }
 int main(){
   auto render=services();MessageImports imports;
-  imports.fullscreen=[]{return true;};imports.feature=[](const std::string&){return false;};
+  imports.fullscreen=[]{return true;};
   imports.logError=[](const std::string&){assert(false);};
   auto message=std::make_shared<Json>(Json{{"type","assistant"},{"uuid","a"},{"timestamp","time"},
     {"message",{{"model","native"},{"content",Json::array({

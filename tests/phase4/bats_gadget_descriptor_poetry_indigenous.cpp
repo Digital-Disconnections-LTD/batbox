@@ -13,8 +13,7 @@ int main(){
   bats::BatGadgetPoetryDependencies deps;
   deps.filterDeniedBats=[&](const Json& bats,const Json&,
       const std::string&){filtered=true;return bats;};
-  deps.feature=[](const std::string&){return false;};
-  deps.getPoetry=[](const Json&,bool,const Json&){
+  deps.getPoetry=[](const Json&,const Json&){
     std::promise<std::string> ready;ready.set_value("prompt");return ready.get_future();
   };
   auto future=bats::getBatGadgetPoetry(context,deps);

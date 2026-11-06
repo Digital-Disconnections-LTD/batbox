@@ -36,10 +36,8 @@ public:
   event_loop::Deferred<event_loop::Unit> authenticate(const std::string& name,
     std::stop_token signal={},bool skipBrowserOpen=false);
   event_loop::Deferred<event_loop::Unit> logout(const std::string& name);
-  event_loop::Deferred<event_loop::Unit> reload(std::filesystem::path projectRoot);
   event_loop::Deferred<ServerResult> connectBatServer(const std::string& name,
     const Json& config);
-  void setGadgetServices(Services services);
   const Json& configurations()const{return configurations_;}
 private:
   explicit IndigenousRuntime(IndigenousInputs inputs);

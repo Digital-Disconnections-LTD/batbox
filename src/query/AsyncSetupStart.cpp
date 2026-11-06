@@ -3,12 +3,12 @@
 
 namespace batbox::query {
 AsyncSetupIterator makeAsyncSetupIterator(event_loop::Loop& loop,Params params,
-  State state,QueryConfig config,AsyncSetupServices services,
+  State state,AsyncSetupServices services,
   std::optional<double> missionBudgetRemaining){
   if(!loop.isOwnerThread())
     throw std::logic_error("Async query preparation must start on the owner loop");
   return AsyncSetupIterator(std::make_shared<async_setup::Run>(loop,std::move(params),
-    std::move(state),std::move(config),std::move(services),missionBudgetRemaining));
+    std::move(state),std::move(services),missionBudgetRemaining));
 }
 event_loop::Deferred<AsyncSetupStep> AsyncSetupIterator::next(){return run_->next();}
 } // namespace batbox::query
@@ -60,12 +60,9 @@ void Run::pump(){
       switch(stage){
       case Stage::Start:start();break;
       case Stage::AfterStart:startBudget();break;
-      case Stage::AwaitBudget:case Stage::AwaitMicro:case Stage::AwaitCollapse:
-      case Stage::AwaitAuto:return;
-      case Stage::AfterBudget:afterBudget(out.messagesForQuery);break;
-      case Stage::AfterSnip:startMicrocompact();break;
-      case Stage::AfterMicro:startCollapses();break;
-      case Stage::AfterCollapse:startAutocompact();break;
+      case Stage::AwaitBudget:case Stage::AwaitMicro:case Stage::AwaitAuto:return;
+      case Stage::AfterBudget:startMicrocompact();break;
+      case Stage::AfterMicro:startAutocompact();break;
       case Stage::YieldPost:
         if(postIndex<postMessages.size())emit(postMessages[postIndex++],Stage::YieldPost);
         else{out.messagesForQuery=postMessages;stage=Stage::AfterPost;}
@@ -84,14 +81,9 @@ void Run::pump(){
 }
 
 void Run::start(){
-  need(services.sync.feature,"feature");need(services.sync.uuid,"uuid");
+  need(services.sync.uuid,"uuid");
   out.gadgetUseContext=state.gadgetUseContext;
   out.executionServices=services.sync.executionServices;
-  if(services.sync.feature("EXPERIMENTAL_SKILL_SEARCH")){
-    need(services.sync.startSkillDiscoveryPrefetch,"startSkillDiscoveryPrefetch");
-    out.pendingSkillPrefetch=services.sync.startSkillDiscoveryPrefetch(
-      state.messages,out.gadgetUseContext);
-  }
   emit(Json{{"type","stream_request_start"}},Stage::AfterStart);
 }
 
@@ -110,7 +102,9 @@ void Run::startBudget(){
   }else out.queryTracking={{"chainId",services.sync.uuid()},{"depth",0}};
   out.gadgetUseContext.data["queryTracking"]=out.queryTracking;
   need(services.sync.getMessagesAfterCompactBoundary,"getMessagesAfterCompactBoundary");
-  out.messagesForQuery=services.sync.getMessagesAfterCompactBoundary(state.messages);
+  // Nothing in this setup reads state.messages after this point.
+  out.messagesForQuery=services.sync.getMessagesAfterCompactBoundary(std::move(state.messages));
+  state.messages=Json::array();
   out.tracking=state.autoCompactTracking;
   const bool persistReplacements=params.querySource.starts_with("agent:")||
     params.querySource.starts_with("repl_main_thread");
@@ -132,30 +126,15 @@ void Run::startBudget(){
   auto self=shared_from_this();
   pending.then([self](const Json* value,const std::exception_ptr& error){
     if(error){self->fail(error);return;}
-    try{self->out.messagesForQuery=*value;self->stage=Stage::AfterBudget;self->pump();}
+    try{
+      if(!isUnchangedMessages(*value))self->out.messagesForQuery=*value;
+      self->stage=Stage::AfterBudget;self->pump();
+    }
     catch(...){self->fail(std::current_exception());}
   });
 }
 
-void Run::afterBudget(const Json&){
-  snipEnabled=services.sync.feature("HISTORY_SNIP");
-  if(snipEnabled){
-    services.queryCheckpoint("query_snip_start");
-    need(services.sync.snipCompactIfNeeded,"snipCompactIfNeeded");
-    const Json snipped=services.sync.snipCompactIfNeeded(out.messagesForQuery);
-    out.messagesForQuery=field(snipped,"messages");
-    const Json& freed=field(snipped,"tokensFreed");
-    if(freed.is_number())out.snipTokensFreed=freed.get<double>();
-    if(!field(snipped,"boundaryMessage").is_null()){
-      emit(field(snipped,"boundaryMessage"),Stage::AfterSnip);
-      return;
-    }
-  }
-  stage=Stage::AfterSnip;
-}
-
 void Run::startMicrocompact(){
-  if(snipEnabled)services.queryCheckpoint("query_snip_end");
   services.queryCheckpoint("query_microcompact_start");
   need(services.microcompact,"microcompact");
   auto pending=services.microcompact(out.messagesForQuery,
@@ -172,53 +151,42 @@ void Run::startMicrocompact(){
 }
 
 void Run::afterMicrocompact(const Json& micro){
-  out.messagesForQuery=field(micro,"messages");
-  if(services.sync.feature("CACHED_MICROCOMPACT"))
-    out.pendingStashEdits=field(field(micro,"compactionInfo"),"pendingCacheEdits");
+  if(const Json& messages=field(micro,"messages");!isUnchangedMessages(messages))
+    out.messagesForQuery=messages;
   services.queryCheckpoint("query_microcompact_end");
   stage=Stage::AfterMicro;
-}
-
-void Run::startCollapses(){
-  if(services.sync.feature("CONTEXT_COLLAPSE") && services.applyCollapsesIfNeeded){
-    auto pending=services.applyCollapsesIfNeeded(out.messagesForQuery,
-      out.gadgetUseContext,params.querySource);
-    if(!loop.dispatcher().sameLoop(pending.dispatcher()))
-      throw std::invalid_argument("Async collapse import belongs to another event loop");
-    stage=Stage::AwaitCollapse;
-    auto self=shared_from_this();
-    pending.then([self](const Json* value,const std::exception_ptr& error){
-      if(error){self->fail(error);return;}
-      try{self->afterCollapses(*value);self->pump();}
-      catch(...){self->fail(std::current_exception());}
-    });
-  }else stage=Stage::AfterCollapse;
-}
-void Run::afterCollapses(const Json& collapsed){
-  out.messagesForQuery=field(collapsed,"messages");
-  stage=Stage::AfterCollapse;
 }
 
 void Run::startAutocompact(){
   need(services.sync.appendSystemContext,"appendSystemContext");
   out.fullSystemPoetry=services.sync.appendSystemContext(params.systemPoetry,params.systemContext);
   services.queryCheckpoint("query_autocompact_start");
+  const auto skipped=[&]{
+    if(!services.autocompactWouldRun||services.autocompactWouldRun(out.messagesForQuery,
+        out.gadgetUseContext,params.querySource,out.tracking))
+      return std::optional<event_loop::Deferred<Json>>();
+    event_loop::Deferred<Json> result(loop);
+    result.resolve(Json{{"wasCompacted",false}});
+    return std::optional<event_loop::Deferred<Json>>(std::move(result));
+  };
   event_loop::Deferred<Json> pending=[&]{
     if(params.indigenousBatContext){
       need(services.sync.makeIndigenousStashSafeParams,"makeNativeCacheSafeParams");
       need(services.autocompactIndigenous,"autocompactNative");
+      if(auto result=skipped())return std::move(*result);
       auto snapshot=services.sync.makeIndigenousStashSafeParams(params.indigenousBatContext,
         params.systemPoetry,params.userContext,params.systemContext,
         out.gadgetUseContext,out.messagesForQuery);
       return services.autocompactIndigenous(out.messagesForQuery,out.gadgetUseContext,snapshot,
-        params.querySource,out.tracking,out.snipTokensFreed);
+        params.querySource,out.tracking);
     }
     need(services.autocompact,"autocompact");
+    if(auto result=skipped())return std::move(*result);
     const Json stashSafe={{"systemPrompt",params.systemPoetry},{"userContext",params.userContext},
       {"systemContext",params.systemContext},{"toolUseContext",out.gadgetUseContext.data},
       {"forkContextMessages",out.messagesForQuery}};
     return services.autocompact(out.messagesForQuery,out.gadgetUseContext,stashSafe,
-      params.querySource,out.tracking,out.snipTokensFreed);
+      params.querySource,out.tracking);
   }();
   if(!loop.dispatcher().sameLoop(pending.dispatcher()))
     throw std::invalid_argument("Async autocompact import belongs to another event loop");

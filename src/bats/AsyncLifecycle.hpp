@@ -36,10 +36,6 @@ struct AsyncLifecycleImports {
   std::function<double(const Json& tracker)> getTokenCountFromTracker;
   std::function<void(const Json& result,const BatMessageRefs&,
     const RootSetAppState&)> completeAsyncBat;
-  std::function<bool(const std::string&)> feature;
-  std::function<std::optional<std::string>(const Json& batMessages,
-    const gadgets::Gadgets&,const Json& permissionContext,std::stop_token,
-    const std::string& batType,int totalGadgetUseCount)> classifyHandoffIfNeeded;
   std::function<void(const Json& notification,const RootSetAppState&)> enqueueBatNotification;
   std::function<void(const std::string& missionId,const BatMessageRefs&,
     const RootSetAppState&)> killAsyncBat;

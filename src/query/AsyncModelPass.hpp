@@ -10,7 +10,8 @@ struct AsyncModelCursor {
 };
 struct AsyncModelServices {
   ModelServices sync;
-  std::function<AsyncModelCursor(const ModelRequest&,
+  // The request is built per call; the model service may take its messages.
+  std::function<AsyncModelCursor(ModelRequest,
     const std::function<void()>& onStreamingFallback)> callModel;
   std::function<void(const std::string&)> queryCheckpoint;
   std::function<void(const std::exception&)> logError,logInternalError;
@@ -34,6 +35,5 @@ private:
 };
 AsyncModelPassIterator makeAsyncModelPassIterator(event_loop::Loop& loop,
   Params params,State state,std::shared_ptr<PreparedIteration> prepared,
-  QueryConfig config,std::optional<double> missionBudgetRemaining,
-  AsyncModelServices services);
+  std::optional<double> missionBudgetRemaining,AsyncModelServices services);
 } // namespace batbox::query

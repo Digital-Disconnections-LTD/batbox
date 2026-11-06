@@ -46,6 +46,9 @@ Json fileGadgetUseView(const std::string& name,const Json& input,
 Json fileGadgetResultView(const std::string& name,const Json& output,
   const Json& options,const std::string& cwd,const std::string& home);
 Json shellGadgetResultView(const Json& output,const Json& options);
+// settings.json and settings.local.json inside a .batbox directory; edits to
+// them must still match the settings schema.
+bool isSettingsFile(const std::string& file);
 // Complete local gadget imports for an interactive owner. Enabled optional
 // integrations without indigenous providers remain explicit feature boundaries.
 Inputs makeDefaultInputs(DefaultInputs defaults);

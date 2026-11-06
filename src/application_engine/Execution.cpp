@@ -27,13 +27,6 @@ std::shared_ptr<execution::Services> makeExecutionServices(ExecutionInputs input
     auto args=progress;args["parentToolUseID"]=parent;
     return messages::createProgressMessage(args,*messages);
   };
-  services->createStopHookSummaryMessage=[messages](const std::string& phase,
-      const Json& infos,double duration){
-    return messages::createStopHookSummaryMessage({{"hookCount",infos.size()},
-      {"hookInfos",infos},{"hookErrors",Json::array()},{"preventedContinuation",false},
-      {"hasOutput",false},{"level","suggestion"},{"hookLabel",phase},
-      {"totalDurationMs",duration}},*messages);
-  };
   services->createGadgetResultStopMessage=messages::createGadgetResultStopMessage;
   services->cancelMessage=messages::CANCEL_MESSAGE;
   services->withMemoryCorrectionHint=[enabled=inputs.autoMemoryEnabled&&inputs.memoryCorrectionHint](

@@ -27,8 +27,6 @@ struct IndigenousCommandConfig {
   std::function<void(const std::string&,const Json&)> logDiagnostics;
   std::function<double()> nowMillis;
 };
-std::function<event_loop::Deferred<CommandOutcome>(CommandRequest)>
-indigenousCommandHook(event_loop::Loop& loop,IndigenousCommandConfig config);
 // Synchronous command-hook adapter using cross-platform preparation. The
 // application provider routes configured async hooks through
 // bindIndigenousFullCommandHook and its AsyncHookRoster.

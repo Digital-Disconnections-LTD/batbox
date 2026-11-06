@@ -1,5 +1,6 @@
 #include "application_model/LocalModelService.hpp"
 #include "diagnostics/LogDates.hpp"
+#include "query/AsyncSetup.hpp"
 #include "runtime/Platform.hpp"
 #include "services/tokenEstimation.hpp"
 #include <algorithm>
@@ -13,7 +14,7 @@ const Json& property(const Json& source,const char* name){
   return value::property(source,name);
 }
 bool typeIs(const Json& source,const char* name){
-  return property(source,"type")==name;
+  return value::stringEquals(property(source,"type"),name);
 }
 bool compactable(const Json& block){
   if(!typeIs(block,"tool_use"))return false;
@@ -80,32 +81,26 @@ double estimateMessageTokens(const Json& messages){
   return std::ceil(total*4/3);
 }
 
-event_loop::Deferred<Json> LocalModelService::microcompactMessages(
-    const Json& messages,const execution::Context&,
-    const std::string& querySource){
+std::optional<Json> LocalModelService::clearOldGadgetResults(
+    const Json& messages,const std::string& querySource){
   if(!owner_.isOwnerThread())
     throw std::logic_error("Microcompact requires owner loop");
   if(!messages.is_array())throw std::invalid_argument("Messages must be an array");
-  event_loop::Deferred<Json> response(owner_);
   if(imports_.clearCompactWarningSuppression)
     imports_.clearCompactWarningSuppression();
   if(!config_.timeBasedMicrocompact||querySource.empty()||
-      !mainThread(querySource)){
-    response.resolve(Json{{"messages",messages}});return response;
-  }
+      !mainThread(querySource))return std::nullopt;
   const Json* lastAssistant=nullptr;
   for(auto it=messages.rbegin();it!=messages.rend();++it)
     if(typeIs(*it,"assistant")){lastAssistant=&*it;break;}
-  if(!lastAssistant||!property(*lastAssistant,"timestamp").is_string()){
-    response.resolve(Json{{"messages",messages}});return response;
-  }
+  if(!lastAssistant||!property(*lastAssistant,"timestamp").is_string())
+    return std::nullopt;
   const double timestamp=diagnostics::parseLogISOString(
     property(*lastAssistant,"timestamp").get<std::string>());
   const double gapMinutes=(static_cast<double>(platform::nowMillis())-
     timestamp)/60000;
-  if(!std::isfinite(gapMinutes)||gapMinutes<config_.timeBasedGapMinutes){
-    response.resolve(Json{{"messages",messages}});return response;
-  }
+  if(!std::isfinite(gapMinutes)||gapMinutes<config_.timeBasedGapMinutes)
+    return std::nullopt;
   const auto compactableIds=collectCompactableGadgetIds(messages);
   const auto keepRecent=static_cast<std::size_t>(std::max(1,
     config_.timeBasedKeepRecent));
@@ -117,9 +112,7 @@ event_loop::Deferred<Json> LocalModelService::microcompactMessages(
   std::set<std::string> clearSet;
   for(const auto& id:compactableIds)
     if(!keepSet.contains(id))clearSet.insert(id);
-  if(clearSet.empty()){
-    response.resolve(Json{{"messages",messages}});return response;
-  }
+  if(clearSet.empty())return std::nullopt;
   Json result=messages;
   double tokensSaved=0;
   for(auto& message:result){
@@ -137,9 +130,7 @@ event_loop::Deferred<Json> LocalModelService::microcompactMessages(
       }
     }
   }
-  if(tokensSaved==0){
-    response.resolve(Json{{"messages",messages}});return response;
-  }
+  if(tokensSaved==0)return std::nullopt;
   imports_.debug("debug","[TIME-BASED MC] gap "+
     value::numberToString(value::round(gapMinutes))+"min > "+
     value::numberToString(config_.timeBasedGapMinutes)+"min, cleared "+
@@ -147,9 +138,24 @@ event_loop::Deferred<Json> LocalModelService::microcompactMessages(
     value::numberToString(tokensSaved)+" tokens), kept last "+
     std::to_string(keepSet.size()));
   imports_.suppressCompactWarning();
-  if(config_.features.contains("PROMPT_CACHE_BREAK_DETECTION"))
-    imports_.notifyStashDeletion(querySource);
-  response.resolve(Json{{"messages",std::move(result)}});
+  return result;
+}
+
+event_loop::Deferred<Json> LocalModelService::microcompactMessages(
+    const Json& messages,const execution::Context&,
+    const std::string& querySource){
+  auto cleared=clearOldGadgetResults(messages,querySource);
+  event_loop::Deferred<Json> response(owner_);
+  response.resolve(Json{{"messages",cleared?std::move(*cleared):messages}});
+  return response;
+}
+
+event_loop::Deferred<Json> LocalModelService::microcompactForQuery(
+    const Json& messages,const execution::Context&,
+    const std::string& querySource){
+  auto cleared=clearOldGadgetResults(messages,querySource);
+  event_loop::Deferred<Json> response(owner_);
+  response.resolve(Json{{"messages",cleared?std::move(*cleared):query::unchangedMessages()}});
   return response;
 }
 } // namespace batbox::application_model

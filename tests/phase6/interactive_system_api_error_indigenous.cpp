@@ -1,7 +1,6 @@
 #include "interactive/cards_system/SystemAPIErrorCard.hpp"
 #include "interactive/cards_system/SystemAPIErrorProjection.hpp"
 #include "interactive/cards_system/SystemAPIErrorTicker.hpp"
-#include "retry/Retry.hpp"
 #include "ftxui/dom/node.hpp"
 #include "ftxui/screen/screen.hpp"
 #include <cassert>
@@ -11,15 +10,11 @@ using namespace batbox::interactive::cards_system;
 using batbox::Json;
 
 int main() {
-  batbox::retry::ErrorRecord error;
-  error.kind = batbox::retry::ErrorRecord::Kind::Api;
-  error.message = "Request failed";
-  const Json message{{"type","system"},{"subtype","api_error"},
-      {"retryAttempt",4},{"retryInMs",1000},{"maxRetries",8},
-      {"error",batbox::retry::errorToJson(error)}};
-  const auto input = apiErrorInputFromMessage(message, false, std::nullopt);
-  assert(input.formattedError == "Request failed");
-  assert(input.retryAttempt == 4 && input.retryInMs == 1000);
+  APIErrorInput input;
+  input.retryAttempt = 4;
+  input.retryInMs = 1000;
+  input.maxRetries = 8;
+  input.formattedError = "Request failed";
 
   batbox::event_loop::Loop loop;
   int changes = 0;
@@ -45,7 +40,7 @@ int main() {
   assert(changes == 2);
   assert(!ticker.current().intervalActive);
   assert(ticker.current().retryText.starts_with("Retrying in 0 seconds"));
-  const auto hidden = APIErrorState{}.render({3,1000,8,"bad",false,{}});
+  const auto hidden = APIErrorState{}.render({0,1000,8,"bad",false,{}});
   assert(!projectSystemAPIError(hidden, palette, {}));
   std::cout << "4 native system API error binding/timer/projection checks pass\n";
 }

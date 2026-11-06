@@ -35,18 +35,12 @@ public:
   ~LoadingState();
   void start();
   void observeQueryActive();
-  void setExternalLoading(bool value);
-  bool isLoading()const{return guard_.isActive()||externalLoading_;}
+  bool isLoading()const{return guard_.isActive();}
   void resetTimingRefs();
-  void observePermissionPause(bool paused,double nowMs);
   void setResponseLength(const std::function<double(double)>& update);
-  void syncResponseLengthFromPresentation();
-  void onStreamingText(TextUpdate update);
-  void setShowStreamingText(bool visible);
   void pickNewSpinnerTip();
   void resetLoadingState();
   void beginSubmit(){tipPickedThisTurn_=false;}
-  void clearBashGadgets();
   double responseLength()const{return responseLength_;}
   double loadingStartTime()const{return loadingStartTime_;}
   double totalPausedMs()const{return totalPausedMs_;}
@@ -66,7 +60,7 @@ private:
   std::size_t bashGadgetsProcessedIndex_=0;
   double responseLength_=0,loadingStartTime_=0,totalPausedMs_=0;
   std::optional<double> pauseStartTime_;
-  bool wasQueryActive_=false,externalLoading_=false,tipPickedThisTurn_=false;
+  bool wasQueryActive_=false,tipPickedThisTurn_=false;
   std::optional<std::string> spinnerMessage_,spinnerColor_,spinnerShimmerColor_;
   void changed();
   void tipError(std::exception_ptr error);

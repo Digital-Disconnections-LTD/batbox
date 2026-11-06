@@ -12,26 +12,22 @@ bool isChainParticipant(const Json& entry){
 bool isLegacyProgressEntry(const Json& entry) {
   return entry.is_object() && value::property(entry,"type")=="progress" && value::property(entry,"uuid").is_string();
 }
-bool isEphemeralGadgetProgress(const Json& type,bool proactive,bool kairos) {
-  return type.is_string() && (type=="bash_progress" || type=="powershell_progress" || type=="mcp_progress" ||
-    ((proactive || kairos) && type=="sleep_progress"));
+bool isEphemeralGadgetProgress(const Json& type) {
+  return type.is_string() && (type=="bash_progress" || type=="powershell_progress" || type=="mcp_progress");
 }
 bool isLoggableMessage(const Json& message,const CleaningServices& services) {
   if(message.at("type")=="progress")return false;
-  if(message.at("type")=="attachment" && !services.internalUser)
-    return value::property(message.at("attachment"),"type")=="hook_additional_context" && services.saveHookAdditionalContext;
-  return true;
-}
-std::set<std::string> collectReplIds(const Json& messages,const CleaningServices& services) {
-  std::set<std::string> ids;
-  for(const auto& m:messages) {
-    const auto& content=value::property(value::property(m,"message"),"content");
-    if(m.at("type")!="assistant" || !content.is_array())continue;
-    for(const auto& block:content)
-      if(block.at("type")=="tool_use" && value::property(block,"name")==services.replGadgetName)
-        ids.insert(block.at("id").get<std::string>());
+  if(message.at("type")=="attachment"){
+    const auto& attachment=message.at("attachment");
+    const auto& type=value::property(attachment,"type");
+    // Poetry the user sent mid-turn is their message; a resume must show it.
+    if(type=="queued_command")
+      return value::property(attachment,"commandMode")=="prompt" &&
+        value::property(attachment,"origin").is_null() &&
+        !value::truthy(value::property(attachment,"isMeta"));
+    return type=="hook_additional_context" && services.saveHookAdditionalContext;
   }
-  return ids;
+  return true;
 }
 Json transformMessagesForExternalTranscript(const Json& messages,const std::set<std::string>& replIds,
                                           const CleaningServices& services) {
@@ -58,11 +54,6 @@ Json transformMessagesForExternalTranscript(const Json& messages,const std::set<
     }
   }
   return result;
-}
-Json cleanMessagesForLogging(const Json& messages,const Json& all,const CleaningServices& services) {
-  Json filtered=Json::array();
-  for(const auto& m:messages)if(isLoggableMessage(m,services))filtered.push_back(m);
-  return services.internalUser ? filtered : transformMessagesForExternalTranscript(filtered,collectReplIds(all,services),services);
 }
 Json removeExtraFields(const Json& messages) {
   auto result=messages;

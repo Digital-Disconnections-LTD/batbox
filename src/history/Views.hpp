@@ -18,33 +18,10 @@ struct HistoryViewImports {
     logEntryToHistoryEntry;
   std::function<std::string()> getProjectRoot,getFlightId;
 };
-struct TimestampedHistoryEntry {
-  std::string display;
-  double timestamp=0;
-  std::function<event_loop::Deferred<Json>()> resolve;
-};
 class HistorySimpleCursor {
 public:
   struct State;
   explicit HistorySimpleCursor(HistoryViewImports imports);
-  event_loop::Deferred<std::optional<Json>> next();
-  event_loop::Deferred<event_loop::Unit> close();
-private:
-  std::shared_ptr<State> state_;
-};
-class TimestampedHistoryCursor {
-public:
-  struct State;
-  explicit TimestampedHistoryCursor(HistoryViewImports imports);
-  event_loop::Deferred<std::optional<TimestampedHistoryEntry>> next();
-  event_loop::Deferred<event_loop::Unit> close();
-private:
-  std::shared_ptr<State> state_;
-};
-class GroupedHistoryCursor {
-public:
-  struct State;
-  explicit GroupedHistoryCursor(HistoryViewImports imports);
   event_loop::Deferred<std::optional<Json>> next();
   event_loop::Deferred<event_loop::Unit> close();
 private:

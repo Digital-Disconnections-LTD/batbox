@@ -14,10 +14,7 @@ struct BackgroundServices {
   std::function<event_loop::Deferred<event_loop::Unit>()> oldImageStashes;
   std::function<event_loop::Deferred<event_loop::Unit>(double)> oldPastes;
   std::function<event_loop::Deferred<int>(double)> staleBatWorktrees;
-  std::function<event_loop::Deferred<event_loop::Unit>()> packageStashCleanup;
   std::function<double()> getCutoffDateMs;
-  std::optional<std::string> userType;
-  std::string internalUserType;
 };
 event_loop::Deferred<event_loop::Unit> cleanupOldMessageFilesInBackground(
   event_loop::Loop& loop,const BackgroundServices& services);

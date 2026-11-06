@@ -19,22 +19,9 @@ struct PreflightInputs {
 
 struct PreflightServices {
   std::function<void(const std::string&)> queryCheckpoint;
-  std::function<bool()> poetryStashBreakFeature;
-  std::function<bool()> isUsingOverage;
-  std::function<Json()> getExtraBodyParams;
-  std::function<void(const Json&)> recordPoetryState;
-  std::function<bool()> isSubscriber;
-  std::function<bool()> offSwitchActivated;
-  std::function<bool(const std::string&)> isNonCustomPrimaryModel;
-  std::function<Json(const std::string&)> offSwitchMessage;
   std::function<std::optional<std::string>(const std::string&)> getInferenceProfileBackingModel;
   std::function<Json(const std::string&, bool)> getMergedBetas;
-  std::function<bool()> isAdvisorEnabled;
-  std::function<std::optional<Json>()> getExperimentAdvisorModels;
   std::function<std::string(const std::string&)> normalizeModelStringForAPI;
-  std::function<std::string(const std::string&)> parseUserSpecifiedModel;
-  std::function<bool(const std::string&)> modelSupportsAdvisor;
-  std::function<bool(const std::string&)> isValidAdvisorModel;
   std::function<bool(const std::string&, const Json&, const Json&)> isGadgetSearchEnabled;
   std::function<bool(const Json&)> isDeferredGadget;
   std::function<bool(const Json&, const std::string&)> gadgetMatchesName;
@@ -63,9 +50,7 @@ struct PreflightServices {
   std::function<bool(const std::string&)> isFastModeSupportedByModel;
   std::function<bool(const std::string&)> getHeaderLatch;
   std::function<void(const std::string&, bool)> setHeaderLatch;
-  std::function<bool()> transcriptClassifierFeature;
   std::function<bool()> shouldIncludeFirstPartyOnlyBetas;
-  std::function<bool()> isAutoModeActive;
   std::function<std::optional<std::int64_t>()> getLastApiCompletionTimestamp;
   std::function<std::int64_t()> nowMillis;
   std::function<Json(const std::string&, const Json&)> resolveAppliedEffort;
@@ -73,24 +58,19 @@ struct PreflightServices {
   std::function<Json()> getPinnedStashEdits;
   std::string advisorBetaHeader;
   std::string gadgetSearchGadgetName = "ToolSearch";
-  std::string advisorInstructions;
   std::string chromeInstructions;
   std::string poetryStashingScopeBetaHeader;
   std::int64_t stashTtlOneHourMs = 3600000;
   bool disableThinking = false;
   bool disableAdaptiveThinking = false;
-  bool internalUser = false;
 };
 
 struct PreflightState {
-  bool offSwitch = false;
-  Json offSwitchMessage;
   std::optional<std::string> previousRequestId;
   std::string providerAtStart;
   std::string resolvedModel;
   bool isAgenticQuery = false;
   bool preGadgetSearchPrepared = false;
-  std::optional<std::string> advisorModel;
   bool useGadgetSearch = false;
   bool gadgetSearchPrepared = false;
   std::set<std::string> deferredGadgetNames;
@@ -114,18 +94,10 @@ struct PreflightState {
 };
 
 PreflightState prepareQueryModel(const PreflightInputs& input, const PreflightServices& services);
-// Continue after the awaited off-switch and
-// inference-profile decisions. The seed retains the earlier results exactly.
-PreflightState prepareQueryModelFromSeed(const PreflightInputs& input,
-  const PreflightServices& services,PreflightState seed);
 PreflightState prepareQueryModelUntilGadgetSearch(const PreflightInputs& input,
   const PreflightServices& services,PreflightState seed);
-PreflightState prepareQueryModelAfterGadgetSearch(const PreflightInputs& input,
-  const PreflightServices& services,PreflightState seed,bool enabled);
 PreflightState prepareQueryModelUntilStashedImports(const PreflightInputs& input,
   const PreflightServices& services,PreflightState seed,bool gadgetSearchEnabled);
-PreflightState prepareQueryModelAfterStashedImports(const PreflightInputs& input,
-  const PreflightServices& services,PreflightState seed);
 PreflightState prepareQueryModelUntilSchemas(const PreflightInputs& input,
   const PreflightServices& services,PreflightState seed);
 PreflightState prepareQueryModelAfterSchemas(const PreflightInputs& input,

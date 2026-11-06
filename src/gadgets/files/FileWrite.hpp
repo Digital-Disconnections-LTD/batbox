@@ -12,14 +12,19 @@ namespace batbox::gadgets::files {
 
 using ReadSnapshot=file_state_stash::FileState;
 
+inline constexpr const char* planModeFileChangeMessage=
+  "Plan mode is on, so file changes are blocked. Describe the change you would make "
+  "instead; the user can leave plan mode with /permissions.";
 struct FileWriteServices {
   filesystem::PathServices paths;
   std::shared_ptr<file_state_stash::FileStateStash> readFileStateOwner;
   file_state_stash::FileStateStash* readFileState = nullptr;
   std::set<std::string>* dynamicSkillDirTriggers = nullptr;
   std::shared_ptr<runtime::OrderedStringSet> activeDynamicSkillDirTriggers;
-  std::function<std::optional<std::string>(const std::string&, const std::string&)> checkTeamMemSecrets;
   std::function<bool(const std::string&)> matchingEditDenyRule;
+  // Plan mode blocks every file change; checked ahead of the deny rules so
+  // the refusal names the real reason.
+  std::function<bool()> planModeActive;
   std::function<std::vector<std::string>(const std::string&, const std::string&)> discoverSkillDirsForPaths;
   std::function<void(const std::vector<std::string>&)> addSkillDirectories;
   std::function<void(const std::string&, const std::string&)> activateConditionalSkillsForPaths;

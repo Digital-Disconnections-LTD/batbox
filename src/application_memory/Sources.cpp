@@ -1,3 +1,4 @@
+#include "instructions/project/ProjectDiscovery.hpp"
 #include "application_memory/Provider.hpp"
 #include "application_memory/Consolidation.hpp"
 #include "application_memory/IndigenousWork.hpp"
@@ -31,9 +32,14 @@ event_loop::Deferred<Json> Provider::listSources(){
       Json rows=Json::array();std::set<std::string> seen;
       if(files)for(const auto& file:*files){
         if(!seen.insert(file.path).second)continue;
-        rows.push_back(source(file.path,file.type+" memory",file.type,
+        auto row=source(file.path,file.type+" memory",file.type,
           file.type=="User"?"user":file.type=="Local"?"local":"project",false,
-          "Loaded instructions"));
+          "Loaded instructions");
+        if(!instructions::project::getLargeMemoryFiles({file}).empty()){
+          row["large"]=true;
+          row["characters"]=value::utf16CodeUnits(file.content).size();
+        }
+        rows.push_back(std::move(row));
       }
       const auto addMissing=[&](const std::filesystem::path& path,
           const std::string& type,const std::string& scope){

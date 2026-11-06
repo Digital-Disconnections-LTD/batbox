@@ -63,16 +63,6 @@ void AsyncHookRoster::registerPendingAsyncHook(
     registration.pluginId,services_.nowMillis(),timeout,false,
     registration.process,stop});
 }
-std::vector<PendingAsyncHook> AsyncHookRoster::getPendingAsyncHooks()const{
-  if(!loop_.isOwnerThread())throw std::logic_error("Async hook registry owner required");
-  std::vector<PendingAsyncHook> result;
-  for(const auto& id:order_){
-    const auto found=pending_.find(id);
-    if(found!=pending_.end()&&!found->second->responseAttachmentSent)
-      result.push_back(*found->second);
-  }
-  return result;
-}
 void AsyncHookRoster::removeDeliveredAsyncHooks(
   const std::vector<std::string>& processIds){
   if(!loop_.isOwnerThread())throw std::logic_error("Async hook registry owner required");
@@ -83,11 +73,6 @@ void AsyncHookRoster::removeDeliveredAsyncHooks(
       found->second->stopProgressInterval();erase(id);
     }
   }
-}
-void AsyncHookRoster::clearAllAsyncHooks(){
-  if(!loop_.isOwnerThread())throw std::logic_error("Async hook registry owner required");
-  for(const auto& [id,hook]:pending_)hook->stopProgressInterval();
-  pending_.clear();order_.clear();
 }
 event_loop::Deferred<event_loop::Unit> AsyncHookRoster::finalizeHook(
   const PendingAsyncHook& hook,int exitCode,const std::string& outcome){

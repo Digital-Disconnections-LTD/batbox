@@ -23,7 +23,7 @@ case $(uname -m) in
 esac
 
 formulae=(nlohmann-json curl openssl@3 icu4c libuv vips yaml-cpp
-  pcre2 libwebsockets cmark-gfm)
+  pcre2 cmark-gfm)
 prefixes=()
 pkgpaths=()
 for formula in "${formulae[@]}"; do

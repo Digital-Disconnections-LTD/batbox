@@ -38,13 +38,32 @@ BashPreparedResult prepareBashCompletion(const Json& input,
       if(services.resetCwdIfOutsideProject(permissionContext))
         prepared.shellReset=stdErrAppendShellResetMessage("",services.originalCwd);
     }
-    const auto annotated=services.annotateSandboxFailures(command,prepared.command.stdoutText);
     if(prepared.command.preSpawnError)throw std::runtime_error(*prepared.command.preSpawnError);
     if(boolField(prepared.interpretation,"isError")&&!isInterrupt)
-      throw ShellError("",annotated,prepared.command.code,prepared.command.interrupted);
+      prepared.failureOutput=prepared.command.stdoutText;
   }catch(...){if(services.clearGadgetJSX)services.clearGadgetJSX(context.data);throw;}
   if(services.clearGadgetJSX)services.clearGadgetJSX(context.data);
-  prepared.stdoutText=stdoutAccumulator.toString();return prepared;
+  if(!prepared.failureOutput)prepared.stdoutText=stdoutAccumulator.toString();
+  return prepared;
+}
+void throwIfBashFailed(const BashPreparedResult& prepared,
+  const BashPersistedOutput& persisted){
+  if(!prepared.failureOutput)return;
+  const auto& command=prepared.command;
+  std::string output;
+  if(command.stdoutTail||!persisted.path.empty()){
+    const double size=persisted.originalSize?static_cast<double>(*persisted.originalSize):
+      static_cast<double>(command.outputFileSize.value_or(0));
+    output=persistedOutputMessage(persisted.path,size,*prepared.failureOutput,
+      command.stdoutTail.value_or(std::string()));
+  }else output=*prepared.failureOutput;
+  // Batbox's own note on how the command ended (a timeout, a size kill)
+  // follows the output, as a terminal would print it.
+  if(!command.stderrText.empty()){
+    if(!output.empty()&&output.back()!='\n')output+='\n';
+    output+=command.stderrText;
+  }
+  throw ShellError("",std::move(output),command.code,command.interrupted);
 }
 BashPersistedOutput persistBashOutput(const shell::ExecResult& result,
   const Services& services){
@@ -84,7 +103,12 @@ gadgets::GadgetResult finishBashFinalOutput(const Json& input,
   const auto command=stringField(input,"command");
   const bool image=finalInput.isImage&&resized&&!resized->empty();
   const std::string& compressed=image?*resized:finalInput.cleanOutput;
-  Json data={{"stdout",compressed},{"stderr",prepared.shellReset},
+  std::string stderrText=prepared.command.stderrText;
+  if(!prepared.shellReset.empty()){
+    if(!stderrText.empty())stderrText+='\n';
+    stderrText+=prepared.shellReset;
+  }
+  Json data={{"stdout",compressed},{"stderr",std::move(stderrText)},
     {"interrupted",prepared.command.interrupted},{"isImage",image},
     {"noOutputExpected",isSilentBashCommand(command,services.splitWithOperators)}};
   if(prepared.interpretation.contains("message"))
@@ -94,10 +118,15 @@ gadgets::GadgetResult finishBashFinalOutput(const Json& input,
   if(prepared.command.assistantAutoBackgrounded||
     prepared.command.assistantAutoBackgroundedOwnProperty)
     data["assistantAutoBackgrounded"]=prepared.command.assistantAutoBackgrounded;
-  if(input.contains("dangerouslyDisableSandbox"))
-    data["dangerouslyDisableSandbox"]=input["dangerouslyDisableSandbox"];
   if(!persisted.path.empty())data["persistedOutputPath"]=persisted.path;
   if(persisted.originalSize)data["persistedOutputSize"]=*persisted.originalSize;
+  else if(prepared.command.stdoutTail&&prepared.command.outputFileSize)
+    data["persistedOutputSize"]=*prepared.command.outputFileSize;
+  if(!image&&prepared.command.stdoutTail){
+    const auto tail=services.extractHints(*prepared.command.stdoutTail,command);
+    data["persistedOutputTail"]=tail.is_object()&&tail.contains("stripped")&&
+      tail["stripped"].is_string()?tail["stripped"]:Json(*prepared.command.stdoutTail);
+  }
   gadgets::GadgetResult output;output.data=std::move(data);return output;
 }
 gadgets::GadgetResult finishBashCompletion(const Json& input,

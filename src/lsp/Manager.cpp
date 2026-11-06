@@ -155,7 +155,7 @@ void Manager::initialize(Server& server){
   command.insert(command.end(),server.config.args.begin(),server.config.args.end());
   auto cwd=server.config.roostFolder.empty()?roost_.string():server.config.roostFolder;
   try{
-    auto client=std::make_unique<Client>(server.config.name,command,server.config.env,cwd,
+    auto client=std::make_unique<Client>(command,server.config.env,cwd,
       [diagnostics=diagnostics_,name=server.config.name](const std::string& method,const Json& params){
         if(method=="textDocument/publishDiagnostics")diagnostics->publish(name,params);
       });
@@ -234,12 +234,6 @@ void Manager::saveFile(const std::string& path){
   if(auto found=documents_.find(fileUri(path));found!=documents_.end())
     found->second.lastUsed=++documentClock_;
   server->client->notify("textDocument/didSave",{{"textDocument",{{"uri",fileUri(path)}}}});
-}
-void Manager::closeFile(const std::string& path){
-  auto server=get(path);auto uri=fileUri(path);
-  if(server&&server->client&&documents_.contains(uri))
-    server->client->notify("textDocument/didClose",{{"textDocument",{{"uri",uri}}}});
-  documents_.erase(uri);
 }
 bool Manager::isFileOpen(const std::string& path)const{return documents_.contains(fileUri(path));}
 void Manager::shutdown()noexcept{

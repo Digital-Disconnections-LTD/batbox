@@ -1,6 +1,4 @@
 #include "gadgets/files/Notebook.hpp"
-#include <cmath>
-#include <regex>
 
 namespace batbox::gadgets::files::notebook {
 namespace {
@@ -41,11 +39,4 @@ Json mapNotebookCellsToGadgetResult(const Json& cells,const std::string& gadgetU
   return Json{{"tool_use_id",gadgetUseID},{"type","tool_result"},{"content",blocks}};
 }
 
-std::optional<double> parseCellId(const std::string& cellId){
-  static const std::regex pattern(R"(^cell-(\d+)$)");
-  std::smatch match;
-  if(!std::regex_match(cellId,match,pattern))return std::nullopt;
-  const auto value=value::parseInt10(match[1].str());
-  return std::isnan(value)?std::nullopt:std::optional<double>(value);
-}
 } // namespace batbox::gadgets::files::notebook

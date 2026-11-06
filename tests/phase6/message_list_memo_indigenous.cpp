@@ -15,9 +15,8 @@ ix::MessageListSettings settings(batbox::messages::Services& services) {
   s.gadgets = std::make_shared<ix::GroupingGadgetSet>();
   s.gadgets->gadgets.push_back({"Read", false});
   s.backgroundProtocol = {"task-notification", "status", "summary", "Background command "};
-  s.visibility = {"NO_CONTENT", "INTERRUPT", [](const std::string&) { return false; }};
+  s.visibility = {"NO_CONTENT", "INTERRUPT"};
   auto& cls = s.readSearch.classification;
-  cls.feature = [](const std::string&) { return false; };
   cls.isFullscreen = [] { return true; };
   cls.isAutoManagedMemoryFile = [](const std::string&) { return false; };
   cls.isMemoryDirectory = [](const std::string&) { return false; };
@@ -33,9 +32,6 @@ ix::MessageListSettings settings(batbox::messages::Services& services) {
     return std::nullopt;
   };
   s.readSearch.getDisplayPath = [](const std::string& path) { return path; };
-  s.readSearch.isTeamMemoryWriteOrEdit = [](const std::string&, const Json&) { return false; };
-  s.readSearch.isTeamMemorySearch = [](const Json&) { return false; };
-  s.readSearch.isTeamMemFile = [](const std::string&) { return false; };
   s.readSearch.detectGitOperation = [](const std::string&, const std::string&) { return Json(); };
   s.messageServices = &services;
   s.fullscreen = true;

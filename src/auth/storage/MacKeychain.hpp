@@ -21,14 +21,4 @@ struct MacKeychainOps {
 };
 Storage makeMacKeychainStorage(event_loop::Loop& loop,
   std::shared_ptr<KeychainState> state,MacKeychainOps operations);
-class KeychainLockDetector {
-public:
-  KeychainLockDetector(std::function<std::string()> platform,
-    std::function<SecurityResult()> showKeychainInfo);
-  bool isLocked();
-private:
-  std::function<std::string()> platform_;
-  std::function<SecurityResult()> showKeychainInfo_;
-  std::optional<bool> stashed_;
-};
 }

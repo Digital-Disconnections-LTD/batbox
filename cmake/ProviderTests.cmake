@@ -16,4 +16,7 @@ if(UNIX)
   add_test(NAME phase6-openai-chat-smoke COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/checks/openai_chat_smoke.py $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-openai-chat-smoke PROPERTIES TIMEOUT 70)
+  add_test(NAME phase6-endpoint-betas-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/endpoint_betas_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-endpoint-betas-smoke PROPERTIES TIMEOUT 120)
 endif()

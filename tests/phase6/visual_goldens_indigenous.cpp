@@ -12,6 +12,8 @@
 #include "interactive/message_view/RetainedViews.hpp"
 #include "interactive/presentation_providers/MissionFooter.hpp"
 #include "interactive/presentation_providers/StyleRoles.hpp"
+#include "interactive/presentation_providers/CardPalettes.hpp"
+#include "terminal_ftxui/PresentationView.hpp"
 #include <ftxui/screen/terminal.hpp>
 #include <chrono>
 #include <iostream>
@@ -75,7 +77,6 @@ struct Fixture {
         []{return std::string("dark");},[]{}},name){
     state.viewport.columns=80;state.viewport.rows=40;
     messages.strictGadgetResultPairing=[]{return false;};
-    messages.featureGate=[](const std::string&){return false;};
     messages.logError=[](const std::string&){};
     const auto file=[](gadgets::Gadget& gadget,const std::string& gadgetName){
       gadget.name=gadgetName;
@@ -116,8 +117,7 @@ struct Fixture {
   }
   conversation_shell::ViewState view(int columns,int rows){
     static transcript_navigation::StickyPoetry sticky;
-    static std::optional<message_actions::Cursor> cursor;
-    conversation_shell::ViewState result{state,sticky,cursor,{},"",0,0,0,columns,rows,
+    conversation_shell::ViewState result{state,sticky,{},"",0,0,0,columns,rows,
       false,false,false};
     result.welcomeFrame=conversation_shell::welcomeAnimationFrames;
     return result;
@@ -395,6 +395,88 @@ MissionScenes missionScenes(Fixture& fixture){
   scenes.home=bottom(home,6);
   return scenes;
 }
+// Shell output wider than the terminal is cut by column: wide characters and
+// color escapes stay whole on both sides of the cut.
+golden::Frame shellOutputScene(Fixture& fixture){
+  const std::vector<std::string> outputs={
+    "make: building the lexer, the parser and the span tables",
+    "\u6f22\u5b57\u306e\u30c6\u30b9\u30c8\u51fa\u529b\u3092\u5207\u308b\u6642"
+      "\u3082\u6587\u5b57\u3092\u58ca\u3055\u306a\u3044\u3053\u3068\u3092"
+      "\u78ba\u304b\u3081\u308b",
+    "\x1b[31mFAILED lexer spans: expected 12 got 13 at column 40\x1b[39m done"};
+  auto render=fixture.shell.projectionServices();
+  render.lookups=std::make_shared<MessageLookups>();
+  mv::MessageOptions options;options.columns=40;options.addMargin=false;
+  const auto imports=fixture.shell.messageImports();
+  ftxui::Elements rows;
+  for(std::size_t i=0;i<outputs.size();++i){
+    auto message=std::make_shared<Json>(Json{{"type","user"},{"uuid","shell-"+std::to_string(i)},
+      {"message",{{"content",Json::array({{{"type","text"},{"text",
+        "<bash-stdout>"+outputs[i]+"</bash-stdout><bash-stderr></bash-stderr>"}}})}}}});
+    if(auto element=mv::projectMessage(mv::prepareMessage(RenderItem(message),options,
+        imports),render))rows.push_back(*element);
+  }
+  return golden::render(ftxui::vbox(std::move(rows)),40,9);
+}
+// Poetry delivered at a Gadget round arrives as an attachment; it is drawn as
+// the user's message.
+golden::Frame deliveredScene(Fixture& fixture){
+  auto delivered=std::make_shared<Json>(Json{{"type","attachment"},{"uuid","d"},
+    {"attachment",{{"type","queued_command"},{"prompt","Also run the lexer tests"},
+      {"source_uuid","q1"},{"commandMode","prompt"}}}});
+  auto render=fixture.shell.projectionServices();
+  render.lookups=std::make_shared<MessageLookups>();
+  mv::MessageOptions options;options.columns=80;options.addMargin=true;
+  ftxui::Elements rows;
+  if(auto element=mv::projectMessage(mv::prepareMessage(RenderItem(delivered),options,
+      fixture.shell.messageImports()),render))rows.push_back(*element);
+  return golden::render(ftxui::vbox(std::move(rows)),80,3);
+}
+// Poetry sent while a turn runs: three queued kinds, a long message cut to
+// three lines, one being delivered, and the status row's edit hint.
+const std::vector<QueuedInput> queuedFixture{
+  {"q1","Also run the lexer tests before you finish",QueuedInput::Kind::Poetry,false},
+  {"q2","/compact",QueuedInput::Kind::Command,false},
+  {"q3","make test",QueuedInput::Kind::Shell,false},
+  {"q4","Then explain the span change\nwith the old offsets\nand the new ones\n"
+    "and why the parser owns recovery",QueuedInput::Kind::Poetry,false},
+  {"q5","Taken for delivery right now",QueuedInput::Kind::Poetry,true}};
+golden::Frame queuedScene(Fixture& fixture){
+  ftxui::Elements rows;
+  for(std::size_t i=0;i<queuedFixture.size();++i)
+    rows.push_back(fixture.shell.renderQueuedInput(queuedFixture[i],i==0,120));
+  fixture.state.loading=true;fixture.state.queuedInputs=queuedFixture;
+  auto view=fixture.view(120,24);
+  view.workingMs=27*60000+13000;view.streamMode="tool-use";view.activityFrame=3;
+  rows.push_back(fixture.shell.chrome.renderStatus(view));
+  fixture.state.loading=false;fixture.state.queuedInputs.clear();
+  return golden::render(ftxui::vbox(std::move(rows)),120,12);
+}
+// The same queue in --inline mode, under a short transcript.
+golden::Frame queuedInlineScene(Fixture& fixture){
+  terminal_ftxui::setInlinePalette(ip::inlinePalette(fixture.theme));
+  PresentationState state;
+  state.transcriptRows={
+    {TranscriptRow::Kind::User,"u","Teach the lexer about source spans",false,"1:0"},
+    {TranscriptRow::Kind::Assistant,"a","Running the tests now.",false,"2:0"}};
+  state.queuedInputs=queuedFixture;
+  state.loading=true;state.streamMode="tool-use";
+  auto frame=golden::render(terminal_ftxui::renderPresentation(state,{100,14}),100,14);
+  terminal_ftxui::setInlinePalette({});
+  return frame;
+}
+// Two running Bats as a grouped Gadget row, and the one line it keeps while
+// the Active Missions list shows them.
+struct BatScenes {golden::Frame running,launched;};
+BatScenes batScenes(Fixture& fixture){
+  const auto services=fixture.shell.projectionServices();
+  const Json group={{gv::viewKey,"group"},{"title","2 Bats"},{"running",true},
+    {"entries",Json::array({"Research alpha · Latest tool: Read · 4s",
+      "Research beta · Launched"})}};
+  const auto& render=services.gadgetUseProjection.renderGadgetMessage;
+  return {golden::render(render(group),80,4),
+    golden::render(render(gv::launchedGroupView(group)),80,2)};
+}
 } // namespace
 
 int main(int argc,char** argv){
@@ -435,6 +517,22 @@ int main(int argc,char** argv){
       check(contains(gadgets,"… +19 lines (ctrl+o to expand)"),
         theme+": long shell output not truncated with an expand hint");
       check(contains(gadgets,"⠹ Bash $ make lint"),theme+": running Gadget lacks its spinner");
+      const auto shellOutput=shellOutputScene(fixture);
+      check(contains(shellOutput,"make: building the lexer, the")&&
+        contains(shellOutput,"parser and the span tables"),
+        theme+": plain shell output wraps at the column limit");
+      check(shellOutput.text.find("\xef\xbf\xbd")==std::string::npos&&
+        contains(shellOutput,"\u6f22\u5b57\u306e\u30c6\u30b9\u30c8")&&
+        contains(shellOutput,"\u78ba\u304b\u3081\u308b"),
+        theme+": a cut through wide characters must not split one");
+      check(shellOutput.text.find("[31m")==std::string::npos&&
+        shellOutput.text.find("[39m")==std::string::npos&&
+        contains(shellOutput,"FAILED lexer spans: expected 1")&&
+        contains(shellOutput,"2 got 13 at column 40 done"),
+        theme+": a cut through colored output must keep its escapes whole");
+      check(shellOutput.styles.find("4:5-34 fg=31 ")!=std::string::npos&&
+        shellOutput.styles.find("5:5-25 fg=31 ")!=std::string::npos,
+        theme+": the color must carry across the cut and end where the output resets it");
       const auto permission=permissionScene(fixture);
       check(contains(permission,"Allow Edit?")&&contains(permission,"Allow once")&&
         contains(permission,"Saves Edit(/home/bat/roost/src/lexer.cpp)"),
@@ -476,29 +574,74 @@ int main(int argc,char** argv){
         theme+": saved notice "+providers.notice);
       check(contains(providers.saved,"Added openrouter"),theme+": saved notice in the status row");
       const auto missions=missionScenes(fixture);
-      check(contains(missions.expanded,"Active Missions (4) · Ctrl+T collapse · /missions")&&
-        contains(missions.expanded,"  ● Audit the parser · running · 1s · 4 Gadgets")&&
-        contains(missions.expanded,"▸ └ ● Check the lexer · running · 1s · 2 Gadgets")&&
-        contains(missions.expanded,"  ● npm test --watch · running"),
+      check(contains(missions.expanded,"Active Missions (4) · ↓ select · Ctrl+T collapse · /missions")&&
+        contains(missions.expanded,"  ● Audit the parser")&&
+        contains(missions.expanded,"running  1s  4 Gadgets")&&
+        contains(missions.expanded,"▸ └ ● Check the lexer")&&
+        contains(missions.expanded,"  ● npm test --watch"),
         theme+": expanded Missions list lacks its tree or highlight");
       check(contains(missions.expanded,
           "Flight › Audit the parser › Check the lexer · Alt+↑↓ move · Alt+← home · Ctrl+T list"),
         theme+": Bat breadcrumb missing under the list");
       check(contains(missions.collapsed,"Active Missions (4) · in: Check the lexer")&&
-        missions.collapsed.text.find("Audit the parser · running")==std::string::npos,
+        missions.collapsed.text.find("● Audit the parser")==std::string::npos,
         theme+": collapsed list must be one line naming the open Bat");
       check(contains(missions.breadcrumb,"Flight › Audit the parser › Check the lexer"),
         theme+": breadcrumb banner");
-      check(contains(missions.home,"3 Bats running · Alt+↓ Bats · Ctrl+T list")&&
+      check(contains(missions.home,"3 Bats running · ↓ Bats · Ctrl+T list")&&
         missions.home.text.find("▸")==std::string::npos&&
         missions.home.text.find("Flight ›")==std::string::npos,
         theme+": home marks no row and names the way into the Bats");
+      const auto queued=queuedScene(fixture);
+      check(contains(queued,"❯ Also run the lexer tests before you finish")&&
+        contains(queued,"queued · delivered at the next Gadget round"),
+        theme+": queued poetry lacks its text or label");
+      check(contains(queued,"❯ /compact")&&contains(queued,"! make test")&&
+        contains(queued,"queued · runs when this turn ends"),
+        theme+": queued commands and ! runs must say they wait for the turn");
+      check(contains(queued,"… +1 line")&&
+        queued.text.find("why the parser owns")==std::string::npos,
+        theme+": a long queued message must stop at three lines");
+      check(contains(queued,"❯ Taken for delivery right now")&&
+        queued.text.find("now   ")==std::string::npos,
+        theme+": a delivering row is drawn as sent, without a label");
+      check(contains(queued,"↑ edit queued")&&contains(queued,"to interrupt"),
+        theme+": the status row must offer to edit queued poetry");
+      const auto deliveredRow=deliveredScene(fixture);
+      check(contains(deliveredRow,"Also run the lexer tests")&&
+        deliveredRow.text.find("❯")!=std::string::npos&&
+        (roles.basic||roles.monochrome||
+         deliveredRow.styles.find("bg="+roles.userPanel.Print(true))!=std::string::npos),
+        theme+": poetry delivered mid-turn must look like the user's message");
+      const auto queuedInline=queuedInlineScene(fixture);
+      check(contains(queuedInline,"❯ Also run the lexer tests before you finish  "
+          "(queued · delivered at the next Gadget round)")&&
+        contains(queuedInline,"❯ Taken for delivery right now")&&
+        contains(queuedInline,"Running Gadgets…"),
+        theme+": inline queued rows sit above the status line");
+      const auto bats=batScenes(fixture);
+      check(contains(bats.running,"2 Bats")&&contains(bats.running,"Research beta"),
+        theme+": a finished or unlisted group keeps one row per Bat");
+      check(contains(bats.launched,"2 Bats launched")&&
+        bats.launched.text.find("Research")==std::string::npos,
+        theme+": a group the list shows keeps a single line");
+      if(!roles.monochrome){
+        check(queued.styles.find("fg="+roles.muted.Print(false))!=std::string::npos&&
+          queued.styles.find("fg="+roles.faint.Print(false))!=std::string::npos,
+          theme+": queued rows must use the muted and faint roles");
+        check(queued.styles.find("fg="+roles.userBar.Print(false))!=std::string::npos,
+          theme+": the delivering row keeps the user prompt color");
+      }else check(queued.styles.find(" d")!=std::string::npos,
+        "monochrome queued rows must be dim");
       for(const auto& [scene,frame]:std::vector<std::pair<std::string,golden::Frame>>{
+          {"queued",queued},{"queued-inline",queuedInline},
+          {"bats-running",bats.running},{"bats-launched",bats.launched},
           {"welcome",welcome},{"transcript",transcript},{"gadgets",gadgets},
           {"permission",permission},{"input",input},{"providers-list",providers.list},
           {"providers-key",providers.key},{"providers-models",providers.models},
           {"providers-saved",providers.saved},{"missions-expanded",missions.expanded},
-          {"missions-collapsed",missions.collapsed},{"missions-breadcrumb",missions.breadcrumb}})
+          {"missions-collapsed",missions.collapsed},{"missions-breadcrumb",missions.breadcrumb},
+          {"shell-output",shellOutput}})
         passed=golden::compare(directory,scene+"-"+theme,frame)&&passed;
     }
     {

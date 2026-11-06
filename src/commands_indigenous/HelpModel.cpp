@@ -137,7 +137,7 @@ std::string helpSection(const std::string& name){
     {"tasks","Bats and Missions"},{"bashes","Bats and Missions"},
     {"memory","Roost and context"},{"project","Roost and context"},
     {"context","Roost and context"},{"status","Roost and context"},
-    {"cost","Roost and context"},{"mcp","Roost and context"},
+    {"mcp","Roost and context"},
     {"skills","Roost and context"},{"init","Roost and context"},
     {"hooks","Roost and context"},{"doctor","Roost and context"},
     {"connectors","Roost and context"}};

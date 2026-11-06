@@ -1,6 +1,7 @@
 #include "interactive/submit/PoetrySubmit.hpp"
 #include "commands/Roster.hpp"
 #include "history/References.hpp"
+#include "runtime/Platform.hpp"
 #include <set>
 #include <stdexcept>
 
@@ -162,17 +163,15 @@ event_loop::Deferred<event_loop::Unit> handlePoetrySubmit(
       if(mode!="prompt"&&mode!="bash"){
         output.resolve({});return output;
       }
-      if(request.hasInterruptibleGadgetInProgress){
-        if(services->logForDebugging)
-          services->logForDebugging("[interrupt] Aborting current turn: streamMode="+
-            request.streamMode.value_or("undefined"));
-        if(request.activeAbort)request.activeAbort->abort("interrupt");
-      }
+      // Poetry sent mid-turn waits for the next Gadget round or the end of
+      // the answer; only Esc stops the turn. The uuid keys its queued row
+      // and the message it becomes.
       Json queued={{"value",value::trim(finalInput)},
-                   {"preExpansionValue",value::trim(input)},{"mode",mode}};
+                   {"preExpansionValue",value::trim(input)},{"mode",mode},
+                   {"uuid",request.uuid?*request.uuid:platform::randomUUID()},
+                   {"sentWhileWorking",true}};
       if(hasImages)queued["pastedContents"]=pasted;
       if(request.skipSlashCommands)queued["skipSlashCommands"]=true;
-      if(request.uuid)queued["uuid"]=*request.uuid;
       services->queue.enqueue(queued);
       need(request.helpers.onInputChange,"onInputChange");
       need(request.helpers.setCursorOffset,"setCursorOffset");

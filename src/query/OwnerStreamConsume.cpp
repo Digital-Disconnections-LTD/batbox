@@ -15,13 +15,23 @@ void consumeOwnerStream(const event_loop::Loop::Dispatcher& owner,
     bool isFirstChunk=true;
     while(auto event=opened.next()){
       if(watchdog)watchdog->reset();
-      auto emission=invokeOwnerSegment(owner,cursorClose,[&]{
+      // Buffered emissions come back in one owner segment; only message_delta
+      // still resumes the reducer once per emission.
+      auto batch=invokeOwnerSegment(owner,cursorClose,[&]{
         if(observation)observation->onEvent();
         if(isFirstChunk){
           if(onFirstChunk)onFirstChunk();
           isFirstChunk=false;
         }
-        return reducer.beginEvent(*event);
+        return reducer.beginEventBatch(*event);
+      });
+      for(const auto& ready:batch.ready){
+        yield(ready);
+        if(cursorClose.stop_requested())throw model::GeneratorClosed{};
+      }
+      if(!batch.more)continue;
+      auto emission=invokeOwnerSegment(owner,cursorClose,[&]{
+        return reducer.nextEmission();
       });
       while(emission){
         yield(*emission);

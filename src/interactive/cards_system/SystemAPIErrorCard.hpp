@@ -30,9 +30,4 @@ struct APIErrorState {
   void intervalTick(const APIErrorCard& current);
 };
 
-// Uses the existing indigenous API error formatter at the actual message boundary.
-APIErrorInput apiErrorInputFromMessage(
-    const Json& message, bool verbose,
-    std::optional<std::string> apiTimeoutEnvironment);
-
 } // namespace batbox::interactive::cards_system

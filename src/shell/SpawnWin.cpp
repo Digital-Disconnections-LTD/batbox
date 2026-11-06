@@ -99,14 +99,6 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
       "if [ \"$batbox_status\" -eq 0 ]; then pwd -P >| "+
       quotePosix(job->cwdPath)+"; fi; exit \"$batbox_status\"";
   }
-  if(options.useSandbox){
-    if(!options.sandboxTmpDir||!options.sandboxWrap||!options.logDebug)
-      throw std::invalid_argument("sandbox wrapping, temp directory, and diagnostic services required");
-    script=options.sandboxWrap(script);
-    std::error_code error;
-    std::filesystem::create_directory(runtime::pathFromUtf8(*options.sandboxTmpDir),error);
-    if(error)options.logDebug("Failed to create "+*options.sandboxTmpDir+" directory: "+error.message());
-  }
   std::vector<std::string> args{config_.shellPath};
   if(config_.provider)for(const auto& arg:config_.provider->getSpawnArgs(script))args.push_back(arg);
   else {args.push_back("-c");args.push_back("-l");args.push_back(script);}
@@ -152,10 +144,10 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
   auto completion=config_.onBackgroundComplete;
   auto completionError=config_.onBackgroundError;
   auto cwdCompletion=config_.cwdCompletion;
-  const bool sandbox=options.useSandbox,preventCwdChanges=options.preventCwdChanges;
+  const bool preventCwdChanges=options.preventCwdChanges;
   const auto maxInline=config_.maxInlineOutputBytes;
   ::batbox::runtime::contextThread([job,handles,completion,completionError,cwdCompletion,
-      sandbox,preventCwdChanges,maxInline]{
+      preventCwdChanges,maxInline]{
     const auto waited=::WaitForSingleObject(handles->process,INFINITE);
     DWORD status=1;if(waited==WAIT_OBJECT_0)::GetExitCodeProcess(handles->process,&status);
     {std::lock_guard lock(processMutex);processes.erase(job->pid);}
@@ -167,10 +159,11 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
       notification.code=job->code;
       notification.backgroundMissionId=job->background?std::optional(job->missionId):std::nullopt;
       notification.interrupted=job->code==137;
+      if(job->killedForSize)notification.stderrText="Background command killed: output file exceeded 5GB";
     }
     if(notification.backgroundMissionId){
       if(cwdCompletion){
-        try{completeShellCwd(&notification,preventCwdChanges,sandbox,
+        try{completeShellCwd(&notification,preventCwdChanges,
           job->cwdPath,job->startingCwd,*cwdCompletion);}
         catch(...){try{cwdCompletion->onFailure(std::current_exception());}catch(...){}}
       }else{std::error_code error;std::filesystem::remove(runtime::pathFromUtf8(job->cwdPath),error);}
@@ -189,7 +182,6 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
       }
       try{completion(job->missionId,notification);}
       catch(...){const auto failure=std::current_exception();
-        {std::lock_guard lock(job->mutex);job->completionFailure=failure;}
         if(completionError)try{completionError(job->missionId,failure);}catch(...){}}
     }
     {std::lock_guard lock(job->mutex);job->callbackDone=true;}

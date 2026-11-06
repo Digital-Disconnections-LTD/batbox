@@ -12,24 +12,20 @@ void Run::start(){
     need(services.getCwd,"getCwd");const auto cwd=services.getCwd();
     need(services.getSkillGadgetCommands,"getSkillToolCommands");auto skill=services.getSkillGadgetCommands(cwd);
     need(services.getOutputStyleConfig,"getOutputStyleConfig");auto outputStyle=services.getOutputStyleConfig();
-    need(services.computeSimpleEnvInfo,"computeSimpleEnvInfo");
-    auto env=services.computeSimpleEnvInfo(input.model,*input.additionalWorkingDirectories);
-    // Promise.all starts all imports before observing outcomes. Its await
-    // resumes only after all three settle successfully, or the first rejection.
-    struct ImportValues {PoetryObject commands,style;std::string env;int remaining=3;};
+    // Promise.all starts both imports before observing outcomes. Its await
+    // resumes only after both settle successfully, or the first rejection.
+    struct ImportValues {PoetryObject commands,style;int remaining=2;};
     auto values=std::make_shared<ImportValues>();
     event_loop::Deferred<event_loop::Unit> all(owner);
     skill.then([values,all](const PoetryObject* value,const std::exception_ptr& error){
       if(error){all.reject(error);return;}values->commands=*value;if(--values->remaining==0)all.resolve({});});
     outputStyle.then([values,all](const PoetryObject* value,const std::exception_ptr& error){
       if(error){all.reject(error);return;}values->style=*value;if(--values->remaining==0)all.resolve({});});
-    env.then([values,all](const std::string* value,const std::exception_ptr& error){
-      if(error){all.reject(error);return;}values->env=*value;if(--values->remaining==0)all.resolve({});});
     auto self=shared_from_this();
     all.then([self,values](const event_loop::Unit*,const std::exception_ptr& error){
       if(error){self->result.reject(error);return;}
       self->commands=std::move(values->commands);self->style=std::move(values->style);
-      self->environment=std::move(values->env);self->importsReady();
+      self->importsReady();
     });
   }catch(...){result.reject(std::current_exception());}
 }
@@ -41,11 +37,7 @@ void Run::importsReady(){
     for(const auto& gadget:*input.gadgets){
       const auto& name=value::property(gadget,"name");if(name.is_string())enabled.insert(name.get<std::string>());
     }
-    bool active=false;
-    if(services.proactiveFeature||services.kairosFeature){
-      need(services.proactiveActive,"proactiveActive");active=services.proactiveActive();
-    }
-    if(active)proactive();else dynamic();
+    dynamic();
   }catch(...){result.reject(std::current_exception());}
 }
 }

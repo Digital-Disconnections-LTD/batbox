@@ -22,45 +22,19 @@ void Run::finishCurrent(){
 void Run::afterTurnComplete(){
   auto& s=*services;
   need(s.sendBridgeResult,"sendBridgeResult");s.sendBridgeResult();
-  std::optional<Json> budget;
-  need(s.feature,"feature");
-  if(s.feature("TOKEN_BUDGET")){
-    need(s.getCurrentTurnTokenBudget,"getCurrentTurnTokenBudget");
-    // Keep the separate reads and short-circuit order.
-    if(s.getCurrentTurnTokenBudget()){
-      const auto positive=s.getCurrentTurnTokenBudget();
-      if(positive&&*positive>0&&!request.abort->aborted()){
-        need(s.getTurnOutputTokens,"getTurnOutputTokens");
-        need(s.getBudgetContinuationCount,"getBudgetContinuationCount");
-        const auto tokens=s.getTurnOutputTokens();
-        const auto limit=s.getCurrentTurnTokenBudget();
-        const auto nudges=s.getBudgetContinuationCount();
-        budget=Json{{"tokens",tokens},{"limit",limit?Json(*limit):Json()},
-          {"nudges",nudges}};
-      }
-    }
-    need(s.snapshotOutputTokensForTurn,"snapshotOutputTokensForTurn");
-    s.snapshotOutputTokensForTurn({});
-  }
   need(s.now,"now");
   const auto duration=s.now()-state->loadingStartTime-state->totalPausedMs;
-  if((duration>30000||budget)&&!request.abort->aborted()&&!request.proactiveActive){
-    need(s.hasRunningSwarmBats,"hasRunningSwarmAgents");
-    if(s.hasRunningSwarmBats()){
-      if(!state->swarmStartTime)state->swarmStartTime=state->loadingStartTime;
-      if(budget)state->swarmBudgetInfo=budget;
-    }else{
-      need(s.setMessages,"setMessages");need(s.isLoggableMessage,"isLoggableMessage");
-      need(s.createTurnDurationMessage,"createTurnDurationMessage");
-      auto imports=services;
-      s.setMessages([imports,duration,budget](const TurnMessagesRef& old){
-        auto messages=std::make_shared<TurnMessages>(*old);
-        const auto count=static_cast<std::size_t>(std::count_if(
-          old->begin(),old->end(),imports->isLoggableMessage));
-        messages->push_back(imports->createTurnDurationMessage(duration,budget,count));
-        return messages;
-      });
-    }
+  if(duration>30000&&!request.abort->aborted()){
+    need(s.setMessages,"setMessages");need(s.isLoggableMessage,"isLoggableMessage");
+    need(s.createTurnDurationMessage,"createTurnDurationMessage");
+    auto imports=services;
+    s.setMessages([imports,duration](const TurnMessagesRef& old){
+      auto messages=std::make_shared<TurnMessages>(*old);
+      const auto count=static_cast<std::size_t>(std::count_if(
+        old->begin(),old->end(),imports->isLoggableMessage));
+      messages->push_back(imports->createTurnDurationMessage(duration,count));
+      return messages;
+    });
   }
   need(s.clearAbortController,"clearAbortController");s.clearAbortController();
   maybeRestore();settle();

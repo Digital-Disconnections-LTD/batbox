@@ -53,14 +53,6 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
     script="eval "+quotePosix(options.command)+"; batbox_status=$?; "
       "if [ \"$batbox_status\" -eq 0 ]; then pwd -P >| "+quotePosix(job->cwdPath)+"; fi; exit \"$batbox_status\"";
   }
-  if(options.useSandbox){
-    if(!options.sandboxTmpDir||!options.sandboxWrap||!options.logDebug)
-      throw std::invalid_argument("sandbox wrapping, temp directory, and diagnostic services required");
-    script=options.sandboxWrap(script);
-    if(::mkdir(options.sandboxTmpDir->c_str(),0700)!=0)
-      options.logDebug("Failed to create "+*options.sandboxTmpDir+
-        " directory: "+std::strerror(errno));
-  }
   if(config_.provider){
     args.push_back(config_.provider->shellPath());
     for(const auto& arg:config_.provider->getSpawnArgs(script))args.push_back(arg);
@@ -85,8 +77,18 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
   posix_spawn_file_actions_addclose(&actions,nullInput);
   posix_spawn_file_actions_addclose(&actions,output);
   posix_spawn_file_actions_addchdir_np(&actions,cwd.c_str());
+  // The command gets stdin, stdout and stderr only. Without this a server it
+  // starts keeps Batbox's log and other open files after Batbox exits.
+  short flags=POSIX_SPAWN_SETPGROUP;
+#if defined(__APPLE__)
+  flags|=POSIX_SPAWN_CLOEXEC_DEFAULT;
+#elif defined(__GLIBC__)&&(__GLIBC__>2||(__GLIBC__==2&&__GLIBC_MINOR__>=34))
+  posix_spawn_file_actions_addclosefrom_np(&actions,STDERR_FILENO+1);
+#else
+#error "The Bash Gadget needs a way to close inherited descriptors in its child on this platform"
+#endif
   posix_spawnattr_t attr;posix_spawnattr_init(&attr);
-  posix_spawnattr_setflags(&attr,POSIX_SPAWN_SETPGROUP);
+  posix_spawnattr_setflags(&attr,flags);
   posix_spawnattr_setpgroup(&attr,0);
   const int error=posix_spawn(&job->pid,config_.shellPath.c_str(),&actions,&attr,argv.data(),envp.data());
   posix_spawnattr_destroy(&attr);posix_spawn_file_actions_destroy(&actions);
@@ -95,9 +97,9 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
   auto completion=config_.onBackgroundComplete;
   auto completionError=config_.onBackgroundError;
   auto cwdCompletion=config_.cwdCompletion;
-  const bool sandbox=options.useSandbox,preventCwdChanges=options.preventCwdChanges;
+  const bool preventCwdChanges=options.preventCwdChanges;
   const auto maxInline=config_.maxInlineOutputBytes;
-  ::batbox::runtime::contextThread([job,completion,completionError,cwdCompletion,sandbox,preventCwdChanges,maxInline]{
+  ::batbox::runtime::contextThread([job,completion,completionError,cwdCompletion,preventCwdChanges,maxInline]{
     int status=0;pid_t waited;
     do{waited=::waitpid(job->pid,&status,0);}while(waited<0&&errno==EINTR);
     ExecResult notification;
@@ -109,10 +111,11 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
         WIFSIGNALED(status)&&WTERMSIG(status)==SIGTERM?144:1;
       notification.code=job->code;notification.backgroundMissionId=job->background?std::optional(job->missionId):std::nullopt;
       notification.interrupted=job->code==137;
+      if(job->killedForSize)notification.stderrText="Background command killed: output file exceeded 5GB";
     }
     if(notification.backgroundMissionId){
       if(cwdCompletion){
-        try{completeShellCwd(&notification,preventCwdChanges,sandbox,
+        try{completeShellCwd(&notification,preventCwdChanges,
           job->cwdPath,job->startingCwd,*cwdCompletion);}
         catch(...){try{cwdCompletion->onFailure(std::current_exception());}catch(...){}}
       }else{std::error_code error;std::filesystem::remove(job->cwdPath,error);}
@@ -132,7 +135,6 @@ std::shared_ptr<ManagedShell::Job> ManagedShell::spawn(const RunOptions& options
       try{completion(job->missionId,notification);}
       catch(...){
         const auto failure=std::current_exception();
-        {std::lock_guard lock(job->mutex);job->completionFailure=failure;}
         if(completionError)try{completionError(job->missionId,failure);}catch(...){}
       }
     }

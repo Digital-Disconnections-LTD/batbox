@@ -1,11 +1,17 @@
 #pragma once
-#include "client_factory/ClientFactory.hpp"
+#include "runtime/JsonValue.hpp"
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
+namespace batbox::client_factory {
+struct NetworkOptions {
+  Json values=Json::object();
+  std::shared_ptr<void> dispatcher;
+};
+}
 namespace batbox::client_factory::tls {
 struct Services {
   std::function<std::optional<std::string>(const std::string&)> environment;
@@ -32,7 +38,6 @@ public:
   std::shared_ptr<const Json> getMTLSConfig();
   std::shared_ptr<const std::vector<std::string>> getCACertificates();
   NetworkOptions getTLSFetchOptions();
-  std::optional<Json> getWebSocketTLSOptions();
   void clearCACertsStash();
   void clearMTLSStash();
 private:

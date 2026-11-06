@@ -12,6 +12,7 @@
 #include <optional>
 #include <set>
 #include <utility>
+#include <vector>
 
 namespace batbox::application_model {
 
@@ -54,7 +55,17 @@ struct ModelProfile {
   std::string region;
   std::string project;
   Json quirks=Json::object();
+  // Request limits resolved by providers::requestSettings; transport timeouts
+  // live in client. nonStreamingTimeoutMs 0 means no limit.
+  bool local=false;
+  bool nonStreamingFallback=true;
+  double nonStreamingTimeoutMs=300000;
+  std::optional<std::size_t> maxRetries;
+  // anthropic-beta names from the endpoint's "betas" field.
+  std::vector<std::string> betas;
 };
+// Betas a request to this profile sends: none for openai-chat.
+std::vector<std::string> requestBetas(const ModelProfile& profile);
 // "openrouter · qwen/qwen3-coder" when the profile came from a catalog preset
 // or speaks a non-Anthropic kind; the profile id otherwise.
 std::string displayModelLabel(const std::string& profileId,const ModelProfile* profile);
@@ -63,8 +74,6 @@ struct Config {
   std::string mainModel,smallModel,visionModel;
   std::map<std::string,ModelProfile> profiles;
   std::string provider="local";
-  bool subscriber=false;
-  bool enterpriseSubscriber=false;
   bool gadgetSearch=false;
   bool fastMode=false;
   bool stashedMicrocompact=false;
@@ -74,19 +83,16 @@ struct Config {
   bool testEnvironment=false;
   bool globalPoetryStash=false;
   bool oneHourStash=false;
-  bool connectorText=false;
   bool strictGadgetResultPairing=true;
   bool nonInteractive=false;
   bool disableStreamingFallback=false;
-  std::set<std::string> features;
   Json environment=Json::object();
-  Json betaHeaders=Json::array();
   requests::PoetrySplitConfig poetrySplit;
   requests::WireProtocol requestWire;
   requests::BuilderHeaders builderHeaders;
   retry::WireProtocol retryWire;
   api_errors::WireHeaders errorWire;
-  std::string policyURL,statusURL,usageURL;
+  std::string policyURL;
 };
 struct ConfigurationSnapshot {
   Config config;
@@ -103,7 +109,6 @@ struct Imports {
   std::function<void(const std::string&)> fastModeOverageRejection;
   std::function<void()> clearCompactWarningSuppression;
   std::function<void()> suppressCompactWarning;
-  std::function<void(const std::string&)> notifyStashDeletion;
   std::function<Json(const Json&)> normalizeAttachmentForAPI;
   std::function<Json(const Json&,const gadgets::Gadgets&)> normalizeAttachmentForGadgets;
   std::function<Json(const gadgets::Gadget&,const Json&)> normalizeGadgetInputForAPI;
@@ -136,7 +141,7 @@ struct LocalState {
 class LocalModelService:public std::enable_shared_from_this<LocalModelService> {
 public:
   LocalModelService(event_loop::Loop& owner,Config config,Imports imports);
-  query::AsyncModelCursor makeCursor(const query::ModelRequest& request,
+  query::AsyncModelCursor makeCursor(query::ModelRequest request,
     const std::function<void()>& onStreamingFallback={});
   model::QueryServices makeQueryServices(const gadgets::Gadgets& gadgets={},
     const Json& options=Json::object(),
@@ -153,6 +158,10 @@ public:
   Json prependUserContext(const Json& messages,const Json& context);
   event_loop::Deferred<Json> microcompactMessages(const Json& messages,
     const execution::Context&,const std::string& querySource);
+  // microcompactMessages for the query loop: "messages" is
+  // query::unchangedMessages() when nothing was cleared.
+  event_loop::Deferred<Json> microcompactForQuery(const Json& messages,
+    const execution::Context&,const std::string& querySource);
   LocalState snapshot()const;
   const Config& config()const{return config_;}
   std::optional<ModelProfile> findProfile(const std::string& id)const;
@@ -163,6 +172,9 @@ public:
 private:
   friend struct LocalServiceBuilder;
   ConfigurationSnapshot configurationSnapshot()const;
+  // The time-based microcompact pass; nullopt when it left messages unchanged.
+  std::optional<Json> clearOldGadgetResults(const Json& messages,
+    const std::string& querySource);
   event_loop::Loop& owner_;
   Config config_;
   Imports imports_;

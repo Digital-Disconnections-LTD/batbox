@@ -129,10 +129,18 @@ def source_case(temporary, platform):
     write(source / "build/indigenous/batbox", "#!/bin/sh\nprintf 'fixture batbox\\n'\n", True)
     write(source / "build/private.log", "do not copy build directories\n")
     write(shim / "uname", f"#!/bin/sh\nprintf '%s\\n' {'Darwin' if platform == 'macos' else 'Linux'}\n", True)
+    stripped = area / "strip commands.txt"
+    write(shim / "strip", '#!/bin/sh\nprintf "%s\\n" "$*" >> "$BATBOX_STRIP_LOG"\n', True)
     environment = dict(os.environ, HOME=str(home), SHELL="/bin/bash",
-                       PATH=str(shim) + os.pathsep + os.environ["PATH"])
+                       PATH=str(shim) + os.pathsep + os.environ["PATH"],
+                       BATBOX_STRIP_LOG=str(stripped))
     invoke(source, platform, environment, "--skip-build", "--no-path")
     current = home / ".local/share/batbox/current"
+    # A source install strips the copy it installs, never the build output.
+    flag = "-x" if platform == "macos" else "--strip-unneeded"
+    called = stripped.read_text().splitlines()
+    assert len(called) == 1 and called[0].startswith(flag + " "), called
+    assert Path(called[0][len(flag) + 1:]).resolve() == current.resolve() / "bin/batbox", called
     assert (current / "src/example/LICENSE").read_text() == "embedded fixture notice\n"
     assert not (current / "src/example/code.cpp").exists()
     assert not (current / "build").exists() and not (current / "CMakeLists.txt").exists()

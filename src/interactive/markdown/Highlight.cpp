@@ -166,14 +166,6 @@ bool supportsSyntaxLanguage(std::string_view name){
   return family(name)!=Family::None;
 }
 
-std::string languageForPath(std::string_view path){
-  const auto slash=path.find_last_of("/\\");
-  const auto name=lower(path.substr(slash==std::string_view::npos?0:slash+1));
-  if(name=="makefile"||name=="dockerfile")return "sh";
-  const auto dot=name.find_last_of('.');
-  const auto extension=dot==std::string::npos?name:name.substr(dot+1);
-  return supportsSyntaxLanguage(extension)?extension:std::string{};
-}
 
 std::string highlightSyntax(std::string_view code,std::string_view name,
     const SyntaxPalette& palette){

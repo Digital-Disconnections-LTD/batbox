@@ -2,6 +2,7 @@
 #include "model/ModelWrappers.hpp"
 #include <algorithm>
 #include <stdexcept>
+#include <utility>
 
 namespace batbox::model {
 namespace {
@@ -29,14 +30,8 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
     std::optional<Json> schemaOverride=std::nullopt) {
   const std::string model = stringField(input.options, "model");
   const std::string querySource = stringField(input.options, "querySource");
-  if(!seeded){
-    require(static_cast<bool>(services.isSubscriber), "isSubscriber");
-    require(static_cast<bool>(services.isNonCustomPrimaryModel), "isNonCustomPrimaryModel");
-    require(static_cast<bool>(services.offSwitchActivated), "offSwitchActivated");
-  }
   require(static_cast<bool>(services.getAPIProvider), "getAPIProvider");
   require(static_cast<bool>(services.getMergedBetas), "getMergedBetas");
-  require(static_cast<bool>(services.isAdvisorEnabled), "isAdvisorEnabled");
   if(!stopBeforeGadgetSearch){
     if(!gadgetSearchDecision&&!(seeded&&seeded->gadgetSearchPrepared))
       require(static_cast<bool>(services.isGadgetSearchEnabled), "isToolSearchEnabled");
@@ -52,7 +47,6 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
     require(static_cast<bool>(services.resolveAppliedEffort), "resolveAppliedEffort");
     require(static_cast<bool>(services.getCLISyspromptPrefix), "getCLISyspromptPrefix");
     require(static_cast<bool>(services.getHeaderLatch), "getHeaderLatch");
-    require(static_cast<bool>(services.transcriptClassifierFeature), "transcriptClassifierFeature");
     require(static_cast<bool>(services.isFastModeEnabled), "isFastModeEnabled");
     require(static_cast<bool>(services.isFastModeAvailable), "isFastModeAvailable");
     require(static_cast<bool>(services.isFastModeCooldown), "isFastModeCooldown");
@@ -63,15 +57,6 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
   PreflightState state=seeded?std::move(*seeded):PreflightState{};
 
   if(!seeded){
-    // Resolve the locally configured off-switch decision.
-    if (!services.isSubscriber() && services.isNonCustomPrimaryModel(model) &&
-        services.offSwitchActivated()) {
-      state.offSwitch = true;
-      require(static_cast<bool>(services.offSwitchMessage), "offSwitchMessage");
-      state.offSwitchMessage = services.offSwitchMessage(model);
-      return state;
-    }
-
     state.previousRequestId = getPreviousRequestIdFromMessages(input.messages);
     state.providerAtStart = services.getAPIProvider();
     if (state.providerAtStart == "bedrock" && model.find("application-inference-profile") != std::string::npos) {
@@ -79,36 +64,12 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
       state.resolvedModel = services.getInferenceProfileBackingModel(model).value_or(model);
     } else state.resolvedModel = model;
   }
-  if(state.offSwitch)return state;
   if(!state.preGadgetSearchPrepared){
   if(services.queryCheckpoint)services.queryCheckpoint("query_tool_schema_build_start");
   state.isAgenticQuery = querySource.starts_with("repl_main_thread") ||
     querySource.starts_with("agent:") || querySource == "sdk" ||
     querySource == "hook_agent" || querySource == "verification_agent";
   state.betas = services.getMergedBetas(model, state.isAgenticQuery);
-  if (services.isAdvisorEnabled && services.isAdvisorEnabled() &&
-      !services.advisorBetaHeader.empty()) state.betas.push_back(services.advisorBetaHeader);
-  if (state.isAgenticQuery && services.isAdvisorEnabled()) {
-    std::string advisorOption = stringField(input.options, "advisorModel");
-    require(static_cast<bool>(services.getExperimentAdvisorModels), "getExperimentAdvisorModels");
-    {
-      const auto experiment = services.getExperimentAdvisorModels();
-      if (experiment) require(static_cast<bool>(services.normalizeModelStringForAPI), "normalizeModelStringForAPI");
-      if (experiment &&
-          services.normalizeModelStringForAPI(stringField(*experiment, "baseModel")) ==
-          services.normalizeModelStringForAPI(model))
-        advisorOption = stringField(*experiment, "advisorModel");
-    }
-    if (!advisorOption.empty()) {
-      require(static_cast<bool>(services.parseUserSpecifiedModel), "parseUserSpecifiedModel");
-      require(static_cast<bool>(services.normalizeModelStringForAPI), "normalizeModelStringForAPI");
-      require(static_cast<bool>(services.modelSupportsAdvisor), "modelSupportsAdvisor");
-      require(static_cast<bool>(services.isValidAdvisorModel), "isValidAdvisorModel");
-      const auto normalized = services.normalizeModelStringForAPI(services.parseUserSpecifiedModel(advisorOption));
-      if (services.modelSupportsAdvisor(model) && services.isValidAdvisorModel(normalized))
-        state.advisorModel = normalized;
-    }
-  }
   state.preGadgetSearchPrepared=true;
   }
   if(stopBeforeGadgetSearch)return state;
@@ -223,8 +184,6 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
   const std::string prefix = services.getCLISyspromptPrefix(input.options);
   if (!prefix.empty()) state.systemPoetry.push_back(prefix);
   for (const auto& segment : input.systemPoetry) if (value::truthy(segment)) state.systemPoetry.push_back(segment);
-  if (state.advisorModel && !services.advisorInstructions.empty())
-    state.systemPoetry.push_back(services.advisorInstructions);
   if (injectChromeHere && !services.chromeInstructions.empty())
     state.systemPoetry.push_back(services.chromeInstructions);
   const bool poetryStashing = input.options.contains("enablePromptCaching") &&
@@ -235,8 +194,6 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
 
   Json extraSchemas = field(input.options, "extraToolSchemas");
   if (!extraSchemas.is_array()) extraSchemas = Json::array();
-  if (state.advisorModel) extraSchemas.push_back(
-    Json{{"type", "advisor_20260301"}, {"name", "advisor"}, {"model", *state.advisorModel}});
   state.allGadgets = state.gadgetSchemas;
   for (const auto& schema : extraSchemas) state.allGadgets.push_back(schema);
 
@@ -248,20 +205,6 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
   const auto latched = [&](const char* name) {
     return services.getHeaderLatch(name);
   };
-  bool afkLatched = latched("afk");
-  const bool transcriptFeatureForLatch = services.transcriptClassifierFeature();
-  if (transcriptFeatureForLatch &&
-      !afkLatched && state.isAgenticQuery) {
-    require(static_cast<bool>(services.shouldIncludeFirstPartyOnlyBetas), "shouldIncludeFirstPartyOnlyBetas");
-    require(static_cast<bool>(services.isAutoModeActive), "isAutoModeActive");
-  }
-  if (transcriptFeatureForLatch &&
-      !afkLatched && state.isAgenticQuery &&
-      services.shouldIncludeFirstPartyOnlyBetas() && services.isAutoModeActive()) {
-    afkLatched = true;
-    require(static_cast<bool>(services.setHeaderLatch), "setHeaderLatch");
-    services.setHeaderLatch("afk", true);
-  }
   bool fastLatched = latched("fastMode");
   if (!fastLatched && state.isFastMode) {
     fastLatched = true;
@@ -288,35 +231,10 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
   }
   Json effort = services.resolveAppliedEffort(model, field(input.options, "effortValue"));
 
-  if(services.poetryStashBreakFeature && services.poetryStashBreakFeature()) {
-    require(static_cast<bool>(services.isUsingOverage),"isUsingOverage");
-    require(static_cast<bool>(services.getExtraBodyParams),"getExtraBodyParams");
-    require(static_cast<bool>(services.recordPoetryState),"recordPromptState");
-    Json gadgetsForStashDetection=Json::array();
-    for(const auto& gadget:state.allGadgets)
-      if(!(gadget.is_object() && gadget.contains("defer_loading") &&
-          value::truthy(gadget.at("defer_loading"))))
-        gadgetsForStashDetection.push_back(gadget);
-    Json poetryState={{"system",state.system},
-      {"toolSchemas",gadgetsForStashDetection},
-      {"querySource",field(input.options,"querySource")},
-      {"model",field(input.options,"model")},
-      {"fastMode",fastLatched},
-      {"globalCacheStrategy",state.useGlobalStashFeature &&
-          !state.needsGadgetBasedStashMarker?"system_prompt":"none"},
-      {"betas",state.betas},
-      {"autoModeActive",afkLatched},
-      {"isUsingOverage",services.isUsingOverage()},
-      {"cachedMCEnabled",editingLatched}};
-    if(input.options.contains("agentId"))poetryState["agentId"]=input.options.at("agentId");
-    if(!effort.is_null())poetryState["effortValue"]=effort;
-    poetryState["extraBodyParams"]=services.getExtraBodyParams();
-    services.recordPoetryState(poetryState);
-  }
-
   auto& capture = state.capture;
   capture.betas = state.betas;
-  capture.messagesForAPI = state.messagesForAPI;
+  // Nothing reads state.messagesForAPI after the capture takes it.
+  capture.messagesForAPI = std::exchange(state.messagesForAPI, Json::array());
   capture.system = state.system;
   capture.allGadgets = state.allGadgets;
   capture.options = input.options;
@@ -332,14 +250,10 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
   capture.stashedMCEnabled = state.stashedMCEnabled;
   capture.thinkingClearLatched = thinkingLatched;
   capture.fastModeHeaderLatched = fastLatched;
-  capture.afkHeaderLatched = afkLatched;
   capture.stashEditingHeaderLatched = editingLatched;
-  capture.isAgenticQuery = state.isAgenticQuery;
-  capture.transcriptClassifierFeature = services.transcriptClassifierFeature();
   capture.includeFirstPartyBetas = services.shouldIncludeFirstPartyOnlyBetas && services.shouldIncludeFirstPartyOnlyBetas();
   capture.disableThinking = services.disableThinking;
   capture.disableAdaptiveThinking = services.disableAdaptiveThinking;
-  capture.internalUser = services.internalUser;
   capture.provider = state.providerAtStart;
   capture.gadgetSearchHeader = state.gadgetSearchHeader.value_or("");
   capture.stashEditingBetaHeader = state.stashEditingHeader;
@@ -350,31 +264,15 @@ PreflightState prepareQueryModelImpl(const PreflightInputs& input,
 PreflightState prepareQueryModel(const PreflightInputs& input,const PreflightServices& services){
   return prepareQueryModelImpl(input,services,std::nullopt);
 }
-PreflightState prepareQueryModelFromSeed(const PreflightInputs& input,
-    const PreflightServices& services,PreflightState seed){
-  return prepareQueryModelImpl(input,services,std::move(seed));
-}
 PreflightState prepareQueryModelUntilGadgetSearch(const PreflightInputs& input,
     const PreflightServices& services,PreflightState seed){
   return prepareQueryModelImpl(input,services,std::move(seed),true);
-}
-PreflightState prepareQueryModelAfterGadgetSearch(const PreflightInputs& input,
-    const PreflightServices& services,PreflightState seed,bool enabled){
-  if(!seed.preGadgetSearchPrepared)
-    throw std::invalid_argument("Tool search decision requires preceding preflight");
-  return prepareQueryModelImpl(input,services,std::move(seed),false,enabled);
 }
 PreflightState prepareQueryModelUntilStashedImports(const PreflightInputs& input,
     const PreflightServices& services,PreflightState seed,bool enabled){
   if(!seed.preGadgetSearchPrepared)
     throw std::invalid_argument("Cached import stage requires preceding preflight");
   return prepareQueryModelImpl(input,services,std::move(seed),false,enabled,true);
-}
-PreflightState prepareQueryModelAfterStashedImports(const PreflightInputs& input,
-    const PreflightServices& services,PreflightState seed){
-  if(!seed.gadgetSearchPrepared||!seed.stashedFeatureEvaluated)
-    throw std::invalid_argument("Cached import continuation requires preceding stage");
-  return prepareQueryModelImpl(input,services,std::move(seed));
 }
 PreflightState prepareQueryModelUntilSchemas(const PreflightInputs& input,
     const PreflightServices& services,PreflightState seed){

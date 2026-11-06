@@ -39,6 +39,11 @@ Json mapGrepResult(const Json& output,const std::string& id){
       content+='\n';content+=join(output.at("filenames"));
     }
   }
+  // Ahead of the results, so a long result saved to a file keeps it in the
+  // preview.
+  const auto incomplete=output.find("incomplete");
+  if(incomplete!=output.end()&&incomplete->is_string())
+    content="("+incomplete->get<std::string>()+")\n\n"+content;
   return Json{{"tool_use_id",id},{"type","tool_result"},{"content",content}};
 }
 } // namespace batbox::gadgets::files

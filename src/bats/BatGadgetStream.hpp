@@ -25,7 +25,6 @@ public:
   BatGadgetStream& operator=(const BatGadgetStream&)=delete;
   ~BatGadgetStream();
   ObservedBatMessage nextObserved();
-  std::shared_future<std::optional<query::MessageRef>> next();
   bool returnWithin(std::chrono::milliseconds timeout);
 private:
   struct State;

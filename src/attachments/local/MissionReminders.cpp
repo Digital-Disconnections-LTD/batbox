@@ -83,10 +83,7 @@ event_loop::Deferred<Json> getMissionReminderAttachments(const Json& messages,
   if(!services.todoV2Enabled)
     throw std::invalid_argument("Task reminder feature import required");
   if(!services.todoV2Enabled())return ready(services.loop,Json::array());
-  if(!services.internalUser)
-    throw std::invalid_argument("Local user type import required");
-  if(services.internalUser()||
-     available(context,services.briefGadgetName)||
+  if(available(context,services.briefGadgetName)||
      !available(context,services.missionUpdateGadgetName)||
      !messages.is_array()||messages.empty())
     return ready(services.loop,Json::array());

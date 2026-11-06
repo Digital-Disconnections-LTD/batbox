@@ -78,9 +78,11 @@ GadgetResult callGrep(const Json& input,const GadgetCallContext& context,const G
     args.push_back("--glob");args.push_back(exclusion);
   }
   require(static_cast<bool>(services.ripGrep),"ripGrep");
-  const auto results=services.ripGrep(args,absolutePath,context.stopToken);
-  if(mode=="content")return grepContentResult(results,headLimit,offset,cwd);
-  if(mode=="count")return grepCountResult(results,headLimit,offset,cwd);
-  return grepFilesResult(results,headLimit,offset,cwd,services);
+  const auto found=services.ripGrep(args,absolutePath,context.stopToken);
+  auto result=mode=="content"?grepContentResult(found.lines,headLimit,offset,cwd):
+    mode=="count"?grepCountResult(found.lines,headLimit,offset,cwd):
+    grepFilesResult(found.lines,headLimit,offset,cwd,services);
+  if(!found.incomplete.empty())result.data["incomplete"]=found.incomplete;
+  return result;
 }
 } // namespace batbox::gadgets::files

@@ -1,0 +1,8 @@
+⠹ 2 Bats
+  ⎿  Research alpha · Latest tool: Read · 4s
+     Research beta · Launched
+
+# styles
+0:2-7 fg=- bg=- b
+1:0-4 fg=- bg=- d
+2:0-4 fg=- bg=- d

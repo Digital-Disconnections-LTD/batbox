@@ -68,15 +68,4 @@ std::string CanonicalRoot::compute(const std::string& gitRoot)const{
     return value::normalizeNFC(dirname(commonDir));
   }catch(...){return gitRoot;}
 }
-void CanonicalRoot::clear(){stash_.clear();recency_.clear();}
-std::size_t CanonicalRoot::stashSize()const{return stash_.size();}
-bool CanonicalRoot::stashDelete(const std::string& root){
-  const auto found=stash_.find(root);if(found==stash_.end())return false;
-  recency_.erase(found->second.recency);stash_.erase(found);return true;
-}
-std::optional<std::string> CanonicalRoot::stashGet(const std::string& root)const{
-  const auto found=stash_.find(root);
-  return found==stash_.end()?std::nullopt:std::optional<std::string>(found->second.value);
-}
-bool CanonicalRoot::stashHas(const std::string& root)const{return stash_.contains(root);}
 } // namespace batbox::git

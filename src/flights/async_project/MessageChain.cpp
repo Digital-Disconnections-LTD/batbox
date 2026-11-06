@@ -128,14 +128,4 @@ Completion AsyncProject::insertMessageChainRefs(std::vector<MessageRef> messages
     const auto completed=call->completed;call->start();return completed;
   }));
 }
-Completion AsyncProject::insertMessageChain(Json messages,bool sidechain,
-  std::optional<std::string> bat,std::optional<std::string> startingParent,Json team){
-  try{
-    std::vector<MessageRef> references;
-    if(!messages.is_array())throw std::invalid_argument("messages array required");
-    for(auto& message:messages)references.push_back(std::make_shared<Json>(std::move(message)));
-    return insertMessageChainRefs(std::move(references),sidechain,
-      std::move(bat),std::move(startingParent),std::move(team));
-  }catch(...){Completion failed(loop_);failed.reject(std::current_exception());return failed;}
-}
 } // namespace batbox::flights::async_project

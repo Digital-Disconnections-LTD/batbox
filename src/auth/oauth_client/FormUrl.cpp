@@ -1,8 +1,6 @@
 #include "auth/oauth_client/FormUrl.hpp"
 #include "runtime/Encoding.hpp"
 #include "runtime/JsonValue.hpp"
-#include "runtime/Url.hpp"
-#include <stdexcept>
 
 namespace batbox::auth::oauth_client {
 namespace {
@@ -66,21 +64,5 @@ std::string serializeFormQuery(const QueryEntries& entries){
     result+=encode(key);result.push_back('=');result+=encode(value);
   }
   return result;
-}
-std::string appendFormQuery(std::string_view href,
-    const QueryEntries& additions){
-  const auto parsed=runtime::parseUrl(std::string(href));
-  if(!parsed)throw std::invalid_argument("Invalid OAuth authorization URL");
-  auto entries=parseFormQuery((*parsed)["search"].get<std::string>());
-  entries.insert(entries.end(),additions.begin(),additions.end());
-  std::string output=(*parsed)["href"].get<std::string>();
-  const auto hash=output.find('#');
-  const std::string fragment=hash==std::string::npos?std::string{}:
-    output.substr(hash);
-  if(hash!=std::string::npos)output.erase(hash);
-  const auto question=output.find('?');
-  if(question!=std::string::npos)output.erase(question);
-  output.push_back('?');output+=serializeFormQuery(entries);output+=fragment;
-  return output;
 }
 }

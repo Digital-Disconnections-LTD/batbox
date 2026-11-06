@@ -6,79 +6,10 @@
 namespace batbox::messages {
 using namespace internal;
 namespace {
-bool isGadgetReferenceBlock(const Json& block) { return isBlock(block, "tool_reference"); }
-Json smooshIntoGadgetResult(const Json& tr, Json blocks) {
-  if (blocks.empty()) return tr;
-  const Json existing = get(tr, "content");
-  if (existing.is_array() && std::any_of(existing.begin(), existing.end(), isGadgetReferenceBlock)) return nullptr;
-  if (value::truthy(get(tr, "is_error"))) {
-    Json filtered = Json::array();
-    for (const auto& block : blocks) if (isBlock(block, "text")) filtered.push_back(block);
-    blocks = std::move(filtered);
-    if (blocks.empty()) return tr;
-  }
-  const bool allText = std::all_of(blocks.begin(), blocks.end(), [](const Json& b) { return isBlock(b, "text"); });
-  if (allText && (!has(tr, "content") || existing.is_string())) {
-    std::vector<std::string> parts;
-    std::string initial = value::trim(str(existing));
-    if (!initial.empty()) parts.push_back(initial);
-    for (const auto& block : blocks) {
-      std::string part = value::trim(field(block, "text"));
-      if (!part.empty()) parts.push_back(part);
-    }
-    std::string joined;
-    for (const auto& part : parts) { if (!joined.empty()) joined += "\n\n"; joined += part; }
-    Json copy = tr; copy["content"] = joined; return copy;
-  }
-  Json base = Json::array();
-  if (has(tr, "content")) {
-    if (existing.is_string()) {
-      std::string trimmed = value::trim(str(existing));
-      if (!trimmed.empty()) base.push_back(textBlock(trimmed));
-    } else if (existing.is_array()) base = existing;
-  }
-  for (const auto& block : blocks) base.push_back(block);
-  Json merged = Json::array();
-  for (const auto& block : base) {
-    if (isBlock(block, "text")) {
-      std::string value = value::trim(field(block, "text"));
-      if (value.empty()) continue;
-      if (!merged.empty() && isBlock(merged.back(), "text")) {
-        Json prev = merged.back(); prev["text"] = field(prev, "text") + "\n\n" + value;
-        merged.back() = std::move(prev);
-      } else merged.push_back(textBlock(value));
-    } else merged.push_back(block);
-  }
-  Json copy = tr; copy["content"] = std::move(merged); return copy;
-}
-Json smooshSystemReminderSiblings(const Json& messages) {
-  Json output = Json::array();
-  for (const auto& msg : messages) {
-    if (field(msg, "type") != "user") { output.push_back(msg); continue; }
-    const Json content = get(get(msg, "message"), "content");
-    if (!content.is_array()) { output.push_back(msg); continue; }
-    bool hasGadgetResult = false;
-    for (const auto& b : content) if (isBlock(b, "tool_result")) hasGadgetResult = true;
-    if (!hasGadgetResult) { output.push_back(msg); continue; }
-    Json srText = Json::array(), kept = Json::array();
-    for (const auto& b : content) {
-      if (isBlock(b, "text") && field(b, "text").rfind("<system-reminder>", 0) == 0) srText.push_back(b);
-      else kept.push_back(b);
-    }
-    if (srText.empty()) { output.push_back(msg); continue; }
-    std::size_t lastTrIdx = 0;
-    for (std::size_t i = 0; i < kept.size(); ++i) if (isBlock(kept[i], "tool_result")) lastTrIdx = i;
-    Json smooshed = smooshIntoGadgetResult(kept[lastTrIdx], srText);
-    if (smooshed.is_null()) { output.push_back(msg); continue; }
-    kept[lastTrIdx] = std::move(smooshed);
-    Json copy = msg; copy["message"]["content"] = std::move(kept); output.push_back(std::move(copy));
-  }
-  return output;
-}
-std::string diagnostic(const Json& messages) {
+std::string diagnostic(const std::vector<const Json*>& messages) {
   std::vector<std::string> parts;
   for (std::size_t i = 0; i < messages.size(); ++i) {
-    const Json& m = messages[i];
+    const Json& m = *messages[i];
     const std::string type = field(m, "type");
     if (type == "assistant") {
       std::vector<std::string> uses, server;
@@ -111,17 +42,27 @@ std::string diagnostic(const Json& messages) {
 }
 } // namespace
 
-Json ensureGadgetResultPairing(const Json& messages, Services& services) {
+Json ensureGadgetResultPairing(Json messages, Services& services) {
   Json result = Json::array(); bool repaired = false;
   std::set<std::string> allSeenGadgetUseIds;
+  // Messages that pass through unchanged are moved into result; the repair
+  // diagnostic reads them back from there.
+  std::vector<std::ptrdiff_t> movedTo(messages.size(), -1);
+  const auto passThrough = [&](std::size_t index) {
+    result.push_back(std::move(messages[index]));
+    movedTo[index] = static_cast<std::ptrdiff_t>(result.size()) - 1;
+  };
   for (std::size_t i = 0; i < messages.size(); ++i) {
     const Json& msg = messages[i];
     if (field(msg, "type") != "assistant") {
       if (field(msg, "type") == "user" && get(msg.at("message"), "content").is_array() &&
           (result.empty() || field(result.back(), "type") != "assistant")) {
-        const Json& content = msg.at("message").at("content"); Json stripped = Json::array();
-        for (const auto& block : content) if (!isBlock(block, "tool_result")) stripped.push_back(block);
-        if (stripped.size() != content.size()) {
+        const Json& content = msg.at("message").at("content");
+        const bool hasResult = std::any_of(content.begin(), content.end(),
+          [](const Json& block) { return isBlock(block, "tool_result"); });
+        Json stripped = Json::array();
+        if (hasResult) for (const auto& block : content) if (!isBlock(block, "tool_result")) stripped.push_back(block);
+        if (hasResult && stripped.size() != content.size()) {
           repaired = true;
           if (!stripped.empty() || result.empty()) {
             Json patched = msg;
@@ -131,32 +72,37 @@ Json ensureGadgetResultPairing(const Json& messages, Services& services) {
           continue;
         }
       }
-      result.push_back(msg); continue;
+      passThrough(i); continue;
     }
     std::set<std::string> serverResultIds;
     const Json& original = msg.at("message").at("content");
     for (const auto& c : original) if (has(c, "tool_use_id") && get(c, "tool_use_id").is_string()) serverResultIds.insert(field(c, "tool_use_id"));
-    std::set<std::string> seenGadgetUseIds; std::vector<std::string> gadgetUseIds; Json finalContent = Json::array();
+    std::set<std::string> seenGadgetUseIds; std::vector<std::string> gadgetUseIds; std::vector<bool> keep;
     for (const auto& block : original) {
       if (isBlock(block, "tool_use")) {
         const std::string id = field(block, "id");
-        if (allSeenGadgetUseIds.count(id)) { repaired = true; continue; }
+        if (allSeenGadgetUseIds.count(id)) { repaired = true; keep.push_back(false); continue; }
         allSeenGadgetUseIds.insert(id); seenGadgetUseIds.insert(id); gadgetUseIds.push_back(id);
       }
       if ((isBlock(block, "server_tool_use") || isBlock(block, "mcp_tool_use")) && !serverResultIds.count(field(block, "id"))) {
-        repaired = true; continue;
+        repaired = true; keep.push_back(false); continue;
       }
-      finalContent.push_back(block);
+      keep.push_back(true);
     }
-    const bool assistantContentChanged = finalContent.size() != original.size();
-    if (finalContent.empty()) finalContent.push_back(Json{{"type", "text"}, {"text", "[Tool use interrupted]"}, {"citations", Json::array()}});
-    Json assistantMsg = msg;
-    if (assistantContentChanged) assistantMsg["message"]["content"] = finalContent;
-    result.push_back(std::move(assistantMsg));
+    const bool assistantContentChanged = std::find(keep.begin(), keep.end(), false) != keep.end();
+    if (!assistantContentChanged) passThrough(i);
+    else {
+      Json finalContent = Json::array(); std::size_t index = 0;
+      for (const auto& block : original) if (keep[index++]) finalContent.push_back(block);
+      if (finalContent.empty()) finalContent.push_back(Json{{"type", "text"}, {"text", "[Tool use interrupted]"}, {"citations", Json::array()}});
+      Json assistantMsg = msg;
+      assistantMsg["message"]["content"] = std::move(finalContent);
+      result.push_back(std::move(assistantMsg));
+    }
     const Json* nextMsg = i + 1 < messages.size() ? &messages[i + 1] : nullptr;
     std::set<std::string> existingGadgetResultIds; bool hasDuplicateGadgetResults = false;
     if (nextMsg && field(*nextMsg, "type") == "user") {
-      const Json content = get(nextMsg->at("message"), "content");
+      const Json& content = get(nextMsg->at("message"), "content");
       if (content.is_array()) for (const auto& block : content) if (isBlock(block, "tool_result")) {
         const std::string id = field(block, "tool_use_id");
         if (existingGadgetResultIds.count(id)) hasDuplicateGadgetResults = true;
@@ -191,8 +137,7 @@ Json ensureGadgetResultPairing(const Json& messages, Services& services) {
       for (const auto& block : content) patchedContent.push_back(block);
       if (!patchedContent.empty()) {
         Json patchedNext = *nextMsg; patchedNext["message"]["content"] = std::move(patchedContent); ++i;
-        if (!services.featureGate) throw std::logic_error("featureGate service not supplied");
-        result.push_back(services.featureGate("tengu_chair_sermon") ? smooshSystemReminderSiblings(Json::array({patchedNext}))[0] : patchedNext);
+        result.push_back(std::move(patchedNext));
       } else {
         ++i; result.push_back(createUserMessage(Json{{"content", NO_CONTENT_MESSAGE}, {"isMeta", true}}, services));
       }
@@ -201,7 +146,10 @@ Json ensureGadgetResultPairing(const Json& messages, Services& services) {
     }
   }
   if (repaired) {
-    const std::string desc = diagnostic(messages);
+    std::vector<const Json*> originals(messages.size());
+    for (std::size_t i = 0; i < originals.size(); ++i)
+      originals[i] = movedTo[i] >= 0 ? &result[static_cast<std::size_t>(movedTo[i])] : &messages[i];
+    const std::string desc = diagnostic(originals);
     if (!services.strictGadgetResultPairing) throw std::logic_error("strictToolResultPairing service not supplied");
     if (services.strictGadgetResultPairing()) throw std::runtime_error(
       "ensureToolResultPairing: tool_use/tool_result pairing mismatch detected (strict mode). "

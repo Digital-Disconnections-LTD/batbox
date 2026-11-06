@@ -48,7 +48,9 @@ std::string jsText(const Json& value){
 std::vector<MemoryHeader> scanMemoryFiles(const std::string& memoryDir,
   std::stop_token signal){
   try{
-    std::vector<std::string> relativePaths;
+    // Only the newest maxMemoryFiles are read, so order by modification time
+    // first; a large memory directory costs one stat per file, not one read.
+    std::vector<std::pair<std::filesystem::file_time_type,std::string>> relativePaths;
     const auto base=runtime::pathFromUtf8(memoryDir);
     std::vector<std::filesystem::path> pending={base};
     while(!pending.empty()){
@@ -62,13 +64,21 @@ std::vector<MemoryHeader> scanMemoryFiles(const std::string& memoryDir,
       });
       for(const auto& entry:entries){
         const auto relative=entry.path().lexically_relative(base);
-        if(relative.extension()==".md"&&relative.filename()!="MEMORY.md")
-          relativePaths.push_back(runtime::pathToUtf8(relative));
+        if(relative.extension()==".md"&&relative.filename()!="MEMORY.md"){
+          std::error_code timeError;
+          const auto modified=entry.last_write_time(timeError);
+          relativePaths.emplace_back(timeError?std::filesystem::file_time_type::min():modified,
+            runtime::pathToUtf8(relative));
+        }
         if(entry.is_directory()&&!entry.is_symlink())pending.push_back(entry.path());
       }
     }
+    std::stable_sort(relativePaths.begin(),relativePaths.end(),
+      [](const auto& a,const auto& b){return a.first>b.first;});
+    if(relativePaths.size()>maxMemoryFiles)relativePaths.resize(maxMemoryFiles);
     std::vector<MemoryHeader> headers;
-    for(const auto& relative:relativePaths){
+    for(const auto& [modified,relative]:relativePaths){
+      (void)modified;
       try{
         const auto filePath=runtime::pathToUtf8(base/runtime::pathFromUtf8(relative));
         const auto range=filesystem::readFileInRange(filePath,0,frontmatterMaxLines,

@@ -618,6 +618,8 @@ private:
         id=editingId_;
         const auto& previous=endpoints_.at(editingId_);
         endpoint.label=previous.label;
+        endpoint.betas=previous.betas;
+        endpoint.limits=previous.limits;
         if(endpoint.preset=="custom")endpoint.preset=previous.preset;
       }else id=providers::uniqueEndpointId(endpoints_,provider_.id);
       application_config::validateEndpoint(id,endpoint);

@@ -5,7 +5,6 @@
 namespace batbox::bats {
 namespace {
 const Json& field(const Json& object,const char* key){return value::property(object,key);}
-std::string text(const Json& value){return value.is_string()?value.get<std::string>():"";}
 template<class F>void need(const F& fn,const char* name){
   if(!fn)throw std::invalid_argument(std::string("BatGadget continuation requires ")+name);
 }
@@ -78,21 +77,8 @@ void continueBatGadgetInBackground(BatGadgetBackgroundContinuation state,
     // The mission status transition precedes classification and worktree cleanup.
     services.completeAsyncBat(batResult,state.existingMessages,
       state.rootSetAppState);
-    std::string finalMessage=services.result.extractTextContent(
+    const std::string finalMessage=services.result.extractTextContent(
       field(batResult,"content"),"\n");
-    need(services.feature,"feature");
-    if(services.feature("TRANSCRIPT_CLASSIFIER")){
-      need(services.classifyHandoffIfNeeded,"classifyHandoffIfNeeded");
-      need(state.context.getAppState,"toolUseContext.getAppState");
-      const Json current=effectiveBatGetAppState(state.context)();
-      const auto warning=services.classifyHandoffIfNeeded(messages,
-        state.context.query.gadgets,
-        field(current,"toolPermissionContext"),
-        state.missionAbortOwner?state.missionAbortOwner->get_token():std::stop_token{},
-        text(field(state.selectedBat,"agentType")),
-        field(batResult,"totalToolUseCount").get<int>());
-      if(warning)finalMessage=*warning+"\n\n"+finalMessage;
-    }
     Json worktree=Json::object();
     if(state.cleanupWorktree)worktree=state.cleanupWorktree();
     else if(state.worktree)worktree=cleanupBatWorktreeIfNeeded(*state.worktree,

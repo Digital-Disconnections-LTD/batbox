@@ -18,15 +18,12 @@ model::PreflightServices LocalServiceBuilder::makePreflight(){
   deps.queryCheckpoint=[&host=host](const auto& name){
     host.imports_.diagnostic("checkpoint",name);
   };
-  deps.poetryStashBreakFeature=[]{return false;};
-  deps.isSubscriber=[subscriber=config.subscriber]{return subscriber;};
-  deps.isNonCustomPrimaryModel=[](const std::string&){return false;};
-  deps.offSwitchActivated=[]{return false;};
   deps.getAPIProvider=[provider=config.provider]{return provider;};
-  deps.getMergedBetas=[betas=config.betaHeaders](const std::string&,bool){
-    return betas;
+  deps.getMergedBetas=[profiles=config.profiles](const std::string& name,bool){
+    const auto found=profiles.find(name);
+    if(found==profiles.end())return Json::array();
+    return Json(requestBetas(found->second));
   };
-  deps.isAdvisorEnabled=[]{return false;};
   deps.normalizeModelStringForAPI=[profiles=config.profiles](
       const std::string& name){
     const auto found=profiles.find(name);
@@ -34,7 +31,6 @@ model::PreflightServices LocalServiceBuilder::makePreflight(){
     return model_config::normalizeModelStringForAPI(
       found->second.wireModel.empty()?name:found->second.wireModel);
   };
-  deps.parseUserSpecifiedModel=[](const auto& name){return name;};
   deps.isGadgetSearchEnabled=[enabled=config.gadgetSearch](const auto&,
       const auto&,const auto&){return enabled;};
   deps.isDeferredGadget=[](const Json& gadget){
@@ -100,7 +96,6 @@ model::PreflightServices LocalServiceBuilder::makePreflight(){
   deps.setHeaderLatch=[&host=host](const auto& name,bool value){
     std::lock_guard lock(host.mutex_);host.state_.headerLatches[name]=value;
   };
-  deps.transcriptClassifierFeature=[]{return false;};
   deps.shouldIncludeFirstPartyOnlyBetas=[]{return false;};
   deps.getLastApiCompletionTimestamp=[&host=host]()
       ->std::optional<std::int64_t>{
@@ -120,7 +115,7 @@ query::OwnerPreflightAwaits LocalServiceBuilder::makeOwnerPreflight(){
       const std::string&,const Json&,const Json&){
     event_loop::Deferred<bool> value(*owner);value.resolve(enabled);return value;
   };
-  result.gadgetToAPISchema=[owner,active=gadgets,poetry=poetry,
+  result.gadgetToAPISchema=[active=gadgets,poetry=poetry,
       make=host.imports_.gadgetSchemaAsync,options=options](
       const Json& row,bool defer,const Json&,const Json&){
     gadgets::GadgetSchemaOptions settings;

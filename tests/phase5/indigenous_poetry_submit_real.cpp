@@ -30,7 +30,6 @@ int main(){
       user_input::UserInputServices{loop,messageServices,slash});
     input->getAppState=[]{return Json{{"toolPermissionContext",
       Json{{"mode","default"}}}};};
-    input->feature=[](const std::string&){return false;};
     input->getAttachmentMessages=[&](const std::string&,const Json&,
         const Json&,const Json&,const std::optional<std::string>&){
       ++attachmentCalls;

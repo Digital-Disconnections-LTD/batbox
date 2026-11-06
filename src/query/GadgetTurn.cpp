@@ -1,8 +1,6 @@
-#include "runtime/AsyncLaunch.hpp"
 #include "query/GadgetTurn.hpp"
 #include "query/MemoryAttachmentFilter.hpp"
 #include <algorithm>
-#include <future>
 #include <stdexcept>
 
 namespace batbox::query {
@@ -26,63 +24,16 @@ void appendNormalizedUsers(const Json& message,const execution::Context& context
   if(normalized.is_array())for(const Json& item:normalized)
     if(field(item,"type")=="user")result.gadgetResults.push_back(item);
 }
-Json summaryInfo(const ModelPassResult& modelResult){
-  Json infos=Json::array();
-  for(const Json& block:modelResult.gadgetUseBlocks){
-    Json output;
-    const Json& id=field(block,"id");
-    for(const Json& result:modelResult.gadgetResults){
-      if(field(result,"type")!="user")continue;
-      const Json& content=field(field(result,"message"),"content");
-      if(!content.is_array())continue;
-      bool found=false;
-      for(const Json& item:content)if(field(item,"type")=="tool_result"&&field(item,"tool_use_id")==id){
-        output=field(item,"content");found=true;break;
-      }
-      if(found)break;
-    }
-    infos.push_back(Json{{"name",field(block,"name")},{"input",field(block,"input")},
-      {"output",output}});
-  }
-  return infos;
-}
-std::optional<std::shared_future<Json>> startSummary(
-  const PreparedIteration& prepared,const ModelPassResult& modelResult,
-  const QueryConfig& config,GadgetTurnServices& services){
-  if(!config.emitGadgetUseSummaries || modelResult.gadgetUseBlocks.empty() ||
-     prepared.gadgetUseContext.stop.stop_requested() ||
-     value::truthy(field(prepared.gadgetUseContext.data,"agentId")))return std::nullopt;
-  need(services.generateGadgetUseSummary,"generateToolUseSummary");
-  need(services.createGadgetUseSummaryMessage,"createToolUseSummaryMessage");
-  std::optional<std::string> lastText;
-  if(!modelResult.assistantMessages.empty()){
-    const Json& content=field(field(modelResult.assistantMessages.back(),"message"),"content");
-    if(content.is_array())for(const Json& block:content)
-      if(field(block,"type")=="text"&&field(block,"text").is_string())
-        lastText=field(block,"text").get<std::string>();
-  }
-  Json ids=Json::array();for(const Json& block:modelResult.gadgetUseBlocks)ids.push_back(field(block,"id"));
-  Json args={{"tools",summaryInfo(modelResult)},
-    {"isNonInteractiveSession",field(field(prepared.gadgetUseContext.data,"options"),"isNonInteractiveSession")}};
-  if(lastText)args["lastAssistantText"]=*lastText;
-  const auto pending=services.generateGadgetUseSummary(args);
-  return ::batbox::runtime::contextAsync(std::launch::async,[pending,ids,create=services.createGadgetUseSummaryMessage]{
-    try{const auto summary=pending.get();if(summary&&!summary->empty())return create(*summary,ids);}
-    catch(...){}
-    return Json();
-  }).share();
-}
 void appendAttachment(const Json& attachment,ModelPassResult& result,const Yield& yield){
   yield(attachment);result.gadgetResults.push_back(attachment);
 }
 }
 
 CompletionDecision executeGadgetTurn(const Params& params,const State& state,
-  PreparedIteration& prepared,ModelPassResult& modelResult,
-  const QueryConfig& config,MemoryPrefetch* memoryPrefetch,
+  PreparedIteration& prepared,ModelPassResult& modelResult,MemoryPrefetch* memoryPrefetch,
   std::vector<std::string>& consumedCommandUuids,GadgetTurnServices& services,
   const Yield& yield){
-  need(yield,"yield");need(services.feature,"feature");
+  need(yield,"yield");
   bool shouldPreventContinuation=false;
   execution::Context updated=prepared.gadgetUseContext;
   auto consume=[&](const std::optional<Json>& message,const execution::Context& newContext){
@@ -96,26 +47,15 @@ CompletionDecision executeGadgetTurn(const Params& params,const State& state,
     updated=newContext;
     updated.data["queryTracking"]=prepared.queryTracking;
   };
-  if(prepared.streamingGadgetExecutor){
-    prepared.streamingGadgetExecutor->getRemainingResults([&](const execution::Update& update){
-      consume(update.message,prepared.streamingGadgetExecutor->getUpdatedContext());
+  if(!services.executionServices)throw std::invalid_argument("Unbound query import: executionServices");
+  std::vector<Json> blocks,assistants;
+  for(const Json& block:modelResult.gadgetUseBlocks)blocks.push_back(block);
+  for(const Json& assistant:modelResult.assistantMessages)assistants.push_back(assistant);
+  execution::runGadgets(blocks,assistants,prepared.gadgetUseContext,*services.executionServices,
+    services.concurrencyValue,[&](const execution::MessageUpdate& update){
+      consume(update.message,update.newContext);
     });
-  } else {
-    if(!services.executionServices)throw std::invalid_argument("Unbound query import: executionServices");
-    std::vector<Json> blocks,assistants;
-    for(const Json& block:modelResult.gadgetUseBlocks)blocks.push_back(block);
-    for(const Json& assistant:modelResult.assistantMessages)assistants.push_back(assistant);
-    execution::runGadgets(blocks,assistants,prepared.gadgetUseContext,*services.executionServices,
-      services.concurrencyValue,[&](const execution::MessageUpdate& update){
-        consume(update.message,update.newContext);
-      });
-  }
-  const auto nextSummary=startSummary(prepared,modelResult,config,services);
   if(prepared.gadgetUseContext.stop.stop_requested()){
-    if(services.feature("CHICAGO_MCP") && !value::truthy(field(prepared.gadgetUseContext.data,"agentId")))
-      if(services.cleanupComputerUseAfterTurn)try{
-        services.cleanupComputerUseAfterTurn(prepared.gadgetUseContext);
-      }catch(...){}
     need(services.currentAbortReason,"currentAbortReason");
     if(services.currentAbortReason()!="interrupt"){
       need(services.createUserInterruptionMessage,"createUserInterruptionMessage");
@@ -173,13 +113,6 @@ CompletionDecision executeGadgetTurn(const Params& params,const State& state,
       appendAttachment(services.createAttachmentMessage(memory),modelResult,yield);
     memoryPrefetch->consumedOnIteration=state.turnCount-1;
   }
-  if(services.feature("EXPERIMENTAL_SKILL_SEARCH")&&!prepared.pendingSkillPrefetch.is_null()){
-    need(services.collectSkillDiscoveryPrefetch,"collectSkillDiscoveryPrefetch");
-    need(services.createAttachmentMessage,"createAttachmentMessage");
-    const Json skills=services.collectSkillDiscoveryPrefetch(prepared.pendingSkillPrefetch);
-    if(skills.is_array())for(const Json& skill:skills)
-      appendAttachment(services.createAttachmentMessage(skill),modelResult,yield);
-  }
   Json consumed=Json::array();
   for(const Json& command:snapshot)
     if(field(command,"mode")=="prompt"||field(command,"mode")=="task-notification")
@@ -200,17 +133,6 @@ CompletionDecision executeGadgetTurn(const Params& params,const State& state,
   }
   updated.data["queryTracking"]=prepared.queryTracking;
   const int nextTurn=state.turnCount+1;
-  if(services.feature("BG_SESSIONS")&&!value::truthy(batId)){
-    need(services.shouldGenerateMissionSummary,"shouldGenerateTaskSummary");
-    if(services.shouldGenerateMissionSummary()){
-      need(services.maybeGenerateMissionSummary,"maybeGenerateTaskSummary");
-      services.maybeGenerateMissionSummary(Json{{"systemPrompt",params.systemPoetry},
-        {"userContext",params.userContext},{"systemContext",params.systemContext},
-        {"toolUseContext",prepared.gadgetUseContext.data},
-        {"forkContextMessages",concatMessages(concatMessages(prepared.messagesForQuery,
-          modelResult.assistantMessages),modelResult.gadgetResults)}});
-    }
-  }
   if(params.maxTurns && *params.maxTurns!=0 && nextTurn>*params.maxTurns){
     need(services.createAttachmentMessage,"createAttachmentMessage");
     yield(services.createAttachmentMessage(Json{{"type","max_turns_reached"},
@@ -223,8 +145,6 @@ CompletionDecision executeGadgetTurn(const Params& params,const State& state,
   next.autoCompactTracking=tracking;
   next.turnCount=nextTurn;
   next.maxOutputTokensRecoveryCount=0;
-  next.hasAttemptedReactiveCompact=false;
-  next.pendingGadgetUseSummary=nextSummary;
   next.maxOutputTokensOverride.reset();
   next.transition=Json{{"reason","next_turn"}};
   return CompletionDecision{next,{}};

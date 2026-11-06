@@ -34,7 +34,6 @@ int main(){
   auto wrap=text_width::indigenousWrapAnsiModule().wrapAnsi();
   messages::Services messageServices;
   messageServices.strictGadgetResultPairing=[]{return false;};
-  messageServices.featureGate=[](const std::string&){return false;};
   messageServices.logError=[](const std::string&){};
   terminal_ftxui::Options options;
   options.mode=terminal_ftxui::Mode::Fullscreen;
@@ -46,17 +45,11 @@ int main(){
     submit::PoetrySubmitRequest value;value.input=text;return value;
   };
   imports.onRepin=[]{ };
-  imports.getSubmitCount=[]{return std::size_t{0};};
   imports.copyMessageText=[](const std::string&){};
-  imports.editMessage=[&](MessageRef){
-    event_loop::Deferred<event_loop::Unit> done(loop);done.resolve({});return done;
-  };
   imports.listSettings=[&](const PresentationState&){
     MessageListSettings settings;
     settings.gadgets=std::make_shared<GroupingGadgetSet>();
     settings.messageServices=&messageServices;
-    settings.visibility.feature=[](const std::string&){return false;};
-    settings.readSearch.classification.feature=[](const std::string&){return false;};
     settings.readSearch.classification.isFullscreen=[]{return true;};
     return settings;
   };
@@ -67,9 +60,7 @@ int main(){
   imports.messageImports=[]{
     message_view::MessageImports value;
     value.fullscreen=[]{return true;};
-    value.feature=[](const std::string&){return false;};
-    value.isSnipBoundary=value.isSnipMarker=[](const Json&){return false;};
-    value.isConnectorTextBlock=value.isAdvisorBlock=[](const Json&){return false;};
+    value.isAdvisorBlock=[](const Json&){return false;};
     value.logError=[](const std::string&){};
     return value;
   };
@@ -91,8 +82,7 @@ int main(){
   };
   presentation_providers::ThemeState theme({[]{return std::string("dark");},
     [](const std::string&){},[]{return std::string("dark");},[]{}});
-  auto shortcuts=presentation_providers::makeShortcutProvider({"linux",true,
-    [](const std::string&){return false;}},[]{return std::vector<presentation_providers::Binding>{};});
+  auto shortcuts=presentation_providers::makeShortcutProvider({"linux",true},[]{return std::vector<presentation_providers::Binding>{};});
   auto chrome=presentation_providers::makeChromeProviders({theme,shortcuts,
     []{return std::string{};},[]{return std::string{};},
     []{return std::string{};},[]{return std::string{};}});
@@ -183,12 +173,9 @@ int main(){
     if(auto current=weak.lock())return current->commands().hasActiveLocalUi();
     return false;
   };
-  runtimeServices.getSubmitCount=[]{return std::size_t{0};};
   runtimeServices.onDetachedError=[](std::exception_ptr error){
     if(error)std::rethrow_exception(error);
   };
-  runtimeServices.recordUserActivity=[]{};
-  runtimeServices.updateLastInteractionTime=[](bool){};
   repl_runtime::TranscriptServices transcript;
   transcript.setHighlight=[](const std::string&){};
   transcript.clearPositions=[]{};
@@ -295,7 +282,7 @@ int main(){
     for(int x=0;x<120;++x){const auto& glyph=line.PixelAt(x,0).character;text+=glyph.empty()?" ":glyph;}
     return text;
   };
-  check(at()=="home"&&status().find("Alt+↓ Bats · Ctrl+T list")!=std::string::npos,
+  check(at()=="home"&&status().find("↓ Bats · Ctrl+T list")!=std::string::npos,
     "Home names the way into the Bats:\n"+status());
   press("\x1b[1;3B");
   check(at()=="bat-1","Alt+Down from home opens the top Bat, found "+at());

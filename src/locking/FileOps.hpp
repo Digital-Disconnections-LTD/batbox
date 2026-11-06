@@ -16,7 +16,6 @@ std::string lockPath(const std::string& file,const Options& options);
 double nowMs();
 Acquired acquire(const std::string& file,const Options& options,
   std::optional<Precision> stashedPrecision);
-bool check(const std::string& file,const Options& options);
 void remove(const std::string& path);
 double statMtime(const std::string& path);
 double heartbeatMtime(Precision precision);

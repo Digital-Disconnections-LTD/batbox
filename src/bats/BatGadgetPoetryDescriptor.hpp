@@ -5,9 +5,7 @@ namespace batbox::bats {
 struct BatGadgetPoetryDependencies {
   std::function<Json(const Json& bats,const Json& permissionContext,
     const std::string& gadgetName)> filterDeniedBats;
-  std::function<bool(const std::string&)> feature;
-  std::function<bool()> coordinatorEnvironmentEnabled;
-  std::function<std::future<std::string>(const Json& bats,bool isCoordinator,
+  std::function<std::future<std::string>(const Json& bats,
     const Json& allowedBatTypes)> getPoetry;
   std::string batGadgetName="Agent";
 };

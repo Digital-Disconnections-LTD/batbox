@@ -7,8 +7,6 @@ retry::Dependencies LocalServiceBuilder::makeRetry(){
   const auto& config=runtime.config;
   deps.env=config.environment;
   deps.wire=config.retryWire;
-  deps.unattendedRetryFeature=config.features.contains("unattendedRetry");
-  deps.bashClassifierFeature=config.features.contains("bashClassifier");
   deps.disableKeepAliveOnStaleConnection=true;
   deps.sleep=retry::sleepAbortResponsive;
   deps.random=platform::randomUnitInterval;
@@ -48,12 +46,7 @@ retry::Dependencies LocalServiceBuilder::makeRetry(){
     host.imports_.diagnostic("fast_mode_cooldown",
       reason+":"+value::numberToString(until));
   };
-  deps.getOAuthAccessToken=[]() -> std::optional<std::string>{return {};};
   deps.clearApiKeyHelperStash=host.imports_.invalidateAuthToken;
-  deps.isSubscriber=[enabled=config.subscriber]{return enabled;};
-  deps.isEnterpriseSubscriber=[enabled=config.enterpriseSubscriber]{
-    return enabled;
-  };
   deps.isDefaultPremiumModel=[main=config.mainModel](const auto& name){
     return name==main;
   };

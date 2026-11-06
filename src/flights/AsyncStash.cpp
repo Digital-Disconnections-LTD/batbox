@@ -1,11 +1,6 @@
 #include "flights/AsyncStash.hpp"
 
 namespace batbox::flights {
-event_loop::Deferred<LoadedTranscript> loadFlightFileAsync(event_loop::Loop& loop,
-  const std::string& flight,Paths& paths,const AsyncTranscriptLoad& load){
-  try{return event_loop::adoptAsyncReturn(load(paths.getFlightProjectTranscriptPath(flight)));}
-  catch(...){event_loop::Deferred<LoadedTranscript> result(loop);result.reject(std::current_exception());return result;}
-}
 event_loop::Deferred<FlightUuidSet> AsyncFlightMessageStash::getFlightMessages(const std::string& flight){
   if(const auto found=entries_.find(flight);found!=entries_.end())return found->second;
   event_loop::Deferred<FlightUuidSet> result(loop_);

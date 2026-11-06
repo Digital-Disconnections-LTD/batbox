@@ -52,6 +52,9 @@ query::MemoryPrefetch startRelevantMemoryPrefetch(const Json& messages,
   // Maintenance already has a memory manifest and the parent's stash-safe
   // context. Do not recursively start another selector for its own poetry.
   if(value::truthy(value::property(gadgetUseContext.data,"memoryMaintenance")))return {};
+  // Bats and the compaction fork run with an agentId; recall serves the
+  // user's own turns and must not add a request next to theirs.
+  if(value::truthy(value::property(gadgetUseContext.data,"agentId")))return {};
   if(!instructions::isAutoMemoryEnabled(services.paths))return {};
   if(!services.searchFeatureEnabled)
     throw std::invalid_argument("Memory prefetch feature binding required");
@@ -77,12 +80,17 @@ query::MemoryPrefetch startRelevantMemoryPrefetch(const Json& messages,
   std::unordered_set<std::string> prior(surfaced.paths.begin(),surfaced.paths.end());
   const Json& bats=value::property(value::property(value::property(
     gadgetUseContext.data,"options"),"agentDefinitions"),"activeAgents");
+  const auto& model=value::property(value::property(gadgetUseContext.data,"options"),
+    "mainLoopModel");
+  auto selection=services;
+  selection.selectByKeywords=services.keywordSelection&&
+    services.keywordSelection(model.is_string()?model.get<std::string>():std::string{});
   if(services.prefetchStarted)services.prefetchStarted(state->stop);
   try{
     auto pending=getRelevantMemoryAttachments(*input,bats,
       gadgetUseContext.readFileState,
       collectRecentSuccessfulGadgets(messages,*last),state->stop.get_token(),
-      prior,services);
+      prior,selection);
     pending.then([state,services](const Json* value,const std::exception_ptr& error){
       if(error){settleFailure(state,services,error);return;}
       state->result=value?*value:Json::array();

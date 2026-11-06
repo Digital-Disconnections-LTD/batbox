@@ -1,5 +1,5 @@
 #pragma once
-#include "instructions/hooks/runtime/StopPoetryWrappers.hpp"
+#include "instructions/hooks/runtime/HookEventWrappers.hpp"
 #include "user_input/SlashDispatch.hpp"
 #include <stop_token>
 
@@ -32,9 +32,6 @@ struct UserInputServices {
   std::function<event_loop::Deferred<InputResult>(const std::string&,
     const Json&,const Json&)> processBashCommand;
   std::function<bool(const Json&)> isBridgeSafeCommand;
-  std::function<bool(const std::string&)> feature;
-  std::function<bool(const std::string&)> hasUltraplanKeyword;
-  std::function<std::string(const std::string&)> replaceUltraplanKeyword;
   std::function<instructions::hooks::runtime::HookEventGenerator(
     const std::string&,const std::string&,std::stop_token)>
       executeUserPoetrySubmitHooks;

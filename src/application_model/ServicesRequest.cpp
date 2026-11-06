@@ -29,10 +29,6 @@ requests::Dependencies LocalServiceBuilder::makeAssembly(){
     settings.skipGlobalStashForSystemPoetry=skip;
     return requests::splitSystemPoetryPrefix(poetry,settings);
   };
-  deps.connectorTextFeature=config.connectorText;
-  deps.isConnectorTextBlock=[](const Json& block){
-    return value::property(block,"type")=="connector_text";
-  };
   deps.safeParseJSON=[](const std::string& value){
     return value::parse(value);
   };

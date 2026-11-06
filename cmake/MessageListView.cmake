@@ -7,7 +7,6 @@ target_sources(batbox_interactive PRIVATE
   src/interactive/viewport/Measurements.cpp
   src/interactive/viewport/Range.cpp)
 target_sources(batbox_interactive PRIVATE
-  src/interactive/message_actions/MessageActionsController.cpp
   src/interactive/message_actions/MessageActionsText.cpp)
 target_sources(batbox_terminal_ftxui PRIVATE
   src/interactive/transcript_navigation/NavigationSearch.cpp

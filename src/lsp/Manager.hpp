@@ -31,7 +31,6 @@ public:
   void openFile(const std::string& path,const std::string& content);
   void changeFile(const std::string& path,const std::string& content);
   void saveFile(const std::string& path);
-  void closeFile(const std::string& path);
   bool isFileOpen(const std::string& path)const;
   void shutdown()noexcept;
   const std::filesystem::path& roost()const{return roost_;}

@@ -55,9 +55,9 @@ std::shared_ptr<History> History::create(Inputs inputs){
   return std::shared_ptr<History>(new History(std::move(inputs)));
 }
 bool History::enabled()const{
-  if(detail::envTruthy("CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING"))return false;
+  if(detail::envTruthy("BATBOX_DISABLE_FILE_CHECKPOINTING"))return false;
   if(inputs_.nonInteractive)
-    return detail::envTruthy("CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING");
+    return detail::envTruthy("BATBOX_ENABLE_SDK_FILE_CHECKPOINTING");
   return !inputs_.configuredEnabled||inputs_.configuredEnabled();
 }
 Json History::state()const{
@@ -117,9 +117,6 @@ std::optional<Json> History::findSnapshot(const Json& state,
   for(auto it=entries.rbegin();it!=entries.rend();++it)
     if(detail::stringField(*it,"messageId")==id)return *it;
   return {};
-}
-bool History::canRestore(const std::string& id)const{
-  return enabled()&&findSnapshot(state(),id).has_value();
 }
 std::optional<std::optional<std::string>> History::backupAt(
     const Json& state,const Json& snapshot,const std::string& path)const{

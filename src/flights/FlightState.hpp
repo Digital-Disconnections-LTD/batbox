@@ -7,8 +7,8 @@
 #include <vector>
 
 namespace batbox::flights {
-// Shared Project state lets synchronous and owner-loop compositions reuse the
-// same metadata stash.
+// Shared Project state lets owner-loop compositions reuse the same metadata
+// stash.
 struct FlightState {
   struct PendingEntry {
     Json value;

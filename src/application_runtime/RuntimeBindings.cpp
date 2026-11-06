@@ -82,6 +82,6 @@ void ApplicationRuntime::bindRuntime(){
     throw std::logic_error("Application runtime is unavailable");
   };
   runtime_=std::make_shared<interactive::repl_runtime::Runtime>(
-    std::move(services),std::move(inputs_.transcript),std::move(inputs_.idle));
+    std::move(services),std::move(inputs_.transcript));
 }
 } // namespace batbox::application_runtime

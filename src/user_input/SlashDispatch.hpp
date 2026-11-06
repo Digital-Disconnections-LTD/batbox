@@ -34,7 +34,6 @@ struct SlashServices {
   messages::Services& messages;
   const std::vector<CommandEntry>& commands;
   std::function<event_loop::Deferred<bool>(const std::string&)> pathExists;
-  std::function<void(const std::string&)> recordSkillUsage;
   std::function<Json(const Json&)> buildPostCompactMessages;
   std::function<void()> resetMicrocompactState;
   std::function<std::string(double offsetMs)> nowISOAfterMs;

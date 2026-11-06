@@ -21,6 +21,3 @@ if(BUILD_TESTING)
   add_test(NAME batbox-mission-management-indigenous COMMAND batbox-mission-management-indigenous)
 endif()
 
-if(BUILD_TESTING)
-
-endif()

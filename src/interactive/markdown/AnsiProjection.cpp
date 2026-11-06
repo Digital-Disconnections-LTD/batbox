@@ -129,6 +129,9 @@ std::vector<std::vector<AnsiRun>> parseAnsiLines(const std::string& source){
 }
 ftxui::Element projectAnsi(const std::string& source,bool dim){
   Style style;
+  return projectAnsiPart(source,dim,style);
+}
+ftxui::Element projectAnsiPart(std::string_view source,bool dim,AnsiStyle& style){
   std::vector<ftxui::Element> lines,parts;
   std::string runText;
   const auto flush=[&](){
@@ -147,7 +150,7 @@ ftxui::Element projectAnsi(const std::string& source,bool dim){
     if(i+1<source.size()&&source[i+1]=='['){
       const auto end=source.find('m',i+2);
       if(end==std::string::npos){runText+=source[i++];continue;}
-      flush();applySgr(style,source.substr(i+2,end-(i+2)));i=end+1;
+      flush();applySgr(style,std::string(source.substr(i+2,end-(i+2))));i=end+1;
       continue;
     }
     if(i+1<source.size()&&source[i+1]==']'){
@@ -155,7 +158,7 @@ ftxui::Element projectAnsi(const std::string& source,bool dim){
       if(end==std::string::npos){runText+=source[i++];continue;}
       const auto command=source.substr(i+2,end-(i+2));
       if(command.starts_with("8;;")){
-        flush();style.link=command.substr(3);
+        flush();style.link=std::string(command.substr(3));
       }
       i=end+1;continue;
     }

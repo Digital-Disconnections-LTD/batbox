@@ -69,13 +69,6 @@ CommandRef CommandQueue::dequeue(CommandPredicate filter){
   const auto it=std::find(queue_.begin(),queue_.end(),best);
   queue_.erase(it);notify();log("dequeue");return best;
 }
-CommandList CommandQueue::dequeueAll(){
-  if(!owner_.isOwnerThread())throw std::logic_error("Queue owner thread required");
-  if(queue_.empty())return {};
-  auto result=queue_;queue_.clear();notify();
-  for(const auto& command:result){(void)command;log("dequeue");}
-  return result;
-}
 CommandList CommandQueue::dequeueAllMatching(CommandPredicate predicate){
   if(!owner_.isOwnerThread())throw std::logic_error("Queue owner thread required");
   if(!predicate)throw std::invalid_argument("Queue predicate required");
@@ -131,12 +124,6 @@ bool CommandQueue::isQueuedCommandEditable(const CommandRef& command){
   const auto& mode=field(command,"mode");
   return isPoetryInputModeEditable(mode.is_string()?mode.get<std::string>():"")&&
     !value::truthy(field(command,"isMeta"));
-}
-bool CommandQueue::isQueuedCommandVisible(const CommandRef& command,
-                                          bool channelsEnabled){
-  if(channelsEnabled&&value::property(field(command,"origin"),"kind")=="channel")
-    return true;
-  return isQueuedCommandEditable(command);
 }
 bool CommandQueue::isSlashCommand(const CommandRef& command){
   const auto& value=field(command,"value");

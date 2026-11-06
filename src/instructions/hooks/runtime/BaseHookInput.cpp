@@ -10,10 +10,6 @@ Json BaseHookInput::toJson()const{
   if(batType)result["agent_type"]=*batType;
   return result;
 }
-std::vector<std::string> BaseHookInput::ownKeys()const{
-  return {"session_id","transcript_path","cwd","permission_mode",
-    "agent_id","agent_type"};
-}
 BaseHookInput createBaseHookInput(const BaseHookInputServices& services,
   std::optional<std::string> permissionMode,
   std::optional<std::string> flightId,

@@ -31,17 +31,6 @@ std::string normalizeLegacyGadgetName(const std::string& name,
   const auto found=services.legacyGadgetNames.find(name);
   return found==services.legacyGadgetNames.end()?name:found->second;
 }
-std::vector<std::string> getLegacyGadgetNames(const std::string& canonicalName,
-  const PermissionRuleServices& services){
-  std::vector<std::string> result;
-  for(const auto& [legacy,canonical]:services.legacyGadgetNames)
-    if(canonical==canonicalName)result.push_back(legacy);
-  return result;
-}
-std::string escapeRuleContent(const std::string& content){
-  return replaceAll(replaceAll(replaceAll(content,"\\","\\\\"),
-    "(","\\("),")","\\)");
-}
 std::string unescapeRuleContent(const std::string& content){
   return replaceAll(replaceAll(replaceAll(content,"\\(","("),
     "\\)",")"),"\\\\","\\");
@@ -61,10 +50,6 @@ PermissionRuleValue permissionRuleValueFromString(const std::string& rule,
     return {normalizeLegacyGadgetName(gadget,services),std::nullopt};
   return {normalizeLegacyGadgetName(gadget,services),
     unescapeRuleContent(content)};
-}
-std::string permissionRuleValueToString(const PermissionRuleValue& value){
-  if(!value.ruleContent||value.ruleContent->empty())return value.gadgetName;
-  return value.gadgetName+"("+escapeRuleContent(*value.ruleContent)+")";
 }
 std::optional<std::pair<std::string,std::optional<std::string>>>
   mcpInfoFromString(const std::string& gadgetString){

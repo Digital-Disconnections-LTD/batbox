@@ -21,10 +21,8 @@ public:
   bool supportsFile(const std::string& path)const{return manager_.hasServer(path);}
   void changeFile(std::string path,std::string content);
   void saveFile(std::string path);
-  void closeFile(std::string path);
   void clearDeliveredDiagnostics(const std::string& uri);
   Json takeDiagnosticSets();
-  Json takeDiagnosticAttachments();
   std::shared_future<void> shutdownAsync();
   gadgets::Gadget makeGadget(std::function<std::future<Json>(const Json&,const Json&)> permission={});
   std::future<gadgets::GadgetResult> callGadget(Json input,gadgets::GadgetCallContext context);

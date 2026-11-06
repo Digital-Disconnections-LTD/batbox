@@ -1,23 +1,16 @@
 #pragma once
 #include "query/Setup.hpp"
 #include "query/Recovery.hpp"
-#include <chrono>
 
 namespace batbox::query {
 using HookResultSink=std::function<bool(const Json&)>;
 struct StopHookServices {
-  std::function<bool(const std::string&)> feature;
   std::function<Json(const Json&)> createStashSafeParams;
   std::function<void(const Json&)> saveStashSafeParams;
-  std::function<void(const std::string& jobDir,const Json& assistantMessages,
-                     std::chrono::milliseconds deadline)> classifyAndWriteJobState;
   std::function<bool()> isBareMode;
   std::function<bool(const Json&)> isEnvDefinedFalsy;
   std::function<void(const Json&)> executePoetrySuggestion;
-  std::function<bool()> isExtractModeActive;
-  std::function<void(const Json&)> executeExtractMemories;
   std::function<void(const Json&)> executeAutoDream;
-  std::function<void(const execution::Context&)> cleanupComputerUseAfterTurn;
   std::function<Json(const execution::Context&)> getAppState;
   std::function<void(const Json& args,const execution::Context&,
     const HookResultSink&)> executeStopHooks;

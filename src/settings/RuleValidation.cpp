@@ -117,11 +117,4 @@ RuleValidationResult validatePermissionRule(const std::string& rule,
   }
   return {true};
 }
-Json validationResultJson(const RuleValidationResult& result){
-  Json value={{"valid",result.valid}};
-  if(result.error)value["error"]=*result.error;
-  if(result.suggestion)value["suggestion"]=*result.suggestion;
-  if(result.examples)value["examples"]=*result.examples;
-  return value;
-}
 }

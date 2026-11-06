@@ -1,8 +1,8 @@
-foreach(section IN ITEMS poetry selector start path header)
-  add_executable(batbox-memory_prefetch_${section}-probe
-    tests/phase5/memory_prefetch_${section}_probe.cpp)
-  target_link_libraries(batbox-memory_prefetch_${section}-probe PRIVATE batbox_memory_prefetch)
-
-endforeach()
 batbox_indigenous(phase5-memory-prefetch-indigenous tests/phase5/memory_prefetch_indigenous.cpp
   batbox_memory_prefetch)
+add_executable(batbox-phase5-memory-recall-selection-indigenous
+  tests/phase5/memory_recall_selection_indigenous.cpp)
+target_link_libraries(batbox-phase5-memory-recall-selection-indigenous PRIVATE
+  batbox_memory_prefetch batbox_application_memory)
+add_test(NAME phase5-memory-recall-selection-indigenous
+  COMMAND batbox-phase5-memory-recall-selection-indigenous)

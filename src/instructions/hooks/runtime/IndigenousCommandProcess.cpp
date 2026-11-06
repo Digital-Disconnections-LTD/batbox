@@ -1,3 +1,4 @@
+#include "process/StandardDescriptors.hpp"
 #include "runtime/AsyncLaunch.hpp"
 #include "instructions/hooks/runtime/IndigenousCommandProcess.hpp"
 #include "runtime/Encoding.hpp"
@@ -67,7 +68,8 @@ CommandOutcome execute(IndigenousProcessRequest request){
     const auto cwd=value::encodeUtf8(request.cwd);
     if(!cwd.empty())::posix_spawn_file_actions_addchdir_np(&actions,cwd.c_str());
     posix_spawnattr_t attributes;::posix_spawnattr_init(&attributes);
-    ::posix_spawnattr_setflags(&attributes,POSIX_SPAWN_SETPGROUP);
+    ::posix_spawnattr_setflags(&attributes,static_cast<short>(POSIX_SPAWN_SETPGROUP|
+      process::keepOnlyStandardDescriptors(&actions)));
     ::posix_spawnattr_setpgroup(&attributes,0);
     std::vector<std::string> envStrings;
     for(const auto& [name,value]:request.environment){

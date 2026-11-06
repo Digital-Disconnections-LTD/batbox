@@ -6,6 +6,7 @@
 #include "interactive/context/ContextFactory.hpp"
 #include "interactive/lifecycle/LoadingState.hpp"
 #include "interactive/repl_runtime/Runtime.hpp"
+#include "interactive/submit/QueuedInputs.hpp"
 #include <memory>
 #include <optional>
 
@@ -43,7 +44,6 @@ struct Inputs {
   interactive::QueryExecutionServices execution;
   interactive::lifecycle::LoadingServices loading;
   interactive::repl_runtime::TranscriptServices transcript;
-  interactive::repl_runtime::IdleServices idle;
   interactive::PresentationImports presentationImports;
   interactive::QueryExecutionParamsFactory makeQueryParams;
   std::function<void(const interactive::InteractiveQueryContext&)>
@@ -57,7 +57,6 @@ struct Inputs {
   std::function<bats::BatGadgetCallServices()> makeBatGadgetServices;
   std::function<void()> requestRedraw;
   std::function<double()> nowMs;
-  std::function<bool(const std::string&)> feature;
   std::function<void(std::exception_ptr)> onDetachedError;
   TranscriptPersistence transcriptPersistence;
   explicit Inputs(event_loop::Loop& loop,interactive::PresentationState& view):
@@ -87,7 +86,6 @@ public:
   // the same owner thread and may request a frame. The owner still publishes
   // changed message references to MessageState after that callback returns.
   void setStreamSink(std::function<void(interactive::StreamInput)> sink);
-  void setModalSink(std::function<void(std::optional<interactive::UiRequest>)> sink);
   void setRedrawSink(std::function<void()> sink);
   void attachShell(std::shared_ptr<interactive::conversation_shell::Shell> shell);
   void bindShellImports(interactive::conversation_shell::Imports& imports);
@@ -130,8 +128,12 @@ private:
   void publishMessageChanges(std::size_t beforeSize,const interactive::MessageRef& beforeLast);
   void recordTranscriptChanges(const interactive::TurnMessagesRef& messages);
   void requestRedraw()const;
+  void publishQueuedInputs(bool changed);
+  std::optional<interactive::submit::PopEditableResult> takeQueued(bool newestOnly,
+    const std::string& input,std::size_t caret);
   Inputs inputs_;
   std::unique_ptr<interactive::submit::CommandQueue> queue_;
+  interactive::submit::QueuedInputTracker queuedInputs_;
   std::unique_ptr<interactive::lifecycle::MessageState> messages_;
   std::shared_ptr<interactive::lifecycle::LoadingState> loading_;
   std::shared_ptr<interactive::context::ContextFactory> context_;

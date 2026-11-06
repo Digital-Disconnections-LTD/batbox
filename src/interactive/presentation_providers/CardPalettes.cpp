@@ -15,12 +15,18 @@ cards::PoetryPalette poetryPalette(const ThemeState& state){
   const auto& roles=styleRoles(theme);
   // The pointer is the only "subtle" run in a regular user turn; it shares the
   // input prompt's role so a sent message looks like what was typed.
+  // Poetry waiting in the queue keeps the band but steps back to the
+  // quiet roles; without color, dim carries the difference.
   return {roles.userPanel,roles.selectionBg,[theme,&roles](const auto& value){
       if(value=="subtle")return roles.userBar;
       if(value=="text")return roles.userText;
       if(value=="suggestion")return roles.selection;
+      if(value=="queued")return roles.muted;
+      if(value=="queuedLabel")return roles.faint;
       return rawColor(theme,value)?themeColor(theme,value):
         parseColor(value).value_or(ftxui::Color::Default);
+    },[&roles](const std::string& value){
+      return roles.monochrome&&(value=="queued"||value=="queuedLabel");
     }};
 }
 cards_assistant::Palette assistantPalette(const ThemeState& state){
@@ -39,7 +45,7 @@ cards_gadget_result::GadgetErrorPalette gadgetErrorPalette(const ThemeState& sta
 cards_remaining::AttachmentPalette attachmentPalette(const ThemeState& state){
   const auto& roles=styleRoles(state.currentTheme());
   return {roles.text,roles.muted,roles.statusErr,roles.statusWarn,
-    roles.statusOk,"●"};
+    roles.statusOk};
 }
 cards_remaining::LeafPalette leafPalette(const ThemeState& state,
     std::function<bool(bool)> isBlinking){
@@ -66,6 +72,7 @@ terminal_ftxui::InlinePalette inlinePalette(const ThemeState& state){
   palette.reasoning=roles.thinking;palette.gadget=roles.brand;
   palette.gadgetResult=roles.muted;palette.progress=roles.muted;
   palette.system=roles.mint;palette.error=roles.statusErr;
+  palette.queued=roles.muted;
   return palette;
 }
 } // namespace batbox::interactive::presentation_providers

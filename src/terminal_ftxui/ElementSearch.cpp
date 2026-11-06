@@ -7,7 +7,7 @@
 
 namespace batbox::terminal_ftxui {
 namespace {
-std::vector<terminal_render::MatchPosition> scan(ftxui::Screen& screen,
+std::vector<terminal_search::MatchPosition> scan(ftxui::Screen& screen,
     ftxui::Box box,const std::string& query){
   box=ftxui::Box::Intersection(box,{0,screen.dimx()-1,0,screen.dimy()-1});
   const auto positions=terminal_search::scanRows(box.x_max-box.x_min+1,
@@ -56,7 +56,7 @@ private:
   ftxui::Color highlight_;
 };
 }
-std::vector<terminal_render::MatchPosition> scanElement(const ftxui::Element& element,
+std::vector<terminal_search::MatchPosition> scanElement(const ftxui::Element& element,
     int columns,int rows,const std::string& query){
   if(!element||columns<=0||rows<=0)return {};
   auto screen=ftxui::Screen::Create(ftxui::Dimension::Fixed(columns),ftxui::Dimension::Fixed(rows));

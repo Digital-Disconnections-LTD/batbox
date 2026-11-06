@@ -104,7 +104,7 @@ class WindowsPackageNotices(unittest.TestCase):
         self.put("etc/ssl/certs/ca-bundle.crt", b"-----BEGIN CERTIFICATE-----\nfixture\n")
         source = self.base / "source"
         for relative in ("LICENSE", "THIRD_PARTY_NOTICES.md", "third_party/ftxui/LICENSE",
-                         "docs/HALLOWEEN-PREVIEW.md", "docs/BUILDING.md",
+                         "docs/getting-started.md", "docs/BUILDING.md",
                          "gadgets/install-windows.ps1"):
             path = source / relative
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -114,11 +114,14 @@ class WindowsPackageNotices(unittest.TestCase):
                      "--runtime-root", str(self.runtime), "--output", str(output),
                      "--objdump", "fixture-objdump"]
         imports = {"batbox.exe": ["fixture.dll"], "fixture.dll": ["kernel32.dll"]}
+        stripped = []
         with patch.object(sys, "argv", arguments), contextlib.redirect_stdout(io.StringIO()), \
-                patch("package_windows._objdump_imports", side_effect=lambda path, _: imports[path.name]):
+                patch("package_windows._objdump_imports", side_effect=lambda path, _: imports[path.name]), \
+                patch("package_indigenous.strip_binary", side_effect=lambda path, tool: stripped.append((path.name, tool))):
             package_main()
+        self.assertEqual(stripped, [("batbox.exe", "strip")])
         with zipfile.ZipFile(output) as archive:
-            root = "batbox-windows-x86_64-halloween-preview/"
+            root = "batbox-windows-x86_64-preview/"
             inventory = json.loads(archive.read(root + "licenses/windows-runtime/INVENTORY.json"))
             self.assertEqual(len(inventory["records"]), 1)
             self.assertEqual(archive.read(root + "licenses/windows-runtime/" + inventory["records"][0]["file"]),

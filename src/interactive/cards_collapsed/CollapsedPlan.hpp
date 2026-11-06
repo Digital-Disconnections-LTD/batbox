@@ -36,7 +36,6 @@ struct CollapsedServices {
   std::function<Json()> readSelectedBackground;
   std::function<Json()> readTheme;
   std::function<bool()> isFullscreen;
-  std::function<bool()> teamMemoryEnabled;
   std::function<std::string(const std::string&)> displayPath;
   // Minimum display time remains an owner-loop hook dependency.
   std::function<std::optional<std::string>(const std::optional<std::string>&,int)>
@@ -60,5 +59,5 @@ CollapsedCard classifyCollapsedReadSearch(CollapsedState& state,
 // Display order: Git outcomes, read/search/list/REPL/MCP/shell, then memory.
 void appendCollapsedSummary(std::vector<Span>& out,const Json& message,
    const CollapsedCounts& counts,bool fullscreen,bool active,
-   bool teamMemoryEnabled,const CollapsedServices& services);
+   const CollapsedServices& services);
 }

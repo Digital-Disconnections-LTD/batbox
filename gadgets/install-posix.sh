@@ -74,6 +74,12 @@ if [[ -f "$input_root/CMakeLists.txt" && -f "$input_root/CMakePresets.json" ]]; 
   payload=$(mktemp -d "$package_root/releases/release.XXXXXXXX")
   mkdir -p "$payload/bin"
   cp -p "$binary" "$payload/bin/batbox"
+  # The build keeps its symbol table for debugging; the installed copy does not need it.
+  if [[ $(uname -s) == Darwin ]]; then
+    strip -x "$payload/bin/batbox"
+  else
+    strip --strip-unneeded "$payload/bin/batbox"
+  fi
   python3 - "$input_root" "$payload" <<'PY'
 import sys
 from pathlib import Path

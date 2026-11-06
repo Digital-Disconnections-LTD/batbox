@@ -59,12 +59,4 @@ void bindPoetryModelBackend(event_loop::Loop& loop,PoetryHookServices& poetry,
     return output;
   };
 }
-void bindPoetryOwnerModel(event_loop::Loop& loop,PoetryHookServices& poetry,
-  query::SimpleQueryFactory factory,
-  query::OwnerPreflightAwaits awaitedImports,
-  query::OwnerRequestAwaits requestAwaits){
-  bindPoetryModelBackend(loop,poetry,query::bindSimpleQueryModel(loop,
-    std::move(factory),std::move(awaitedImports),
-    std::move(requestAwaits)));
-}
 } // namespace batbox::instructions::hooks::runtime

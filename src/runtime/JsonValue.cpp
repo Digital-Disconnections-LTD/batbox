@@ -149,24 +149,88 @@ double parseFloat(std::string_view text) {
   if (!std::regex_search(stripped, match, pattern)) return std::numeric_limits<double>::quiet_NaN();
   return std::strtod(match.str().c_str(), nullptr);
 }
-std::string stringify(const Json& value) {
-  if (value.is_number()) return numberString(value.get<double>());
-  if (value.is_array()) {
-    std::string out = "[";
-    for (const auto& v : value) { if (out.size() > 1) out += ','; out += stringify(v); }
-    return out + ']';
-  }
-  if (value.is_object()) {
-    const auto keys=objectKeys(value);
-    std::string out = "{";
-    for (const auto& key : keys) {
-      if (out.size() > 1) out += ',';
-      out += quote(key) + ':' + stringify(value.at(key));
+namespace {
+void appendMember(std::string& out, std::string_view key, const Json& member, bool& first) {
+  if (!first) out += ',';
+  first = false;
+  appendQuoted(out, key);
+  out += ':';
+  appendStringified(out, member);
+}
+// Members in objectKeys order: array-index keys ascending, then the rest in
+// insertion order. members yields (key, value) pairs in insertion order.
+template <class Members>
+void appendOrderedObject(std::string& out, const Members& members) {
+  out += '{';
+  bool first = true;
+  bool indexed = false;
+  for (const auto& [key, member] : members) if ((indexed = arrayIndex(key).has_value())) break;
+  if (!indexed) {
+    for (const auto& [key, member] : members) appendMember(out, key, member, first);
+  } else {
+    std::vector<std::pair<std::uint32_t, std::size_t>> indices;
+    std::size_t position = 0;
+    for (const auto& [key, member] : members) {
+      if (const auto index = arrayIndex(key)) indices.emplace_back(*index, position);
+      ++position;
     }
-    return out + '}';
+    std::sort(indices.begin(), indices.end());
+    std::vector<std::pair<std::string_view, const Json*>> ordered;
+    for (const auto& [key, member] : members) ordered.emplace_back(key, &member);
+    for (const auto& [_, at] : indices) appendMember(out, ordered[at].first, *ordered[at].second, first);
+    for (const auto& [key, member] : ordered)
+      if (!arrayIndex(key)) appendMember(out, key, *member, first);
   }
-  if (value.is_string()) return quote(value.get_ref<const std::string&>());
-  return value.dump();
+  out += '}';
+}
+struct ObjectMembers {
+  const Json& object;
+  struct Iterator {
+    Json::const_iterator it;
+    std::pair<std::string_view, const Json&> operator*() const { return {it.key(), it.value()}; }
+    Iterator& operator++() { ++it; return *this; }
+    bool operator!=(const Iterator& other) const { return it != other.it; }
+  };
+  Iterator begin() const { return {object.cbegin()}; }
+  Iterator end() const { return {object.cend()}; }
+};
+struct ListedMembers {
+  const std::vector<std::pair<std::string_view, const Json*>>& list;
+  struct Iterator {
+    std::vector<std::pair<std::string_view, const Json*>>::const_iterator it;
+    std::pair<std::string_view, const Json&> operator*() const { return {it->first, *it->second}; }
+    Iterator& operator++() { ++it; return *this; }
+    bool operator!=(const Iterator& other) const { return it != other.it; }
+  };
+  Iterator begin() const { return {list.cbegin()}; }
+  Iterator end() const { return {list.cend()}; }
+};
+} // namespace
+void appendStringified(std::string& out, const Json& value) {
+  if (value.is_number()) { out += numberString(value.get<double>()); return; }
+  if (value.is_array()) {
+    out += '[';
+    bool first = true;
+    for (const auto& v : value) {
+      if (!first) out += ',';
+      first = false;
+      appendStringified(out, v);
+    }
+    out += ']';
+    return;
+  }
+  if (value.is_object()) { appendOrderedObject(out, ObjectMembers{value}); return; }
+  if (value.is_string()) { appendQuoted(out, value.get_ref<const std::string&>()); return; }
+  out += value.dump();
+}
+void appendStringifiedObject(std::string& out,
+                             const std::vector<std::pair<std::string_view, const Json*>>& members) {
+  appendOrderedObject(out, ListedMembers{members});
+}
+std::string stringify(const Json& value) {
+  std::string out;
+  appendStringified(out, value);
+  return out;
 }
 std::vector<std::string> objectKeys(const Json& value) {
   if(value.is_null())throw std::runtime_error("Cannot convert undefined or null to object");

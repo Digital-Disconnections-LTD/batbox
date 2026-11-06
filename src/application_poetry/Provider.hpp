@@ -41,10 +41,25 @@ public:
   event_loop::Deferred<context::MemoryFiles> memoryFiles();
   instructions::MemoryPathServices memoryPathServices();
   void refreshMemoryFilesIfChanged();
+  // stablePromptPrefix (on unless settings say false): the head message and
+  // system poetry keep their bytes for the Flight and are rebuilt only where
+  // the server cache is lost anyway: compaction, /clear, a model switch, or a
+  // new Provider (resume, workspace switch).
+  bool stablePromptPrefix()const;
+  // The main Flight's model for the next request; a different one rebuilds.
+  void noteMainModel(const std::string& model);
+  // A Write or Edit by the main Flight changed path; that version is already
+  // in the conversation and needs no tail attachment.
+  void noteOwnWrite(const std::string& path);
+  // nested_memory attachments for files behind the head that changed since
+  // it was built, each version once. coveredElsewhere(path) true skips a
+  // file whose changes already reach the model as changed-file attachments.
+  Json takeHeadChangeAttachments(
+    const std::function<bool(const std::string&)>& coveredElsewhere={});
   // The static head for the next request: system.md when usable, else built-in.
   const poetryEntries::SystemPoetrySource& systemPoetrySource();
   Json enhanceBatPoetry(const Json& poetry,const std::string& model,
-    const Json& additionalDirectories,const Json& enabledGadgets);
+    const Json& additionalDirectories);
   void clearPoetrySections();
   void clearProjectInstructions();
   void resetProjectInstructionsAfterCompact();
@@ -62,6 +77,10 @@ private:
     const std::optional<std::vector<std::string>>& dirs);
   Json settings()const;
   std::string cwd()const;
+  struct HeadFile {std::string stamp;std::optional<std::string> content;};
+  std::string headKey(const std::string& path)const;
+  void trackHeadFile(const std::string& path);
+  void resetHeadSnapshot();
   event_loop::Loop& owner_;
   Inputs inputs_;
   poetryEntries::AsyncSectionStash poetrySections_;
@@ -84,5 +103,9 @@ private:
   std::optional<event_loop::Deferred<std::string>> projectRecoveryStash_;
   std::string projectRecoveryStamp_;
   std::size_t activeRecoveryLoads_=0;
+  std::map<std::string,HeadFile> headFiles_;
+  std::map<std::string,std::string> ownWrites_;
+  std::string headModel_;
+  bool systemHeadFrozen_=false;
 };
 } // namespace batbox::application_poetry

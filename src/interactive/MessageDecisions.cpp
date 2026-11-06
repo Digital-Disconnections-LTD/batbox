@@ -102,50 +102,7 @@ bool hasContentAfterIndex(const MessageRefs& messages, std::size_t index,
   return false;
 }
 
-bool isMessageStreaming(const Json& message, const GadgetIDs& streamingGadgetUseIDs) {
-  const auto type = string(message, "type");
-  if (type == "grouped_tool_use") {
-    const auto* messages = member(message, "messages");
-    if (messages && messages->is_array()) for (const auto& nested : *messages) {
-      const auto* block = firstBlock(nested);
-      if (block && string(*block, "type") == "tool_use" &&
-          streamingGadgetUseIDs.contains(string(*block, "id"))) return true;
-    }
-    return false;
-  }
-  if (type == "collapsed_read_search") {
-    for (const auto& id : getGadgetUseIdsFromCollapsedGroup(message))
-      if (streamingGadgetUseIDs.contains(id)) return true;
-    return false;
-  }
-  const auto id = getGadgetUseID(message);
-  return id && !id->empty() && streamingGadgetUseIDs.contains(*id);
-}
 
-bool allGadgetsResolved(const Json& message, const GadgetIDs& resolvedGadgetUseIDs) {
-  const auto type = string(message, "type");
-  if (type == "grouped_tool_use") {
-    const auto* messages = member(message, "messages");
-    if (messages && messages->is_array()) for (const auto& nested : *messages) {
-      const auto* block = firstBlock(nested);
-      if (!block || string(*block, "type") != "tool_use" ||
-          !resolvedGadgetUseIDs.contains(string(*block, "id"))) return false;
-    }
-    return true;
-  }
-  if (type == "collapsed_read_search") {
-    for (const auto& id : getGadgetUseIdsFromCollapsedGroup(message))
-      if (!resolvedGadgetUseIDs.contains(id)) return false;
-    return true;
-  }
-  if (type == "assistant") {
-    const auto* block = firstBlock(message);
-    if (block && string(*block, "type") == "server_tool_use")
-      return resolvedGadgetUseIDs.contains(string(*block, "id"));
-  }
-  const auto id = getGadgetUseID(message);
-  return !id || id->empty() || resolvedGadgetUseIDs.contains(*id);
-}
 
 bool shouldRenderStatically(const Json& message,
                             const GadgetIDs& streamingGadgetUseIDs,
@@ -184,13 +141,5 @@ bool shouldRenderStatically(const Json& message,
   return false;
 }
 
-std::string expandKey(const Json& message) {
-  const auto type = string(message, "type");
-  if (type == "assistant" || type == "user") {
-    const auto id = getGadgetUseID(message);
-    if (id) return *id;
-  }
-  return string(message, "uuid");
-}
 
 } // namespace batbox::interactive

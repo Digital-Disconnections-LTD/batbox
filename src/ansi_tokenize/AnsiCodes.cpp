@@ -1,5 +1,4 @@
 #include "ansi_tokenize/AnsiTokenize.hpp"
-#include "runtime/ArrayJoin.hpp"
 #include <cstdlib>
 #include <unordered_set>
 
@@ -28,14 +27,6 @@ bool endCode(const std::string& code){
     if(code==sgr(value))return true;
   return false;
 }
-std::string jsText(const Json& value){
-  if(value.is_string())return value.get<std::string>();
-  if(value.is_null())return "null";
-  if(value.is_boolean())return value.get<bool>()?"true":"false";
-  if(value.is_number())return value::numberToString(value.get<double>());
-  if(value.is_array())return value::arrayJoin(value);
-  return "[object Object]";
-}
 }
 std::string getEndCode(const std::string& code){
   if(endCode(code))return code;
@@ -60,16 +51,6 @@ std::string getEndCode(const std::string& code){
     if(close>=0)return sgr(close);
   }
   return sgr(0);
-}
-std::string getLinkStartCode(const std::string& url,const Json& params){
-  std::string keys;
-  if(value::truthy(params)&&params.is_object()){
-    for(auto it=params.begin();it!=params.end();++it){
-      if(!keys.empty())keys+=':';
-      keys+=it.key()+"="+jsText(it.value());
-    }
-  }
-  return "\x1b]8;"+keys+";"+url+"\x07";
 }
 std::string ansiCodesToString(const Codes& codes){
   std::string result;

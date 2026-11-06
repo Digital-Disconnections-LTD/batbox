@@ -24,7 +24,9 @@ AsyncModelCursor makeOwnerSegmentQueryModelCursor(event_loop::Loop& loop,
   const auto priorFallback=services.onStreamingFallback;
   const auto priorClient=services.createClient;
   return makeProducerModelCursor(loop,
-    [dispatcher,owner,external,input=std::move(input),services=std::move(services),
+    [dispatcher,owner,external,
+      input=std::make_shared<const model::PreflightInputs>(std::move(input)),
+      services=std::move(services),
       awaitedImports=std::move(awaitedImports),priorFallback,
       priorClient,requestAwaits=std::move(requestAwaits),onStreamingFallback](
       const std::function<void(const model::MessageRef&)>& yield,
@@ -131,11 +133,14 @@ AsyncModelCursor makeOwnerSegmentQueryModelCursor(event_loop::Loop& loop,
         });
       };
       const auto priorBuild=services.buildParamsSegment;
-      services.preparePreflightSegment=[dispatcher,owner,stop,awaitedImports](
+      services.preparePreflightSegment=[dispatcher,owner,stop,awaitedImports,input](
           const model::PreflightInputs& request,
           const model::PreflightServices& imports){
         auto pending=invokeOwnerSegment(dispatcher,stop,[&]{
-          return startOwnerPreflight(*owner,request,imports,awaitedImports,stop);
+          // queryModel hands back the input this cursor holds; share it.
+          return &request==input.get()
+            ? startOwnerPreflight(*owner,input,imports,awaitedImports,stop)
+            : startOwnerPreflight(*owner,request,imports,awaitedImports,stop);
         });
         return waitOwnerDeferred(dispatcher,stop,pending);
       };
@@ -189,7 +194,7 @@ AsyncModelCursor makeOwnerSegmentQueryModelCursor(event_loop::Loop& loop,
           return event_loop::Unit{};
         });
       };
-      (void)model::queryModel(input,std::move(services),yield);
+      (void)model::queryModel(*input,std::move(services),yield);
     },{},[](std::exception_ptr error){
       try{if(error)std::rethrow_exception(error);}
       catch(const model::GeneratorClosed&){return true;}

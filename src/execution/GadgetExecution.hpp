@@ -15,6 +15,9 @@ namespace batbox::execution {
 
 struct Context {
   Json data = Json::object();
+  // The query's conversation, shared by every copy of the context instead of
+  // being copied with data. data["messages"], when set, takes precedence.
+  std::shared_ptr<const Json> conversation;
   gadgets::Gadgets gadgets;
   gadgets::Gadgets baseGadgets;
   // Indigenous descriptor lifetime follows copies of the query/bat context.
@@ -46,6 +49,11 @@ Json effectiveAppState(const Context& context,const Json& base);
 // A copy of the context whose data omits the conversation ("messages"), for
 // callbacks that only read app-state modifiers and are copied often.
 Context contextWithoutConversation(const Context& context);
+// The conversation the context carries: a non-null data["messages"], else the
+// shared conversation, else null.
+const Json& conversationMessages(const Context& context);
+// Makes messages the shared conversation and drops data["messages"].
+void shareConversation(Context& context,Json messages);
 void appendAppStateModifier(Context& context,
   const std::function<Json(const Json&)>& next);
 void appendAppStateModifierPair(Context& context,
@@ -59,7 +67,6 @@ struct Services {
   std::function<Json(const Json&)> createUserMessage;
   std::function<Json(const Json&)> createAttachmentMessage;
   std::function<Json(const std::string& parentGadgetUseID,const Json& progress)> createProgressMessage;
-  std::function<Json(const std::string& phase,const Json& infos,double durationMs)> createStopHookSummaryMessage;
   std::function<Json(const std::string&)> createGadgetResultStopMessage;
   std::function<std::string(const std::string&)> withMemoryCorrectionHint;
   std::string cancelMessage;
@@ -75,8 +82,6 @@ struct Services {
                      const std::function<void(const Json&)>&)> preGadgetUseHooks;
   std::function<Json(const Json& hookPermissionResult, const gadgets::Gadget&, const Json&,
                      const Context&, const Json& assistantMessage, const std::string& gadgetUseID)> resolvePermissionDecision;
-  std::function<void(const gadgets::Gadget&, const std::string&, const Json&, const Context&,
-                     const std::function<void(const Json&)>&)> permissionDeniedHooks;
   std::function<void(const gadgets::Gadget&, const Json& input, const Json& output, const Context&,
                      const std::function<void(const Json&)>&)> postGadgetUseHooks;
   std::function<void(const gadgets::Gadget&, const Json& input, const std::string& error,bool isInterrupt,
@@ -96,8 +101,6 @@ struct Services {
   std::function<void(double)> addToGadgetDuration;
   std::function<std::int64_t()> nowMillis;
   std::string bashGadgetName = "Bash";
-  bool transcriptClassifierFeature = false;
-  bool internalUser = false;
 };
 
 // Dispatch a Gadget use through its selected execution path.

@@ -17,6 +17,12 @@ void ApplicationRuntime::bindShellImports(
     self->activeAbort_->abort("interrupt");
     return true;
   };
+  imports.takeQueued=[weak](bool newestOnly,const std::string& input,std::size_t caret)
+      ->std::optional<interactive::submit::PopEditableResult>{
+    auto self=weak.lock();
+    if(!self)return {};
+    return self->takeQueued(newestOnly,input,caret);
+  };
   imports.makeSubmitRequest=[weak](const std::string& text,
       const interactive::InputState& input){
     auto self=weak.lock();

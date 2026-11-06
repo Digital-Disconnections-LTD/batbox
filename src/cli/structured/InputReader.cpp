@@ -4,13 +4,9 @@
 #include <utility>
 
 namespace batbox::cli::structured {
-InputReader::InputReader(event_loop::Loop& loop,
-    std::shared_ptr<ControlResponses> control,
-    std::shared_ptr<RequestProducer> producer,
-    InputReaderServices services):loop_(loop),control_(std::move(control)),
-    producer_(std::move(producer)),services_(std::move(services)){
-  if(!control_||!producer_||!services_.nextChunk||
-     !services_.logParsedMessageType)
+InputReader::InputReader(event_loop::Loop& loop,InputReaderServices services):
+    loop_(loop),services_(std::move(services)){
+  if(!services_.nextChunk||!services_.logParsedMessageType)
     throw std::invalid_argument("Structured input imports required");
 }
 void InputReader::prependUserMessage(const std::string& content){
@@ -39,7 +35,7 @@ void InputReader::deliver(Json message,bool fromSplit){
 void InputReader::consumeLine(std::string line,bool fromSplit){
   processing_=true;
   try{
-    auto pending=processLine(loop_,line,*control_,services_.processLine);
+    auto pending=processLine(loop_,line,services_.processLine);
     const auto self=shared_from_this();
     pending.then([self,fromSplit](const std::optional<Json>* message,
                                   const std::exception_ptr& error){
@@ -52,7 +48,6 @@ void InputReader::consumeLine(std::string line,bool fromSplit){
 }
 void InputReader::finish(){
   try{
-    producer_->closeInput();
     closed_=true;
     auto output=std::move(waiting_.front());waiting_.pop_front();
     output.resolve({true,{}});

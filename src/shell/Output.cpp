@@ -85,4 +85,41 @@ std::string readOutputPrefix(const std::string& path,std::size_t maxBytes,std::s
   return utf8WithReplacement(bytes);
 #endif
 }
+std::string readOutputSuffix(const std::string& path,std::size_t maxBytes){
+  std::string bytes;
+#ifdef _WIN32
+  std::ifstream stream(runtime::pathFromUtf8(path),std::ios::binary|std::ios::ate);
+  if(!stream)throw std::runtime_error("output file could not be read");
+  const auto size=static_cast<std::size_t>(std::streamoff(stream.tellg()));
+  const auto count=std::min(maxBytes,size);
+  stream.seekg(static_cast<std::streamoff>(size-count));
+  bytes.resize(count);
+  stream.read(bytes.data(),static_cast<std::streamsize>(count));
+  bytes.resize(static_cast<std::size_t>(stream.gcount()));
+#else
+  const int fd=::open(path.c_str(),O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
+  if(fd<0)throw std::runtime_error("output file could not be read ("+std::to_string(errno)+")");
+  struct stat info{};
+  if(::fstat(fd,&info)!=0){
+    const int error=errno;::close(fd);
+    throw std::runtime_error("output file could not be read ("+std::to_string(error)+")");
+  }
+  const auto size=static_cast<std::size_t>(info.st_size);
+  const auto start=size-std::min(maxBytes,size);
+  bytes.resize(size-start);
+  std::size_t got=0;
+  while(got<bytes.size()){
+    const auto n=::pread(fd,bytes.data()+got,bytes.size()-got,static_cast<off_t>(start+got));
+    if(n<0&&errno==EINTR)continue;
+    if(n<=0)break;
+    got+=static_cast<std::size_t>(n);
+  }
+  ::close(fd);bytes.resize(got);
+#endif
+  // The read starts at a byte offset; skip a partial character rather than
+  // turn its continuation bytes into replacement characters.
+  std::size_t skip=0;
+  while(skip<3&&skip<bytes.size()&&(static_cast<unsigned char>(bytes[skip])&0xc0)==0x80)++skip;
+  return utf8WithReplacement(std::string_view(bytes).substr(skip));
+}
 } // namespace batbox::shell

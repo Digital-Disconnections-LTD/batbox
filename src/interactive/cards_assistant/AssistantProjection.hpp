@@ -2,7 +2,6 @@
 
 #include "interactive/cards_assistant/AssistantTextCard.hpp"
 #include "interactive/cards_assistant/ThinkingCard.hpp"
-#include "interactive/cards_assistant/RateLimitCard.hpp"
 #include "ftxui/dom/elements.hpp"
 #include "ftxui/screen/color.hpp"
 #include <functional>
@@ -28,9 +27,9 @@ struct ProjectionImports {
 
 std::optional<ftxui::Element> projectAssistantText(
     const Card& card, const ProjectionImports& imports);
+// The "∴ Thinking…" heading of an expanded reasoning block.
+ftxui::Element thinkingHeading(const ProjectionImports& imports);
 std::optional<ftxui::Element> projectThinking(
     const ThinkingCard& card, const ProjectionImports& imports);
-ftxui::Element projectRateLimitCard(const RateLimitCard& card,
-                                    const Palette& palette);
 
 } // namespace batbox::interactive::cards_assistant

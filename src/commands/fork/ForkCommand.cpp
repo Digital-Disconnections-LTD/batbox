@@ -67,11 +67,7 @@ event_loop::Deferred<user_input::InputResult> executeForkedSlashCommand(
   event_loop::Deferred<user_input::InputResult> output(services.loop);
   try{
     auto prepared=internal::prepare(command,args,services);
-    internal::require(static_cast<bool>(services.feature),"feature");
     internal::require(static_cast<bool>(services.context.getAppState),"getAppState");
-    if(services.feature("KAIROS")&&value::truthy(value::property(
-      services.context.getAppState(),"kairosEnabled")))
-      return internal::runBackground(std::move(prepared),services);
     return internal::runForeground(std::move(prepared),preceding,services);
   }catch(...){output.reject(std::current_exception());return output;}
 }

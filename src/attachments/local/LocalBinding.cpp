@@ -38,9 +38,5 @@ void bindLocalCollectors(attachments::Services& aggregation,Services services){
   };
   aggregation.collectors.unifiedMissions=[services](const Input&,
       execution::Context&){return getUnifiedMissionAttachments(services);};
-  aggregation.collectors.verifyPlanReminder=[services,&loop](const Input& input,
-      execution::Context&){
-    return ready(loop,getVerifyPlanReminderAttachment(input.messages,services));
-  };
 }
 } // namespace batbox::attachments::local

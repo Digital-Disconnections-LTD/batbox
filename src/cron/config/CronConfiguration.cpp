@@ -59,6 +59,6 @@ bool isDurableCronEnabled(const Services& services){
   if(!services.getStashedConfiguration)
     throw std::invalid_argument("Cron local configuration binding required");
   return value::truthy(services.getStashedConfiguration(services.durableKey,
-    true,gateRefreshMs));
+    false,gateRefreshMs));
 }
 }

@@ -20,13 +20,6 @@ void syncAssistants(ModelPassResult& result){
   for(std::size_t i=0;i<result.assistantRefs.size()&&i<result.assistantMessages.size();++i)
     result.assistantMessages[i]=*result.assistantRefs[i];
 }
-void collectNormalizedUser(const Json& message,const execution::Context& context,
-  ModelPassResult& result,ModelServices& services){
-  need(services.normalizeMessagesForAPI,"normalizeMessagesForAPI");
-  const Json normalized=services.normalizeMessagesForAPI(Json::array({message}),context.gadgets);
-  if(normalized.is_array())for(const Json& item:normalized)
-    if(field(item,"type")=="user")result.gadgetResults.push_back(item);
-}
 model::MessageRef cloneForYield(const model::MessageRef& messageRef,
   const execution::Context& context){
   const Json& message=*messageRef;
@@ -54,7 +47,7 @@ model::MessageRef cloneForYield(const model::MessageRef& messageRef,
   return changed?clone:messageRef;
 }
 ModelRequest makeRequest(const Params& params,const State& state,const PreparedIteration& prepared,
-  const QueryConfig& config,std::optional<double> missionBudgetRemaining,ModelServices& services){
+  std::optional<double> missionBudgetRemaining,ModelServices& services){
   need(services.prependUserContext,"prependUserContext");
   ModelRequest request;
   request.messages=services.prependUserContext(prepared.messagesForQuery,params.userContext);
@@ -84,7 +77,7 @@ ModelRequest makeRequest(const Params& params,const State& state,const PreparedI
     {"skipCacheWrite",params.skipStashWrite},
     {"agentId",field(prepared.gadgetUseContext.data,"agentId")}};
   if(params.fallbackModel)modelOptions["fallbackModel"]=*params.fallbackModel;
-  if(config.fastModeEnabled)modelOptions["fastMode"]=field(prepared.appState,"fastMode");
+  modelOptions["fastMode"]=field(prepared.appState,"fastMode");
   if(params.missionBudgetTotal){
     modelOptions["taskBudget"]={{"total",*params.missionBudgetTotal}};
     if(missionBudgetRemaining)modelOptions["taskBudget"]["remaining"]=*missionBudgetRemaining;
@@ -95,9 +88,9 @@ ModelRequest makeRequest(const Params& params,const State& state,const PreparedI
 }
 
 ModelPassResult runModelPass(const Params& params,const State& state,
-  PreparedIteration& prepared,const QueryConfig& config,
+  PreparedIteration& prepared,
   std::optional<double> missionBudgetRemaining,ModelServices& services,const Yield& yield){
-  need(services.callModel,"callModel");need(services.feature,"feature");need(yield,"yield");
+  need(services.callModel,"callModel");need(yield,"yield");
   ModelPassResult result;
   bool attemptWithFallback=true;
   try {
@@ -105,7 +98,7 @@ ModelPassResult runModelPass(const Params& params,const State& state,
       attemptWithFallback=false;
       try {
         bool streamingFallbackOccurred=false;
-        const ModelRequest request=makeRequest(params,state,prepared,config,missionBudgetRemaining,services);
+        const ModelRequest request=makeRequest(params,state,prepared,missionBudgetRemaining,services);
         auto stream=services.callModel(request,[&]{streamingFallbackOccurred=true;});
         need(stream,"callModel stream");
         while(auto messageRef=stream()){
@@ -119,29 +112,9 @@ ModelPassResult runModelPass(const Params& params,const State& state,
             result.gadgetResults=Json::array();
             result.gadgetUseBlocks=Json::array();
             result.needsFollowUp=false;
-            if(prepared.streamingGadgetExecutor){
-              prepared.streamingGadgetExecutor->discard();
-              prepared.discardedExecutors.push_back(std::move(prepared.streamingGadgetExecutor));
-              prepared.streamingGadgetExecutor=std::make_unique<execution::StreamingGadgetExecutor>(
-                prepared.gadgetUseContext,*prepared.executionServices);
-            }
           }
           const model::MessageRef emitted=cloneForYield(*messageRef,prepared.gadgetUseContext);
-          bool withheld=false;
-          if(services.feature("CONTEXT_COLLAPSE")){
-            need(services.collapseWithholdsPoetryTooLong,"collapseWithholdsPromptTooLong");
-            if(services.collapseWithholdsPoetryTooLong(message))withheld=true;
-          }
-          if(services.feature("REACTIVE_COMPACT")){
-            need(services.reactiveWithholdsPoetryTooLong,"reactiveWithholdsPromptTooLong");
-            if(services.reactiveWithholdsPoetryTooLong(message))withheld=true;
-            if(prepared.mediaRecoveryEnabled){
-              need(services.reactiveWithholdsMediaSizeError,"reactiveWithholdsMediaSizeError");
-              if(services.reactiveWithholdsMediaSizeError(message))withheld=true;
-            }
-          }
-          if(isWithheldMaxOutputTokens(message))withheld=true;
-          if(!withheld)yield(emitted);
+          if(!isWithheldMaxOutputTokens(message))yield(emitted);
           if(field(message,"type")=="assistant"){
             result.assistantMessages.push_back(message);
             result.assistantRefs.push_back(*messageRef);
@@ -150,27 +123,8 @@ ModelPassResult runModelPass(const Params& params,const State& state,
               if(field(block,"type")=="tool_use"){
                 result.gadgetUseBlocks.push_back(block);
                 result.needsFollowUp=true;
-                if(prepared.streamingGadgetExecutor&&!prepared.gadgetUseContext.stop.stop_requested())
-                  prepared.streamingGadgetExecutor->addGadget(block,message);
               }
           }
-          if(prepared.streamingGadgetExecutor&&!prepared.gadgetUseContext.stop.stop_requested())
-            for(const auto& update:prepared.streamingGadgetExecutor->getCompletedResults())
-              if(update.message){yield(*update.message);collectNormalizedUser(*update.message,
-                prepared.gadgetUseContext,result,services);}
-        }
-        if(services.feature("CACHED_MICROCOMPACT")&&!prepared.pendingStashEdits.is_null()){
-          syncAssistants(result);
-          const Json& last=result.assistantMessages.empty()?Json():result.assistantMessages.back();
-          const Json& cumulative=field(field(field(last,"message"),"usage"),"cache_deleted_input_tokens");
-          const Json& baseline=field(prepared.pendingStashEdits,"baselineCacheDeletedTokens");
-          const double deleted=std::max(0.0,(cumulative.is_number()?cumulative.get<double>():0.0)-
-            (baseline.is_number()?baseline.get<double>():0.0));
-          if(deleted>0){need(services.createMicrocompactBoundaryMessage,
-            "createMicrocompactBoundaryMessage");
-            yield(services.createMicrocompactBoundaryMessage(
-              field(prepared.pendingStashEdits,"trigger"),0,deleted,
-              field(prepared.pendingStashEdits,"deletedToolIds"),Json::array()));}
         }
       }catch(const retry::FallbackTriggeredError& fallback){
         if(!params.fallbackModel)throw;
@@ -182,15 +136,7 @@ ModelPassResult runModelPass(const Params& params,const State& state,
           services.createUserMessage,yield);
         result.assistantMessages=Json::array();result.assistantRefs.clear();result.gadgetResults=Json::array();
         result.gadgetUseBlocks=Json::array();result.needsFollowUp=false;
-        if(prepared.streamingGadgetExecutor){
-          prepared.streamingGadgetExecutor->discard();
-          prepared.discardedExecutors.push_back(std::move(prepared.streamingGadgetExecutor));
-          prepared.streamingGadgetExecutor=std::make_unique<execution::StreamingGadgetExecutor>(
-            prepared.gadgetUseContext,*prepared.executionServices);
-        }
         prepared.gadgetUseContext.data["options"]["mainLoopModel"]=*params.fallbackModel;
-        if(config.internalUser){need(services.stripSignatureBlocks,"stripSignatureBlocks");
-          prepared.messagesForQuery=services.stripSignatureBlocks(prepared.messagesForQuery);}
         need(services.createSystemMessage,"createSystemMessage");
         need(services.renderModelName,"renderModelName");
         yield(services.createSystemMessage("Switched to "+services.renderModelName(fallback.fallbackModel)+

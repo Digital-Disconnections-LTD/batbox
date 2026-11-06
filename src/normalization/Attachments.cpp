@@ -62,22 +62,6 @@ std::string wrapCommandText(const std::string& raw,const Json& origin){
 
 Json normalizeSimpleAttachmentForAPI(const Json& attachment,const AttachmentServices& services){
   const std::string type=value(attachment,"type");
-  if(services.batSwarmsEnabled){
-    if(type=="teammate_mailbox"){
-      need(static_cast<bool>(services.formatPartnerMessages),"AttachmentServices.formatTeammateMessages");
-      return Json::array({meta(services.formatPartnerMessages(get(attachment,"messages")),services)});
-    }
-    if(type=="team_context"){
-      const std::string content="<system-reminder>\n# Team Coordination\n\nYou are a Partner in team \""+value(attachment,"teamName")+"\".\n\n**Your Identity:**\n- Name: "+value(attachment,"agentName")+"\n\n**Team Resources:**\n- Team config: "+value(attachment,"teamConfigPath")+"\n- Mission list: "+value(attachment,"taskListPath")+"\n\n**Team Leader:** The team lead's name is \"team-lead\". Send updates and completion notifications to them.\n\nRead the team config to discover your Partners' names. Check the Mission list periodically. Create new Missions when work should be divided. Mark Missions resolved when complete.\n\n**IMPORTANT:** Always refer to Partners by their NAME (e.g., \"team-lead\", \"analyzer\", \"researcher\"), never by UUID. When messaging, use the name directly:\n\n```json\n{\n  \"to\": \"team-lead\",\n  \"message\": \"Your message here\",\n  \"summary\": \"Brief 5-10 word preview\"\n}\n```\n</system-reminder>";
-      return Json::array({meta(content,services)});
-    }
-  }
-  if(services.skillSearchEnabled && type=="skill_discovery"){
-    const Json& skills=get(attachment,"skills");if(skills.empty())return Json::array();
-    std::vector<std::string> skillLines;
-    for(const auto& skill:skills)skillLines.push_back("- "+value(skill,"name")+": "+value(skill,"description"));
-    return one("Skills relevant to your task:\n\n"+join(skillLines,"\n")+"\n\nThese skills encode project-specific conventions. Invoke via Skill(\"<name>\") for complete instructions.",services);
-  }
   if(type=="dynamic_skill" || type=="already_read_file" || type=="command_permissions" ||
      type=="edited_image_file" || type=="hook_cancelled" || type=="hook_error_during_execution" ||
      type=="hook_non_blocking_error" || type=="hook_system_message" || type=="structured_output" ||
@@ -85,7 +69,6 @@ Json normalizeSimpleAttachmentForAPI(const Json& attachment,const AttachmentServ
      type=="todo" || type=="task_progress" || type=="ultramemory")return Json::array();
   if(type=="critical_system_reminder")return one(get(attachment,"content"),services);
   if(type=="date_change")return one("The date has changed. Today's date is now "+value(attachment,"newDate")+". DO NOT mention this to the user explicitly because they are already aware.",services);
-  if(type=="ultrathink_effort")return one("The user has requested reasoning effort level: "+value(attachment,"level")+". Apply this to the current turn.",services);
   if(type=="skill_listing"){
     const Json& content=get(attachment,"content");
     if(!value::truthy(content))return Json::array();

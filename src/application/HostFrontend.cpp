@@ -200,8 +200,6 @@ interactive::context::ContextBindings Host::Impl::makeContextBindings(){
   context.gadgetSnapshotOwner=[roster=roster]{
     return std::static_pointer_cast<const void>(roster->current());};
   context.gadgetPool.localeCompare=context.catalogSettings.localeCompare;
-  context.gadgetPool.feature=[](const std::string&){return false;};
-  context.gadgetPool.isCoordinatorMode=[] {return false;};
   context.disabled=true;
   context.onChangeAPIKey=[this]{log("API key change requires restart");};
   context.addNotification=[this](const Json& value){log(value.dump());};
@@ -312,14 +310,9 @@ void Host::Impl::bindFrontend(){
   bindings.notifyLifecycle=[this](const std::string& id,const std::string& state){
     log("Command "+id+": "+state);};
   bindings.presentationImports.fullscreen=config.fullscreen;
-  bindings.presentationImports.stream.connectorTextEnabled=[] {return false;};
-  bindings.presentationImports.stream.isConnectorTextBlock=[](const Json& value){
-    return value::property(value,"type")=="connector_text";};
   bindings.presentationImports.stream.nowMs=[] {
     return static_cast<double>(platform::nowMillis());};
   bindings.presentationImports.newConversationId=platform::randomUUID;
-  bindings.presentationImports.setContextBlocked=[this](bool blocked){
-    view.contextBlocked=blocked;};
   bindings.presentationImports.removeTranscriptMessage=[this](const Json& value){
     const auto found=std::find_if(view.messages.begin(),view.messages.end(),
       [&value](const auto& item){return item&&*item==value;});
@@ -383,6 +376,10 @@ void Host::Impl::bindFrontend(){
     return fileHistory&&fileHistory->enabled();};
   restoreInputs.onFileHistoryRestored=[this](const Json& snapshots){
     if(fileHistory)fileHistory->restoreStateFromLog(snapshots);};
+  restoreInputs.onFileHistoryResumed=[this](const Json& log){
+    if(!fileHistory)return;
+    fileHistory->copyForResume(log).then([this](const event_loop::Unit*,
+        const std::exception_ptr& error){if(error)report(error,"file history resume");});};
   restoreInputs.writeOutput=[this](const std::string& value){
     statusText=value;++view.revision;if(shell)shell->requestRedraw();};
   restoreInputs.logError=[this](std::exception_ptr error){report(error,"resume");};
@@ -390,7 +387,6 @@ void Host::Impl::bindFrontend(){
       const std::string& from,const std::string& to){
     if(!flightTransitions)return;
     bootstrap::handlePlanModeTransition(*flightTransitions,from,to);
-    bootstrap::handleAutoModeTransition(*flightTransitions,from,to);
     if(from=="plan"&&to!="plan")bootstrap::setHasExitedPlanMode(*flightTransitions,true);
   };
   restore=application_flights::Restore::create(std::move(restoreInputs));
@@ -428,7 +424,6 @@ void Host::Impl::bindFrontend(){
     if(!hooks)throw std::logic_error("User prompt hooks are unavailable");
     return hooks->userPoetrySubmit(text,permissionMode,signal);};
   frontendInputs.persistOnTurnComplete=false;
-  frontendInputs.feature=[](const std::string&){return false;};
   frontendInputs.log=[this](const std::string& value){log(value);};
   frontendInputs.showImmediateNotice=[this](const std::string& value){
     statusText=value;++view.revision;
@@ -440,8 +435,6 @@ void Host::Impl::bindFrontend(){
   frontendInputs.getShell=[this]{return shell;};
   frontendInputs.activeAbort=[this]{
     return runtime?runtime->activeAbort():std::shared_ptr<interactive::TurnAbort>{};};
-  frontendInputs.hasInterruptibleGadgetInProgress=[this]{
-    return inProgressGadgetUseIds&&inProgressGadgetUseIds->size()>0;};
   auto titleFailures=std::make_shared<std::pair<std::string,int>>();
   if(config.autoTitle&&!config.print)frontendInputs.generateFlightTitle=
       [this,titleFailures](const std::string& text){
@@ -630,10 +623,6 @@ void Host::Impl::bindFrontend(){
           config["type"]=kind.is_null()?Json("http"):kind;
           for(const auto* key:{"url","headers","oauth"})
             if(server.config.contains(key))config[key]=server.config.at(key);
-        }else if(kind=="claudeai-proxy"){
-          config["type"]=kind;
-          for(const auto* key:{"url","id"})
-            if(server.config.contains(key))config[key]=server.config.at(key);
         }else if(kind=="stdio"||kind.is_null()){
           config["type"]="stdio";
           for(const auto* key:{"command","args"})
@@ -762,7 +751,6 @@ void Host::Impl::bindFrontend(){
         if(from==to)return context;
         if(transitions){
           bootstrap::handlePlanModeTransition(*transitions,from,to);
-          bootstrap::handleAutoModeTransition(*transitions,from,to);
           if(from=="plan"&&to!="plan")
             bootstrap::setHasExitedPlanMode(*transitions,true);
         }
@@ -774,18 +762,14 @@ void Host::Impl::bindFrontend(){
       services.enqueue=[&reply](const Json& value){reply=value;};
       const auto next=cli::headless::handleSetPermissionMode(request,
         requestId,current,services);
-      const auto& ultraplan=value::property(request,"ultraplan");
       const bool accepted=value::property(value::property(reply,"response"),
         "subtype")=="success";
-      if(accepted||ultraplan.is_boolean()){
-        store->setState([next,ultraplan,accepted](
-            const app_state::AppStateRef& previous){
+      if(accepted){
+        store->setState([next](const app_state::AppStateRef& previous){
           auto updated=std::make_shared<app_state::AppState>(previous->shallowCopy());
-          if(accepted)updated->setPermissionContext(
+          updated->setPermissionContext(
             std::make_shared<value::SharedRecord>(
               value::SharedRecord::fromJson(next)));
-          if(ultraplan.is_boolean())
-            updated->fields->set("isUltraplanMode",ultraplan);
           return updated;});
       }
       return reply;};
@@ -793,8 +777,10 @@ void Host::Impl::bindFrontend(){
       if(lastResultError)failed.store(true);
       requestExit();};
     cliInputs.report=[this](std::exception_ptr error){report(error,"headless CLI");};
+    cliInputs.inputClosed=[this]{if(cron&&cron->headless)cron->headless->closeInput();};
     cli=application_cli::Adapter::create(std::move(cliInputs));
     bindings.onTurnRequested=[this](const interactive::TurnRequest& request){
+      if(cron&&cron->headless)cron->headless->setRunning(true);
       cli->onTurnRequested(request);
     };
     const auto previousEvent=bindings.execution.onQueryEvent;
@@ -808,6 +794,7 @@ void Host::Impl::bindFrontend(){
       auto result=original(turn,aborted);
       result.then([this,turn,aborted](const event_loop::Unit*,
           const std::exception_ptr& error){
+        if(cron&&cron->headless)cron->headless->setRunning(false);
         cli->onTurnComplete(turn,aborted,error);});
       return result;};
   }
@@ -816,6 +803,7 @@ void Host::Impl::bindFrontend(){
       const interactive::TurnMessagesRef& turn,bool aborted){
     auto result=completed(turn,aborted);
     result.then([this](const event_loop::Unit*,const std::exception_ptr&){
+      if(flight&&!closing)recordRunningFlight(config.stateDirectory,flight->id());
       owner.queueNextTurn([this]{releaseRetiredProviders();platform::releaseFreeMemory();});
     });return result;
   };
@@ -844,14 +832,9 @@ void Host::Impl::bindFrontend(){
   interactive::conversation_shell::Imports shellInputs(owner,view,options);
   runtime->bindShellImports(shellInputs);
   shellInputs.input.presentation.fullscreen=config.fullscreen;
-  shellInputs.input.presentation.stream.connectorTextEnabled=[] {return false;};
-  shellInputs.input.presentation.stream.isConnectorTextBlock=[](const Json& value){
-    return value::property(value,"type")=="connector_text";};
   shellInputs.input.presentation.stream.nowMs=[] {
     return static_cast<double>(platform::nowMillis());};
   shellInputs.input.presentation.newConversationId=platform::randomUUID;
-  shellInputs.input.presentation.setContextBlocked=[this](bool blocked){
-    view.contextBlocked=blocked;};
   shellInputs.input.presentation.removeTranscriptMessage=[](const Json&){};
   shellInputs.input.onTerminalResponse=[this](termio::ResponseRef response){
     // An answer to the background-color query lets "auto" follow light and
@@ -919,15 +902,12 @@ void Host::Impl::bindFrontend(){
     owner.queueNextTurn([this]{releaseRetiredProviders();});};
   shellInputs.stopBatMission=[this](const std::string& id){batOwner(id)->stopMission(id);};
   shellInputs.onRepin=[this]{view.viewport.follow=true;};
-  shellInputs.getSubmitCount=[] {return std::size_t{};};
   shellInputs.copyMessageText=[this](const std::string& text){
     media->copyMessageText(text,[this](const std::string& raw){
       if(shell)shell->driver().writeRaw(raw);},
       [this](const interactive::navigation::CopyNotification& notice){
         statusText=notice.text;++view.revision;
         if(shell)shell->requestRedraw();});};
-  shellInputs.editMessage=[this](interactive::MessageRef message){
-    return frontend->editMessage(std::move(message));};
   shellInputs.getImageFromClipboard=[media=media]{
     return media->getImageFromClipboard();};
   shellInputs.onImagePasted=[media=media](const Json& image){
@@ -1053,11 +1033,11 @@ void Host::Impl::bindFrontend(){
   };
   presentInputs.shortcuts=interactive::presentation_providers::makeShortcutProvider(
 #ifdef __APPLE__
-    {"macos",true,[](const std::string&){return false;}},
+    {"macos",true},
 #elif defined(_WIN32)
-    {"win32",true,[](const std::string&){return false;}},
+    {"win32",true},
 #else
-    {"linux",true,[](const std::string&){return false;}},
+    {"linux",true},
 #endif
     [] {return std::vector<interactive::presentation_providers::Binding>{};});
   presentInputs.messageServices=messages.get();
@@ -1098,7 +1078,6 @@ void Host::Impl::bindFrontend(){
     return value.is_string()?value.get<std::string>():std::string("default");
   };
   presentInputs.statusText=[this]{return statusLine(statusText);};
-  presentInputs.feature=[](const std::string&){return false;};
   presentInputs.log=[this](const std::string& value){log(value);};
   presentation=application_presentation::Bundle::bind(
     shellInputs,std::move(presentInputs));

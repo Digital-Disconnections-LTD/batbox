@@ -24,14 +24,6 @@ Json toSdkCompactMetadata(const Json& metadata){
   Json result=Json::object();
   put(result,"trigger",field(metadata,"trigger"));
   put(result,"pre_tokens",field(metadata,"preTokens"));
-  const auto& segment=field(metadata,"preservedSegment");
-  if(value::truthy(segment)){
-    Json mapped=Json::object();
-    put(mapped,"head_uuid",field(segment,"headUuid"));
-    put(mapped,"anchor_uuid",field(segment,"anchorUuid"));
-    put(mapped,"tail_uuid",field(segment,"tailUuid"));
-    result["preserved_segment"]=std::move(mapped);
-  }
   return result;
 }
 std::string localOutputText(const std::string& raw){

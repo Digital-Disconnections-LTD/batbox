@@ -25,9 +25,9 @@ void configureBatGadgetDescriptor(gadgets::Gadget& gadget,
     ready.set_value(Json{{"behavior","allow"},{"updatedInput",input}});
     return ready.get_future();
   };
-  gadget.mapGadgetResultToGadgetResultBlockParam=[read=imports.fileReadGadgetName,
-      shell=imports.bashGadgetName](const Json& data,const std::string& gadgetUseID){
-    return mapBatGadgetResult(data,gadgetUseID,read,shell);
+  gadget.mapGadgetResultToGadgetResultBlockParam=[](const Json& data,
+      const std::string& gadgetUseID){
+    return mapBatGadgetResult(data,gadgetUseID);
   };
   gadget.userFacingName=imports.userFacingName;
   gadget.userFacingNameBackgroundColor=imports.userFacingNameBackgroundColor;

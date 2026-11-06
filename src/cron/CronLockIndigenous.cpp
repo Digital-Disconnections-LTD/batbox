@@ -5,6 +5,7 @@
 #include "runtime/Encoding.hpp"
 #include "runtime/Platform.hpp"
 #include "runtime/IndigenousPath.hpp"
+#include "runtime/JsonValue.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <cmath>

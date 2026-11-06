@@ -9,6 +9,5 @@ target_sources(batbox_terminal_ftxui PRIVATE
   src/interactive/markdown/AnsiProjection.cpp
   src/interactive/markdown/Blocks.cpp
   src/interactive/markdown/Renderer.cpp
-  src/interactive/markdown/IndigenousRenderer.cpp
-  src/interactive/message_list_view/MarkdownBinding.cpp)
+  src/interactive/markdown/IndigenousRenderer.cpp)
 target_link_libraries(batbox_terminal_ftxui PUBLIC batbox_npm_wrap_ansi)

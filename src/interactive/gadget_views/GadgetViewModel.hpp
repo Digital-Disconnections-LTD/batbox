@@ -55,6 +55,12 @@ Json editPreview(std::string_view path,std::string_view before,std::string_view 
     std::size_t maxLines);
 Json writePreview(std::string_view path,std::string_view content,std::size_t maxLines);
 
+// A group of Bats ({title,entries,running}) reduced to its title line with
+// " launched" appended, for while the Active Missions list shows them.
+// Other values come back unchanged. With Bats refused at launch the title
+// counts only the accepted ones and names how many were refused.
+Json launchedGroupView(Json view,std::size_t refused=0);
+
 // The most visible text in an arbitrary Gadget value: strings as they are,
 // views by summary and lines, objects by their first text-like member.
 std::string visibleText(const Json& value);
@@ -77,6 +83,5 @@ struct MissionNotice {
 // Every <task-notification> block in the text, in order; empty when none.
 std::vector<MissionNotice> parseMissionNotifications(std::string_view text);
 // "Bat reviewer finished · 3 Gadgets · 12s · Found two parser bugs"
-std::string missionNoticeText(const MissionNotice& notice);
 
 } // namespace batbox::interactive::gadget_views

@@ -4,7 +4,9 @@
 #include "normalization/Attachments.hpp"
 #include "memory_prefetch/Prefetch.hpp"
 #include "poetryEntries/SystemPoetry.hpp"
+#include "providers/ModelRequestSettings.hpp"
 #include "requests/RequestBuilder.hpp"
+#include "transport/Messages.hpp"
 #include "runtime/Platform.hpp"
 #include "shell/ShellQuote.hpp"
 #include "gadgets/InputNormalization.hpp"
@@ -18,8 +20,7 @@ namespace batbox::application {
 namespace {
 gadgets::GadgetInputServices inputBindings(){
   gadgets::GadgetInputServices values;
-  values.bashGadgetName="Bash";values.fileEditGadgetName="Edit";
-  values.fileWriteGadgetName="Write";values.exitPlanModeGadgetName="ExitPlanMode";
+  values.fileEditGadgetName="Edit";values.exitPlanModeGadgetName="ExitPlanMode";
   return values;
 }
 gadgets::GadgetSchemaServices schemaBindings(){
@@ -32,7 +33,6 @@ gadgets::GadgetSchemaServices schemaBindings(){
   };
   services.strictGadgetsEnabled=[] {return false;};
   services.modelSupportsStructuredOutputs=[](const std::string&){return false;};
-  services.batSwarmsEnabled=[] {return false;};
   services.directProvider=[] {return false;};
   services.exitPlanModeGadgetName="ExitPlanMode";
   services.batGadgetName="Agent";
@@ -134,6 +134,8 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
     profile.quirks=configured.quirks;
     profile.region=configured.region;
     profile.project=configured.project;
+    providers::applyRequestSettings(profile,configured);
+    profile.betas=configured.betas;
     profile.costs={{"inputTokens",0},{"outputTokens",0},
       {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
       {"webSearchRequests",0}};
@@ -146,6 +148,7 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
     "You are Batbox, an interactive coding assistant.";
   model.retryWire.retryAfter="retry-after";
   model.retryWire.shouldRetry="x-should-retry";
+  model.errorWire.betaHeaderName=transport::MessagesProtocol{}.betaHeader;
   model.nonInteractive=config.print;
   application_model::Imports imports;
   imports.authToken=[config]{return resolveProfileAuthToken(config,config.model);};

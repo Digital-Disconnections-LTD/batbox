@@ -22,9 +22,6 @@ MessageRef display(const RenderItem& item){
   }
   return item.message;
 }
-bool latest(const RowRequest& request){
-  return field(*request.item.message,"uuid")==request.options.latestBashOutputUUID;
-}
 }
 MessageRefs progressFromLookup(const Json& message,const MessageLookups& lookups){
   const auto id=getGadgetUseID(message);
@@ -86,21 +83,5 @@ RowPlan prepareRow(RowRequest request,const MessageImports& imports){
   options.shouldShowDot=true;
   auto plan=prepareMessage(request.item,std::move(options),imports);
   return {std::move(request),std::move(visible),std::move(plan),metadata};
-}
-bool sameRowView(const RowRequest& previous,const RowRequest& next){
-  if(previous.item.message!=next.item.message)return false;
-  if(previous.screen!=next.screen)return false;
-  if(previous.options.verbose!=next.options.verbose)return false;
-  if(previous.options.showThinkingInPlace!=next.options.showThinkingInPlace)return false;
-  if(field(*previous.item.message,"type")=="collapsed_read_search"&&next.screen!="transcript")return false;
-  if(previous.options.columns!=next.options.columns)return false;
-  if(latest(previous)!=latest(next))return false;
-  if(!sameThinkingMarker(previous.options.lastThinkingBlockId,next.options.lastThinkingBlockId)&&
-      hasThinkingContent(*next.item.message))return false;
-  if(!previous.lookups)throw std::invalid_argument("Previous row lookups required");
-  const auto materialized=materializedView(previous.item);
-  const auto& message=*materialized;
-  return !isMessageStreaming(message,previous.streamingGadgetUseIDs)&&
-    allGadgetsResolved(message,previous.lookups->resolvedGadgetUseIDs);
 }
 } // namespace batbox::interactive::message_view

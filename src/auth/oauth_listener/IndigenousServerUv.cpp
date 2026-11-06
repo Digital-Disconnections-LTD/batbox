@@ -349,16 +349,4 @@ void UvResponse::end(const std::string& body){
 std::shared_ptr<Server> makeIndigenousCallbackServer(event_loop::Loop& loop){
   return std::make_shared<UvServer>(loop);
 }
-Services makeIndigenousListenerServices(event_loop::Loop& loop,
-    client_factory::oauth_config::Services config,
-    std::function<void(const std::string&)> logError,
-    std::string inferenceScope){
-  Services result;
-  result.createServer=[&loop]{return makeIndigenousCallbackServer(loop);};
-  result.getConfig=[config=std::move(config)]{
-    return client_factory::oauth_config::getOauthConfig(config);};
-  result.logError=std::move(logError);
-  result.inferenceScope=std::move(inferenceScope);
-  return result;
-}
 } // namespace batbox::auth::oauth_listener

@@ -25,15 +25,4 @@ include(cmake/MessageView.cmake)
 include(cmake/MessageListView.cmake)
 include(cmake/IndigenousMarkdown.cmake)
 
-add_library(batbox_interaction_controller src/interactive/InteractionController.cpp)
-target_link_libraries(batbox_interaction_controller PUBLIC
-  batbox_terminal_ftxui batbox_keyboard_input)
-target_compile_options(batbox_interaction_controller PRIVATE -Wall -Wextra -Wpedantic)
-
 include(cmake/TextEditor.cmake)
-
-# Adapter for packed terminal frames. The interactive application renders
-# PresentationState directly and does not use this bridge.
-add_library(batbox_ftxui_frame_projection src/terminal_ftxui/FrameProjection.cpp)
-target_link_libraries(batbox_ftxui_frame_projection PUBLIC
-  batbox_terminal_ftxui batbox_terminal_screen)

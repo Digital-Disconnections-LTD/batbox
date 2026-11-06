@@ -105,5 +105,4 @@ std::string SearchTextStash::extract(const MessageRef& message,
   }
   auto result=lowercase(text);collect(extracted_,extractedSweep_);extracted_[message]=result;return result;
 }
-void SearchTextStash::clear(){raw_.clear();extracted_.clear();rawSweep_.reset();extractedSweep_.reset();}
 } // namespace batbox::interactive::message_list_view

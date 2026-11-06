@@ -38,14 +38,12 @@ struct ExecResult {
   std::string stdoutText,stderrText;
   int code=0;
   std::optional<std::string> error;
-  Json toJson()const;
 };
 struct ExecImports {
   std::function<event_loop::Deferred<ExecaResult>(ExecaRequest)> execa;
   std::function<std::string()> getCwd;
   std::function<void(std::exception_ptr)> logError;
 };
-std::string getErrorMessage(const ExecaResult& result,int errorCode);
 // Nullopt means the entire options argument was omitted. An explicit empty
 // options object has different defaults in this wrapper.
 event_loop::Deferred<ExecResult> execFileNoThrow(event_loop::Loop& loop,

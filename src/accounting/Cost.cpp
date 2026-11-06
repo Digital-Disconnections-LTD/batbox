@@ -60,11 +60,4 @@ double calculateUSDCost(const std::string& resolvedModel,const Json& usage,
   const auto costs=getModelCosts(resolvedModel,usage,state,services);
   return tokensToUSDCost(costs,usage);
 }
-double calculateCostFromTokens(const std::string& model,const Json& tokens,
-  AccountingState& state,const CostServices& services){
-  Json usage={{"input_tokens",tokens.at("inputTokens")},{"output_tokens",tokens.at("outputTokens")},
-    {"cache_read_input_tokens",tokens.at("cacheReadInputTokens")},
-    {"cache_creation_input_tokens",tokens.at("cacheCreationInputTokens")}};
-  return calculateUSDCost(model,usage,state,services);
-}
 } // namespace batbox::accounting

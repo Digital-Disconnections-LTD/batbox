@@ -19,7 +19,7 @@ public:
   void scrollToBottom();
   void scrollToIndex(std::size_t index);
   bool scrollToMounted(std::size_t index,double offset=1);
-  std::optional<std::vector<terminal_render::MatchPosition>> scanItem(
+  std::optional<std::vector<terminal_search::MatchPosition>> scanItem(
     std::size_t index,const std::string& query)const;
   const RangeModel& ranges()const{return ranges_;}
   const ScrollSnapshot& scroll()const{return scroll_;}

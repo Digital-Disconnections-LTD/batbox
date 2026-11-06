@@ -16,13 +16,16 @@ using MessageRef = std::shared_ptr<Json>;
 
 struct TranscriptRow {
   enum class Kind {User, Assistant, Reasoning, Gadget, GadgetResult,
-                   Progress, System, Error};
+                   Progress, System, Error, Queued};
   Kind kind = Kind::System;
   std::string messageId;
   std::string text;
   bool transient = false;
   // Stable across list rebuilds even when earlier rows are removed.
   std::string scrollbackId;
+  // Unique to this row's text; zero when unknown. Caches compare it instead
+  // of the text.
+  std::uint64_t revision = 0;
 };
 
 // Where one message's transcript rows end, as of the last rebuild.
@@ -56,12 +59,26 @@ struct ApiMetric {
   std::size_t endResponseLength = 0;
 };
 
+// Leader poetry sent while a turn runs. It is display state only: the
+// command queue owns the text and the message appears once it is delivered.
+struct QueuedInput {
+  enum class Kind {Poetry, Command, Shell};
+  std::string id;
+  std::string text;
+  Kind kind = Kind::Poetry;
+  // Taken from the queue for delivery; drawn as a sent row until its
+  // message exists.
+  bool delivering = false;
+};
+
 struct PresentationState {
   std::vector<MessageRef> messages;
+  std::vector<QueuedInput> queuedInputs;
   std::vector<TranscriptRow> transcriptRows;
   std::map<std::weak_ptr<Json>, std::uint64_t,
            std::owner_less<std::weak_ptr<Json>>> transcriptMessageTokens;
   std::uint64_t nextTranscriptMessageToken = 1;
+  std::uint64_t nextTranscriptRowRevision = 1;
   // Parallel to `messages` at the last rebuild; rebuilds keep the rows of
   // the unchanged leading messages and redo only the rest.
   std::vector<TranscriptRowSource> transcriptRowSources;
@@ -78,7 +95,6 @@ struct PresentationState {
   std::string conversationId;
   bool loading = false;
   bool showStreamingText = true;
-  bool contextBlocked = false;
   std::uint64_t revision = 0;
 };
 
@@ -92,10 +108,7 @@ struct StreamInput {
 struct PresentationImports {
   StreamImports stream;
   bool fullscreen = false;
-  bool proactive = false;
-  bool kairos = false;
   std::function<std::string()> newConversationId;
-  std::function<void(bool)> setContextBlocked;
   std::function<void(const Json&)> removeTranscriptMessage;
 };
 

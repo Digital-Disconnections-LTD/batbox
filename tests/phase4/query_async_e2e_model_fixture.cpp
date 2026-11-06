@@ -13,15 +13,10 @@ batbox::model::QueryServices QueryE2EModelFixture::makeServices(){
     if(owner&&!owner->isOwnerThread())throw std::logic_error("Diagnostic logger ran off owner");
     localDiagnostics.emplace_back(level,event);
   };
-  services.postStream.poetryStashBreakFeature=[](){return false;};
   services.postStream.extractQuotaStatusFromHeaders=[](const Json&){};
   services.extractQuotaStatusFromError=[](const batbox::retry::ErrorRecord&){};
   auto& p=services.preflight;
-  p.isSubscriber=[](){return false;};
-  p.isNonCustomPrimaryModel=[](const std::string&){return false;};
-  p.offSwitchActivated=[](){return false;};
   p.getMergedBetas=[](const std::string&,bool){return Json::array();};
-  p.isAdvisorEnabled=[](){return false;};
   p.isGadgetSearchEnabled=[](const std::string&,const Json&,const Json&){return false;};
   p.isDeferredGadget=[](const Json&){return false;};
   p.gadgetMatchesName=[](const Json&,const std::string&){return false;};
@@ -31,7 +26,6 @@ batbox::model::QueryServices QueryE2EModelFixture::makeServices(){
   p.shouldUseGlobalStashScope=[](){return false;};
   p.getCLISyspromptPrefix=[](const Json&){return std::string{};};
   p.getHeaderLatch=[](const std::string&){return false;};
-  p.transcriptClassifierFeature=[](){return false;};
   p.isFastModeEnabled=[](){return false;};
   p.isFastModeAvailable=[](){return true;};
   p.isFastModeCooldown=[](){return false;};
@@ -66,7 +60,6 @@ batbox::model::QueryServices QueryE2EModelFixture::makeServices(){
   services.retry.sleep=[](double,std::stop_token){};
   services.retry.random=[](){return .5;};
   services.retry.nowMs=[](){return 0.0;};
-  services.retry.isSubscriber=[](){return false;};
   services.retry.isDefaultPremiumModel=[](const std::string&){return false;};
   auto& reducer=services.reducer;
   reducer.nowMillis=[](){return std::int64_t{100};};

@@ -52,17 +52,5 @@ struct ShortcutProvider {
   std::string display(const std::string& action,const std::string& context,
     const std::string& fallback)const;
 };
-std::string shortcutHintText(const std::string& shortcut,
-    const std::string& action,bool parens=false);
-ftxui::Element shortcutHint(const std::string& shortcut,
-    const std::string& action,bool parens=false,bool bold=false);
-std::string configurableShortcutHintText(const ShortcutProvider& provider,
-    const std::string& action,const std::string& context,
-    const std::string& fallback,const std::string& description,
-    bool parens=false);
-ftxui::Element configurableShortcutHint(const ShortcutProvider& provider,
-    const std::string& action,const std::string& context,
-    const std::string& fallback,const std::string& description,
-    bool parens=false,bool bold=false);
 
 } // namespace batbox::interactive::presentation_providers

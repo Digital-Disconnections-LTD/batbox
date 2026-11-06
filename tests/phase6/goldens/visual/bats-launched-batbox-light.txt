@@ -1,0 +1,5 @@
+⠹ 2 Bats launched
+
+# styles
+0:0-1 fg=38;2;10;130;108 bg=-
+0:2-16 fg=- bg=- b

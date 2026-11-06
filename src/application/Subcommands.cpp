@@ -3,6 +3,7 @@
 #include "application/SetupWebScript.hpp"
 #include "application_config/EndpointStore.hpp"
 #include "application_connectors/Status.hpp"
+#include "instructions/project/ProjectDiscovery.hpp"
 #include "poetryEntries/SystemHead.hpp"
 #include "poetryEntries/SystemPoetryFile.hpp"
 #include "providers/LocalDiscovery.hpp"
@@ -217,8 +218,14 @@ int addProvider(const std::vector<std::string>& arguments){
     else if(!provider->models.empty())setup.model=provider->models.front().id;
     else throw std::invalid_argument("Pass --model: the server listed no models");
   }
-  const auto endpoint=providers::buildEndpoint(*provider,setup,catalog.defaultContext,
+  auto endpoint=providers::buildEndpoint(*provider,setup,catalog.defaultContext,
     catalog.defaultOutput);
+  // Replacing an endpoint keeps what only the configuration file sets, as the
+  // /providers re-edit does.
+  if(const auto previous=endpoints.find(endpointId);previous!=endpoints.end()){
+    endpoint.betas=previous->second.betas;
+    endpoint.limits=previous->second.limits;
+  }
   const auto saved=providers::saveEndpoint(config.configPath,legacyPath(config),
     std::move(endpoints),endpointId,endpoint,setup.model);
   std::cout<<providers::addedNotice(saved.endpointId,setup.model)<<"\n"
@@ -319,6 +326,32 @@ int setupWeb(const std::vector<std::string>& arguments){
 }
 }
 
+// BATBOX.md files over 40,000 characters: Batbox loads them whole into every
+// request, so they are named here; nothing is cut.
+void printInstructionSizes(std::ostream& out,const Config& config){
+  std::vector<std::filesystem::path> candidates={configurationDirectory(config)/"BATBOX.md"};
+  std::error_code error;
+  for(auto directory=std::filesystem::absolute(config.cwd,error);!directory.empty();
+      directory=directory.parent_path()){
+    for(const char* name:{"BATBOX.md","BATBOX.local.md",".batbox/BATBOX.md"})
+      candidates.push_back(directory/name);
+    if(directory==directory.parent_path())break;
+  }
+  std::vector<instructions::project::MemoryFileInfo> files;
+  for(const auto& path:candidates){
+    if(!std::filesystem::is_regular_file(path,error))continue;
+    std::ifstream input(path,std::ios::binary);
+    std::ostringstream content;content<<input.rdbuf();
+    files.push_back({runtime::pathToUtf8(path),"Project",content.str(),{},{},false,{}});
+  }
+  out<<"\nInstruction files\n";
+  const auto large=instructions::project::getLargeMemoryFiles(files);
+  if(large.empty())out<<"  "<<files.size()<<(files.size()==1?" file":" files")
+    <<", none over 40,000 characters\n";
+  for(const auto& file:large)
+    out<<"  warning: "<<file.path<<" is "<<value::utf16CodeUnits(file.content).size()
+      <<" characters; it is sent whole with every request, so trimming it saves context\n";
+}
 int runDoctor(const std::vector<std::string>& arguments){
   Config config;
   std::string configurationError;
@@ -349,6 +382,7 @@ int runDoctor(const std::vector<std::string>& arguments){
   std::cout<<"\nSystem prompt\n  System poetry: "<<poetryEntries::describeSystemPoetry(poetry)<<"\n";
   for(const auto& warning:poetryEntries::systemPoetryWarnings(poetry))
     std::cout<<"  warning: "<<warning<<"\n";
+  printInstructionSizes(std::cout,config);
   if(!ok)std::cout<<"\nSome checks need attention. Batbox still runs; the "
     "affected Gadgets report themselves unavailable.\n";
   return ok?0:1;

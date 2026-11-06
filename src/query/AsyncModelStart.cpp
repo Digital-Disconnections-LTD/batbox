@@ -4,13 +4,12 @@
 namespace batbox::query {
 AsyncModelPassIterator makeAsyncModelPassIterator(event_loop::Loop& loop,
   Params params,State state,std::shared_ptr<PreparedIteration> prepared,
-  QueryConfig config,std::optional<double> missionBudgetRemaining,
-  AsyncModelServices services){
+  std::optional<double> missionBudgetRemaining,AsyncModelServices services){
   if(!loop.isOwnerThread())
     throw std::logic_error("Async model pass must start on the owner loop");
   if(!prepared)throw std::invalid_argument("Async model pass requires prepared iteration");
   return AsyncModelPassIterator(std::make_shared<async_model::Run>(loop,
-    std::move(params),std::move(state),std::move(prepared),std::move(config),
+    std::move(params),std::move(state),std::move(prepared),
     missionBudgetRemaining,std::move(services)));
 }
 event_loop::Deferred<AsyncModelStep> AsyncModelPassIterator::next(){return run_->next();}
@@ -63,7 +62,7 @@ ModelRequest makeRequest(const Run& run){
     {"skipCacheWrite",p.skipStashWrite},
     {"agentId",field(prepared.gadgetUseContext.data,"agentId")}};
   if(p.fallbackModel)modelOptions["fallbackModel"]=*p.fallbackModel;
-  if(run.config.fastModeEnabled)modelOptions["fastMode"]=field(prepared.appState,"fastMode");
+  modelOptions["fastMode"]=field(prepared.appState,"fastMode");
   if(p.missionBudgetTotal){
     modelOptions["taskBudget"]={{"total",*p.missionBudgetTotal}};
     if(run.remaining)modelOptions["taskBudget"]["remaining"]=*run.remaining;
@@ -121,8 +120,6 @@ void Run::pump(){
         case Stage::HandleMessage:handleMessage();break;
         case Stage::AfterTombstones:afterTombstones();break;
         case Stage::AfterAssistantYield:afterAssistantYield();break;
-        case Stage::EmitGadgetResult:processGadgetResults();break;
-        case Stage::AfterGadgetResultYield:afterGadgetResultYield();break;
         case Stage::AfterStream:afterStream();break;
         case Stage::EmitMissing:emitMissing();break;
         case Stage::AfterMissing:afterMissing();break;
@@ -130,7 +127,6 @@ void Run::pump(){
         case Stage::AfterFallbackSystem:afterFallbackSystem();break;
         case Stage::EmitFailureMessage:emitFailureMessage();break;
         case Stage::AfterFailureMessage:afterFailureMessage();break;
-        case Stage::AfterStashedBoundary:finish();break;
         case Stage::Done:{
           auto request=requests.front();requests.pop_front();
           request.resolve(AsyncModelStep{true,{},{}});break;

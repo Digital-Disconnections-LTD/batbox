@@ -24,9 +24,7 @@ int main(){
   prepared.currentModel="main";prepared.queryTracking={{"chainId","chain"},{"depth",0}};
   prepared.appState={{"mcp",{{"clients",Json::array()},{"tools",Json::array()}}}};
   prepared.gadgetUseContext.data={{"options",{{"agentDefinitions",{{"activeAgents",Json::object()}}}}}};
-  query::QueryConfig config;
   query::ModelServices services;
-  services.feature=[](const std::string&){return false;};
   services.prependUserContext=[](const Json& messages,const Json&){return messages;};
   services.createUserMessage=[](const Json& args){return Json{{"type","user"},{"args",args}};};
   services.createAssistantAPIErrorMessage=[](const Json& args){return Json{{"type","assistant"},{"apiError","error"},{"args",args}};};
@@ -40,7 +38,7 @@ int main(){
     ->model::NextMessage{
     assert(request.options.at("model")=="main");return stream({text});
   };
-  auto result=query::runModelPass(params,state,prepared,config,std::nullopt,services,
+  auto result=query::runModelPass(params,state,prepared,std::nullopt,services,
     [&](const Json& message){emitted.push_back(message);});
   assert(emitted.size()==1&&emitted[0]==text);
   assert(result.assistantMessages.size()==1&&!result.needsFollowUp);
@@ -51,7 +49,7 @@ int main(){
     {"name","Read"},{"input",{{"path","a"}}}}}),"tool");
   services.callModel=[&](const query::ModelRequest&,const std::function<void()>&){return stream({gadgetMessage});};
   emitted=Json::array();
-  result=query::runModelPass(params,state,prepared,config,std::nullopt,services,
+  result=query::runModelPass(params,state,prepared,std::nullopt,services,
     [&](const Json& message){emitted.push_back(message);});
   assert(result.needsFollowUp&&result.gadgetUseBlocks.size()==1);
   assert(emitted[0]["message"]["content"][0]["input"]["derived"]==7);
@@ -70,7 +68,7 @@ int main(){
     assert(request.options["model"]=="fallback");return stream({text});
   };
   emitted=Json::array();
-  result=query::runModelPass(params,state,prepared,config,std::nullopt,services,
+  result=query::runModelPass(params,state,prepared,std::nullopt,services,
     [&](const Json& message){emitted.push_back(message);});
   assert(attempts==2&&emitted.size()==4);
   assert(emitted[0]["type"]=="assistant"&&emitted[1]["type"]=="user");
@@ -82,13 +80,13 @@ int main(){
     {"message",{{"content",Json::array()}}}};
   services.callModel=[&](const query::ModelRequest&,const std::function<void()>&){return stream({maxError});};
   emitted=Json::array();
-  result=query::runModelPass(params,state,prepared,config,std::nullopt,services,
+  result=query::runModelPass(params,state,prepared,std::nullopt,services,
     [&](const Json& message){emitted.push_back(message);});
   assert(emitted.empty()&&result.assistantMessages.size()==1);
 
   services.callModel=[&](const query::ModelRequest&,const std::function<void()>&){return stream({gadgetMessage},true);};
   emitted=Json::array();
-  result=query::runModelPass(params,state,prepared,config,std::nullopt,services,
+  result=query::runModelPass(params,state,prepared,std::nullopt,services,
     [&](const Json& message){emitted.push_back(message);});
   assert(result.terminal&&result.terminal->at("reason")=="model_error");
   assert(emitted.size()==3&&emitted[1]["type"]=="user"&&emitted[2]["apiError"]=="error");
@@ -114,7 +112,7 @@ int main(){
       };
     };
     std::vector<query::MessageRef> refs;
-    result=query::runModelPass(params,state,prepared,config,std::nullopt,services,
+    result=query::runModelPass(params,state,prepared,std::nullopt,services,
       query::Yield::withReferences([&](const query::MessageRef& ref){refs.push_back(ref);}));
     assert(refs.size()==2);
     assert(result.assistantMessages[0]["message"]["usage"]["input_tokens"]==42);

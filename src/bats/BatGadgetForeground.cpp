@@ -1,4 +1,5 @@
 #include "bats/BatGadgetForeground.hpp"
+#include "bats/BatGadgetPresentation.hpp"
 #include <mutex>
 #include <stdexcept>
 
@@ -35,6 +36,11 @@ bool canReadOutput(const gadgets::Gadgets& available,const std::string& read,
   for(const auto* gadget:available)
     if(gadget && (gadgets::gadgetMatchesName(*gadget,read) ||
                 gadgets::gadgetMatchesName(*gadget,shell)))return true;
+  return false;
+}
+bool hasGadget(const gadgets::Gadgets& available,const std::string& name){
+  for(const auto* gadget:available)
+    if(gadget&&gadgets::gadgetMatchesName(*gadget,name))return true;
   return false;
 }
 } // namespace
@@ -180,7 +186,9 @@ Json runBatGadgetForeground(const Json& input,const Json& assistantMessage,
               {"description",description},{"prompt",poetry},
               {"outputFile",services.getMissionOutputPath(*final.foregroundMissionId)},
               {"canReadOutputFile",canReadOutput(context.query.gadgets,
-                services.fileReadGadgetName,services.bashGadgetName)}}}};
+                services.fileReadGadgetName,services.bashGadgetName)},
+              {"canWaitForResult",hasGadget(context.query.gadgets,
+                missionOutputGadgetName)}}}};
             break;
           }
         }

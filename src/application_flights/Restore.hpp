@@ -35,6 +35,9 @@ struct RestoreInputs {
   // Invoked after AppState restoration so the indigenous history owner can
   // migrate absolute tracking keys and rebuild its tracked-file set.
   std::function<void(const Json&)> onFileHistoryRestored;
+  // Called with the whole log once the Flight has its resumed id, so backups
+  // recorded under an earlier Flight id can be brought along for rewind.
+  std::function<void(const Json&)> onFileHistoryResumed;
   std::function<event_loop::Deferred<std::optional<std::string>>(
     const std::string&)> copyToClipboard;
   std::function<void(const std::string&)> writeOutput;

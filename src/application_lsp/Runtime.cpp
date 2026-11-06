@@ -128,21 +128,8 @@ void Runtime::saveFile(std::string path){
   if(!supportsFile(path))return;
   enqueue([this,path=std::move(path)]{try{manager_.saveFile(path);}catch(...){}});
 }
-void Runtime::closeFile(std::string path){
-  if(!supportsFile(path))return;
-  enqueue([this,path=std::move(path)]{
-    try{manager_.closeFile(path);}catch(...){}
-    diagnostics_->dropFile(lsp::fileUri(path));
-  });
-}
 void Runtime::clearDeliveredDiagnostics(const std::string& uri){diagnostics_->clearDelivered(uri);}
 Json Runtime::takeDiagnosticSets(){return diagnostics_->takeSets();}
-Json Runtime::takeDiagnosticAttachments(){
-  Json attachments=Json::array();
-  for(const auto& set:takeDiagnosticSets())attachments.push_back({{"type","diagnostics"},
-    {"files",set.at("files")},{"isNew",true}});
-  return attachments;
-}
 std::shared_future<void> Runtime::shutdownAsync(){
   std::lock_guard lock(mutex_);
   if(shutdown_.valid())return shutdown_;

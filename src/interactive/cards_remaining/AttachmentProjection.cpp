@@ -37,10 +37,6 @@ ftxui::Element lineElement(const AttachmentLine& line,
           ftxui::hyperlink(imports.filePathURL(*span.filePath));
       }
     }
-    if(span.colorRole){
-      require(imports.partnerColor,"Partner color");
-      element=element|ftxui::color(imports.partnerColor(*span.colorRole));
-    }
     parts.push_back(std::move(element));
   }
   auto body=ftxui::hflow(std::move(parts))|
@@ -49,31 +45,6 @@ ftxui::Element lineElement(const AttachmentLine& line,
   if(line.response)body=response(std::move(body),imports.palette.subtle);
   if(line.marginTop)body=ftxui::vbox({ftxui::text(""),std::move(body)});
   return body;
-}
-ftxui::Element mailboxElement(const MailboxItem& item,
-                              bool transcriptMode,
-                              const AttachmentProjectionImports& imports){
-  if(item.kind==MailboxItem::Kind::PlanApproval){
-    require(imports.renderPlanApproval,"plan approval renderer");
-    return imports.renderPlanApproval(item);
-  }
-  if(item.kind==MailboxItem::Kind::PartnerText){
-    require(imports.renderPartnerText,"Partner message renderer");
-    return imports.renderPartnerText(item,transcriptMode);
-  }
-  const auto mission=item.parsed.find("taskId");
-  const auto id=mission!=item.parsed.end()&&mission->is_string()?mission->get<std::string>():
-    mission!=item.parsed.end()&&mission->is_number()?std::to_string(mission->get<int>()):
-    "undefined";
-  const auto subject=field(item.parsed,"subject");
-  if(imports.palette.blackCircle.empty())
-    throw std::logic_error("Mission assignment indicator required");
-  return ftxui::hflow({ftxui::text("  "),
-    ftxui::text(value::encodeUtf8(imports.palette.blackCircle+" Mission assigned: ")),
-    ftxui::text("#"+id)|ftxui::bold,
-    ftxui::text(value::encodeUtf8(" - "+subject)),
-    ftxui::text(value::encodeUtf8(" (from "+item.displayName+")"))|
-      ftxui::color(imports.palette.subtle)|ftxui::dim});
 }
 }
 
@@ -102,7 +73,7 @@ std::optional<ftxui::Element> projectAttachment(const AttachmentCard& card,
       require(imports.basename,"memory basename");
       for(const auto& memory:card.memories){
         const auto path=field(memory,"path");
-        AttachmentLine pathLine{{{""+imports.basename(path),false,path,{}}},
+        AttachmentLine pathLine{{{""+imports.basename(path),false,path}},
           "",true,true,0};
         rows.push_back(lineElement(pathLine,imports));
         if(card.transcriptMode){
@@ -124,9 +95,6 @@ std::optional<ftxui::Element> projectAttachment(const AttachmentCard& card,
   }else if(card.kind==AttachmentCard::Kind::Diagnostics){
     require(imports.renderDiagnostics,"diagnostics renderer");
     rows.push_back(imports.renderDiagnostics(card.original,card.verbose));
-  }else if(card.kind==AttachmentCard::Kind::Mailbox){
-    for(const auto& item:card.mailbox)
-      rows.push_back(mailboxElement(item,card.transcriptMode,imports));
   }
   auto body=ftxui::vbox(std::move(rows));
   if(!card.selectedBackground.is_null()&&

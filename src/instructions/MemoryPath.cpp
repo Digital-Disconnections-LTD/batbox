@@ -32,8 +32,6 @@ bool isAutoMemoryEnabled(const MemoryPathServices& services){
   if(isEnvTruthy(disable))return false;
   if(isEnvDefinedFalsy(disable))return true;
   if(isEnvTruthy(env(services,services.keys.simpleMode)))return false;
-  if(isEnvTruthy(env(services,services.keys.remoteMode))&&
-      !value::truthy(env(services,services.keys.remoteMemoryDir)))return false;
   const auto& enabled=value::property(services.initialSettings,"autoMemoryEnabled");
   if(!enabled.is_null())return value::truthy(enabled);
   return true;
@@ -74,9 +72,6 @@ std::optional<std::string> getAutoMemPathSetting(const MemoryPathServices& servi
   }
   return std::nullopt;
 }
-bool hasAutoMemPathOverride(const MemoryPathServices& services){
-  return getAutoMemPathOverride(services).has_value();
-}
 std::string sanitizeMemoryProjectPath(const std::string& name,
   const std::function<std::string(const std::string&)>& longPathHash){
   return runtime::sanitizePath(name,longPathHash);
@@ -99,22 +94,5 @@ std::string getAutoMemPath(const MemoryPathServices& services,MemoryPathStash& s
 }
 std::string getAutoMemEntrypoint(const MemoryPathServices& services,MemoryPathStash& stash){
   return join(getAutoMemPath(services,stash),"MEMORY.md");
-}
-std::string getAutoMemDailyLogPath(const MemoryPathServices& services,MemoryPathStash& stash,
-  std::chrono::system_clock::time_point date){
-  const std::time_t time=std::chrono::system_clock::to_time_t(date);
-  std::tm local{};
-  if(!runtime::localtimeIndigenous(time,local))
-    throw std::runtime_error("Invalid local date");
-  std::ostringstream year,month,day;
-  year<<std::setw(4)<<std::setfill('0')<<local.tm_year+1900;
-  month<<std::setw(2)<<std::setfill('0')<<local.tm_mon+1;
-  day<<std::setw(2)<<std::setfill('0')<<local.tm_mday;
-  return join(join(join(join(getAutoMemPath(services,stash),"logs"),year.str()),
-    month.str()),year.str()+"-"+month.str()+"-"+day.str()+".md");
-}
-bool isAutoMemPath(const std::string& absolutePath,const MemoryPathServices& services,
-  MemoryPathStash& stash){
-  return normalizePath(absolutePath).starts_with(getAutoMemPath(services,stash));
 }
 } // namespace batbox::instructions

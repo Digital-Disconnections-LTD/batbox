@@ -62,7 +62,6 @@ Json webFetchInputSchema();
 Json webFetchOutputSchema();
 Json parseWebSearchInput(const Json& input);
 Json parseWebFetchInput(const Json& input);
-Json makeOutputFromSearchResponse(const Json& blocks,const std::string& query,double durationSeconds);
 Json mapSearchResult(const Json& output,const std::string& gadgetUseID);
 Json mapFetchResult(const Json& output,const std::string& gadgetUseID);
 std::string getWebSearchPoetry(const std::string& localMonthYear);
@@ -74,14 +73,12 @@ std::string applyPoetryToMarkdown(const std::string& poetry,const std::string& m
   const FetchServices& services);
 bool validateURL(const std::string& url);
 std::optional<std::string> hostnameFromURL(const std::string& url);
-bool isPermittedRedirect(const std::string& originalUrl,const std::string& redirectUrl);
 bool isPreapprovedHost(const std::string& hostname,const std::string& pathname,
   const std::vector<std::string>& entries);
 bool isPreapprovedUrl(const std::string& url,const std::vector<std::string>& entries);
 std::string webFetchPermissionRuleContent(const Json& input);
 Json checkFetchPermissions(const Json& input,const Json& context,const FetchServices& services);
 FetchContent fetchThroughScrapling(const std::string& url,Scrapling& connector,std::stop_token stopToken);
-void clearWebFetchStash(FetchServices& services);
 GadgetResult callSearch(const Json& input,const GadgetCallContext& context,
   const std::function<void(const GadgetProgress&)>& onProgress,const SearchServices& services);
 GadgetResult callFetch(const Json& input,const GadgetCallContext& context,const FetchServices& services);

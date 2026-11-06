@@ -59,16 +59,21 @@ std::vector<std::pair<std::string,std::string>> Provider::memoryDirectories(){
 }
 void Provider::refresh(){
   requireOwner();pathStash_.byProjectRoot.clear();
-  inputs_.poetry->clearProjectInstructions();
-  inputs_.poetry->clearPoetrySections();
+  // A stable prompt prefix keeps the head; the poetry provider delivers the
+  // changed files at the tail instead.
+  if(!inputs_.poetry->stablePromptPrefix()){
+    inputs_.poetry->clearProjectInstructions();
+    inputs_.poetry->clearPoetrySections();
+  }
   if(prefetch_)prefetch_->paths=paths();
 }
-void Provider::observeFileChange(const std::string& file){
+void Provider::observeFileChange(const std::string& file,bool ownWrite){
   requireOwner();
   if(file.empty()){inputs_.poetry->refreshMemoryFilesIfChanged();return;}
   auto path=runtime::pathFromUtf8(file);
   if(path.is_relative())path=inputs_.config.cwd/path;
   path=path.lexically_normal();
+  if(ownWrite)inputs_.poetry->noteOwnWrite(runtime::pathToUtf8(path));
   const auto name=path.filename();
   if(name=="BATBOX.md"||name=="BATBOX.local.md"||path.extension()==".md"){
     for(const auto& [directory,scope]:memoryDirectories()){

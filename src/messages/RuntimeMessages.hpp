@@ -13,9 +13,7 @@ Json createSystemMessage(const std::string& content,const std::string& level,
   Services& services,std::optional<std::string> gadgetUseId={},
   std::optional<bool> preventContinuation={});
 Json createStopHookSummaryMessage(const Json& args,Services& services);
-Json createTurnDurationMessage(double duration,const std::optional<Json>& budget,
-  std::optional<std::size_t> count,Services& services);
-Json createGadgetUseSummaryMessage(const std::string& summary,const Json& ids,
+Json createTurnDurationMessage(double duration,std::optional<std::size_t> count,
   Services& services);
 std::optional<std::string> extractTag(const std::string& html,const std::string& name);
 } // namespace batbox::messages

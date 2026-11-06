@@ -111,12 +111,17 @@ def main(binary):
             for key in (b'"timestamp"', b'"progressMessages"', b'"agentId"'):
                 if key in output:
                     raise RuntimeError(f"Internal agent JSON appeared in the UI: {key!r}")
-            wait_for(lambda: b"2 Bats" in output and b"Latest tool: Read" in output,
-                     "compact grouped progress")
+            # The Active Missions list carries the running Bats; the transcript
+            # keeps one line for the group until they finish.
+            wait_for(lambda: b"2 Bats launched" in output and
+                     b"Research alpha" in output and b"Research beta" in output,
+                     "one-line group beside the Active Missions list")
             if len(parent_requests) != 1:
                 raise RuntimeError("Lead requested more inference while waiting for agents")
             release.set()
             wait_for(lambda: b"LEADER_COMPLETE" in output, "lead completion")
+            wait_for(lambda: b"Completed" in output,
+                     "the finished group lists each Bat again")
             history = json.dumps(parent_requests[-1].get("messages", []))
             for name in ("ALPHA", "BETA"):
                 if "CHILD_FINAL_" + name not in history:

@@ -13,11 +13,8 @@ class MalformedCommandError:public std::runtime_error {
 };
 struct PoetryCommandServices {
   messages::Services messageServices;
-  std::function<Json(const std::string&,const std::vector<Json>&)> findCommand;
   std::function<Json(const Json&,const std::string&,const bats::BatContext&)>
     getPoetryForCommand;
-  std::function<bool(const std::string&)> feature;
-  std::string coordinatorModeEnvironment;
   std::function<bool(const std::string&)> isRestrictedToPluginOnly;
   std::function<std::string()> getFlightId;
   std::function<void(const bats::BatContext&,const std::string&,
@@ -40,9 +37,6 @@ std::string formatSlashCommandLoadingMetadata(const std::string& name,
 std::string formatCommandLoadingMetadata(const Json& command,
   const std::optional<std::string>& args=std::nullopt);
 Json createAttachmentMessage(const Json& attachment,PoetryCommandServices& services);
-Json processPoetrySlashCommand(const std::string& commandName,const std::string& args,
-  const std::vector<Json>& commands,const bats::BatContext& context,
-  PoetryCommandServices& services,const Json& imageContentBlocks=Json::array());
 Json getMessagesForPoetrySlashCommand(const Json& command,const std::string& args,
   const bats::BatContext& context,PoetryCommandServices& services,
   const Json& precedingInputBlocks=Json::array(),

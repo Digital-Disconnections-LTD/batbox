@@ -4,11 +4,6 @@
 
 namespace batbox::interactive::cards {
 namespace {
-const glob::Regex16& violations() {
-  static const glob::Regex16 pattern(
-      u"<sandbox_violations>([\\s\\S]*?)<\\/sandbox_violations>");
-  return pattern;
-}
 const glob::Regex16& cwdWarningPattern() {
   // The warning only matches at the absolute end. Dot excludes line
   // terminators, including U+2028 and U+2029.
@@ -18,17 +13,6 @@ const glob::Regex16& cwdWarningPattern() {
   return pattern;
 }
 } // namespace
-
-std::string removeSandboxViolationTags(const std::string& text) {
-  const auto units = glob::units(text);
-  return glob::text(violations().replace(units,
-      [](const glob::RegexMatch&) { return std::u16string{}; }, true));
-}
-
-std::string stderrWithoutSandboxViolations(const std::string& stderrText) {
-  if (!violations().search(glob::units(stderrText))) return stderrText;
-  return value::trim(removeSandboxViolationTags(stderrText));
-}
 
 CwdResetStderr extractCwdResetWarning(const std::string& stderrText) {
   const auto units = glob::units(stderrText);

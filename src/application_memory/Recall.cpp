@@ -8,11 +8,17 @@
 #include <algorithm>
 
 namespace batbox::application_memory {
+bool recallByKeywords(const Json& settings,bool localEndpoint){
+  const auto& mode=value::property(settings,"memoryRecallSelector");
+  if(mode=="keywords")return true;
+  if(mode=="model")return false;
+  return localEndpoint;
+}
 std::shared_ptr<memory_prefetch::Services> Provider::makePrefetchServices(){
   requireOwner();
   if(prefetch_)return prefetch_;
   auto service=std::make_shared<memory_prefetch::Services>(
-    memory_prefetch::Services{inputs_.owner,{},nullptr,{},{},{},{},{},{},{},{},{},{}});
+    memory_prefetch::Services{inputs_.owner,{},nullptr,{},{},{},{},{},{},{},{},{},{},{},false});
   service->paths=paths();service->pathStash=&pathStash_;
   service->cwd=runtime::pathToUtf8(inputs_.config.cwd);
   const auto weak=weak_from_this();
@@ -22,6 +28,14 @@ std::shared_ptr<memory_prefetch::Services> Provider::makePrefetchServices(){
     return self->recallEnabled();
   };
   service->defaultStandardModel=[model=inputs_.model]{return model->config().mainModel;};
+  // A local server answers one request at a time; a selector request there
+  // would queue ahead of or alongside the user's own.
+  service->keywordSelection=[weak](const std::string& requested){
+    const auto self=weak.lock();if(!self)return true;
+    const auto name=requested.empty()?self->inputs_.model->config().mainModel:requested;
+    const auto profile=self->inputs_.model->findProfile(name);
+    return recallByKeywords(self->settings(),profile&&profile->local);
+  };
   service->nowMillis=[]{return static_cast<double>(platform::nowMillis());};
   service->isAbortError=[](const std::exception& error){
     return dynamic_cast<const transport::APIUserAbortError*>(&error)||
@@ -78,10 +92,9 @@ std::shared_ptr<memory_prefetch::Services> Provider::makePrefetchServices(){
     };
     ready.resolve(std::move(result));return ready;
   };
-  side.getModelBetas=[](const std::string&){return std::vector<std::string>{};};
-  side.supportsStructuredOutputs=[model=inputs_.model](const std::string& id){
+  side.getModelBetas=[model=inputs_.model](const std::string& id){
     const auto profile=model->findProfile(id);
-    return profile&&profile->structuredOutputs;
+    return profile?application_model::requestBetas(*profile):std::vector<std::string>{};
   };
   side.systemPoetryPrefix=[](const Json&){return std::string{};};
   side.normalizeModel=[model=inputs_.model](const std::string& id){

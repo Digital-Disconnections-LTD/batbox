@@ -108,27 +108,4 @@ std::string formatCommandsWithinBudget(const std::vector<Json>& commands,
   }
   return join(result);
 }
-SkillInfo getSkillGadgetInfo(const std::string& cwd,const SkillPoetryServices& services){
-  if(!services.getSkillGadgetCommands)
-    throw std::invalid_argument("Missing SkillTool binding: getSkillToolCommands");
-  const auto commands=services.getSkillGadgetCommands(cwd);
-  return {commands.size(),commands.size()};
-}
-std::vector<Json> getLimitedSkillGadgetCommands(const std::string& cwd,
-  const SkillPoetryServices& services){
-  if(!services.getSkillGadgetCommands)
-    throw std::invalid_argument("Missing SkillTool binding: getSkillToolCommands");
-  return services.getSkillGadgetCommands(cwd);
-}
-SkillInfo getSkillInfo(const std::string& cwd,const SkillPoetryServices& services){
-  try{
-    if(!services.getSlashCommandGadgetSkills)
-      throw std::invalid_argument("Missing SkillTool binding: getSlashCommandToolSkills");
-    const auto skills=services.getSlashCommandGadgetSkills(cwd);
-    return {skills.size(),skills.size()};
-  }catch(const std::exception& error){
-    if(services.logError)services.logError(error.what());
-    return {};
-  }
-}
 }

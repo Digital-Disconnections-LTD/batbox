@@ -9,16 +9,17 @@ namespace batbox::query {
 namespace {
 struct Run:std::enable_shared_from_this<Run> {
   event_loop::Loop& loop;
-  model::PreflightInputs input;
+  std::shared_ptr<const model::PreflightInputs> held;
+  const model::PreflightInputs& input;
   model::PreflightServices services;
   OwnerPreflightAwaits awaits;
   std::stop_token stop;
   event_loop::Deferred<model::PreflightState> result;
   model::PreflightState seed;
   std::string modelName;
-  Run(event_loop::Loop& owner,model::PreflightInputs request,
+  Run(event_loop::Loop& owner,std::shared_ptr<const model::PreflightInputs> request,
       model::PreflightServices imports,OwnerPreflightAwaits asyncImports,
-      std::stop_token signal):loop(owner),input(std::move(request)),
+      std::stop_token signal):loop(owner),held(std::move(request)),input(*held),
       services(std::move(imports)),awaits(std::move(asyncImports)),
       stop(signal),result(owner){}
   void checkStop(){
@@ -30,36 +31,10 @@ struct Run:std::enable_shared_from_this<Run> {
       checkStop();
       const Json& modelValue=value::property(input.options,"model");
       modelName=modelValue.is_string()?modelValue.get<std::string>():std::string{};
-      if(!services.isSubscriber||!services.isNonCustomPrimaryModel)
-        throw std::invalid_argument("Owner preflight cheap gates are required");
-      if(!services.isSubscriber()&&services.isNonCustomPrimaryModel(modelName)){
-        if(!awaits.offSwitchActivated)
-          throw std::invalid_argument("Awaited off-switch import is required");
-        auto pending=awaits.offSwitchActivated();
-        if(!loop.dispatcher().sameLoop(pending.dispatcher()))
-          throw std::invalid_argument("Off-switch await crossed event loops");
-        auto self=shared_from_this();
-        pending.then([self](const bool* active,const std::exception_ptr& error){
-          if(error){self->fail(error);return;}
-          try{
-            self->checkStop();
-            if(!active)throw std::logic_error("Off-switch resolved without value");
-            if(*active){
-              if(!self->services.offSwitchMessage)throw std::invalid_argument(
-                "Off-switch message import is required");
-              self->seed.offSwitch=true;
-              self->seed.offSwitchMessage=self->services.offSwitchMessage(self->modelName);
-              self->result.resolve(self->seed);
-            }else self->afterOffSwitch();
-          }catch(...){self->fail(std::current_exception());}
-        });
-        return;
-      }
-      afterOffSwitch();
+      resolveModel();
     }catch(...){fail(std::current_exception());}
   }
-  void afterOffSwitch(){
-    checkStop();
+  void resolveModel(){
     seed.previousRequestId=model::getPreviousRequestIdFromMessages(input.messages);
     if(!services.getAPIProvider)
       throw std::invalid_argument("API provider import is required");
@@ -184,7 +159,15 @@ event_loop::Deferred<model::PreflightState> startOwnerPreflight(
     event_loop::Loop& loop,model::PreflightInputs input,
     model::PreflightServices services,OwnerPreflightAwaits awaits,
     std::stop_token stop){
+  return startOwnerPreflight(loop,std::make_shared<const model::PreflightInputs>(
+    std::move(input)),std::move(services),std::move(awaits),stop);
+}
+event_loop::Deferred<model::PreflightState> startOwnerPreflight(
+    event_loop::Loop& loop,std::shared_ptr<const model::PreflightInputs> input,
+    model::PreflightServices services,OwnerPreflightAwaits awaits,
+    std::stop_token stop){
   if(!loop.isOwnerThread())throw std::logic_error("Owner preflight requires loop owner");
+  if(!input)throw std::invalid_argument("Owner preflight input is required");
   auto run=std::make_shared<Run>(loop,std::move(input),std::move(services),
     std::move(awaits),stop);
   auto result=run->result;

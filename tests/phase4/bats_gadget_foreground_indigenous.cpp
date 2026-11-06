@@ -91,7 +91,6 @@ struct Fixture {
     services.final.clearInvokedSkillsForBat=[](const std::string&){};
     services.final.nowMillis=[this](){return time;};
     services.final.isSyntheticMessage=[](const Json&){return false;};
-    services.final.feature=[](const std::string&){return false;};
     services.final.result.getLastAssistantMessage=[](const Json& messages){
       for(auto it=messages.rbegin();it!=messages.rend();++it)
         if(field(*it,"type")=="assistant")return *it;

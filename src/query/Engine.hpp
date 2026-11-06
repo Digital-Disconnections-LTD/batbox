@@ -5,7 +5,6 @@
 
 namespace batbox::query {
 struct EngineServices {
-  ConfigDependencies config;
   SetupServices setup;
   ModelServices model;
   CompletionServices completion;

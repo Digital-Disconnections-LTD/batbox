@@ -40,9 +40,6 @@ void Navigation::setItems(RenderItemsRef items){
 double Navigation::targetFor(std::size_t index)const{
   return std::max(0.0,services_.viewport.ranges().itemTop(index)-3.0);
 }
-void Navigation::jumpToIndex(std::size_t index){
-  services_.viewport.scrollTo(targetFor(index));
-}
 void Navigation::setAnchor(){searchAnchor_=services_.viewport.scroll().top;}
 void Navigation::setSearchQuery(const std::string& query){
   if(!services_.owner.isOwnerThread())

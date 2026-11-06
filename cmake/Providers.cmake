@@ -9,7 +9,8 @@ target_compile_options(batbox_wire_clients PRIVATE -Wall -Wextra -Wpedantic)
 # steps that turn a catalog entry into a saved endpoint.
 add_library(batbox_providers STATIC
   src/providers/Catalog.cpp src/providers/Catalog.generated.cpp
-  src/providers/LocalDiscovery.cpp src/providers/Onboarding.cpp)
+  src/providers/LocalDiscovery.cpp src/providers/Onboarding.cpp
+  src/providers/RequestSettings.cpp)
 target_link_libraries(batbox_providers PUBLIC batbox_application_config batbox_mcp_runtime
   batbox_wire_clients Threads::Threads)
 target_compile_options(batbox_providers PRIVATE -Wall -Wextra -Wpedantic)

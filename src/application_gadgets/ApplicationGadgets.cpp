@@ -50,7 +50,7 @@ void prepareBash(Bash& bash,const Inputs& inputs){
   if(!bash.cwdPolicy.setCwd)
     bash.cwdPolicy.setCwd=[shell=services.shell](const std::string& cwd){shell->setCwd(cwd);};
   bash_gadget::bindIndigenousCwdPolicy(services,std::move(bash.cwdPolicy));
-  // The shell owner binds sandboxing, mission roster, permission, image,
+  // The shell owner binds mission roster, permission, image,
   // simulated-edit and visible UI services. None has an implicit allow path.
 }
 void prepareWeb(Web& web,const Files& files,

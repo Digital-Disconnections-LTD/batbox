@@ -25,7 +25,6 @@ public:
   std::string systemTheme()const{return services_.getSystemTheme();}
   void setSetting(std::string setting);
   void setPreview(std::string setting);
-  void savePreview();
   void cancelPreview();
   void systemThemeChanged(std::string theme);
 private:

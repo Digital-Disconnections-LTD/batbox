@@ -4,13 +4,6 @@
 #include <utility>
 
 namespace batbox::instructions::hooks::runtime {
-Json HookResult::toJson()const{
-  Json value={{"command",command},{"succeeded",succeeded},
-    {"output",output},{"blocked",blocked}};
-  if(watchPaths)value["watchPaths"]=*watchPaths;
-  if(systemMessage)value["systemMessage"]=*systemMessage;
-  return value;
-}
 bool isAsyncHookJsonOutput(const Json& json){
   return json.is_object()&&json.contains("async")&&json.at("async")==true;
 }
@@ -141,19 +134,5 @@ event_loop::Deferred<std::vector<HookResult>> executeHooksOutsideRepl(
   if(!loop.isOwnerThread())throw std::logic_error("Hook executor owner required");
   auto run=std::make_shared<OutsideRun>(loop,dispatch,services,signal);
   run->start();return run->output;
-}
-std::function<event_loop::Deferred<Json>(HookDispatch)> bindOutsideReplExecutor(
-  event_loop::Loop& loop,ExecutorServices services,std::stop_token signal){
-  return [&loop,services=std::move(services),signal](HookDispatch dispatch){
-    event_loop::Deferred<Json> output(loop);
-    executeHooksOutsideRepl(loop,dispatch,services,signal).then(
-      [output](const std::vector<HookResult>* rows,const std::exception_ptr& error){
-        if(error){output.reject(error);return;}
-        Json result=Json::array();
-        for(const auto& row:*rows)result.push_back(row.toJson());
-        output.resolve(std::move(result));
-      });
-    return output;
-  };
 }
 } // namespace batbox::instructions::hooks::runtime

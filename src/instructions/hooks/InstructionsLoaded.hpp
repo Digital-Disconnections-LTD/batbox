@@ -33,6 +33,4 @@ event_loop::Deferred<event_loop::Unit> executeInstructionsLoadedHooks(
   event_loop::Loop& loop,const InstructionsLoadedImports& imports,
   const std::string& filePath,const std::string& memoryType,
   const std::string& loadReason,const InstructionsLoadedOptions& options={});
-void bindInstructionsLoaded(event_loop::Loop& loop,
-  project::DiscoveryServices& discovery,InstructionsLoadedImports imports);
 } // namespace batbox::instructions::hooks

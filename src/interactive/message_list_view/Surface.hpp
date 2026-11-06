@@ -1,11 +1,21 @@
 #pragma once
 #include "interactive/MessageListPipeline.hpp"
 #include "interactive/message_view/RowPlan.hpp"
+#include <algorithm>
+#include <string_view>
 #include <unordered_set>
 
 namespace batbox::interactive::message_list_view {
 struct UnseenDivider {std::string firstUnseenUuid;int count=0;};
-struct Cursor {std::string uuid;bool expanded=false;};
+// Whether value::slice(text,0,24)==prefix. Row keys and uuids are ASCII, so
+// they are compared in place instead of converted for every row.
+inline bool hasUuidPrefix(std::string_view text,const std::string& prefix){
+  const auto length=std::min<std::size_t>(24,text.size());
+  for(std::size_t i=0;i<length;++i)
+    if(static_cast<unsigned char>(text[i])>=0x80)
+      return value::slice(std::string(text),0,24)==prefix;
+  return text.substr(0,length)==prefix;
+}
 struct SurfaceOptions {
   std::string screen="prompt",conversationId;
   int columns=80;
@@ -22,30 +32,36 @@ struct SurfaceOptions {
   std::optional<std::string> streamingText;
   GadgetIDs inProgressGadgetUseIDs,streamingGadgetUseIDs;
   std::optional<UnseenDivider> unseenDivider;
-  std::optional<Cursor> cursor;
+  // Leader poetry sent while the turn runs, drawn after the live rows.
+  std::vector<QueuedInput> queuedInputs;
+  // Rows the live reasoning and answer are split into (see MarkdownPiece).
+  std::size_t streamingThinkingParts=1,streamingTextParts=1;
 };
 enum class ProgressState {Indeterminate,Completed};
 class SurfaceState {
 public:
   bool thinkingVisible(const std::shared_ptr<const StreamingThinking>& thinking,double nowMs);
-  void toggleExpanded(const Json& message);
-  bool expanded(const Json& message)const;
   void committed(bool progressEnabled,bool hasGadgetsInProgress,
     const std::function<void(std::optional<ProgressState>)>& progress);
   void unmounted(const std::function<void(std::optional<ProgressState>)>& progress);
+  // latestBashOutputUUID for this prepared list, scanned once per list.
+  const Json& latestBashOutput(const std::shared_ptr<const PreparedMessageList>& prepared);
 private:
+  std::weak_ptr<const PreparedMessageList> bashSource_;
+  Json bashOutput_=nullptr;
   std::shared_ptr<const StreamingThinking> previousThinking_;
   bool thinkingVisible_=false;
-  std::unordered_set<std::string> expandedKeys_;
   std::optional<ProgressState> previousProgress_;
 };
 struct SurfaceRow {
   std::string key;
   message_view::RowRequest request;
-  bool selected=false;
   std::optional<int> unseenCount;
-  enum class Kind {Message,StreamingThinking,StreamingText};
+  enum class Kind {Message,StreamingThinking,StreamingText,QueuedInput};
   Kind kind=Kind::Message;
+  // The piece of a live row (StreamingThinking, StreamingText) or the index
+  // into SurfaceOptions::queuedInputs (QueuedInput).
+  std::size_t part=0;
 };
 struct SurfacePlan {
   std::shared_ptr<const PreparedMessageList> prepared;
@@ -58,8 +74,6 @@ struct SurfacePlan {
 };
 Json lastThinkingBlockId(const MessageRefs& messages,bool hidePast,bool streamingVisible);
 Json latestBashOutputUUID(const MessageRefs& messages);
-bool isItemClickable(const Json& message,const MessageLookups& lookups,
-  const gadgets::Gadgets& gadgets,const std::function<bool(const Json&)>& isAdvisorBlock);
 SurfacePlan prepareSurface(std::shared_ptr<const PreparedMessageList> prepared,
   SurfaceOptions options,SurfaceState& state,double nowMs,
   const message_view::MessageImports& imports,const MessageDecisionImports& decisions);

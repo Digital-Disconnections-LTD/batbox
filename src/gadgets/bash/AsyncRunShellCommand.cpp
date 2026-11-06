@@ -21,11 +21,7 @@ void require(bool valid,const char* name){
 struct AsyncRunShellCommand::State:std::enable_shared_from_this<State>{
   enum class Phase {Dormant,AwaitExec,AwaitExplicit,AwaitInitial,AwaitProgress,Yielded,Done};
   struct Request {
-    enum class Kind {Next,Return,Throw};
-    Kind kind;
     Deferred<AsyncRunStep> promise;
-    std::optional<shell::ExecResult> value;
-    std::exception_ptr error;
   };
   event_loop::Loop& loop;
   AsyncRunInput input;
@@ -52,7 +48,6 @@ struct AsyncRunShellCommand::State:std::enable_shared_from_this<State>{
     require(bool(this->imports.markMissionNotified),"markTaskNotified");
     require(bool(this->imports.startPolling),"startPolling");
     require(bool(this->imports.isAutoBackgroundAllowed),"isAutoBackgroundAllowed");
-    require(bool(this->imports.shouldUseSandbox),"shouldUseSandbox");
     require(bool(this->imports.nowMs),"nowMs");
     require(bool(this->imports.getDefaultTimeoutMs),"getDefaultTimeoutMs");
     require(bool(this->imports.onUnobservedError),"onUnobservedError");
@@ -65,9 +60,7 @@ struct AsyncRunShellCommand::State:std::enable_shared_from_this<State>{
     if(callback)callback();
   }
   static void settleClosed(Request request){
-    if(request.kind==Request::Kind::Throw){request.promise.reject(request.error);return;}
     AsyncRunStep step;step.done=true;
-    if(request.kind==Request::Kind::Return)step.result=std::move(request.value);
     request.promise.resolve(std::move(step));
   }
   void drainClosed(){
@@ -109,14 +102,7 @@ struct AsyncRunShellCommand::State:std::enable_shared_from_this<State>{
     loop.queueMicrotask([self=shared_from_this()]{
       self->resumeQueued=false;
       if(self->phase!=Phase::Yielded||self->demands.empty())return;
-      auto& next=self->demands.front();
-      if(next.kind==Request::Kind::Next){self->waitProgress();return;}
-      auto request=std::move(next);self->demands.pop_front();
-      try{self->stop();}
-      catch(...){self->phase=Phase::Done;request.promise.reject(std::current_exception());
-        self->drainClosed();return;}
-      self->phase=Phase::Done;self->progressSignal.reset();
-      settleClosed(std::move(request));self->drainClosed();
+      self->waitProgress();
     });
   }
   void start(){
@@ -127,7 +113,7 @@ struct AsyncRunShellCommand::State:std::enable_shared_from_this<State>{
       shouldAutoBackground=!settings.backgroundMissionsDisabled&&
         imports.isAutoBackgroundAllowed(input.command);
       AsyncExecRequest request{input.command,timeoutMs,input.preventCwdChanges,
-        imports.shouldUseSandbox(input),shouldAutoBackground};
+        shouldAutoBackground};
       imports.exec(request).then([self=shared_from_this()](
         const AsyncShellCommand* value,const std::exception_ptr& error){
         if(error){self->fail(error);return;}
@@ -287,53 +273,17 @@ struct AsyncRunShellCommand::State:std::enable_shared_from_this<State>{
     Deferred<AsyncRunStep> output(loop);
     if(phase==Phase::Done){AsyncRunStep terminal;terminal.done=true;
       output.resolve(std::move(terminal));return output;}
-    demands.push_back(Request{Request::Kind::Next,output,{},{}});
+    demands.push_back(Request{output});
     if(phase==Phase::Dormant)start();
     else if(phase==Phase::Yielded)scheduleResume();
-    return output;
-  }
-  Deferred<AsyncRunStep> returnValue(std::optional<shell::ExecResult> value){
-    Deferred<AsyncRunStep> output(loop);
-    Request request{Request::Kind::Return,output,std::move(value),{}};
-    if(phase==Phase::Dormant||phase==Phase::Done){
-      phase=Phase::Done;settleClosed(std::move(request));return output;
-    }
-    demands.push_back(std::move(request));
-    if(phase==Phase::Yielded)scheduleResume();
-    return output;
-  }
-  Deferred<AsyncRunStep> throwError(std::exception_ptr error){
-    if(!error)throw std::invalid_argument("iterator throw error required");
-    Deferred<AsyncRunStep> output(loop);
-    Request request{Request::Kind::Throw,output,{},error};
-    if(phase==Phase::Dormant||phase==Phase::Done){
-      phase=Phase::Done;settleClosed(std::move(request));return output;
-    }
-    demands.push_back(std::move(request));
-    if(phase==Phase::Yielded)scheduleResume();
     return output;
   }
 };
 AsyncRunShellCommand::AsyncRunShellCommand(event_loop::Loop& loop,AsyncRunInput input,
   RunShellSettings settings,AsyncRunImports imports):
   state_(std::make_shared<State>(loop,std::move(input),std::move(settings),std::move(imports))){}
-Json AsyncRunStep::toJson()const{
-  Json output={{"done",done}};
-  if(done){if(result)output["value"]=result->toJson();}
-  else if(progress)output["value"]=progress->toJson();
-  return output;
-}
 Deferred<AsyncRunStep> AsyncRunShellCommand::next(){
   if(!state_->loop.isOwnerThread())throw std::logic_error("shell generator owner required");
   return state_->next();
-}
-Deferred<AsyncRunStep> AsyncRunShellCommand::returnValue(
-  std::optional<shell::ExecResult> value){
-  if(!state_->loop.isOwnerThread())throw std::logic_error("shell generator owner required");
-  return state_->returnValue(std::move(value));
-}
-Deferred<AsyncRunStep> AsyncRunShellCommand::throwError(std::exception_ptr error){
-  if(!state_->loop.isOwnerThread())throw std::logic_error("shell generator owner required");
-  return state_->throwError(error);
 }
 } // namespace batbox::bash_gadget

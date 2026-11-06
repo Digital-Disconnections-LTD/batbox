@@ -43,6 +43,26 @@ std::string defaultMessagesPath(std::string_view kind) {
   return kind == kProviderOpenAIChat ? "/v1/chat/completions" : "/v1/messages";
 }
 
+std::vector<std::string> parseBetas(const Json& betas) {
+  if (!betas.is_array()) throw std::invalid_argument("betas must be a JSON array of strings");
+  std::vector<std::string> result;
+  for (const auto& beta : betas) {
+    if (!beta.is_string()) throw std::invalid_argument("betas must be a JSON array of strings");
+    result.push_back(beta.get<std::string>());
+  }
+  validateBetas(result);
+  return result;
+}
+void validateBetas(const std::vector<std::string>& betas) {
+  for (const auto& beta : betas) {
+    if (beta.empty()) throw std::invalid_argument("Beta names cannot be empty");
+    for (const unsigned char c : beta)
+      if (c <= ' ' || c > '~' || c == ',')
+        throw std::invalid_argument("Beta name \"" + beta + "\" must be visible ASCII without commas or spaces");
+  }
+}
+bool kindSendsBetas(std::string_view kind) { return kind != kProviderOpenAIChat; }
+
 void validateQuirks(const Json& quirks) { (void)chatQuirks(quirks); }
 ChatQuirks chatQuirks(const Json& quirks) {
   ChatQuirks result;

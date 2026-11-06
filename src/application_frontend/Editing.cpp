@@ -65,51 +65,10 @@ void Bundle::initializeRewind(){
   };
   services.resetMicrocompactState=inputs_.resetMicrocompactState?
     inputs_.resetMicrocompactState:[]{};
-  services.resetContextCollapse=inputs_.resetContextCollapse?
-    inputs_.resetContextCollapse:[]{};
-  services.feature=inputs_.feature;
-  services.onCancel=[weak=weak_from_this()]{
-    if(auto self=weak.lock())if(auto shell=self->inputs_.getShell()){
-      shell->actions().setCursor({});
-      shell->setTranscript(false);
-      shell->jumpToBottom();
-    }
-  };
-  services.selectableUserMessage=selectableUserMessage;
-  services.messagesAfterAreOnlySynthetic=messagesAfterAreOnlySynthetic;
-  services.fileHistoryHasAnyChanges=[weak=weak_from_this()](value::ValueRef history,
-      const std::string& id){
-    auto self=weak.lock();
-    if(!self)throw std::runtime_error("Transcript editor has stopped");
-    if(self->inputs_.fileHistory&&self->inputs_.fileHistory->enabled())
-      return self->inputs_.fileHistory->hasAnyChanges(id);
-    if(self->inputs_.fileHistoryHasAnyChanges)
-      return self->inputs_.fileHistoryHasAnyChanges(std::move(history),id);
-    if(self->inputs_.feature("FILE_HISTORY"))
-      return failure<bool>(self->owner_,
-        "File-history checks are enabled without a native provider");
-    event_loop::Deferred<bool> result(self->owner_);result.resolve(false);return result;
-  };
-  services.publishPreselect=[](interactive::TurnMessageRef){};
   services.publishSelectorVisible=[weak=weak_from_this()](bool visible){
     if(auto self=weak.lock())if(visible)self->showRewindSelector();
   };
   rewind_=std::make_shared<interactive::navigation::Rewind>(std::move(services));
-}
-event_loop::Deferred<event_loop::Unit> Bundle::editMessage(
-    interactive::MessageRef message){
-  if(!owner_.isOwnerThread())throw std::logic_error("Transcript edit owner required");
-  try{
-    initializeRewind();
-    if(!message)return failure<event_loop::Unit>(owner_,"Message to edit is missing");
-    const auto& uuid=value::property(*message,"uuid");
-    if(!uuid.is_string())return failure<event_loop::Unit>(owner_,
-      "Message to edit has no UUID");
-    return rewind_->editMessage(uuid.get<std::string>(),
-      inputs_.getRuntime()->messages().messages(),{});
-  }catch(const std::exception& error){
-    return failure<event_loop::Unit>(owner_,error.what());
-  }
 }
 void Bundle::openRewind(){
   if(!owner_.isOwnerThread())throw std::logic_error("Rewind owner required");
@@ -134,11 +93,6 @@ void Bundle::showRewindSelector(){
   request.body="Choose a message. Later conversation messages will be removed.";
   request.hidePoetry=true;
   for(const auto& message:choices)request.choices.push_back(preview(message));
-  if(const auto& selected=rewind_->preselect()){
-    const auto found=std::find(choices.begin(),choices.end(),selected);
-    if(found!=choices.end())request.selectedIndex=
-      static_cast<std::size_t>(std::distance(choices.begin(),found));
-  }
   // A local slash command returns "skip" after requesting this selector.
   // Its submit completion clears the transient local UI in the current turn;
   // publish the indigenous selector in the next owner turn so it remains visible.
@@ -157,19 +111,10 @@ void Bundle::showRewindSelector(){
       RewindModalInputs modal;
       modal.list=std::move(request);
       modal.messages=std::move(choices);
-      if(const auto& selected=self->rewind_->preselect()){
-        const auto found=std::find(modal.messages.begin(),
-          modal.messages.end(),selected);
-        if(found!=modal.messages.end()){
-          modal.preselected=true;
-          modal.preselectedIndex=static_cast<std::size_t>(
-            std::distance(modal.messages.begin(),found));
-        }
-      }
       modal.history=self->inputs_.fileHistory;
       modal.beforeRestore=[self]{
         if(auto shell=self->inputs_.getShell()){
-          shell->actions().setCursor({});shell->setTranscript(false);
+          shell->setTranscript(false);
           shell->jumpToBottom();
         }
       };

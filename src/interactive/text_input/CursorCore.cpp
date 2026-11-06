@@ -113,12 +113,6 @@ Cursor Cursor::startOfLine()const{
     return Cursor(measured_,getOffset({line-1,0}),0);
   return Cursor(measured_,getOffset({line,0}),0);
 }
-Cursor Cursor::firstNonBlankInLine()const{
-  // This navigation operation currently selects column zero;
-  // it does not skip leading whitespace.
-  const auto line=getPosition().line;
-  return Cursor(measured_,getOffset({line,0}),0);
-}
 Cursor Cursor::endOfLine()const{
   const auto line=getPosition().line;
   return Cursor(measured_,getOffset({line,measured_->getLineLength(line)}),0);
@@ -143,20 +137,6 @@ Cursor Cursor::createCursorWithColumn(std::size_t start,std::size_t end,
   const auto target=measured_->snapToGraphemeBoundary(start+clamped);
   return Cursor(measured_,snapOutOfReference(target,target<offset_),0);
 }
-Cursor Cursor::endOfLogicalLine()const{
-  return Cursor(measured_,findLogicalLineEnd(offset_),0);
-}
-Cursor Cursor::startOfLogicalLine()const{
-  return Cursor(measured_,findLogicalLineStart(offset_),0);
-}
-Cursor Cursor::firstNonBlankInLogicalLine()const{
-  const auto [start,end]=logicalLineBounds();
-  const auto units=value::utf16CodeUnits(value::slice(text(),start,end));
-  std::size_t first=0;
-  while(first<units.size()&&isVimWhitespace(value::fromUtf16(
-    std::u16string_view(units).substr(first,1))))++first;
-  return Cursor(measured_,start+(first<units.size()?first:0),0);
-}
 Cursor Cursor::upLogicalLine()const{
   const auto [start,end]=logicalLineBounds();
   (void)end;
@@ -172,62 +152,7 @@ Cursor Cursor::downLogicalLine()const{
   const auto nextStart=end+1;
   return createCursorWithColumn(nextStart,findLogicalLineEnd(nextStart),column);
 }
-Cursor Cursor::startOfFirstLine()const{return Cursor(measured_,0,0);}
-Cursor Cursor::startOfLastLine()const{
-  const auto units=value::utf16CodeUnits(text());
-  const auto found=units.rfind(u'\n');
-  if(found==std::u16string::npos)return startOfLine();
-  return Cursor(measured_,found+1,0);
-}
-Cursor Cursor::goToLine(long long lineNumber)const{
-  const auto units=value::utf16CodeUnits(text());
-  const auto target=std::max(0LL,lineNumber-1);
-  long long current=0;
-  std::size_t offset=0;
-  while(current<target&&offset<units.size()){
-    const auto found=units.find(u'\n',offset);
-    if(found==std::u16string::npos)break;
-    offset=found+1;++current;
-  }
-  return Cursor(measured_,offset,0);
-}
-Cursor Cursor::endOfFile()const{
-  return Cursor(measured_,measured_->length(),0);
-}
 bool Cursor::equals(const Cursor& other)const{
   return offset_==other.offset_&&measured_==other.measured_;
-}
-std::string Cursor::graphemeAt(std::size_t position)const{
-  if(position>=measured_->length())return {};
-  return value::slice(text(),position,measured_->nextOffset(position));
-}
-bool Cursor::isOverWhitespace()const{
-  return isVimWhitespace(value::substring(text(),offset_,offset_+1));
-}
-std::optional<std::size_t> Cursor::findCharacter(const std::string& ch,
-    char type,std::size_t count)const{
-  if(type!='f'&&type!='F'&&type!='t'&&type!='T')
-    throw std::invalid_argument("Vim find type required");
-  const bool forward=type=='f'||type=='t';
-  const bool till=type=='t'||type=='T';
-  std::size_t found=0;
-  if(forward){
-    for(auto position=measured_->nextOffset(offset_);
-        position<measured_->length();
-        position=measured_->nextOffset(position)){
-      if(graphemeAt(position)==ch&&++found==count)
-        return till?std::max(offset_,measured_->prevOffset(position)):position;
-    }
-  }else{
-    if(offset_==0)return {};
-    auto position=measured_->prevOffset(offset_);
-    for(;;){
-      if(graphemeAt(position)==ch&&++found==count)
-        return till?std::min(offset_,measured_->nextOffset(position)):position;
-      if(position==0)break;
-      position=measured_->prevOffset(position);
-    }
-  }
-  return {};
 }
 } // namespace batbox::interactive::text_input

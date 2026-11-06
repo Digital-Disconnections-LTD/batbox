@@ -13,12 +13,8 @@
 using namespace batbox;
 using namespace batbox::interactive::presentation_providers;
 namespace {
-Json bindingTable(const std::string& platform,bool vt,
-    const std::vector<std::string>& features){
-  DefaultBindingOptions options{platform,vt,
-    [features](const auto& name){
-      return std::find(features.begin(),features.end(),name)!=features.end();
-    }};
+Json bindingTable(const std::string& platform,bool vt){
+  DefaultBindingOptions options{platform,vt};
   Json result=Json::array();
   for(const auto& block:defaultBindingBlocks(options)){
     Json bindings=Json::array();
@@ -32,11 +28,9 @@ Json bindingTable(const std::string& platform,bool vt,
 int main(){
   Json output=Json::object();
   output["bindings"]=Json::array({
-    bindingTable("linux",true,{}),
-    bindingTable("linux",true,{"KAIROS","QUICK_SEARCH","TERMINAL_PANEL",
-      "MESSAGE_ACTIONS","VOICE_MODE"}),
-    bindingTable("windows",false,{"MESSAGE_ACTIONS"}),
-    bindingTable("windows",true,{"QUICK_SEARCH"})});
+    bindingTable("linux",true),
+    bindingTable("windows",false),
+    bindingTable("windows",true)});
   output["themes"]=Json::object();
   for(const auto& name:themeNames()){
     Json theme=Json::object();
@@ -76,8 +70,7 @@ int main(){
   theme.cancelPreview();output["themeState"].push_back(theme.currentTheme());
   theme.setSetting("dark");output["themeState"].push_back(theme.currentTheme());
   output["saved"]=saved;
-  auto shortcutProvider=makeShortcutProvider({"linux",true,
-    [](const auto&){return false;}},[]{return std::vector<Binding>{};});
+  auto shortcutProvider=makeShortcutProvider({"linux",true},[]{return std::vector<Binding>{};});
   {
     // Key hints are drawn every frame; bindings are read once per action.
     int loads=0;
@@ -105,8 +98,7 @@ int main(){
   state.modal=interactive::UiRequest{interactive::UiRequest::Kind::Select,
     "modal","Choose action","Select one",{"First","Second"},1};
   interactive::transcript_navigation::StickyPoetry sticky;
-  std::optional<interactive::message_actions::Cursor> cursor;
-  interactive::conversation_shell::ViewState view{state,sticky,cursor,{},"",
+  interactive::conversation_shell::ViewState view{state,sticky,{},"",
     0,0,2,80,24,false,false,true};
   // The model and mode live in the status row under the input.
   auto frame=ftxui::vbox({chrome.renderHeader(view),chrome.renderStatus(view),

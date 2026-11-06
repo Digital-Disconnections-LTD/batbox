@@ -127,6 +127,19 @@ void assembledFromHead(){
     "CUSTOM\n\n{{section:memory}}\n\nAFTER");
   expect(custom.size()>=4&&custom[0]=="CUSTOM"&&custom[1]=="MEMORY"&&custom[2]=="AFTER"&&
     custom[3]=="USING:Read","The assembled prompt did not follow the head: "+custom.dump());
+  const std::string summarize="When working with tool results, write down any "
+    "important information you might need later in your response, as the "
+    "original tool result may be cleared later.";
+  const auto all=runAsync({{"sessionGuidance","GUIDANCE"},{"memory","MEMORY"},
+    {"envInfo","ENV"}},"HEAD");
+  expect(all==batbox::Json::array({"HEAD","USING:Read","GUIDANCE","MEMORY","ENV",summarize}),
+    "The assembled sections or their order changed: "+all.dump());
+  const auto retired=runAsync({{"memory","MEMORY"},{"envInfo","ENV"}},
+    "A\n\n{{section:scratchpad}}\n\n{{section:frc}}\n\n{{section:brief}}\n\n"
+    "{{section:token_budget}}\n\nB {{section:ant_model_override}}"
+    "{{section:numeric_length_anchors}}");
+  expect(retired==batbox::Json::array({"A","B ","USING:Read","MEMORY","ENV",summarize}),
+    "A retired section placeholder rendered text: "+retired.dump());
   const auto simple=runAsync({{"simpleMode",true}},"CUSTOM");
   expect(simple.size()==1&&simple[0].get<std::string>().rfind(
     "You are Batbox, an interactive coding assistant.\n\nCWD: /project\nDate: ",0)==0,

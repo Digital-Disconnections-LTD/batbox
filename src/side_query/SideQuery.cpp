@@ -13,12 +13,6 @@ Json request(const Json& options,const Services& services){
   need(services.getModelBetas,"getModelBetas");
   auto betas=services.getModelBetas(model);
   const auto& format=value::property(options,"output_format");
-  if(value::truthy(format)){
-    need(services.supportsStructuredOutputs,"supportsStructuredOutputs");
-    if(services.supportsStructuredOutputs(model)&&
-       std::find(betas.begin(),betas.end(),services.structuredOutputsBeta)==betas.end())
-      betas.push_back(services.structuredOutputsBeta);
-  }
   Json system=Json::array();
   if(!value::truthy(value::property(options,"skipSystemPromptPrefix"))){
     need(services.systemPoetryPrefix,"systemPromptPrefix");

@@ -18,6 +18,5 @@ std::string highlightSyntax(std::string_view code,std::string_view language,
     const SyntaxPalette& palette);
 // Maps a file name or extension ("src/a.cpp", "py") to a supported language,
 // or an empty string.
-std::string languageForPath(std::string_view path);
 
 } // namespace batbox::interactive::markdown

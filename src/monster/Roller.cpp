@@ -28,14 +28,8 @@ std::shared_ptr<Roll> Roller::roll(const std::string& userId){
   const auto value=rollFrom(mulberry32(hashString(key,services_.bunHash)));
   stashKey_=key;stashValue_=value;return value;
 }
-std::shared_ptr<Roll> Roller::rollWithSeed(const std::string& seed)const{
-  return rollFrom(mulberry32(hashString(seed,services_.bunHash)));
-}
 std::string Roller::monsterUserId()const{
   const auto config=services_.getGlobalConfig();
-  const auto& account=value::property(config,"oauthAccount");
-  const auto& uuid=value::property(account,"accountUuid");
-  if(!uuid.is_null())return uuid.get<std::string>();
   const auto& user=value::property(config,"userID");
   return user.is_null()?"anon":user.get<std::string>();
 }

@@ -76,12 +76,17 @@ private:
     const auto lastResult=text(status_,"lastResult");
     if(!lastResult.empty()&&lastResult!="Not run")request.body+="\n"+lastResult;
     if(!notice_.empty())request.body+="\n"+notice_;
+    for(const auto& row:rows_)if(value::property(row,"large")==true)
+      request.body+="\nLarge: "+text(row,"path")+" is "+
+        value::numberToString(value::property(row,"characters").get<double>())+
+        " characters, sent whole with every request";
     for(auto index=begin;index<std::min(total,begin+capacity);++index){
       if(index==rows_.size()){request.choices.push_back("Consolidate recent sessions");continue;}
       const auto& row=rows_[index];
       auto label=text(row,"label");if(label.empty())label=text(row,"path");
       request.choices.push_back(text(row,"scope")+" · "+label+
-        (value::property(row,"directory")==true?"/":value::property(row,"exists")==true?"":" (create)"));
+        (value::property(row,"directory")==true?"/":value::property(row,"exists")==true?"":" (create)")+
+        (value::property(row,"large")==true?" (large)":""));
     }
     request.selectedIndex=selected_-begin;
     auto self=shared_from_this();ready_(std::move(request),[self](const interactive::UiAction& action){

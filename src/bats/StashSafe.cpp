@@ -12,16 +12,6 @@ template<class T>void need(const T& callback,const char* name){
   if(!callback)throw std::invalid_argument(std::string("Unbound forked agent import: ")+name);
 }
 }
-StashSafeParams createStashSafeParams(const Json& hookContext,
-  const BatContext& gadgetUseContext){
-  StashSafeParams result;
-  result.systemPoetry=field(hookContext,"systemPrompt");
-  result.userContext=field(hookContext,"userContext");
-  result.systemContext=field(hookContext,"systemContext");
-  result.gadgetUseContext=gadgetUseContext;
-  result.forkContextMessages=field(hookContext,"messages");
-  return result;
-}
 void saveStashSafeParams(std::shared_ptr<StashSafeParams> params){
   std::lock_guard lock(slotMutex);lastStashSafeParams=std::move(params);
 }

@@ -29,7 +29,6 @@ struct ParseServices {
 };
 FrontmatterPaths parseFrontmatterPaths(const std::string& rawContent);
 StrippedComments stripHtmlCommentsFromTokens(const Json& tokens);
-StrippedComments stripHtmlComments(const std::string& content);
 std::vector<std::string> extractIncludePathsFromTokens(const Json& tokens,
   const std::string& basePath,const ParseServices& services);
 ParsedMemoryContent parseMemoryFileContent(const std::string& rawContent,

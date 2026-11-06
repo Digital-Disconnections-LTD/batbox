@@ -21,7 +21,7 @@
                 night-owl-7b · ~/roost · ⎇ night-shift · ◆ plan
 
          /help commands  ·  @ mention a file  ·  ! run a shell command
-                                     v0.1.1
+                                     v0.1.2
 
 
 

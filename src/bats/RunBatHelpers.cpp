@@ -41,21 +41,16 @@ Json filterIncompleteGadgetCalls(const Json& messages){
 GetAppState createBatGetAppState(GetAppState parentGetAppState,
   const Json& batDefinition,bool isAsync,
   std::optional<bool> canShowPermissionPoetryEntries,
-  std::optional<Json> allowedGadgets,
-  const std::function<bool(const std::string&)>& feature){
+  std::optional<Json> allowedGadgets){
   if(!parentGetAppState)throw std::invalid_argument("Unbound agent import: parentGetAppState");
   return [parentGetAppState=std::move(parentGetAppState),batDefinition,isAsync,
-          canShowPermissionPoetryEntries,allowedGadgets,feature]{
+          canShowPermissionPoetryEntries,allowedGadgets]{
     Json state=parentGetAppState();
     Json permission=field(state,"toolPermissionContext");
     const Json& batMode=field(batDefinition,"permissionMode");
     const Json& mode=field(permission,"mode");
-    bool overrideMode=false;
-    if(value::truthy(batMode)&&mode!="bypassPermissions"&&mode!="acceptEdits"){
-      if(!feature)throw std::invalid_argument("Unbound agent import: feature");
-      overrideMode=!(feature("TRANSCRIPT_CLASSIFIER")&&mode=="auto");
-    }
-    if(overrideMode)permission["mode"]=batMode;
+    if(value::truthy(batMode)&&mode!="bypassPermissions"&&mode!="acceptEdits")
+      permission["mode"]=batMode;
     const bool avoid=canShowPermissionPoetryEntries? !*canShowPermissionPoetryEntries:
       batMode=="bubble"?false:isAsync;
     if(avoid)permission["shouldAvoidPermissionPrompts"]=true;
@@ -98,21 +93,18 @@ std::optional<std::string> resolveSkillName(const std::string& skillName,
 }
 Json getBatSystemPoetry(const Json& batDefinition,const BatContext& context,
   const std::string& resolvedBatModel,const Json& additionalWorkingDirectories,
-  const gadgets::Gadgets& resolvedGadgets,BatPoetryServices& services){
+  BatPoetryServices& services){
   if(!services.enhanceWithEnvDetails)throw std::invalid_argument(
     "Unbound runAgent import: enhanceWithEnvDetails");
-  Json enabled=Json::array();std::unordered_set<std::string> seen;
-  for(const auto* gadget:resolvedGadgets)if(gadget&&seen.insert(gadget->name).second)
-    enabled.push_back(gadget->name);
   try{
     if(!services.getBatPoetry)throw std::invalid_argument(
       "Unbound runAgent import: getAgentPrompt");
     const Json poetry=services.getBatPoetry(batDefinition,context);
     return services.enhanceWithEnvDetails(Json::array({poetry}),resolvedBatModel,
-      additionalWorkingDirectories,enabled);
+      additionalWorkingDirectories);
   }catch(...){
     return services.enhanceWithEnvDetails(Json::array({services.defaultBatPoetry}),
-      resolvedBatModel,additionalWorkingDirectories,enabled);
+      resolvedBatModel,additionalWorkingDirectories);
   }
 }
 } // namespace batbox::bats

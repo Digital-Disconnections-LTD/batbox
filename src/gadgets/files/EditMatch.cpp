@@ -7,12 +7,6 @@ std::string replaceBytes(std::string text,const std::string& before,const std::s
   while((pos=text.find(before,pos))!=std::string::npos){text.replace(pos,before.size(),after);pos+=after.size();}
   return text;
 }
-std::string trimEnd(const std::string& line){
-  const auto trimmed=value::trim(line);
-  if(trimmed.empty())return "";
-  const auto start=line.find(trimmed);
-  return line.substr(0,start+trimmed.size());
-}
 std::string replaceLiteral(const std::string& original,const std::string& oldText,
                            const std::string& newText,bool all){
   auto content=value::utf16CodeUnits(original);
@@ -40,20 +34,6 @@ std::string normalizeQuotes(std::string text){
   text=replaceBytes(std::move(text),"’","'");
   text=replaceBytes(std::move(text),"“","\"");
   return replaceBytes(std::move(text),"”","\"");
-}
-
-std::string stripTrailingWhitespace(const std::string& text){
-  std::string result;
-  std::size_t start=0;
-  while(start<text.size()){
-    const auto ending=text.find_first_of("\r\n",start);
-    if(ending==std::string::npos){result+=trimEnd(text.substr(start));return result;}
-    result+=trimEnd(text.substr(start,ending-start));
-    if(text[ending]=='\r'&&ending+1<text.size()&&text[ending+1]=='\n'){
-      result+="\r\n";start=ending+2;
-    }else{result+=text[ending];start=ending+1;}
-  }
-  return result;
 }
 
 std::optional<std::string> findActualString(const std::string& fileContent,const std::string& searchString){

@@ -145,22 +145,4 @@ bool PlanFiles::resume(const Json& log,const std::string& flight,bool remote){
     return true;
   }catch(...){if(logError_)logError_(std::current_exception());return false;}
 }
-bool PlanFiles::fork(const Json& log,const std::string& targetFlight){
-  try{
-    auto source=planSlugFromLog(log);
-    if(!source){
-      // Compatibility with the indigenous flight-id plan filenames.
-      source=nonemptyString(value::property(log,"sessionId"));
-      if(!source||!std::filesystem::exists(slugPath(directory_(),*source)))return false;
-    }
-    const auto original=slugPath(directory_(),*source);
-    const auto target=path(targetFlight);
-    if(original==target)throw std::invalid_argument("Forked plan must have a distinct identity");
-    std::filesystem::copy_file(original,target,std::filesystem::copy_options::overwrite_existing);
-    return true;
-  }catch(const std::filesystem::filesystem_error& error){
-    if(!missing(error)&&logError_)logError_(std::current_exception());
-  }catch(...){if(logError_)logError_(std::current_exception());}
-  return false;
-}
 } // namespace batbox::application_flights

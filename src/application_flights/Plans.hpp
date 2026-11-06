@@ -26,7 +26,6 @@ public:
   std::optional<std::string> content(const std::string& flight,
     const std::optional<std::string>& bat={});
   bool resume(const Json& log,const std::string& flight,bool remote=false);
-  bool fork(const Json& log,const std::string& targetFlight);
   void clear(){slugs_.clear();}
 private:
   std::function<std::filesystem::path()> directory_;

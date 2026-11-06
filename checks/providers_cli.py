@@ -126,6 +126,21 @@ def main(binary):
             check(("/v1/models", "Bearer gsk-good") in seen, "openai-chat listing sent the key")
             check(document()["endpoints"]["groq-local"]["models"][:2] == ["cli-coder", "cli-tiny"],
                   "live models saved")
+            # Replacing an endpoint by id keeps the keys only the file sets.
+            edited = document()
+            edited["endpoints"]["groq-local"]["betas"] = ["context-1m-2025-08-07"]
+            edited["endpoints"]["groq-local"]["request_timeout_ms"] = 90000
+            edited["endpoints"]["groq-local"]["max_retries"] = 1
+            (config / "native-client.json").write_text(json.dumps(edited))
+            replaced = run("add", "groq", "--base-url", url, "--id", "groq-local",
+                           "--model", "cli-tiny", "--no-test",
+                           extra={"GROQ_API_KEY": "gsk-good"})
+            check(replaced.returncode == 0, "replace groq-local: " + replaced.stderr)
+            row = document()["endpoints"]["groq-local"]
+            check(row.get("betas") == ["context-1m-2025-08-07"] and
+                  row.get("request_timeout_ms") == 90000 and row.get("max_retries") == 1,
+                  "replacing an endpoint kept its betas and request limits: " + json.dumps(row))
+            check(document()["profile"] == "groq-local::cli-tiny", "replaced selection")
             rejected = run("add", "groq", "--base-url", url, "--id", "groq-bad",
                            "--model", "cli-coder", extra={"GROQ_API_KEY": "gsk-wrong"})
             check(rejected.returncode == 0 and "Connection check: The server rejected the key "

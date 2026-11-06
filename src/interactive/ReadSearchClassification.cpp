@@ -16,10 +16,6 @@ std::string value(const Json& object, const char* key) {
   const auto* found = member(object, key);
   return found && found->is_string() ? found->get<std::string>() : "";
 }
-bool feature(const ReadSearchImports& imports, const char* name) {
-  if (!imports.classification.feature) throw std::logic_error("feature import required");
-  return imports.classification.feature(name);
-}
 bool fullscreen(const ReadSearchImports& imports) {
   if (!imports.classification.isFullscreen)
     throw std::logic_error("isFullscreen import required");

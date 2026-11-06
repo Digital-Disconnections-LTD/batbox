@@ -22,7 +22,7 @@ jobs:
         uses: ./.github/actions/linux-dependencies
       - name: macOS dependencies
         if: runner.os == 'macOS'
-        run: brew install cmake ninja pkgconf nlohmann-json curl openssl@3 icu4c libuv vips yaml-cpp pcre2 libwebsockets cmark-gfm git ripgrep
+        run: brew install cmake ninja pkgconf nlohmann-json curl openssl@3 icu4c libuv vips yaml-cpp pcre2 cmark-gfm git ripgrep
       - name: Linux build
         if: runner.os == 'Linux'
         run: |
@@ -92,7 +92,6 @@ jobs:
             mingw-w64-ucrt-x86_64-libvips
             mingw-w64-ucrt-x86_64-yaml-cpp
             mingw-w64-ucrt-x86_64-pcre2
-            mingw-w64-ucrt-x86_64-libwebsockets
             mingw-w64-ucrt-x86_64-python
       - name: Dependency patch checkout checks
         shell: msys2 {0}

@@ -57,9 +57,6 @@ int main(int argc,char** argv){
   execution.markGadgetUseComplete=[](const std::string&){};
 
   query::EngineServices services;
-  services.config.getFlightId=[]{return "session";};
-  services.config.statsigFeatureGate=[](const std::string&){return false;};
-  services.setup.feature=[](const std::string&){return false;};
   services.setup.uuid=[]{return "chain";};
   services.setup.getMessagesAfterCompactBoundary=[](const Json& messages){return messages;};
   services.setup.applyGadgetResultBudget=[](const Json& messages,const Json&,
@@ -69,7 +66,7 @@ int main(int argc,char** argv){
   };
   services.setup.appendSystemContext=[](const Json& poetry,const Json&){return poetry;};
   services.setup.autocompact=[](const Json&,const execution::Context&,const Json&,
-    const std::string&,const Json&,double){return Json{{"compactionResult",nullptr}};};
+    const std::string&,const Json&){return Json{{"compactionResult",nullptr}};};
   services.setup.getAppState=[](const execution::Context&){
     return Json{{"toolPermissionContext",{{"mode","default"}}},
       {"mcp",{{"tools",Json::array()},{"clients",Json::array()}}}};
@@ -80,7 +77,6 @@ int main(int argc,char** argv){
     return Json{{"isAtBlockingLimit",false}};
   };
   services.setup.executionServices=&execution;
-  services.model.feature=services.setup.feature;
   services.model.prependUserContext=[](const Json& messages,const Json&){return messages;};
   services.model.createUserMessage=makeUser;
   services.model.getAppState=services.setup.getAppState;
@@ -91,14 +87,10 @@ int main(int argc,char** argv){
     return Json{{"type","system"},{"text",text},{"level",level}};
   };
   services.model.renderModelName=[](const std::string& model){return model;};
-  services.completion.feature=services.setup.feature;
-  services.completion.isPoetryTooLongMessage=[](const Json&){return false;};
-  services.completion.getFeatureValue=[](const std::string&,bool){return false;};
   services.completion.createUserMessage=makeUser;
   services.completion.executeStopFailureHooks=[](const Json&,const execution::Context&){};
   int stopHookCalls=0;
   query::StopHookServices stopServices;
-  stopServices.feature=services.setup.feature;
   stopServices.createStashSafeParams=[](const Json& context){return context;};
   stopServices.saveStashSafeParams=[](const Json&){};
   stopServices.isBareMode=[]{return true;};
@@ -122,7 +114,6 @@ int main(int argc,char** argv){
     const std::optional<bool>& active,const query::Yield& yield){
     return query::handleStopHooks(messages,assistants,params,context,active,stopServices,yield);
   };
-  services.gadgetTurn.feature=services.setup.feature;
   services.gadgetTurn.executionServices=&execution;
   services.gadgetTurn.createAttachmentMessage=[](const Json& attachment){
     return Json{{"type","attachment"},{"attachment",attachment}};

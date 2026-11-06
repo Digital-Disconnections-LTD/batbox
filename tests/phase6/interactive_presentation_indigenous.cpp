@@ -18,7 +18,6 @@ int main() {
   state.loading = true;
   std::string removed;
   ix::PresentationImports imports;
-  imports.stream.connectorTextEnabled = [] { return false; };
   imports.stream.nowMs = [] { return 4000.0; };
   imports.newConversationId = [] { return "next-conversation"; };
   imports.removeTranscriptMessage = [&](const Json& uuid) {
@@ -31,7 +30,6 @@ int main() {
   ix::applyStreamMessage(state, {textDelta, {}}, imports);
   assert(state.responseLengthUtf16 == 3);
   assert(state.streamingText == "🙂\n");
-  assert(ix::visibleStreamingText(state) == "🙂\n");
   auto final = ref(Json{{"type", "assistant"}, {"uuid", "a1"},
     {"message", {{"content", Json::array({
       Json{{"type", "text"}, {"text", "🙂"}}})}}}});

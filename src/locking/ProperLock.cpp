@@ -96,36 +96,6 @@ event_loop::Deferred<Release> Manager::lock(const std::string& file,
   });
   return output;
 }
-event_loop::Deferred<event_loop::Unit> Manager::unlock(
-    const std::string& file,Options options){
-  auto core=core_;
-  if(!core->loop.isOwnerThread())
-    throw std::logic_error("Directory unlock requires owner loop");
-  event_loop::Deferred<event_loop::Unit> output(core->loop);
-  runJob<std::string>(core->loop,[file,options]{
-    return file_ops::canonical(file,options.realpath);
-  }).then([core,output](const std::string* canonical,
-      const std::exception_ptr& error){
-    if(error){output.reject(error);return;}
-    core->unlockCanonical(*canonical).then([output](
-        const event_loop::Unit*,const std::exception_ptr& unlockError){
-      if(unlockError)output.reject(unlockError);
-      else output.resolve({});
-    });
-  });
-  return output;
-}
-event_loop::Deferred<bool> Manager::check(const std::string& file,
-    Options options){
-  auto core=core_;
-  if(!core->loop.isOwnerThread())
-    throw std::logic_error("Directory lock check requires owner loop");
-  options=file_ops::normalize(std::move(options));
-  return runJob<bool>(core->loop,[file,options]{
-    const auto path=file_ops::canonical(file,options.realpath);
-    return file_ops::check(path,options);
-  });
-}
 std::function<void()> Manager::lockSync(const std::string& file,
     Options options){
   auto core=core_;
@@ -153,19 +123,6 @@ std::function<void()> Manager::lockSync(const std::string& file,
       throw Error("ERELEASED","Lock is already released");
     core->unlockCanonicalSync(state->canonical);
   };
-}
-void Manager::unlockSync(const std::string& file,Options options){
-  auto core=core_;
-  if(!core->loop.isOwnerThread())
-    throw std::logic_error("Sync directory unlock requires owner loop");
-  core->unlockCanonicalSync(file_ops::canonical(file,options.realpath));
-}
-bool Manager::checkSync(const std::string& file,Options options){
-  auto core=core_;
-  if(!core->loop.isOwnerThread())
-    throw std::logic_error("Sync directory check requires owner loop");
-  options=file_ops::normalize(std::move(options));
-  return file_ops::check(file_ops::canonical(file,options.realpath),options);
 }
 event_loop::Deferred<event_loop::Unit> Core::unlockCanonical(
     const std::string& canonical){

@@ -33,17 +33,6 @@ bool isMcpFlightExpiredError(int status,const std::string& message){
   return status==404&&(message.find("\"code\":-32001")!=std::string::npos||
     message.find("\"code\": -32001")!=std::string::npos);
 }
-std::int64_t getMcpGadgetTimeoutMs(const std::optional<std::string>& environmentValue){
-  const double parsed=value::parseInt10(environmentValue.value_or(""));
-  if(std::isnan(parsed)||parsed==0)return 100000000;
-  if(!std::isfinite(parsed))return parsed>0?std::numeric_limits<std::int64_t>::max():
-    std::numeric_limits<std::int64_t>::min();
-  if(parsed>=static_cast<double>(std::numeric_limits<std::int64_t>::max()))
-    return std::numeric_limits<std::int64_t>::max();
-  if(parsed<=static_cast<double>(std::numeric_limits<std::int64_t>::min()))
-    return std::numeric_limits<std::int64_t>::min();
-  return static_cast<std::int64_t>(parsed);
-}
 GadgetCallResult callMCPGadgetWithUrlElicitationRetry(
   const Connection& connection,const std::string& gadget,const Json& args,
   std::stop_token signal,const std::function<void(const Json&)>& onProgress,

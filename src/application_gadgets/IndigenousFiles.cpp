@@ -38,7 +38,6 @@ void requireFiles(const Files& f){
   need(f.historyEnabled,"file history feature");
   need(f.lspAvailable,"LSP availability");
   need(f.remoteDiffEnabled,"remote diff feature");
-  need(f.checkTeamMemorySecrets,"team memory secret check");
   need(f.validateSettingsEdit,"settings file edit validation");
   need(f.localeCompare,"locale comparator");need(f.nowMs,"clock");
   need(f.media.getGadgetResultsDir,"media results directory");
@@ -78,10 +77,9 @@ IndigenousFileServices makeIndigenousFileServices(const Inputs& input){
   };
   auto editBase=[&](gadgets::files::FileWriteServices& s){
     s.paths=path;s.readFileStateOwner=f.stash;s.readFileState=f.stash.get();
-    s.matchingEditDenyRule=f.editDenied;
+    s.matchingEditDenyRule=f.editDenied;s.planModeActive=f.planModeActive;
     s.discoverSkillDirsForPaths=discover;s.addSkillDirectories=add;
     s.activateConditionalSkillsForPaths=activate;
-    s.checkTeamMemSecrets=f.checkTeamMemorySecrets;
     s.diagnosticBeforeFileEdited=f.diagnosticBeforeEdit;
     s.fileHistoryEnabled=f.historyEnabled;s.fileHistoryTrackEdit=f.trackHistory;
     s.getPatchForDisplay=f.patch;s.notifyEditorFileUpdated=f.notifyEditor;

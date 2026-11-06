@@ -1,9 +1,11 @@
 #pragma once
+#include <unordered_map>
 #include "interactive/conversation_shell/Shell.hpp"
 #include "interactive/presentation_providers/Chrome.hpp"
 #include "interactive/markdown/IndigenousRenderer.hpp"
 #include "messages/Messages.hpp"
-#include "text_width/IndigenousLayout.hpp"
+#include "text_width/StringWidth.hpp"
+#include "text_width/WrapAnsi.hpp"
 #include <memory>
 
 namespace batbox::application_presentation {
@@ -19,7 +21,6 @@ struct Inputs {
   // Optional model text for the status row and welcome card, such as
   // "openrouter · qwen/qwen3-coder"; modelLabel (the profile id) otherwise.
   std::function<std::string()> modelDisplay;
-  std::function<bool(const std::string&)> feature;
   std::function<void(const std::string&)> log;
   std::function<std::optional<std::string>(int)> storedImagePath;
   std::function<std::string(const std::string&)> displayPath;
@@ -48,9 +49,17 @@ private:
   text_width::WrapAnsiRef wrap_;
   std::shared_ptr<interactive::markdown::Renderer> markdown_;
   interactive::markdown::StreamingState streaming_;
+  interactive::markdown::PieceState responsePieces_,thinkingPieces_;
+  // Settled pieces keep the colors they were drawn with; a theme change
+  // starts them again.
+  std::string pieceTheme_;
+  void checkPieceTheme();
   struct MarkdownPalette;
   std::shared_ptr<MarkdownPalette> markdownPalette_;
   void refreshMarkdownPalette()const;
+  // When each retry row first showed, by message uuid, for its countdown.
+  std::shared_ptr<std::unordered_map<std::string,double>> retrySeen_=
+    std::make_shared<std::unordered_map<std::string,double>>();
   std::string spinnerGlyph()const;
   std::string expandKey()const;
 };

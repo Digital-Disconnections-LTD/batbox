@@ -72,6 +72,8 @@ def main() -> None:
         target = stage / 'bin' / 'batbox'
         shutil.copy2(binary, target)
         target.chmod(0o755)
+        # Drop the local symbol table; exported names stay for crash backtraces.
+        subprocess.run(['strip', '-x', str(target)], check=True)
         shutil.copyfile(source / 'docs/indigenous-macos.md', stage / 'README.md')
         shutil.copyfile(source / 'docs/BUILDING.md', stage / 'BUILDING.md')
         (stage / 'native-client.example.json').write_text(json.dumps({

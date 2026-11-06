@@ -71,10 +71,6 @@ CollapsedCard classifyCollapsedReadSearch(CollapsedState& state,
   for(const auto& id:gadgetUseIDs)
     card.error|=input.lookups->erroredGadgetUseIDs.contains(id);
   const bool hasMemory=memorySearch>0||memoryRead>0||memoryWrite>0;
-  require(services.teamMemoryEnabled,"team memory feature");
-  const bool teamEnabled=services.teamMemoryEnabled();
-  const bool hasTeam=teamEnabled&&(count(message,"teamMemorySearchCount")>0||
-    count(message,"teamMemoryReadCount")>0||count(message,"teamMemoryWriteCount")>0);
   state.maximum.read=maxJS(state.maximum.read,rawRead);
   state.maximum.search=maxJS(state.maximum.search,rawSearch);
   state.maximum.list=maxJS(state.maximum.list,rawList);
@@ -145,7 +141,7 @@ CollapsedCard classifyCollapsedReadSearch(CollapsedState& state,
       card.relevantMemories=memories->get<std::vector<Json>>();
     return card;
   }
-  if(!hasMemory&&!hasTeam&&!hasNonMemory)return card;
+  if(!hasMemory&&!hasNonMemory)return card;
   card.visible=true;
   std::string shellSuffix;
   if(fullscreen&&input.active){
@@ -170,7 +166,7 @@ CollapsedCard classifyCollapsedReadSearch(CollapsedState& state,
     }
   }
   appendCollapsedSummary(card.summary,message,state.maximum,fullscreen,
-                         input.active,teamEnabled,services);
+                         input.active,services);
   require(services.expandHint,"expand shortcut");
   card.expandHint=services.expandHint();
   if(input.active&&hint){

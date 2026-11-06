@@ -24,9 +24,6 @@ ObservedBackgroundSignal ForegroundSignals::createObserved(const std::string& id
   resolvers_[id]=Resolver{std::move(promise),completion};
   return {future,completion};
 }
-std::shared_future<void> ForegroundSignals::create(const std::string& id){
-  return createObserved(id).future;
-}
 void ForegroundSignals::resolve(const std::string& id){
   Resolver resolver;
   {

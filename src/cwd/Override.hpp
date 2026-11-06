@@ -1,5 +1,4 @@
 #pragma once
-#include "cwd/State.hpp"
 #include "runtime/AsyncLocalStorage.hpp"
 #include <functional>
 #include <optional>
@@ -33,11 +32,5 @@ template<class F>auto bindCurrentCwd(F fn){
     return fn(std::forward<decltype(args)>(args)...);
   };
 }
-std::string pwd(const State& state);
-std::string getCwd(const State& state);
-// Imported state getters can throw before initialization; getCwd uses the
-// original cwd exactly when pwd fails.
 std::string pwd(const std::function<std::string()>& getCwdState);
-std::string getCwd(const std::function<std::string()>& getCwdState,
-  const std::function<std::string()>& getOriginalCwd);
 } // namespace batbox::cwd

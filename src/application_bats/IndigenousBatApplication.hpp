@@ -61,7 +61,7 @@ public:
       getSystemPoetry;
     std::function<event_loop::Deferred<Json>(const gadgets::Gadgets&,
       const Json&,const Json&,const Json&)> getSystemPoetryAsync;
-    std::function<Json(const Json&,const std::string&,const Json&,const Json&)>
+    std::function<Json(const Json&,const std::string&,const Json&)>
       enhanceSystemPoetry;
     std::function<void(const Json&)> enqueueSdkEvent,
       enqueuePendingNotification;
@@ -148,6 +148,11 @@ private:
   void startBatJob(const std::string& missionId);
   void finishBatJob(const std::string& missionId);
   void requireCapacity(std::stop_token stop);
+  // While a Bat waits for a concurrent slot it shows in Active Missions as a
+  // "waiting" row (status pending, waiting true), removed once it starts or
+  // gives up. Returns the row id, or nothing when a slot is free now.
+  std::optional<std::string> showWaitingBat(const Json& input,const Json& callData);
+  void clearWaitingBat(const std::string& id);
   void releaseCapacity();
   void rollbackCapacity();
   // A Bat launching a Bat never waits for a slot, since it holds one itself:

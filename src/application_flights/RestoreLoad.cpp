@@ -105,8 +105,6 @@ std::optional<Json> logFromLoaded(const flights::LoadedTranscript& loaded,
     {"gitBranch",value::property(last,"gitBranch")},
     {"isSidechain",value::property(first,"isSidechain")},
     {"teamName",value::property(first,"teamName")}};
-  if(leafId.is_string())setIf(out,"summary",loaded.summaries,
-    leafId.get<std::string>());
   setIf(out,"customTitle",loaded.customTitles,metadataId);
   setIf(out,"aiTitle",loaded.aiTitles,metadataId);
   setIf(out,"tag",loaded.tags,metadataId);

@@ -1,4 +1,5 @@
 #include "attachments/files/FileAttachments.hpp"
+#include "attachments/local/LocalCollectors.hpp"
 #include "file_state_stash/FileStateStash.hpp"
 #include "runtime/Unicode.hpp"
 #include <chrono>
@@ -110,5 +111,29 @@ int main(){
     limited.string(),context,attachments::files::Mode::Compact,{},services));
   require(tokenLimited&&(*tokenLimited)["type"]=="compact_file_reference",
     "Typed token-limit error did not trigger compact reference");
+  context.data.erase("fileReadingLimits");
+  read.roughTokenCountEstimationForFileType=[](const std::string&,
+    const std::string&){return 0.0;};
+  read.countTokensWithAPI=[](const std::string&){return std::optional<double>();};
+  const auto changed=dir/"changed.txt";
+  {std::ofstream file(changed);file<<"first\nsecond\nthird\n";}
+  const auto readAt=await(loop,services.modificationTime(changed.string()));
+  context.readFileState->set(changed.string(),
+    file_state_stash::FileState{"first\nsecond\nthird\n",readAt});
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  {std::ofstream file(changed);file<<"first\nsecond edited elsewhere\nthird\n";}
+  auto local=attachments::local::makeIndigenousLocalServices(loop,
+    std::make_shared<attachments::files::Services>(services),read);
+  local.compactLinePrefixEnabled=[]{return false;};
+  local.logError=[](std::exception_ptr error){std::rethrow_exception(error);};
+  const auto edits=await(loop,attachments::local::getChangedFiles(context,local));
+  require(edits.is_array()&&edits.size()==1&&edits[0]["type"]=="edited_text_file"&&
+    edits[0]["snippet"].get<std::string>().find("second edited elsewhere")!=
+      std::string::npos,"An external edit to a Read file produced no diff attachment");
+  const auto hunks=attachments::local::lineHunks("a\nb\nc\nd\n","a\nb\nC\nd\n",1);
+  require(hunks.size()==1&&hunks[0]["oldStart"]==2&&hunks[0]["oldLines"]==3&&
+    hunks[0]["lines"]==Json::array({" b","-c","+C"," d"}),"Line hunk shape changed");
+  require(attachments::local::lineHunks("same\n","same\n",3).empty(),
+    "Identical text produced a hunk");
   std::cout<<"native file attachments passed\n";
 }

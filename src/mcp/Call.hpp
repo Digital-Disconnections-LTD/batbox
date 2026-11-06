@@ -7,5 +7,4 @@ GadgetCallResult callMCPGadgetWithUrlElicitationRetry(
   std::stop_token signal,const std::function<void(const Json&)>& onProgress,
   const UrlElicitationServices& services);
 bool isMcpFlightExpiredError(int status,const std::string& message);
-std::int64_t getMcpGadgetTimeoutMs(const std::optional<std::string>& environmentValue);
 } // namespace batbox::mcp

@@ -1,5 +1,4 @@
 #include "context/AsyncContextInternal.hpp"
-#include "utils/envUtils.hpp"
 
 namespace batbox::context {
 event_loop::Deferred<Json> AsyncContextStash::getSystemContext(const AsyncServices& services){
@@ -18,9 +17,8 @@ event_loop::Deferred<Json> AsyncContextStash::getSystemContext(const AsyncServic
     }catch(...){result.reject(std::current_exception());}
   };
   try{
-    bool skip=isEnvTruthy(value::property(services.environment,"BATBOX_REMOTE"));
-    if(!skip){requireContextBinding(services.includeGitInstructions,"includeGitInstructions");skip=!services.includeGitInstructions();}
-    if(skip)finish(std::nullopt);
+    requireContextBinding(services.includeGitInstructions,"includeGitInstructions");
+    if(!services.includeGitInstructions())finish(std::nullopt);
     else getGitStatus(services).then([result,finish](const std::optional<std::string>* git,const std::exception_ptr& error){
       if(error)result.reject(error);else finish(*git);
     });

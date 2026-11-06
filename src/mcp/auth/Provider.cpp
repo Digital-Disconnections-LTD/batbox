@@ -30,9 +30,6 @@ void Provider::updateEntry(const std::function<void(Json&)>& update){
   if(!record.is_object())record=Json::object();
   update(record);services_.storage.update(data);
 }
-std::optional<std::string> Provider::authorizationUrl()const{
-  std::lock_guard lock(mutex_);return authorizationUrl_;
-}
 Json Provider::clientMetadata()const{
   std::lock_guard lock(mutex_);
   Json metadata={{"client_name","Batbox ("+name_+")"},{"redirect_uris",Json::array({redirectUri_})},
@@ -61,12 +58,7 @@ Json Provider::clientInformation(){
     return result;
   }
   const auto& configured=field(field(config_,"oauth"),"clientId");
-  if(value::truthy(configured)){
-    Json result={{"client_id",configured}};
-    const auto& client=value::property(field(data,"mcpOAuthClientConfig"),key);
-    if(!field(client,"clientSecret").is_null())result["client_secret"]=field(client,"clientSecret");
-    return result;
-  }
+  if(value::truthy(configured))return Json{{"client_id",configured}};
   return Json();
 }
 void Provider::saveClientInformation(const Json& info){
@@ -92,7 +84,7 @@ void Provider::saveTokens(const Json& tokens){
   });
 }
 void Provider::redirectToAuthorization(const std::string& url){
-  std::lock_guard lock(mutex_);authorizationUrl_=url;
+  std::lock_guard lock(mutex_);
   const auto parsed=runtime::parseUrl(url);
   if(!parsed)throw std::runtime_error("Invalid authorization URL: must use http:// or https:// scheme");
   const auto search=text(field(*parsed,"search"));

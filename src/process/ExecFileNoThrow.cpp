@@ -2,15 +2,12 @@
 #include <stdexcept>
 
 namespace batbox::process {
-Json ExecResult::toJson()const{
-  Json value={{"stdout",stdoutText},{"stderr",stderrText},{"code",code}};
-  if(error)value["error"]=*error;
-  return value;
-}
+namespace {
 std::string getErrorMessage(const ExecaResult& result,int errorCode){
   if(result.shortMessage&&!result.shortMessage->empty())return *result.shortMessage;
   if(result.signal)return *result.signal;
   return std::to_string(errorCode);
+}
 }
 event_loop::Deferred<ExecResult> execFileNoThrowWithCwd(event_loop::Loop& loop,
   const std::string& file,const std::vector<std::string>& args,

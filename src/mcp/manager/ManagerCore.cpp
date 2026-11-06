@@ -107,11 +107,6 @@ Json Manager::resources()const{
   for(const auto& value:servers_)if(value.resources.is_array()&&!value.resources.empty())result[value.name]=value.resources;
   return result;
 }
-std::vector<gadgets::Gadget> Manager::gadgets()const{
-  requireOwner();std::vector<gadgets::Gadget> result;
-  for(const auto& value:servers_)result.insert(result.end(),value.gadgets.begin(),value.gadgets.end());
-  return result;
-}
 event_loop::Deferred<event_loop::Unit> Manager::shutdown(){
   requireOwner();if(shutdownResult_)return *shutdownResult_;
   shutdownResult_.emplace(inputs_.loop);closing_=true;

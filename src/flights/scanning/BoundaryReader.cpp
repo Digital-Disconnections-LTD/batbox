@@ -79,7 +79,7 @@ ScanResult readTranscriptForLoad(const std::string& filePath,std::size_t fileSiz
     state.bufFileOff+=scan.trailStart;
   }
   detail::finalizeOutput(state);
-  return {state.boundaryStartOffset,std::move(state.out),state.hasPreservedSegment};
+  return {state.boundaryStartOffset,std::move(state.out)};
 }
 void bindIndigenousLoadScanners(LoadServices& services){
   services.readTranscriptForLoad=readTranscriptForLoad;

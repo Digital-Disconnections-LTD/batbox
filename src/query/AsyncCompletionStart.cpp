@@ -5,13 +5,11 @@ AsyncDecisionCursor makeAsyncCompletionCursor(event_loop::Loop& loop,
   const Params& params,const State& state,
   std::shared_ptr<PreparedIteration> prepared,
   std::shared_ptr<ModelPassResult> modelResult,
-  std::optional<double>& missionBudgetRemaining,BudgetTracker* budgetTracker,
   AsyncCompletionServices services){
   if(!loop.isOwnerThread())throw std::logic_error("Async completion requires loop owner");
   if(!prepared||!modelResult)throw std::invalid_argument("Async completion requires model pass");
   auto run=std::make_shared<async_completion::Run>(loop,params,state,
-    std::move(prepared),std::move(modelResult),missionBudgetRemaining,budgetTracker,
-    std::move(services));
+    std::move(prepared),std::move(modelResult),std::move(services));
   return AsyncDecisionCursor{[run]{return run->next();},
     [run]{return run->close();}};
 }
@@ -20,10 +18,9 @@ void bindAsyncCompletion(event_loop::Loop& loop,AsyncEngineServices& engine,
   engine.completeWithoutGadgets=[&loop,services=std::move(services)](
       const Params& params,const State& state,
       std::shared_ptr<PreparedIteration> prepared,
-      std::shared_ptr<ModelPassResult> modelResult,
-      std::optional<double>& remaining,BudgetTracker* budgetTracker){
+      std::shared_ptr<ModelPassResult> modelResult){
     return makeAsyncCompletionCursor(loop,params,state,std::move(prepared),
-      std::move(modelResult),remaining,budgetTracker,services);
+      std::move(modelResult),services);
   };
 }
 } // namespace batbox::query
@@ -68,14 +65,9 @@ void Run::pump(){
     while(!requests.empty()){
       switch(stage){
         case Stage::Start:start();break;
-        case Stage::AwaitReactive:case Stage::StopAwait:return;
-        case Stage::PostCompact:emitPostCompact();break;
-        case Stage::AfterPostCompact:finishReactive();break;
-        case Stage::AfterWithheldError:afterWithheldError();break;
-        case Stage::AfterExhaustedMax:stage=Stage::StopStart;break;
+        case Stage::StopAwait:return;
         case Stage::StopStart:startStopHooks();break;
         case Stage::AfterStop:afterStopHooks();break;
-        case Stage::Budget:checkBudget();break;
         case Stage::Done:{
           auto request=requests.front();requests.pop_front();
           request.resolve(AsyncDecisionStep{true,{},{}});break;
@@ -97,49 +89,31 @@ State Run::nextState()const{
   State next=state;
   next.gadgetUseContext=prepared->gadgetUseContext;
   next.autoCompactTracking=prepared->tracking;
-  next.pendingGadgetUseSummary.reset();
-  next.pendingGadgetUseSummaryAsync.reset();
   next.stopHookActive.reset();
   return next;
 }
 void Run::start(){
-  auto& sync=services.sync;
-  need(sync.feature,"feature");
   const Json& last=lastMessage();
-  withheld413=false;
-  if(field(last,"type")=="assistant"&&value::truthy(field(last,"isApiErrorMessage"))){
-    need(sync.isPoetryTooLongMessage,"isPromptTooLongMessage");
-    withheld413=sync.isPoetryTooLongMessage(last);
-  }
-  need(services.reactiveCompactAvailable,"reactiveCompactAvailable");
-  const bool reactive=services.reactiveCompactAvailable();
-  withheldMedia=false;
-  if(prepared->mediaRecoveryEnabled&&reactive){
-    need(sync.isWithheldMediaSizeError,"isWithheldMediaSizeError");
-    withheldMedia=sync.isWithheldMediaSizeError(last);
-  }
-  if(withheld413&&sync.feature("CONTEXT_COLLAPSE")&&
-     field(state.transition,"reason")!="collapse_drain_retry"){
-    need(services.contextCollapseAvailable,"contextCollapseAvailable");
-    if(services.contextCollapseAvailable()){
-      need(sync.recoverFromOverflow,"recoverFromOverflow");
-      const Json drained=sync.recoverFromOverflow(prepared->messagesForQuery,
-        params.querySource);
-      const Json& committed=field(drained,"committed");
-      if(committed.is_number()&&committed.get<double>()>0){
-        State next=nextState();next.messages=field(drained,"messages");
-        next.maxOutputTokensOverride.reset();
-        next.transition=Json{{"reason","collapse_drain_retry"},
-          {"committed",committed}};
-        finish(CompletionDecision{next,{}});return;
-      }
+  if(isWithheldMaxOutputTokens(last)){
+    if(state.maxOutputTokensRecoveryCount<3){
+      need(services.sync.createUserMessage,"createUserMessage");
+      const Json recovery=services.sync.createUserMessage(Json{{"content",
+        "Output token limit hit. Resume directly — no apology, no recap of what you were doing. "
+        "Pick up mid-thought if that is where the cut happened. Break remaining work into smaller pieces."},
+        {"isMeta",true}});
+      State next=nextState();
+      Json history=appendMessageArrays(prepared->messagesForQuery,
+        modelResult->assistantMessages);
+      Json recoveryItems=Json::array();recoveryItems.push_back(recovery);
+      next.messages=appendMessageArrays(history,recoveryItems);
+      next.maxOutputTokensRecoveryCount=state.maxOutputTokensRecoveryCount+1;
+      next.maxOutputTokensOverride.reset();
+      next.transition=Json{{"reason","max_output_tokens_recovery"},
+        {"attempt",next.maxOutputTokensRecoveryCount}};
+      finish(CompletionDecision{next,{}});return;
     }
+    emit(lastMessageRef(),Stage::StopStart);return;
   }
-  if((withheld413||withheldMedia)&&reactive){startReactive();return;}
-  if(withheld413&&sync.feature("CONTEXT_COLLAPSE")){
-    emit(lastMessageRef(),Stage::AfterWithheldError);return;
-  }
-  stage=Stage::AfterExhaustedMax;
-  afterExhaustedMax();
+  stage=Stage::StopStart;
 }
 } // namespace batbox::query::async_completion

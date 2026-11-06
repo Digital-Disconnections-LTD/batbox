@@ -51,17 +51,13 @@ BuildResult BashProvider::buildExecCommand(const std::string& command,const Buil
   {
     std::lock_guard lock(mutex_);
     lastSnapshotPath_=snapshot;
-    currentSandboxTmpDir_=options.sandboxTmpDir;
   }
   const auto tmpdir=services_.operatingSystemTempDir();
   const auto shellTmpdir=services_.windows?services_.indigenousToPosixPath(tmpdir):tmpdir;
-  const auto shellCwdFilePath=options.useSandbox?
-    shell::joinPosixPath(options.sandboxTmpDir.value(),"cwd-"+options.id):
-    shell::joinPosixPath(shellTmpdir,"batbox-"+options.id+"-cwd");
-  const auto cwdFilePath=options.useSandbox?
-    shell::joinPosixPath(options.sandboxTmpDir.value(),"cwd-"+options.id):
-    services_.windows?services_.indigenousJoin(tmpdir,"batbox-"+options.id+"-cwd"):
-      shell::joinPosixPath(tmpdir,"batbox-"+options.id+"-cwd");
+  const auto shellCwdFilePath=shell::joinPosixPath(shellTmpdir,"batbox-"+options.id+"-cwd");
+  const auto cwdFilePath=services_.windows?
+    services_.indigenousJoin(tmpdir,"batbox-"+options.id+"-cwd"):
+    shell::joinPosixPath(tmpdir,"batbox-"+options.id+"-cwd");
   const auto normalized=shell_command::rewriteWindowsNullRedirect(command);
   const bool addRedirect=shell_command::shouldAddStdinRedirect(normalized);
   auto quoted=shell_command::quoteShellCommand(normalized,addRedirect);
@@ -94,13 +90,6 @@ std::map<std::string,std::string> BashProvider::getEnvironmentOverrides(const st
   const auto tmux=services_.tmuxEnvironment();
   std::map<std::string,std::string> env;
   if(tmux&&!tmux->empty())env["TMUX"]=*tmux;
-  std::optional<std::string> sandboxTmpDir;
-  {std::lock_guard lock(mutex_);sandboxTmpDir=currentSandboxTmpDir_;}
-  if(sandboxTmpDir){
-    const auto posix=services_.windows?services_.indigenousToPosixPath(*sandboxTmpDir):*sandboxTmpDir;
-    env["TMPDIR"]=posix;env["BATBOX_TMPDIR"]=posix;
-    env["TMPPREFIX"]=shell::joinPosixPath(posix,"zsh");
-  }
   for(const auto& [key,value]:services_.flightEnvVars())env[key]=value;
   return env;
 }

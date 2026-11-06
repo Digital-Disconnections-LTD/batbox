@@ -7,6 +7,7 @@
 #include "application_commands/CommandsMcp.hpp"
 #include "mcp/OutputStorage.hpp"
 #include "application/Async.hpp"
+#include "runtime/IndigenousPath.hpp"
 #include "runtime/Platform.hpp"
 #include <stdexcept>
 
@@ -83,6 +84,14 @@ void Host::Impl::bindBackend(){
   gadgetDefaults.skillRoster=skills->roster();
   gadgetDefaults.skillServices=skills->rosterServices();
   gadgetDefaults.additionalGadgets.push_back(skills->makeGadget());
+  if(!cron)cron=makeCronWiring(owner,bindingProjectRoot().string(),flightId,
+    [store=store]{
+      const auto settings=store->getState()->fieldRef("settings");
+      return settings&&settings->is_object()?*settings:Json::object();},
+    [this](const std::string& value){log(value);});
+  cron->state->identity.directories.projectRoot=bindingProjectRoot().string();
+  for(auto& gadget:makeCronGadgets(owner,cron))
+    gadgetDefaults.additionalGadgets.push_back(std::move(gadget));
   gadgetDefaults.makeBatGadget=[generationBats]{
     auto owner=generationBats->lock();
     if(!owner)throw std::logic_error("Native Agent owner is unavailable");
@@ -178,6 +187,11 @@ void Host::Impl::bindBackend(){
   attachmentInputs.log=[this](const std::string& value){log(value);};
   attachmentInputs.getAsyncHookResponses=[hooks=hooks]{
     return hooks->asyncHookResponses();};
+  attachmentInputs.headFileChanges=[weak=std::weak_ptr(poetry)](
+      const std::function<bool(const std::string&)>& coveredElsewhere){
+    // A retired workspace releases its poetry; attachments may outlive it.
+    const auto live=weak.lock();
+    return live?live->takeHeadChangeAttachments(coveredElsewhere):Json::array();};
   attachments=application_media::AggregateProvider::create(
     std::move(attachmentInputs));
   skills->bindRuntime(attachments,hooks);
@@ -199,7 +213,12 @@ void Host::Impl::bindBackend(){
   compactInputs.progress=[this](const Json&){
     if(shell)shell->requestRedraw();};
   compactInputs.notification=[this](const Json& value){
-    log("Compaction: "+value.dump());};
+    log("Compaction: "+value.dump());
+    // Compaction failures are shown, not only logged.
+    const auto& text=value::property(value,"text");
+    if(closing||!text.is_string())return;
+    statusText=text.get<std::string>();++view.revision;
+    if(shell)shell->requestRedraw();};
   compactor=application_engine::makeCompactor(std::move(compactInputs));
 
   application_engine::ExecutionInputs executionInputs(owner);
@@ -240,7 +259,7 @@ void Host::Impl::bindBackend(){
 
   application_engine::DefaultInputs engineDefaults(owner);
   auto& engineInputs=engineDefaults.engine;
-  engineInputs.config=config;engineInputs.flightId=flightId;
+  engineInputs.config=config;
   engineInputs.model=model;engineInputs.messages=messages;
   engineInputs.execution=execution;
   engineInputs.getAppState=[this,dispatch=owner.dispatcher()](
@@ -280,10 +299,21 @@ void Host::Impl::bindBackend(){
       dispatch=owner.dispatcher()](const gadgets::Gadget& gadget,const Json& input,
       const Json& result,const execution::Context& context,
       const std::function<void(const Json&)>& yield){
-    if(gadget.name=="Write"||gadget.name=="Edit"||gadget.name=="Bash"){
+    // A Bash command needs no check here: every reader of the instruction
+    // caches (the next turn's context, a Bat's preflight) compares the
+    // instruction file stamps first. Only a written .md file can change what
+    // the memory provider loads, but the main Flight's own Write or Edit of
+    // any file is still noted so a stable head does not repeat it as an end
+    // note.
+    if(gadget.name=="Write"||gadget.name=="Edit"){
       const auto& raw=value::property(input,"file_path");
-      const auto path=raw.is_string()?raw.get<std::string>():std::string{};
-      onOwnerAndWait<void>(dispatch,[memory,path]{memory->observeFileChange(path);});
+      const bool ownWrite=!value::truthy(value::property(context.data,"agentId"));
+      if(raw.is_string()&&(ownWrite||runtime::pathFromUtf8(
+          raw.get_ref<const std::string&>()).extension()==".md")){
+        const auto path=raw.get<std::string>();
+        onOwnerAndWait<void>(dispatch,[memory,path,ownWrite]{
+          memory->observeFileChange(path,ownWrite);});
+      }
     }
     if(postGadgetUse)postGadgetUse(gadget,input,result,context,yield);
   };
@@ -353,8 +383,8 @@ void Host::Impl::bindBackend(){
     });return output;
   };
   batInputs.enhanceSystemPoetry=[poetry=poetry](const Json& value,
-      const std::string& modelName,const Json& directories,const Json& gadgets){
-    return poetry->enhanceBatPoetry(value,modelName,directories,gadgets);};
+      const std::string& modelName,const Json& directories){
+    return poetry->enhanceBatPoetry(value,modelName,directories);};
   batInputs.enqueueSdkEvent=[this](const Json& event){
     log("Agent progress: "+event.dump());};
   batInputs.enqueuePendingNotification=[this](const Json& value){
@@ -496,7 +526,7 @@ void Host::Impl::bindMcpRuntime(){
         loop,command,args,context]{
         auto getAttachments=[aggregate,context](const std::string& text){
           return aggregate->collectPoetry(text,Json(),Json::array(),
-            value::property(context.query.data,"messages"),
+            execution::conversationMessages(context.query),
             std::optional<std::string>("repl_main_thread"));};
         auto entry=application_commands::makeMcpPoetryCommand(manager,
           resultServices,getAttachments,messages,invoked,

@@ -31,7 +31,7 @@ int main(){
   auto tokens=tokenizer.feed("\x94");
   assert(tokens.size()==1&&tokens[0].value=="—");
   assert(tokenizer.feed("\xf0\x9f").empty());
-  tokenizer.reset();
+  tokenizer=termio::Tokenizer();
   tokens=tokenizer.feed("ok");
   assert(tokens.size()==1&&tokens[0].value=="ok");
   std::cout<<"Unicode paste survives every terminal read boundary\n";

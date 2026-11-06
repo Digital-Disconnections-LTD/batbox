@@ -51,7 +51,6 @@ public:
   Json clients()const;
   Json resources()const;
   std::vector<ServerResult> snapshot()const;
-  std::vector<gadgets::Gadget> gadgets()const;
   // SDK management controls acknowledge only after the queued snapshot has
   // reached the roster/AppState changed callback.
   void flushPending();

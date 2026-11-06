@@ -26,10 +26,6 @@ using TextUpdate = std::function<std::optional<std::string>(
     const std::optional<std::string>&)>;
 
 struct StreamImports {
-  // Imported feature and protocol predicate. Both are evaluated only at the
-  // branch where each service is needed.
-  std::function<bool()> connectorTextEnabled;
-  std::function<bool(const Json&)> isConnectorTextBlock;
   std::function<double()> nowMs;
 };
 struct StreamCallbacks {

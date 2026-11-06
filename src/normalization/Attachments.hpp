@@ -19,7 +19,6 @@ struct AttachmentServices {
   std::function<std::string(const Json&)> shellQuote;
   std::function<Json(const Json&, const std::string&)> mapBashResult;
   std::function<Json(const Json&, const std::string&)> mapFileReadResult;
-  std::function<std::string(const Json&)> formatPartnerMessages;
   Json outputStyleConfig = Json::object();
   std::string missionCreateGadgetName;
   std::string missionUpdateGadgetName;
@@ -40,14 +39,8 @@ struct AttachmentServices {
   int planBatCount = 1;
   int exploreBatCount = 1;
   int maxLinesToRead = 2000;
-  std::string verifyPlanGadgetName;
   std::string exitPlanModeGadgetName;
-  std::string snipNudgeText;
-  bool historySnipFeature = false;
-  bool verifyPlanEnabled = false;
   bool todoV2Enabled = false;
-  bool batSwarmsEnabled = false;
-  bool skillSearchEnabled = false;
   bool planInterviewEnabled = false;
   bool explorePlanBatsEnabled = false;
   bool embeddedSearchGadgets = false;

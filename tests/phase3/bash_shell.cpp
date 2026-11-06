@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include "shell/ManagedShell.hpp"
+#include "shell/CommandSplitter.hpp"
 #include <atomic>
 #include <chrono>
 #include <filesystem>
@@ -31,8 +32,24 @@ int main(){
  auto large=shell.run({.command="printf '%0200d' 0"});
  if(!large.outputFilePath||large.outputFileSize.value_or(0)<200||large.stdoutText.size()!=100){
    std::cerr<<"large output persistence failed: "<<large.toJson().dump()<<'\n';return 1;}
+ // The end of a large output is read too: a failing build prints its summary last.
+ auto tailed=shell.run({.command="printf '%0300d' 0; printf 'tail-%s\\n' end"});
+ if(!tailed.outputFilePath||!tailed.stdoutTail||!tailed.stdoutTail->ends_with("tail-end\n")||
+    tailed.stdoutText.find("tail-end")!=std::string::npos){
+   std::cerr<<"large output tail missing: "<<tailed.stdoutTail.value_or("<none>")<<'\n';return 1;}
+ if(large.stdoutTail&&large.stdoutTail->size()!=200){
+   std::cerr<<"large output tail is not the whole short output\n";return 1;}
  auto timed=shell.run({.command="sleep 2",.timeoutMs=100});
- if(timed.code!=143){std::cerr<<"timeout failed: "<<timed.toJson().dump()<<'\n';return 1;}
+ if(timed.code!=143||timed.stderrText.find("Command timed out after")!=0){
+   std::cerr<<"timeout failed: "<<timed.toJson().dump()<<'\n';return 1;}
+ // The real splitter returns whole segments; sleep is exempt by its program name.
+ const auto split=[](const std::string& command){
+   return batbox::shell_split::splitCommandDeprecated(command);};
+ if(isAutobackgroundingAllowed("sleep 30",split)||
+    isAutobackgroundingAllowed("sleep 5 && make test",split)||
+    !isAutobackgroundingAllowed("sleepy 30",split)||
+    !isAutobackgroundingAllowed("make test",split)){
+   std::cerr<<"sleep auto-background exemption misclassified\n";return 1;}
  auto bg=shell.run({.command="sleep 0.3; echo background",.runInBackground=true});
  if(!bg.backgroundMissionId){std::cerr<<"background ID missing\n";return 1;}
  auto done=shell.wait(*bg.backgroundMissionId,2000);
@@ -93,7 +110,7 @@ int main(){
  if(!splitThrew||std::filesystem::exists(root/"should-not-exist")||
     std::filesystem::exists(throwShell.outputPath("test"+std::to_string(before+1)))){
    std::cerr<<"throwing splitter spawned a child\n";return 1;}
- // An arbitrary completion sink exception must be retained and diagnosed.
+ // An arbitrary completion sink exception must be diagnosed.
  std::atomic<int> diagnosed{0};
  auto callbackConfig=config;
  callbackConfig.onBackgroundComplete=[](const std::string&,const ExecResult&){
@@ -105,16 +122,27 @@ int main(){
  auto callbackJob=callbackShell.run({.command="echo done",.runInBackground=true});
  if(!callbackJob.backgroundMissionId){std::cerr<<"completion test job not backgrounded\n";return 1;}
  callbackShell.wait(*callbackJob.backgroundMissionId,2000);
- std::exception_ptr callbackError;
- for(int i=0;i<100&&!callbackError;++i){
-   callbackError=callbackShell.backgroundCallbackFailure(*callbackJob.backgroundMissionId);
-   if(!callbackError)std::this_thread::sleep_for(std::chrono::milliseconds(10));
- }
- bool originalException=false;
- try{if(callbackError)std::rethrow_exception(callbackError);}
- catch(const std::runtime_error& e){originalException=std::string(e.what())=="completion sink failure";}
- if(!originalException||diagnosed.load()!=1){std::cerr<<"completion exception lost\n";return 1;}
+ for(int i=0;i<100&&diagnosed.load()==0;++i)
+   std::this_thread::sleep_for(std::chrono::milliseconds(10));
+ if(diagnosed.load()!=1){std::cerr<<"completion exception lost\n";return 1;}
  callbackShell.cleanup(*callbackJob.backgroundMissionId);
+ // A background command killed for its output size says so in its completion.
+ std::promise<ExecResult> sizeKilled;
+ auto sizeConfig=config;
+ sizeConfig.maxBackgroundOutputBytes=4000;
+ sizeConfig.onBackgroundComplete=[&](const std::string&,const ExecResult& result){
+   sizeKilled.set_value(result);};
+ ManagedShell sizeShell(sizeConfig);
+ auto sizeFuture=sizeKilled.get_future();
+ auto noisy=sizeShell.run({.command="while :; do printf '%01000d\\n' 0; sleep 0.01; done",
+   .runInBackground=true});
+ if(!noisy.backgroundMissionId||
+    sizeFuture.wait_for(std::chrono::seconds(20))!=std::future_status::ready){
+   std::cerr<<"size-limited background command was not killed\n";return 1;}
+ const auto sizeResult=sizeFuture.get();
+ if(sizeResult.stderrText!="Background command killed: output file exceeded 5GB"){
+   std::cerr<<"size kill note missing: "<<sizeResult.toJson().dump()<<'\n';return 1;}
+ sizeShell.cleanup(*noisy.backgroundMissionId);
  std::filesystem::remove_all(root);
  std::cout<<"PASS native shell basic/cwd/output/background/stop/cancel/interrupt/timeout/throw safety\n";
 }

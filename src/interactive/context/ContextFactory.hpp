@@ -14,7 +14,6 @@ struct SpinnerBindings {
 };
 struct ContextBindings {
   std::shared_ptr<app_state::AppStateStore> store;
-  gadgets::CatalogImports catalog;
   gadgets::CatalogSettings catalogSettings;
   std::function<gadgets::Gadgets(const Json&,const gadgets::Gadgets&)> assembleGadgets;
   std::function<std::shared_ptr<const void>()> gadgetSnapshotOwner;
@@ -46,9 +45,6 @@ struct ContextBindings {
   std::function<void(const std::string&)> onInstallIDEExtension,setStreamMode,
     setConversationId;
   std::function<void(bool)> setHasInterruptibleGadgetInProgress;
-  std::function<std::function<event_loop::Deferred<Json>(const Json&)>(
-    const std::string&,const std::optional<std::string>&)> requestPoetry;
-  std::function<bool(const std::string&)> feature;
   SpinnerBindings spinner;
   std::shared_ptr<file_state_stash::FileStateStash> readFileState;
   std::shared_ptr<runtime::OrderedStringSet> loadedNestedMemoryPaths,

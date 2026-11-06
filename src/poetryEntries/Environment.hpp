@@ -11,7 +11,7 @@ struct KnowledgePattern {std::string contains,cutoff;};
 struct EnvironmentServices {
   Json environment=Json::object();
   std::string platform;
-  bool internalUser=false,undercover=false,worktree=false;
+  bool worktree=false;
   std::function<std::future<bool>()> getIsGit;
   std::function<std::string()> getCwd;
   std::function<std::optional<std::string>(const std::string&)> marketingName;
@@ -25,9 +25,6 @@ std::optional<std::string> getKnowledgeCutoff(const std::string& model,
   const EnvironmentServices& services);
 std::string getShellInfoLine(const EnvironmentServices& services);
 std::string getUnameSR(const EnvironmentServices& services);
-std::string computeEnvInfo(const std::string& model,
-  const std::optional<std::vector<std::string>>& additionalWorkingDirectories,
-  const EnvironmentServices& services);
 std::string computeSimpleEnvInfo(const std::string& model,
   const std::optional<std::vector<std::string>>& additionalWorkingDirectories,
   const EnvironmentServices& services);

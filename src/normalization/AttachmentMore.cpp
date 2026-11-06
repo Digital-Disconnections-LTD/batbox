@@ -92,14 +92,13 @@ std::optional<Json> normalizeMoreAttachmentForAPI(const Json& attachment,const A
     return Json::array({meta(wrapInSystemReminder(join(parts," ")),services)});
   }
   if(type=="compaction_reminder")return one("Auto-compact is enabled. When the context window is nearly full, older messages will be automatically summarized so you can continue working seamlessly. There is no need to stop or rush — you have unlimited context through automatic compaction.",services);
-  if(type=="context_efficiency")return services.historySnipFeature?one(services.snipNudgeText,services):Json::array();
+  if(type=="context_efficiency")return Json::array();
   if(type=="companion_intro"){
     need(static_cast<bool>(services.companionIntroText),"AttachmentServices.companionIntroText");
     return one(services.companionIntroText(val(attachment,"name"),val(attachment,"species")),services);
   }
   if(type=="verify_plan_reminder"){
-    const std::string gadget=services.verifyPlanEnabled?services.verifyPlanGadgetName:"";
-    return one("You have completed implementing the plan. Please call the \""+gadget+"\" tool directly (NOT the "+services.batGadgetName+" tool or an agent) to verify that all plan items were completed correctly.",services);
+    return one("You have completed implementing the plan. Please call the \"\" tool directly (NOT the "+services.batGadgetName+" tool or an agent) to verify that all plan items were completed correctly.",services);
   }
   return std::nullopt;
 }

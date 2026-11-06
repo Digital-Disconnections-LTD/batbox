@@ -93,9 +93,6 @@ std::vector<std::string> activateConditionalSkillsForPaths(
   if(!activated.empty()&&services.skillsLoaded)services.skillsLoaded();
   return activated;
 }
-std::size_t getConditionalSkillCount(const SkillRoster& roster){
-  return roster.conditionalSkills.size();
-}
 void clearDynamicSkills(SkillRoster& roster){
   roster.checkedDynamicDirs.clear();
   roster.dynamicSkills.clear();

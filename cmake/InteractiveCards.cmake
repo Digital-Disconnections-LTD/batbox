@@ -19,8 +19,6 @@ target_sources(batbox_terminal_ftxui PRIVATE
 target_sources(batbox_interactive PRIVATE
   src/interactive/cards_assistant/AssistantTextCard.cpp
   src/interactive/cards_assistant/ThinkingCard.cpp
-  src/interactive/cards_assistant/RateLimitCard.cpp
-  src/interactive/cards_system/SystemAPIErrorBinding.cpp
   src/interactive/cards_system/SystemAPIErrorCard.cpp
   src/interactive/cards_system/SystemAPIErrorTicker.cpp
   src/interactive/cards_system/SystemTextRouter.cpp)
@@ -60,7 +58,6 @@ target_sources(batbox_terminal_ftxui PRIVATE
   src/interactive/message_view/RetainedViews.cpp)
 target_sources(batbox_interactive PRIVATE
   src/interactive/cards_remaining/AttachmentCard.cpp
-  src/interactive/cards_remaining/AttachmentMailbox.cpp
   src/interactive/cards_remaining/AttachmentMissionStatus.cpp
   src/interactive/cards_remaining/MessageLeaves.cpp)
 target_sources(batbox_terminal_ftxui PRIVATE

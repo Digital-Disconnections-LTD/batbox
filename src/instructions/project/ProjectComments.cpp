@@ -37,8 +37,4 @@ StrippedComments stripHtmlCommentsFromTokens(const Json& tokens){
   }
   return out;
 }
-StrippedComments stripHtmlComments(const std::string& content){
-  if(content.find("<!--")==std::string::npos)return {content,false};
-  return stripHtmlCommentsFromTokens(lexMarkdown(content));
-}
 }

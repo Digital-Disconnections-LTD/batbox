@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <set>
 
 namespace batbox::application_media {
 struct Inputs {
@@ -33,8 +34,10 @@ public:
     const std::optional<std::string>& sourcePath)const;
   std::optional<std::string> storedImagePath(int id)const;
   void acceptPastedImage(const Json& content);
-  void clearStoredImagePaths();
-  event_loop::Deferred<event_loop::Unit> cleanupOldImageStashes();
+  // Removes image stashes of other Flights last changed before cutoffMs,
+  // except those of the Flights in held.
+  event_loop::Deferred<event_loop::Unit> cleanupOldImageStashes(double cutoffMs,
+    std::set<std::string> held);
   void copyMessageText(const std::string& text,
     std::function<void(const std::string&)> writeTerminal,
     std::function<void(const interactive::navigation::CopyNotification&)> notify);

@@ -56,9 +56,6 @@ int main(){
     service.commandHasAnyCd=[](const std::string& command){return command.find("cd ")!=std::string::npos;};
     service.preparePermissionMatcher=[](const Json&){
       return ready(std::function<bool(const std::string&)>([](const std::string&){return true;}));};
-    service.shouldUseSandbox=[](const Json&){return false;};
-    service.sandboxCommand=[](const std::string& command,const Json&,const Json&){return command;};
-    service.annotateSandboxFailures=[](const std::string&,const std::string& text){return text;};
     service.resetCwdIfOutsideProject=[](const Json&){return false;};
     service.extractHints=[](const std::string& text,const std::string&){
       return Json{{"stripped",text},{"hints",Json::array()}};};

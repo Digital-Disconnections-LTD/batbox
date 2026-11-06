@@ -28,10 +28,6 @@ void Run::closeAfterConsumerError(std::exception_ptr error){
 }
 void Run::finish(){
   auto& s=*services;
-  if(s.feature("MONSTER")){
-    need(s.getMessages,"getMessages");need(s.launchMonsterObserver,"launchMonsterObserver");
-    s.launchMonsterObserver(s.getMessages());
-  }
   s.checkpoint("query_end");
   need(s.resetLoadingState,"resetLoadingState");s.resetLoadingState();
   need(s.logQueryProfileReport,"logQueryProfileReport");s.logQueryProfileReport();

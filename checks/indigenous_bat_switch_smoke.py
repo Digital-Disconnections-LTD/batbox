@@ -16,7 +16,7 @@ from loopback_http import LoopbackHTTPServer
 from pty_smoke import PtySession, STEP_SECONDS, child_environment
 
 TITLES = ("Research alpha", "Research beta")
-HOME_HINT = "Alt+↓ Bats · Ctrl+T list"
+HOME_HINT = "↓ Bats · Ctrl+T list"
 CONTROL = re.compile(rb"\x1b(?:\[[0-9;?<>=]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[()][0-9A-Za-z]|[=>78])")
 
 
@@ -163,15 +163,15 @@ def main(binary):
             press(b"\x1b\x1b[D", "Option+Left as ESC ESC [D", at_home)
 
             text = press(b"\x14", "Ctrl+T collapses the list",
-                         lambda t: re.search(r"Active Missions \(2\)(?! · Ctrl\+T collapse)", t))
+                         lambda t: re.search(r"Active Missions \(2\)(?! · ↓ select)", t))
             frame = latest(text, "Active Missions (2)")
-            if frame.startswith("Active Missions (2) · Ctrl+T collapse") or "● Research" in frame:
+            if frame.startswith("Active Missions (2) · ↓ select · Ctrl+T collapse") or "● Research" in frame:
                 raise RuntimeError(f"Ctrl+T left the list expanded: {frame[:200]!r}")
             text = press(b"\x1b[1;3B", "Alt+Down works while collapsed",
                          lambda t: ("Active Missions (2) · in: " + first) in t)
             press(b"\x1b[1;3D", "home while collapsed", at_home)
             press(b"\x14", "Ctrl+T expands the list",
-                  lambda t: "Active Missions (2) · Ctrl+T collapse" in t and "● " + first in t)
+                  lambda t: "Active Missions (2) · ↓ select · Ctrl+T collapse" in t and "● " + first in t)
 
             # A lone Escape, then a later arrow, is two keys: no Bat opens.
             mark = len(output)

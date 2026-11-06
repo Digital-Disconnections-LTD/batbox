@@ -6,6 +6,13 @@
 
 namespace batbox::application_engine {
 namespace {
+// A whole number from settings.json, or fallback when unset or not one.
+int settingCount(const Json& settings,const char* key,int fallback){
+  const auto& value=value::property(settings,key);
+  if(value.is_number_integer()&&value.get<long long>()>=0&&value.get<long long>()<=1000)
+    return static_cast<int>(value.get<long long>());
+  return fallback;
+}
 struct CursorBridge {
   event_loop::Loop::Dispatcher owner;
   query::AsyncModelCursor cursor;
@@ -16,13 +23,22 @@ struct CursorBridge {
   }
 };
 }
+Json Compactor::settings()const{
+  return inputs_.compactionSettings?inputs_.compactionSettings():Json::object();
+}
+bool Compactor::localModel(const execution::Context& context)const{
+  const auto& model=value::property(value::property(context.data,"options"),"mainLoopModel");
+  const auto profile=inputs_.model->findProfile(model.is_string()?model.get<std::string>():
+    inputs_.model->config().mainModel);
+  return profile&&profile->local;
+}
 compaction::SummaryServices Compactor::summaryFor(const execution::Context& context){
   auto services=inputs_.summary;
-  const auto feature=inputs_.messages->featureGate;
-  services.feature=feature;
-  services.boundary.randomUUID=inputs_.messages->randomUUID;
-  services.boundary.nowISO=inputs_.messages->nowISO;
-  services.boundary.feature=feature;
+  // A second whole-conversation request after the first came back empty only
+  // pays off where requests are cheap.
+  const int attempts=settingCount(settings(),"compactSummaryAttempts",localModel(context)?1:2);
+  services.summaryAttempts=[attempts]{return attempts;};
+  services.log=inputs_.log;
   services.normalizeMessagesForAPI=[normalize=inputs_.normalize,gadgets=context.gadgets](
       const Json& messages,const Json&){return normalize(messages,gadgets);};
   services.getMaxOutputTokensForModel=[model=inputs_.model](const std::string& name){
@@ -68,10 +84,19 @@ compaction::AutoServices Compactor::automaticServices(const execution::Context& 
   };
   const auto local=policy(inputs_.config.model);
   services.environment=local.env;
-  services.feature=inputs_.messages->featureGate;
+  services.failureLimit=settingCount(settings,"autoCompactFailureLimit",3);
+  services.reportFailure=[log=inputs_.log,notify=inputs_.notification,
+      owner=inputs_.owner.dispatcher()](const std::string& reason,bool timedOut){
+    const auto text=timedOut?
+      "Automatic compaction timed out and will be tried again with your next message; "
+        "/compact runs it now. "+reason:
+      "Automatic compaction failed: "+reason;
+    if(log)log(text);
+    if(notify)owner.postMission([notify,text]{
+      notify(Json{{"key","auto-compact-failed"},{"text",text},
+        {"priority","immediate"},{"color","error"}});});
+  };
   services.isAutoCompactEnabled=[local]{return batbox::isAutoCompactEnabled(local);};
-  services.reactiveOnly=[]{return false;};
-  services.isContextCollapseEnabled=[]{return false;};
   const auto normalize=inputs_.normalizeAttachment;
   services.tokenCountWithEstimation=[normalize](const Json& messages){
     return tokenCountWithEstimation(messages,normalize);
@@ -82,14 +107,9 @@ compaction::AutoServices Compactor::automaticServices(const execution::Context& 
   services.calculateTokenWarningState=[policy](double tokens,const std::string& name){
     return batbox::calculateTokenWarningState(tokens,policy(name));
   };
-  // Flight-memory compaction is a distinct optional path. The ordinary
-  // summary workflow remains available when that feature has no stored summary.
-  services.tryFlightMemoryCompaction=[](const Json&,const Json&,double){return Json();};
-  services.clearLastSummarizedMessageId=[]{ };
   services.runPostCompactCleanup=[owner=inputs_.owner.dispatcher(),after=inputs_.cleanupAfterCompact](const auto& source){
     application::onOwnerAndWait<void>(owner,[after,source]{after(source);});
   };
-  services.markPostCompaction=inputs_.markPostCompaction;
   auto self=shared_from_this();
   services.compactConversation=[self,query,indigenous=std::move(indigenous)](
       const Json& messages,const Json&,const Json& stash,bool suppress,
@@ -101,28 +121,36 @@ compaction::AutoServices Compactor::automaticServices(const execution::Context& 
   };
   return services;
 }
-event_loop::Deferred<Json> Compactor::automatic(const Json& messages,
-    const execution::Context& context,const Json& stash,const std::string& source,
-    const Json& tracking,double freed,std::shared_ptr<bats::StashSafeParams> indigenous){
-  auto services=automaticServices(context,std::move(indigenous));
-  const auto skipped=[this]{
-    event_loop::Deferred<Json> result(inputs_.owner);
-    result.resolve(Json{{"wasCompacted",false}});return result;
-  };
+bool Compactor::automaticWouldRun(const Json& messages,
+    const execution::Context& context,const std::string& source,
+    const Json& tracking,compaction::AutoServices& services){
   const auto disabled=services.environment.find("BATBOX_DISABLE_COMPACT");
   if(disabled!=services.environment.end()&&isEnvTruthy(Json(disabled->second)))
-    return skipped();
+    return false;
   const auto& failures=value::property(tracking,"consecutiveFailures");
-  if(failures.is_number()&&failures.get<double>()>=3)return skipped();
+  if(failures.is_number()&&failures.get<double>()>=services.failureLimit)return false;
   const auto& model=value::property(value::property(context.data,"options"),"mainLoopModel");
   if(!model.is_string())throw std::invalid_argument("Compaction model required");
-  if(!compaction::shouldAutoCompact(messages,model.get<std::string>(),source,freed,services)){
-    return skipped();
+  return compaction::shouldAutoCompact(messages,model.get<std::string>(),source,services);
+}
+bool Compactor::automaticWouldRun(const Json& messages,
+    const execution::Context& context,const std::string& source,
+    const Json& tracking){
+  auto services=automaticServices(context,{});
+  return automaticWouldRun(messages,context,source,tracking,services);
+}
+event_loop::Deferred<Json> Compactor::automatic(const Json& messages,
+    const execution::Context& context,const Json& stash,const std::string& source,
+    const Json& tracking,std::shared_ptr<bats::StashSafeParams> indigenous){
+  auto services=automaticServices(context,std::move(indigenous));
+  if(!automaticWouldRun(messages,context,source,tracking,services)){
+    event_loop::Deferred<Json> result(inputs_.owner);
+    result.resolve(Json{{"wasCompacted",false}});return result;
   }
   return application::runInWorker<Json>(inputs_.owner,
-    [messages,context,stash,source,tracking,freed,services=std::move(services)]()mutable{
+    [messages,context,stash,source,tracking,services=std::move(services)]()mutable{
       return compaction::autoCompactIfNeeded(messages,context.data,stash,source,
-        tracking,freed,services);
+        tracking,services);
     });
 }
 } // namespace batbox::application_engine

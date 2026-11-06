@@ -1,7 +1,6 @@
 #include "bats/ForkedBat.hpp"
 #include "bats/RunBat.hpp"
-#include "file_state_stash/ExecutionBindings.hpp"
-#include "file_state_stash/Bindings.hpp"
+#include "file_state_stash/FileStateStash.hpp"
 #include "gadgets/files/FileGadgets.hpp"
 #include "filesystem/FileOps.hpp"
 #include <cassert>
@@ -41,11 +40,8 @@ int main(){
   auto parentStash=file_state_stash::createFileStateStashWithSizeLimit(2,32);
   const auto mtime=filesystem::getFileModificationTime(file.string());
   parentStash->set(file.string(),file_state_stash::FileState{"before",std::floor(mtime)});
-  query_engine::ProcessContext process;
-  process.readFileState=parentStash;
   bats::BatContext parent;
-  file_state_stash::bindExecutionStash(parent.query,process);
-  assert(parent.query.readFileState==parentStash);
+  parent.query.readFileState=parentStash;
   parent.getAppState=[](){return Json{{"toolPermissionContext",
     {{"shouldAvoidPermissionPrompts",true}}}};};
   bats::ContextServices contextServices;
@@ -67,7 +63,6 @@ int main(){
   preflight.createBatId=[](){return std::string("agent");};
   preflight.getUserContext=[](){return Json::object();};
   preflight.getSystemContext=[](){return Json::object();};
-  preflight.feature=[](const std::string&){return false;};
   params.forkContextMessages=Json::array();
   auto cloned=bats::prepareRunBat(params,preflight);
   assert(cloned.indigenousBatReadFileState);
@@ -85,13 +80,12 @@ int main(){
 
   gadgets::files::FileWriteServices write;
   auto baseStash=file_state_stash::createFileStateStashWithSizeLimit(2,32);
-  file_state_stash::bindWriteStash(write,baseStash);
+  write.readFileStateOwner=baseStash;
+  write.readFileState=baseStash.get();
   write.paths.getCwd=[&]{return directory.string();};
   write.paths.homeDirectory=[&]{return directory.string();};
   write.paths.platform=[](){return std::string("linux");};
   write.paths.normalizeNFC=[](const std::string& path){return path;};
-  write.checkTeamMemSecrets=[](const std::string&,const std::string&){
-    return std::optional<std::string>{};};
   write.matchingEditDenyRule=[](const std::string&){return false;};
   write.discoverSkillDirsForPaths=[](const std::string&,const std::string&){
     return std::vector<std::string>{};};

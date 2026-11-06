@@ -10,7 +10,6 @@ std::string stripEmptyLines(const std::string& content);
 bool isImageOutput(const std::string& content);
 std::optional<Json> parseDataUri(const std::string& content);
 Json buildImageGadgetResult(const std::string& stdoutText,const std::string& gadgetUseID);
-Json formatOutput(const std::string& content,std::size_t maxOutputLength);
 Json interpretCommandResult(const std::string& command,int exitCode,
   const std::string& stdoutText,const std::string& stderrText,const SplitCommand& splitCommand);
 std::optional<std::string> detectBlockedSleepPattern(const std::string& command,const SplitCommand& splitCommand);

@@ -1,5 +1,6 @@
 #include "interactive/cards_assistant/AssistantTextCard.hpp"
 #include "glob/Regex16.hpp"
+#include "interactive/PoetryXmlTags.hpp"
 #include "runtime/JsonValue.hpp"
 #include <stdexcept>
 
@@ -15,8 +16,11 @@ std::string stripPoetryXmlTags(const std::string& text) {
 
 bool isEmptyMessageText(const std::string& text,
                         const std::string& noContentMessage) {
-  return value::trim(stripPoetryXmlTags(text)).empty() ||
-         value::trim(text) == noContentMessage;
+  // Without an analysis tag nothing is stripped; the UTF-16 round trip
+  // cannot make non-blank text blank.
+  const auto blank = hasPoetryXmlTag(text) ?
+      value::trim(stripPoetryXmlTags(text)).empty() : value::trimView(text).empty();
+  return blank || value::trimView(text) == noContentMessage;
 }
 
 Card classifyAssistantText(const std::string& text, bool verbose,
@@ -49,12 +53,6 @@ Card classifyAssistantText(const std::string& text, bool verbose,
       display += "\n· Run in another terminal: security unlock-keychain";
     return card(Kind::InvalidKey, std::move(display));
   }
-  if (text == protocol.externalInvalidKey)
-    return card(Kind::ExternalInvalidKey, text);
-  if (text == protocol.organizationDisabled ||
-      text == protocol.organizationDisabledWithAuth)
-    return card(Kind::OrganizationDisabled, text);
-  if (text == protocol.tokenRevoked) return card(Kind::TokenRevoked, text);
   if (text == protocol.apiTimeout) {
     auto display = text;
     if (imports.apiTimeoutEnvironment && !imports.apiTimeoutEnvironment->empty())
@@ -92,9 +90,6 @@ std::string kindName(Kind kind) {
     case Kind::ContextLimit: return "context_limit";
     case Kind::CreditBalance: return "credit_balance";
     case Kind::InvalidKey: return "invalid_key";
-    case Kind::ExternalInvalidKey: return "external_invalid_key";
-    case Kind::OrganizationDisabled: return "organization_disabled";
-    case Kind::TokenRevoked: return "token_revoked";
     case Kind::Timeout: return "timeout";
     case Kind::ModelUnavailable: return "model_unavailable";
     case Kind::Interrupted: return "interrupted";

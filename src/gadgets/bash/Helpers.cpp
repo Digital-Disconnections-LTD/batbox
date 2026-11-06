@@ -36,18 +36,6 @@ Json buildImageGadgetResult(const std::string& stdoutText,const std::string& gad
     {{"type","image"},{"source",{{"type","base64"},{"media_type",parsed->at("mediaType")},{"data",parsed->at("data")}}}}
   })}};
 }
-Json formatOutput(const std::string& content,std::size_t maxOutputLength){
-  const bool image=isImageOutput(content);
-  if(image)return {{"totalLines",1},{"truncatedContent",content},{"isImage",true}};
-  const auto totalLines=static_cast<long>(std::count(content.begin(),content.end(),'\n'))+1;
-  if(value::stringLength(content)<=maxOutputLength)
-    return {{"totalLines",totalLines},{"truncatedContent",content},{"isImage",false}};
-  const auto prefix=value::slice(content,0,maxOutputLength);
-  const auto suffix=value::slice(content,maxOutputLength);
-  const auto remainingLines=static_cast<long>(std::count(suffix.begin(),suffix.end(),'\n'))+1;
-  return {{"totalLines",totalLines},{"truncatedContent",prefix+"\n\n... ["+
-    std::to_string(remainingLines)+" lines truncated] ..."},{"isImage",false}};
-}
 Json interpretCommandResult(const std::string& command,int exitCode,
   const std::string&,const std::string&,const SplitCommand& splitCommand){
   if(!splitCommand)throw std::logic_error("splitCommand dependency not supplied");

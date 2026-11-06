@@ -2,7 +2,6 @@ add_library(batbox_core_commands
   src/commands_indigenous/Stashes.cpp
   src/commands_indigenous/Clear.cpp
   src/commands_indigenous/Compact.cpp
-  src/commands_indigenous/CoreCatalog.cpp
   src/commands_indigenous/CoreHelpers.cpp
   src/commands_indigenous/HelpModel.cpp
   src/commands_indigenous/Resume.cpp)

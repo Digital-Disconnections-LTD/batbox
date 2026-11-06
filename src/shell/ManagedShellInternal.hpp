@@ -18,7 +18,6 @@ struct ManagedShell::Job {
     background=false,backgroundedByUser=false,killed=false,timedOut=false,
     killedForSize=false;
   bool cancelledBySignal=false;
-  std::exception_ptr completionFailure;
   std::unique_ptr<std::stop_callback<std::function<void()>>> signalCallback;
   int code=0;
   double timeoutMs=0;
@@ -26,6 +25,7 @@ struct ManagedShell::Job {
 };
 std::string quotePosix(const std::string& value);
 std::string readOutputPrefix(const std::string& path,std::size_t maxBytes,std::size_t& totalBytes);
+std::string readOutputSuffix(const std::string& path,std::size_t maxBytes);
 std::string utf8WithReplacement(std::string_view bytes);
 void terminateGroup(ShellProcessId pid);
 } // namespace batbox::shell

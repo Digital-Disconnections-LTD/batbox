@@ -4,14 +4,13 @@ namespace batbox::query {
 AsyncDecisionCursor makeAsyncGadgetTurnCursor(event_loop::Loop& loop,
   const Params& params,const State& state,
   std::shared_ptr<PreparedIteration> prepared,
-  std::shared_ptr<ModelPassResult> modelResult,
-  const QueryConfig& config,MemoryPrefetch* memoryPrefetch,
+  std::shared_ptr<ModelPassResult> modelResult,MemoryPrefetch* memoryPrefetch,
   std::vector<std::string>& consumedCommandUuids,
   AsyncGadgetTurnServices services){
   if(!loop.isOwnerThread())throw std::logic_error("Async tool turn requires loop owner");
   if(!prepared||!modelResult)throw std::invalid_argument("Async tool turn requires model pass");
   auto run=std::make_shared<async_gadget_turn::Run>(loop,params,state,
-    std::move(prepared),std::move(modelResult),config,memoryPrefetch,
+    std::move(prepared),std::move(modelResult),memoryPrefetch,
     consumedCommandUuids,std::move(services));
   return AsyncDecisionCursor{[run]{return run->next();},
     [run]{return run->close();}};
@@ -21,10 +20,10 @@ void bindAsyncGadgetTurn(event_loop::Loop& loop,AsyncEngineServices& engine,
   engine.executeGadgetTurn=[&loop,services=std::move(services)](
       const Params& params,const State& state,
       std::shared_ptr<PreparedIteration> prepared,
-      std::shared_ptr<ModelPassResult> result,const QueryConfig& config,
+      std::shared_ptr<ModelPassResult> result,
       MemoryPrefetch* memory,std::vector<std::string>& consumed){
     return makeAsyncGadgetTurnCursor(loop,params,state,std::move(prepared),
-      std::move(result),config,memory,consumed,services);
+      std::move(result),memory,consumed,services);
   };
 }
 } // namespace batbox::query
@@ -69,9 +68,8 @@ void Run::pump(){
     while(!requests.empty()){
       switch(stage){
         case Stage::Start:start();break;
-        case Stage::GadgetAwait:case Stage::AbortCleanupAwait:
-        case Stage::AttachmentAwait:case Stage::MemoryAwait:
-        case Stage::SkillAwait:return;
+        case Stage::GadgetAwait:case Stage::AttachmentAwait:
+        case Stage::MemoryAwait:return;
         case Stage::AfterGadgetYield:afterGadgetYield();break;
         case Stage::AfterGadgets:afterGadgets();break;
         case Stage::AbortInterruption:emitAbortInterruption();break;
@@ -80,14 +78,10 @@ void Run::pump(){
           Json{{"reason","aborted_tools"}}});break;
         case Stage::AfterAbortMax:finish(CompletionDecision{{},
           Json{{"reason","aborted_tools"}}});break;
-        case Stage::AfterSummary:afterSummary();break;
         case Stage::AfterAttachmentYield:afterAttachmentYield();break;
         case Stage::MemoryStart:startMemory();break;
         case Stage::MemoryYield:yieldMemory();break;
         case Stage::AfterMemoryYield:afterMemoryYield();break;
-        case Stage::SkillStart:startSkills();break;
-        case Stage::SkillYield:yieldSkills();break;
-        case Stage::AfterSkillYield:afterSkillYield();break;
         case Stage::Commands:consumeCommands();break;
         case Stage::Final:finalize();break;
         case Stage::AfterMaxTurns:finish(CompletionDecision{{},
@@ -108,8 +102,7 @@ void Run::start(){
   std::vector<Json> blocks;
   if(modelResult->gadgetUseBlocks.is_array())
     for(const Json& block:modelResult->gadgetUseBlocks)blocks.push_back(block);
-  gadgetCursor=services.gadgetUpdates(blocks,modelResult->assistantMessages,
-    prepared,prepared->streamingGadgetExecutor!=nullptr);
+  gadgetCursor=services.gadgetUpdates(blocks,modelResult->assistantMessages,prepared);
   need(gadgetCursor.next,"toolUpdates cursor.next");
   pullGadgetUpdate();
 }
@@ -155,7 +148,17 @@ void Run::afterGadgetYield(){
 }
 void Run::afterGadgets(){
   services.queryCheckpoint("query_tool_execution_end");
-  startSummary();
-  stage=Stage::AfterSummary;
+  if(prepared->gadgetUseContext.stop.stop_requested()){
+    stage=Stage::AbortInterruption;return;
+  }
+  if(shouldPreventContinuation){
+    finish(CompletionDecision{{},Json{{"reason","hook_stopped"}}});return;
+  }
+  if(value::truthy(field(prepared->tracking,"compacted"))){
+    const Json& previous=field(prepared->tracking,"turnCounter");
+    prepared->tracking["turnCounter"]=(previous.is_number_integer()?
+      previous.get<int>():0)+1;
+  }
+  startAttachments();
 }
 } // namespace batbox::query::async_gadget_turn

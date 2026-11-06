@@ -64,8 +64,7 @@ struct ResumeServices {
   // Imported lifecycle function. Its production binding drives runBat and
   // retains the fire-and-forget future until mission completion.
   std::function<void(const ResumeLaunch&)> runAsyncBatLifecycle;
-  std::function<bool()> isCoordinatorMode,isForkSubagentEnabled,
-    getSdkBatProgressSummariesEnabled;
+  std::function<bool()> isForkSubagentEnabled,getSdkBatProgressSummariesEnabled;
   std::function<std::string(const std::string&)> getMissionOutputPath;
 };
 ResumeResult resumeBatBackground(const ResumeParams& params,ResumeServices& services);

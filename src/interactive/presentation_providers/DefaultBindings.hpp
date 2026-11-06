@@ -6,7 +6,6 @@ namespace batbox::interactive::presentation_providers {
 struct DefaultBindingOptions {
   std::string platform;
   bool terminalVtMode=true;
-  std::function<bool(const std::string&)> feature;
 };
 std::vector<BindingBlock> defaultBindingBlocks(const DefaultBindingOptions&);
 std::vector<Binding> defaultBindings(const DefaultBindingOptions&);

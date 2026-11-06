@@ -22,7 +22,6 @@ public:
   std::string serviceName(const std::string& suffix={})const;
   std::string username()const;
   void clear();
-  void prime(const std::optional<std::string>& stdoutText);
   const KeychainServices& services()const{return services_;}
   std::optional<Json> data;
   double stashedAt=0;

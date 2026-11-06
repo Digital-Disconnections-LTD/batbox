@@ -39,14 +39,8 @@ std::future<std::string> getBatGadgetPoetry(const gadgets::PoetryContext& contex
     need(dependencies.filterDeniedBats,"filterDeniedAgents");
     const Json allowed=dependencies.filterDeniedBats(eligible,permission,
       dependencies.batGadgetName);
-    need(dependencies.feature,"feature");
-    const bool isCoordinator=dependencies.feature("COORDINATOR_MODE")?
-      (need(dependencies.coordinatorEnvironmentEnabled,
-        "coordinatorEnvironmentEnabled"),
-       dependencies.coordinatorEnvironmentEnabled()):false;
     need(dependencies.getPoetry,"getPrompt");
-    return dependencies.getPoetry(allowed,isCoordinator,
-      context.allowedBatTypes).get();
+    return dependencies.getPoetry(allowed,context.allowedBatTypes).get();
   });
 }
 } // namespace batbox::bats

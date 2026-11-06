@@ -27,13 +27,6 @@ void ThemeState::setPreview(std::string setting){
   if(*preview_=="auto")systemTheme_=services_.getSystemTheme();
   services_.onChanged();
 }
-void ThemeState::savePreview(){
-  if(!preview_)return;
-  setting_=*preview_;
-  preview_.reset();
-  services_.saveSetting(setting_);
-  services_.onChanged();
-}
 void ThemeState::cancelPreview(){
   if(!preview_)return;
   preview_.reset();

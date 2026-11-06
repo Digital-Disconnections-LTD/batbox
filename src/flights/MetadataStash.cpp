@@ -1,12 +1,5 @@
 #include "flights/MetadataOperations.hpp"
 namespace batbox::flights {
-std::optional<std::string> MetadataOperations::getCurrentFlightTag(const std::string& flight)const {
-  return flight==services.getFlightId() ? services.project->currentFlightTag : std::nullopt;
-}
-std::optional<std::string> MetadataOperations::getCurrentFlightTitle(const std::string& flight)const {
-  return flight==services.getFlightId() ? services.project->currentFlightTitle : std::nullopt;
-}
-std::optional<std::string> MetadataOperations::getCurrentFlightBatColor()const {return services.project->currentFlightBatColor;}
 void MetadataOperations::restoreFlightMetadata(const Json& meta) {
   auto& project=*services.project;
   const auto& title=value::property(meta,"customTitle");if(value::truthy(title) && !project.currentFlightTitle)project.currentFlightTitle=title.get<std::string>();
@@ -28,20 +21,5 @@ void MetadataOperations::clearFlightMetadata() {
     &project.currentFlightLastPoetry,&project.currentFlightBatSetting,&project.currentFlightMode})field->reset();
   project.currentFlightWorktree.reset();project.currentFlightPrNumber.reset();
   project.currentFlightPrUrl.reset();project.currentFlightPrRepository.reset();
-}
-void MetadataOperations::reAppendFlightMetadata(){services.reAppendFlightMetadata();}
-void MetadataOperations::saveBatSetting(const std::string& setting){services.project->currentFlightBatSetting=setting;}
-void MetadataOperations::stashFlightTitle(const std::string& title){services.project->currentFlightTitle=title;}
-void MetadataOperations::saveMode(const std::string& mode){services.project->currentFlightMode=mode;}
-void MetadataOperations::saveWorktreeState(const Json& worktree) {
-  Json stripped;
-  if(value::truthy(worktree)) {
-    stripped=Json::object();
-    for(const auto* field:{"originalCwd","worktreePath","worktreeName","worktreeBranch","originalBranch","originalHeadCommit","sessionId","tmuxSessionName","hookBased"})
-      if(worktree.contains(field))stripped[field]=worktree.at(field);
-  }
-  services.project->currentFlightWorktree=stripped;
-  if(const auto& file=services.project->flightFile;file && !file->empty())
-    services.append(*file,Json{{"type","worktree-state"},{"worktreeSession",stripped},{"sessionId",services.getFlightId()}});
 }
 }

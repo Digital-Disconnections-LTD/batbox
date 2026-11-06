@@ -216,9 +216,9 @@ int main(){
     };
     providers::FooterOptions options;options.columns=100;options.terminalRows=24;options.nowMs=now;
     const auto rendered=render(footerRows,options,3);
-    for(const char* part:{"Active Missions (2) · Ctrl+T collapse · /missions",
-        "Foreground scan · foreground · 5s · 1 Gadget","reviewer · running · 2m 5s · 3 Gadgets",
-        "“Reading the parser now”"})
+    for(const char* part:{"Active Missions (2) · ↓ select · Ctrl+T collapse · /missions",
+        "● Foreground scan","foreground","1 Gadget","● reviewer","Reading parser.cpp",
+        "running  2m 5s  3 Gadgets  12.3k tokens"})
       check(contains(rendered,part),std::string("Footer missing '")+part+"':\n"+rendered);
     check(!contains(rendered,"/Missions"),"Footer must not advertise the unresolvable /Missions");
     check(!contains(rendered,"▸"),"At home no Mission row is highlighted:\n"+rendered);
@@ -260,9 +260,9 @@ int main(){
 
     options.current="bat-grandchild";options.terminalRows=40;
     const auto highlighted=render(nested,options,7);
-    check(contains(highlighted,"  ● reviewer · running")&&
-      contains(highlighted,"  └ ● Check the lexer · running")&&
-      contains(highlighted,"▸   └ ● Count tokens · completed")&&
+    check(contains(highlighted,"  ● reviewer")&&
+      contains(highlighted,"  └ ● Check the lexer")&&
+      contains(highlighted,"▸   └ ● Count tokens")&&contains(highlighted,"completed")&&
       contains(highlighted,"Active Missions (6)"),
       "Nested rows indent under their parent and the open Bat is marked:\n"+highlighted);
     const auto window=providers::footerWindow(nested,40,false,std::string("bat-loop-b"));
@@ -297,9 +297,10 @@ int main(){
     options.collapsed=false;
     const auto stopped=render(providers::backgroundFooterMissions(chain,std::string("bat-tokens")),
       options,4);
-    check(contains(stopped,"Active Missions (0)")&&contains(stopped,"  ● Audit the parser · stopped")&&
-      contains(stopped,"  └ ● Check the lexer · stopped")&&
-      contains(stopped,"▸   └ ● Count the tokens · stopped"),
+    check(contains(stopped,"Active Missions (0)")&&contains(stopped,"  ● Audit the parser")&&
+      contains(stopped,"  └ ● Check the lexer")&&
+      contains(stopped,"▸   └ ● Count the tokens")&&!contains(stopped,"running")&&
+      contains(stopped,"stopped  0 Gadgets"),
       "Stopped Bats in the open trail read as stopped:\n"+stopped);
 
     const auto glance=providers::batGlance(missions().at("bat-done"),now);

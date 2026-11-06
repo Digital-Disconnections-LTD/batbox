@@ -115,13 +115,6 @@ std::string ManagedShell::readOutput(const std::string& id)const{
   catch(const std::exception& error){return "<bash output unavailable: output file "+outputPath(id)+
     " could not be read. "+error.what()+">";}
 }
-std::exception_ptr ManagedShell::backgroundCallbackFailure(const std::string& id)const{
-  std::shared_ptr<Job> job;
-  {std::lock_guard lock(mutex_);auto it=jobs_.find(id);
-    if(it==jobs_.end())throw std::out_of_range("Unknown shell task ID: "+id);
-    job=it->second;}
-  std::lock_guard lock(job->mutex);return job->completionFailure;
-}
 ExecResult ManagedShell::resultFor(const std::shared_ptr<Job>& job,bool backgroundResult){
   ExecResult result;
   if(backgroundResult){std::lock_guard lock(job->mutex);
@@ -137,7 +130,11 @@ ExecResult ManagedShell::resultFor(const std::shared_ptr<Job>& job,bool backgrou
     std::size_t size=0;
     result.stdoutText=readOutputPrefix(job->outputPath,config_.maxInlineOutputBytes,size);
     if(size>config_.maxInlineOutputBytes){result.outputFilePath=job->outputPath;
-      result.outputFileSize=size;result.outputMissionId=job->missionId;}
+      result.outputFileSize=size;result.outputMissionId=job->missionId;
+      if(config_.maxOutputTailBytes>0)
+        try{result.stdoutTail=readOutputSuffix(job->outputPath,config_.maxOutputTailBytes);}
+        catch(const std::exception&){}
+    }
   }catch(const std::exception& e){
     result.stdoutText="<bash output unavailable: output file "+job->outputPath+
       " could not be read. "+e.what()+">";
@@ -147,7 +144,7 @@ ExecResult ManagedShell::resultFor(const std::shared_ptr<Job>& job,bool backgrou
 void ManagedShell::updateCwd(const std::shared_ptr<Job>& job,const RunOptions& options,
   const ExecResult& result){
   if(config_.cwdCompletion){
-    try{completeShellCwd(&result,options.preventCwdChanges,options.useSandbox,
+    try{completeShellCwd(&result,options.preventCwdChanges,
       job->cwdPath,job->startingCwd,*config_.cwdCompletion);}
     catch(...){try{config_.cwdCompletion->onFailure(std::current_exception());}catch(...){}}
     return;
@@ -171,11 +168,9 @@ ExecResult ManagedShell::run(const RunOptions& options){
   }
   RunOptions effective=options;
   if(config_.provider&&!effective.preparedCommandString){
-    if(effective.useSandbox&&!effective.sandboxTmpDir)
-      throw std::invalid_argument("sandbox temp directory required");
     const auto execId=config_.generateExecId?config_.generateExecId():randomPlaceholderSalt().substr(0,4);
     const auto built=config_.provider->buildExecCommand(effective.command,
-      {execId,effective.sandboxTmpDir,effective.useSandbox});
+      {execId});
     effective.preparedCommandString=built.commandString;
     effective.preparedCwdFilePath=built.cwdFilePath;
   }

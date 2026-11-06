@@ -17,7 +17,6 @@ struct LocalServiceBuilder {
   api_errors::Providers errors;
   explicit LocalServiceBuilder(LocalModelService&,gadgets::Gadgets,Json,
     gadgets::PoetryContext={});
-  const ModelProfile& profile(const std::string& id)const;
   Json gadgetMetadata()const;
   messages::Services makeMessages();
   normalization::Dependencies makeNormalization();

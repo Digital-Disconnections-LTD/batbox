@@ -21,8 +21,4 @@ ftxui::Element projectCompactBoundary(const std::string& text,
                                       const LeafPalette& palette);
 std::optional<ftxui::Element> projectAdvisor(const AdvisorCard& card,
                                              const LeafPalette& palette);
-std::optional<ftxui::Element> projectPartnerHeader(
-    const PartnerHeaderCard& card,
-    const std::function<ftxui::Color(const std::string&)>& toColor,
-    const LeafPalette& palette);
 }

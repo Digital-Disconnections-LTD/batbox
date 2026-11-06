@@ -38,6 +38,7 @@ void Bundle::initialize(){
   auto configHome=[this]{return inputs_.stateDirectory;};
   auto pastes=paste_store::indigenousServices(inputs_.owner,fs_,configHome,
     inputs_.log);
+  pastes_=pastes;
   history::HistoryWriterServices writer;
   writer.loop=&inputs_.owner;
   writer.getConfigHomeDir=configHome;
@@ -58,6 +59,9 @@ void Bundle::initialize(){
   view_=history::indigenousHistoryViewImports(inputs_.owner,state_,
     std::move(imports),std::move(reader),inputs_.projectRoot,
     inputs_.flightId);
+}
+event_loop::Deferred<event_loop::Unit> Bundle::cleanupOldPastes(double cutoffMs){
+  return paste_store::cleanupOldPastes(cutoffMs,pastes_);
 }
 void Bundle::record(const std::string& display,const Json& pastedContents){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("History owner required");

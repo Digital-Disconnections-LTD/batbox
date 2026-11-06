@@ -3,6 +3,7 @@
 #include <ftxui/dom/elements.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace batbox::interactive::markdown {
@@ -13,6 +14,10 @@ struct AnsiStyle {
   std::optional<ftxui::Color> foreground,background;
   std::string link;
 };
+// projectAnsi for one stretch of a longer text: SGR state starts from `style`
+// and is left in it, so consecutive stretches split at newlines draw the
+// lines projectAnsi draws for the whole text.
+ftxui::Element projectAnsiPart(std::string_view source,bool dim,AnsiStyle& style);
 struct AnsiRun {
   std::string text;
   AnsiStyle style;

@@ -27,12 +27,6 @@ Json imageIdsFor(const Json& blocks,const Json& messages) {
   for(int i=1;i<=count;++i)result.push_back(maxId+i);
   return result;
 }
-void appendHookInfo(Json& infos,const Json& message) {
-  const Json& attachment=field(message,"attachment");
-  if(attachment.is_object()&&!field(attachment,"command").is_null()&&
-     !field(attachment,"durationMs").is_null())
-    infos.push_back(Json{{"command",field(attachment,"command")},{"durationMs",field(attachment,"durationMs")}});
-}
 Json resultMessage(const Services& services,const Json& args) {
   require(services.createUserMessage,"createUserMessage");
   return services.createUserMessage(args);
@@ -60,7 +54,7 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     require(services.schemaNotSentHint,"schemaNotSentHint");
     std::string formatted=services.formatValidationError(gadget,error);
     const std::string raw=error.what();
-    if(const auto hint=services.schemaNotSentHint(gadget,field(context.data,"messages"),context.gadgets))
+    if(const auto hint=services.schemaNotSentHint(gadget,conversationMessages(context),context.gadgets))
       formatted+=*hint;
     Json content=Json::array({createResult(gadgetUseID,
       "<tool_use_error>InputValidationError: "+formatted+"</tool_use_error>")});
@@ -104,12 +98,10 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     hasBackfill=processedIsBackfill=true;
   }
   Json hookPermissionResult;
-  Json preHookInfos=Json::array();
   std::vector<Update> buffered;
   bool shouldPreventContinuation=false;
   std::string stopReason;
   require(services.nowMillis,"nowMillis");
-  const auto preStart=services.nowMillis();
   require(services.preGadgetUseHooks,"preToolUseHooks");
   bool stopped=false;
   services.preGadgetUseHooks(gadget,processedInput,gadgetUse,context,[&](const Json& event){
@@ -119,7 +111,7 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
       const Json& message=field(update,"message");
       if(field(field(message,"message"),"type")=="progress" || field(message,"type")=="progress")
         emitProgress(message,gadgetUseID,services,yield);
-      else {buffered.push_back(Update{message,{},gadgetUseID});appendHookInfo(preHookInfos,message);}
+      else buffered.push_back(Update{message,{},gadgetUseID});
     } else if(type=="hookPermissionResult")hookPermissionResult=field(event,"hookPermissionResult");
     else if(type=="hookUpdatedInput") {processedInput=field(event,"updatedInput");
       processedIsBackfill=value::truthy(field(event,"inputIsBackfilledClone"));}
@@ -137,11 +129,6 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     }
   });
   if(stopped){flush(buffered,yield);return;}
-  const double preHookDuration=services.nowMillis()-preStart;
-  if(services.internalUser && !preHookInfos.empty() && preHookDuration>500) {
-    require(services.createStopHookSummaryMessage,"createStopHookSummaryMessage");
-    buffered.push_back(Update{services.createStopHookSummaryMessage("PreToolUse",preHookInfos,preHookDuration),{},gadgetUseID});
-  }
   require(services.resolvePermissionDecision,"resolvePermissionDecision");
   const Json resolved=services.resolvePermissionDecision(hookPermissionResult,gadget,processedInput,
     context,assistantMessage,gadgetUseID);
@@ -167,21 +154,10 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     Json content=Json::array({createResult(gadgetUseID,errorMessage)});
     const Json& rejectBlocks=behavior=="ask"?field(decision,"contentBlocks"):Json();
     if(rejectBlocks.is_array())for(const Json& block:rejectBlocks)content.push_back(block);
-    const Json imageIds=rejectBlocks.is_array()?imageIdsFor(rejectBlocks,field(context.data,"messages")):Json();
+    const Json imageIds=rejectBlocks.is_array()?imageIdsFor(rejectBlocks,conversationMessages(context)):Json();
     buffered.push_back(Update{resultMessage(services,userArgs(content,assistantMessage,
       "Error: "+(errorMessage.is_string()?errorMessage.get<std::string>():std::string("undefined")),
       imageIds.is_null()?std::nullopt:std::optional<Json>(imageIds))),{},gadgetUseID});
-    if(services.transcriptClassifierFeature && field(reason,"type")=="classifier" &&
-       field(reason,"classifier")=="auto-mode") {
-      require(services.permissionDeniedHooks,"permissionDeniedHooks");
-      bool retry=false;
-      services.permissionDeniedHooks(gadget,gadgetUseID,processedInput,context,[&](const Json& event){
-        if(value::truthy(field(event,"retry")))retry=true;
-      });
-      if(retry)buffered.push_back(Update{resultMessage(services,Json{{"content",
-        "The PermissionDenied hook indicated this command is now approved. You may retry it if you would like."},
-        {"isMeta",true}}),{},gadgetUseID});
-    }
     flush(buffered,yield);
     return;
   }
@@ -249,7 +225,7 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
         {"text",field(decision,"acceptFeedback")}});
       const Json& allowed=field(decision,"contentBlocks");
       if(allowed.is_array())for(const Json& b:allowed)blocks.push_back(b);
-      const Json imageIds=allowed.is_array()?imageIdsFor(allowed,field(context.data,"messages")):Json();
+      const Json imageIds=allowed.is_array()?imageIdsFor(allowed,conversationMessages(context)):Json();
       const bool bat=value::truthy(field(context.data,"agentId"));
       const bool preserve=value::truthy(field(context.data,"preserveToolUseResults"));
       Json keptResult=bat&&!preserve?Json(Json::value_t::discarded):Json(gadgetOutput);
@@ -262,8 +238,6 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
     };
     if(!isMcp)addGadgetResult(output,mapped);
     require(services.postGadgetUseHooks,"postToolUseHooks");
-    Json postHookInfos=Json::array();
-    const auto postStart=services.nowMillis();
     services.postGadgetUseHooks(gadget,processedInput,output,context,[&](const Json& hook){
       if(hook.contains("updatedMCPToolOutput")) {
         if(isMcp)output=hook["updatedMCPToolOutput"];
@@ -271,15 +245,9 @@ void checkPermissionsAndCallGadget(const gadgets::Gadget& gadget,const Json& gad
         const Json& message=field(hook,"message");
         if(isMcp)hookResults.push_back(Update{message,{},gadgetUseID});
         else buffered.push_back(Update{message,{},gadgetUseID});
-        appendHookInfo(postHookInfos,message);
       }
     });
-    const double postDuration=services.nowMillis()-postStart;
     if(isMcp)addGadgetResult(output,std::nullopt);
-    if(services.internalUser && !postHookInfos.empty() && postDuration>500) {
-      require(services.createStopHookSummaryMessage,"createStopHookSummaryMessage");
-      buffered.push_back(Update{services.createStopHookSummaryMessage("PostToolUse",postHookInfos,postDuration),{},gadgetUseID});
-    }
     if(result.newMessages)for(const Json& message:*result.newMessages)
       buffered.push_back(Update{message,{},gadgetUseID});
     if(shouldPreventContinuation) {

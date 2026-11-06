@@ -53,8 +53,6 @@ struct GadgetUseContext {
     loadedNestedMemoryPaths,dynamicSkillDirTriggers,discoveredSkillNames;
   std::function<void(const Json&)> onCompactProgress;
   std::function<void(bool)> setHasInterruptibleGadgetInProgress;
-  std::function<std::function<event_loop::Deferred<Json>(const Json&)>(
-    const std::string&,const std::optional<std::string>&)> requestPoetry;
   std::shared_ptr<gadget_results::ContentReplacementState> contentReplacementState;
   std::shared_ptr<const void> gadgetSnapshotOwner;
 };

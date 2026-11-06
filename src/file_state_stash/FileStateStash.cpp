@@ -112,23 +112,4 @@ void FileStateStash::load(const Dump& entries){
     if(entry.value)setSized(entry.key,entry.value,entry.size);
   }
 }
-Json FileStateStash::dumpJson()const{
-  Json result=Json::array();
-  for(const auto& entry:dump())result.push_back(Json::array({entry.key,
-    Json{{"value",toJson(*entry.value)},{"size",entry.size}}}));
-  return result;
-}
-void FileStateStash::loadJson(const Json& entries){
-  if(!entries.is_array())throw std::invalid_argument("Cache dump must be an array");
-  clear();
-  for(const auto& item:entries){
-    const auto& raw=item.at(1);
-    auto value=std::make_shared<FileState>(fromJson(raw.at("value")));
-    const auto& size=value::property(raw,"size");
-    setSized(item.at(0).get<std::string>(),value,
-      size.is_number_unsigned()?size.get<std::size_t>():
-      size.is_number_integer()&&size.get<std::int64_t>()>0?
-        static_cast<std::size_t>(size.get<std::int64_t>()):valueSize(*value));
-  }
-}
 } // namespace batbox::file_state_stash

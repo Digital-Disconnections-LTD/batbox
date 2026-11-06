@@ -1,5 +1,6 @@
 #include "interactive/submit/Execution.hpp"
 #include "interactive/submit/Workload.hpp"
+#include "messages/Messages.hpp"
 #include <stdexcept>
 
 namespace batbox::interactive::submit {
@@ -15,6 +16,8 @@ std::optional<std::string> stringField(const Json& object,const char* name){
 bool boolField(const Json& object,const char* name){
   return value::truthy(value::property(object,name));
 }
+constexpr const char* workingNote="<system-reminder>\nThe user sent the next message "
+  "while you were still working on your previous response.\n</system-reminder>";
 }
 ExecutionRun::ExecutionRun(PoetrySubmitRequest request,CommandList commands,
     std::shared_ptr<SubmitServices> services):
@@ -76,11 +79,21 @@ void ExecutionRun::step(){
   auto pending=user_input::processUserInput(input,*currentInputServices);
   await(std::move(pending),[self=shared_from_this()](
       const user_input::InputResult& value){
+    std::optional<Json> note;
+    const auto& command=self->commands[self->index];
+    // Poetry typed during the previous turn now starts its own; the model
+    // reads that it arrived while it was working, as it does mid-turn.
+    if(!self->workingNoted&&value.shouldQuery&&value::truthy(value::property(*command,"sentWhileWorking"))&&
+       value::property(*command,"mode")=="prompt"&&!CommandQueue::isSlashCommand(command)){
+      self->workingNoted=true;
+      note=messages::createUserMessage(Json{{"content",workingNote},{"isMeta",true}},
+        self->currentInputServices->messages);
+    }
     self->currentInputServices.reset();
-    self->accept(value);
+    self->accept(value,std::move(note));
   });
 }
-void ExecutionRun::accept(const user_input::InputResult& value){
+void ExecutionRun::accept(const user_input::InputResult& value,std::optional<Json> note){
   const auto& command=*commands[index];
   Json origin=value::property(command,"origin");
   if(origin.is_null()||origin.is_discarded()){
@@ -89,6 +102,7 @@ void ExecutionRun::accept(const user_input::InputResult& value){
   }
   if(!value.messages.is_array())
     throw std::invalid_argument("User input messages array required");
+  if(note&&!value.messages.empty())newMessages->push_back(std::make_shared<Json>(std::move(*note)));
   for(const auto& item:value.messages){
     auto message=std::make_shared<Json>(item);
     if(!origin.is_null()&&!origin.is_discarded()&&

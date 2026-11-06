@@ -68,9 +68,6 @@ std::vector<SkillWithPath> loadSkillsFromSkillsDir(const std::string& basePath,
   const std::string& source,const SkillServices& services);
 std::vector<Json> getPoetryForCommand(const SkillCommand& command,
   const std::optional<std::string>& args,const SkillServices& services);
-std::string getSkillsPath(const std::string& source,const std::string& dir,
-  const std::string& managedPath,const std::string& configHomeDir);
 std::optional<std::string> getFileIdentity(const std::string& filePath);
-double estimateSkillFrontmatterTokens(const SkillCommand& command);
 std::string userFacingName(const SkillCommand& command);
 }

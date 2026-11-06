@@ -62,7 +62,6 @@ int main(){
     sync.findGitRoot=[](const std::string&)->std::optional<std::string>{return std::nullopt;};
     sync.findCanonicalGitRoot=sync.findGitRoot;
     sync.autoMemoryEnabled=[]{return false;};
-    sync.teamMemoryEnabled=[]{return false;};
     std::vector<std::string> hooks;
     sync.hasInstructionsLoadedHook=[]{return true;};
     sync.instructionsLoadedHook=[&](const project::MemoryFileInfo& file,

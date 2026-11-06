@@ -19,18 +19,17 @@ add_library(batbox_conversation_shell
   src/interactive/presentation_providers/MissionFooter.cpp
   src/interactive/presentation_providers/CardPalettes.cpp)
 target_link_libraries(batbox_conversation_shell PUBLIC batbox_terminal_ftxui
-  batbox_interactive_lifecycle batbox_interaction_controller batbox_text_editor)
+  batbox_interactive_lifecycle batbox_terminal_ftxui batbox_text_editor)
 target_compile_options(batbox_conversation_shell PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_definitions(batbox_conversation_shell PRIVATE
   BATBOX_VERSION="${PROJECT_VERSION}")
 
 target_sources(batbox_core_commands PRIVATE
-  src/commands_indigenous/Rename.cpp src/commands_indigenous/FlightSimple.cpp
-  src/commands_indigenous/PageCommands.cpp src/commands_indigenous/RemainingCatalog.cpp)
+  src/commands_indigenous/Rename.cpp src/commands_indigenous/FlightSimple.cpp)
 target_link_libraries(batbox_core_commands PUBLIC batbox_monster batbox_bats)
 
 add_library(batbox_live_gadget_roster src/gadgets/live_roster/Factory.cpp
-  src/gadgets/live_roster/Select.cpp src/gadgets/live_roster/ContextBinding.cpp)
+  src/gadgets/live_roster/Select.cpp)
 target_link_libraries(batbox_live_gadget_roster PUBLIC batbox_interactive
   batbox_bats batbox_shell batbox_core batbox_web batbox_mcp)
 target_compile_options(batbox_live_gadget_roster PRIVATE -Wall -Wextra -Wpedantic)
@@ -43,7 +42,7 @@ add_library(batbox_application_gadgets
   src/application_gadgets/ApplicationGadgets.cpp
   src/application_gadgets/IndigenousFiles.cpp src/application_gadgets/IndigenousFileHelpers.cpp)
 target_link_libraries(batbox_application_gadgets PUBLIC batbox_live_gadget_roster
-  batbox_skills batbox_media batbox_core)
+  batbox_skills batbox_media batbox_core batbox_fs_operations)
 target_compile_options(batbox_application_gadgets PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(batbox_application_runtime

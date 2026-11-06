@@ -6,7 +6,7 @@
 
 namespace batbox::interactive::message_view {
 enum class MessageKind {Hidden,Attachment,Assistant,User,CompactSummary,
-  CompactBoundary,SnipBoundary,LocalCommand,System,GroupedGadgets,CollapsedReadSearch};
+  CompactBoundary,LocalCommand,System,GroupedGadgets,CollapsedReadSearch};
 enum class BlockKind {Hidden,UserText,UserImage,GadgetResult,AssistantText,
   AssistantGadgetUse,RedactedThinking,Thinking,Advisor};
 struct MessageOptions {
@@ -25,9 +25,7 @@ struct MessageOptions {
 };
 struct MessageImports {
   std::function<bool()> fullscreen;
-  std::function<bool(const std::string&)> feature;
-  std::function<bool(const Json&)> isSnipBoundary,isSnipMarker;
-  std::function<bool(const Json&)> isConnectorTextBlock,isAdvisorBlock;
+  std::function<bool(const Json&)> isAdvisorBlock;
   std::function<void(const std::string&)> logError;
 };
 struct BlockPlan {
@@ -56,7 +54,4 @@ BlockPlan prepareUserBlock(const GadgetBlockRef& block,const Json& imageIndex,
   const MessageOptions& options);
 BlockPlan prepareAssistantBlock(const GadgetBlockRef& block,const std::string& thinkingId,
   const MessageOptions& options,const MessageImports& imports);
-bool hasThinkingContent(const Json& message);
-bool sameThinkingMarker(const Json& previous,const Json& next);
-bool sameMessageView(const MessagePlan& previous,const MessagePlan& next);
 } // namespace batbox::interactive::message_view

@@ -109,10 +109,8 @@ std::optional<Json> getBatListingDelta(const gadgets::Gadgets& pool,
     addedTypes.push_back(field(bat,"agentType"));
     addedLines.push_back(formatBatLine(bat));
   }
-  if(!services.subscriptionType)
-    throw std::invalid_argument("Subscription type import required");
   return Json{{"addedTypes",addedTypes},{"addedLines",addedLines},
     {"removedTypes",removed},{"isInitial",announced.empty()},
-    {"showConcurrencyNote",services.subscriptionType()!="pro"}};
+    {"showConcurrencyNote",true}};
 }
 } // namespace batbox::attachments::context

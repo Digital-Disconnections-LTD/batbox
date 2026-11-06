@@ -1,7 +1,6 @@
 #pragma once
 #include "api_errors/ApiErrors.hpp"
 #include "runtime/JsonValue.hpp"
-#include "utils/envUtils.hpp"
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
@@ -10,23 +9,14 @@ namespace batbox::api_errors::internal {
 inline const std::string API_ERROR_MESSAGE_PREFIX="API Error";
 inline const std::string POETRY_TOO_LONG_ERROR_MESSAGE="Prompt is too long";
 inline const std::string CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE="Credit balance is too low";
-inline const std::string INVALID_API_KEY_ERROR_MESSAGE="Not logged in · Please run /login";
-inline const std::string INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL="Invalid API key · Fix external API key";
-inline const std::string ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH="Your BATBOX_API_KEY belongs to a disabled organization · Unset the environment variable to use your subscription instead";
-inline const std::string ORG_DISABLED_ERROR_MESSAGE_ENV_KEY="Your BATBOX_API_KEY belongs to a disabled organization · Update or unset the environment variable";
-inline const std::string TOKEN_REVOKED_ERROR_MESSAGE="OAuth token revoked · Please run /login";
-inline const std::string CCR_AUTH_ERROR_MESSAGE="Authentication error · This may be a temporary network issue, please try again";
+inline const std::string INVALID_API_KEY_ERROR_MESSAGE="Invalid API key · Check this endpoint's key in /providers";
 inline const std::string CUSTOM_OFF_SWITCH_MESSAGE="Opus is experiencing high load, please use /model to switch to Sonnet";
 inline const std::string API_TIMEOUT_ERROR_MESSAGE="Request timed out";
-inline const std::string OAUTH_ORG_NOT_ALLOWED_ERROR_MESSAGE="Your account does not have access to Batbox. Please run /login.";
-bool isCCRMode(Providers& p);
 std::string getPdfTooLargeErrorMessage(Providers& p);
 std::string getPdfPasswordProtectedErrorMessage(Providers& p);
 std::string getPdfInvalidErrorMessage(Providers& p);
 std::string getImageTooLargeErrorMessage(Providers& p);
 std::string getRequestTooLargeErrorMessage(Providers& p);
-std::string getTokenRevokedErrorMessage(Providers& p);
-std::string getOauthOrgNotAllowedErrorMessage(Providers& p);
 std::optional<std::string> get3PModelFallbackSuggestion(const std::string& model,Providers& p);
 inline bool has(const Json& value,const std::string& key){return value.is_object()&&value.contains(key);}
 inline Json get(const Json& value,const std::string& key){return has(value,key)?value.at(key):Json();}
@@ -35,9 +25,6 @@ inline std::string field(const Json& value,const std::string& key){return string
 inline bool contains(const std::string& text,const std::string& needle){return text.find(needle)!=std::string::npos;}
 inline bool starts(const std::string& text,const std::string& prefix){return text.rfind(prefix,0)==0;}
 inline std::string lower(std::string text){for(char& c:text)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));return text;}
-inline Json envValue(const Providers& p,const std::string& key){return has(p.env,key)?p.env.at(key):Json();}
-inline bool envTruthy(const Providers& p,const std::string& key){return batbox::isEnvTruthy(envValue(p,key));}
-inline bool envPresent(const Providers& p,const std::string& key){return value::truthy(envValue(p,key));}
 inline std::optional<std::string> header(const retry::ErrorRecord& e,const std::string& name){
   if(name.empty())throw std::logic_error("WireHeaders value not supplied");
   if(!e.headers.is_object())return std::nullopt;

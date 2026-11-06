@@ -72,25 +72,4 @@ bool Runtime::handleIncomingPoetry(const std::string& content,bool isMeta){
   });
   return true;
 }
-void Runtime::handleRemoteInit(
-    const std::vector<std::string>& remoteSlashCommands){
-  if(!services_.owner.isOwnerThread())
-    throw std::logic_error("Remote command owner required");
-  need(services_.isRemoteSafeCommand,"isRemoteSafeCommand");
-  need(services_.publishLocalCommands,"publishLocalCommands");
-  const std::unordered_set<std::string> names(
-    remoteSlashCommands.begin(),remoteSlashCommands.end());
-  LocalCommands next;
-  next.reserve(localCommands_.size());
-  for(const auto& command:localCommands_){
-    if(!command)continue;
-    const auto& name=value::property(*command,"name");
-    const bool offered=name.is_string()&&
-      names.contains(name.get<std::string>());
-    if(offered||services_.isRemoteSafeCommand(command))
-      next.push_back(command);
-  }
-  localCommands_=std::move(next);
-  services_.publishLocalCommands(localCommands_);
-}
 } // namespace batbox::interactive::repl_runtime

@@ -1,10 +1,8 @@
 #include "gadgets/Schema.hpp"
-#include <atomic>
 #include <stdexcept>
 
 namespace batbox::gadgets {
 namespace {
-std::atomic_bool loggedExperimentalStrip{false};
 void required(bool ready, const char* name) {
   if (!ready) throw std::invalid_argument(std::string("Missing tool schema binding: ") + name);
 }
@@ -15,15 +13,6 @@ void GadgetSchemaStash::clear() {
   entries.clear();
 }
 
-Json ZodSchemaStash::toJsonSchema(const void* schemaIdentity, const std::function<Json()>& convert) {
-  required(schemaIdentity != nullptr, "schemaIdentity");
-  required(static_cast<bool>(convert), "toJSONSchema");
-  const auto found = entries.find(schemaIdentity);
-  if (found != entries.end() && value::truthy(found->second)) return found->second;
-  Json result = convert();
-  entries[schemaIdentity] = result;
-  return result;
-}
 
 Json filterSwarmFieldsFromSchema(const std::string& gadgetName, const Json& schema,
                                  const GadgetSchemaServices& services) {
@@ -67,8 +56,7 @@ Json gadgetToAPISchema(const Gadget& gadget, const GadgetSchemaOptions& options,
       required(static_cast<bool>(services.convertInputSchema), "convertInputSchema");
       inputSchema = services.convertInputSchema(gadget);
     }
-    required(static_cast<bool>(services.batSwarmsEnabled), "agentSwarmsEnabled");
-    if (!services.batSwarmsEnabled()) inputSchema = filterSwarmFieldsFromSchema(gadget.name, inputSchema, services);
+    inputSchema = filterSwarmFieldsFromSchema(gadget.name, inputSchema, services);
     required(static_cast<bool>(gadget.poetry), "tool.prompt");
     StashedGadgetSchema base{gadget.name, gadget.poetry(options.poetry).get(), inputSchema};
     if (strictGadgets && gadget.strict == true && options.model && !options.model->empty()) {
@@ -99,20 +87,6 @@ Json gadgetToAPISchema(const Gadget& gadget, const GadgetSchemaOptions& options,
   if (options.deferLoading) { requiredKey(keys.deferLoading, "wire.deferLoading"); schema[keys.deferLoading] = true; }
   if (value::truthy(options.stashControl)) {
     requiredKey(keys.stashControl, "wire.cacheControl"); schema[keys.stashControl] = options.stashControl;
-  }
-  if (services.disableExperimentalBetas && (base.strict || base.eagerInputStreaming || options.deferLoading)) {
-    if (!loggedExperimentalStrip.exchange(true)) {
-      if (services.logDebug) {
-        std::string removed;
-        if (base.strict) removed += keys.strict;
-        if (base.eagerInputStreaming) { if (!removed.empty()) removed += ", "; removed += keys.eagerInputStreaming; }
-        if (options.deferLoading) { if (!removed.empty()) removed += ", "; removed += keys.deferLoading; }
-        services.logDebug("[betas] Stripped from tool schemas: [" + removed + "] (BATBOX_DISABLE_EXPERIMENTAL_BETAS=1)");
-      }
-    }
-    Json stripped = {{keys.name, base.name}, {keys.description, base.description}, {keys.inputSchema, base.inputSchema}};
-    if (value::truthy(options.stashControl)) stripped[keys.stashControl] = options.stashControl;
-    return stripped;
   }
   return schema;
 }

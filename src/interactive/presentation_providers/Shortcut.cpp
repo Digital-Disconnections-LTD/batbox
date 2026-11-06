@@ -142,32 +142,4 @@ std::string ShortcutProvider::display(const std::string& action,
   std::lock_guard lock(displayCache->mutex);
   return displayCache->text.emplace(std::move(key),std::move(text)).first->second;
 }
-std::string shortcutHintText(const std::string& shortcut,
-    const std::string& action,bool parens){
-  const auto value=shortcut+" to "+action;
-  return parens?"("+value+")":value;
-}
-ftxui::Element shortcutHint(const std::string& shortcut,
-    const std::string& action,bool parens,bool bold){
-  const auto prefix=parens?"(":"";
-  const auto suffix=parens?")":"";
-  auto key=ftxui::text(value::encodeUtf8(shortcut));
-  if(bold)key=key|ftxui::bold;
-  return ftxui::hbox({ftxui::text(prefix),std::move(key),
-    ftxui::text(value::encodeUtf8(" to "+action+suffix))});
-}
-std::string configurableShortcutHintText(const ShortcutProvider& provider,
-    const std::string& action,const std::string& context,
-    const std::string& fallback,const std::string& description,
-    bool parens){
-  return shortcutHintText(provider.display(action,context,fallback),
-    description,parens);
-}
-ftxui::Element configurableShortcutHint(const ShortcutProvider& provider,
-    const std::string& action,const std::string& context,
-    const std::string& fallback,const std::string& description,
-    bool parens,bool bold){
-  return shortcutHint(provider.display(action,context,fallback),
-    description,parens,bold);
-}
 } // namespace batbox::interactive::presentation_providers

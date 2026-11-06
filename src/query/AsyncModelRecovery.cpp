@@ -78,18 +78,7 @@ void Run::afterMissing(){
     result.assistantMessages=Json::array();result.assistantRefs.clear();
     result.gadgetResults=Json::array();result.gadgetUseBlocks=Json::array();
     result.needsFollowUp=false;
-    if(prepared->streamingGadgetExecutor){
-      prepared->streamingGadgetExecutor->discard();
-      prepared->discardedExecutors.push_back(std::move(prepared->streamingGadgetExecutor));
-      need(prepared->executionServices,"executionServices");
-      prepared->streamingGadgetExecutor=std::make_unique<execution::StreamingGadgetExecutor>(
-        prepared->gadgetUseContext,*prepared->executionServices);
-    }
     prepared->gadgetUseContext.data["options"]["mainLoopModel"]=*params.fallbackModel;
-    if(config.internalUser){
-      need(services.sync.stripSignatureBlocks,"stripSignatureBlocks");
-      prepared->messagesForQuery=services.sync.stripSignatureBlocks(prepared->messagesForQuery);
-    }
     stage=Stage::EmitFallbackSystem;
   }else stage=Stage::EmitFailureMessage;
 }

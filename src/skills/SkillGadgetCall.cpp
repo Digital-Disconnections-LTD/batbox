@@ -45,17 +45,13 @@ gadgets::GadgetResult executeSkill(const Json& input,
   if(services.remote.enabled){
     const auto slug=remote::remoteSlugForCommand(commandName,services.remote);
     if(slug){
-      auto remoteServices=services.remote;
-      remoteServices.recordSkillUsage=services.recordSkillUsage;
       return remote::executeRemoteSkill(*slug,commandName,parentMessage,
-        remoteServices,stopToken);
+        services.remote,stopToken);
     }
   }
   need(services.getAllCommands,"getAllCommands");
   const auto commands=services.getAllCommands(context);
   const auto command=find(commandName,commands,services.lookup);
-  need(services.recordSkillUsage,"recordSkillUsage");
-  services.recordSkillUsage(commandName);
   if(command.is_null())throw std::runtime_error("Unknown skill: "+commandName);
   const auto args=text(input,"args");
   if(value::property(command,"type")=="prompt"&&

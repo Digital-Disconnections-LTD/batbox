@@ -29,10 +29,6 @@ struct BatGadgetForegroundFinalServices {
   std::function<void(const std::string&)> clearInvokedSkillsForBat;
   std::function<std::int64_t()> nowMillis;
   std::function<bool(const Json&)> isSyntheticMessage;
-  std::function<bool(const std::string&)> feature;
-  std::function<std::optional<std::string>(const Json&,
-    const gadgets::Gadgets&,const Json&,std::stop_token,const std::string&,int)>
-    classifyHandoffIfNeeded;
 };
 // Returns no result when the caller already returned an async_launched value
 // from the background race. Otherwise performs finalization and completion.

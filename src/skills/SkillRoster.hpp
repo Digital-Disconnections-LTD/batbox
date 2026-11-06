@@ -39,6 +39,5 @@ std::vector<SkillCommand> getDynamicSkills(const SkillRoster& roster);
 std::vector<std::string> activateConditionalSkillsForPaths(
   const std::vector<std::string>& filePaths,const std::string& cwd,
   SkillRoster& roster,const SkillRosterServices& services);
-std::size_t getConditionalSkillCount(const SkillRoster& roster);
 void clearDynamicSkills(SkillRoster& roster);
 }

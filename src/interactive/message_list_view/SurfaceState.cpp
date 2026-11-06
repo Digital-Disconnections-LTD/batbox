@@ -17,12 +17,15 @@ bool SurfaceState::thinkingVisible(const std::shared_ptr<const StreamingThinking
   }
   return thinkingVisible_;
 }
-void SurfaceState::toggleExpanded(const Json& message){
-  const auto key=expandKey(message);
-  if(!expandedKeys_.erase(key))expandedKeys_.insert(key);
-}
-bool SurfaceState::expanded(const Json& message)const{
-  return !expandedKeys_.empty()&&expandedKeys_.contains(expandKey(message));
+const Json& SurfaceState::latestBashOutput(
+    const std::shared_ptr<const PreparedMessageList>& prepared){
+  // A changed or mutated message list is a new prepared list.
+  if(bashSource_.owner_before(prepared)||prepared.owner_before(bashSource_)||
+     bashSource_.expired()){
+    bashOutput_=latestBashOutputUUID(prepared->normalizedMessages);
+    bashSource_=prepared;
+  }
+  return bashOutput_;
 }
 void SurfaceState::committed(bool progressEnabled,bool hasGadgetsInProgress,
     const std::function<void(std::optional<ProgressState>)>& progress){
@@ -60,32 +63,10 @@ Json latestBashOutputUUID(const MessageRefs& messages){
     if(!*message||field(**message,"type")!="user")continue;
     for(const auto& block:field(field(**message,"message"),"content")){
       if(field(block,"type")!="text")continue;
-      const auto text=field(block,"text").get<std::string>();
+      const auto& text=field(block,"text").get_ref<const std::string&>();
       if(text.starts_with("<bash-stdout")||text.starts_with("<bash-stderr"))return field(**message,"uuid");
     }
   }
   return nullptr;
-}
-bool isItemClickable(const Json& message,const MessageLookups& lookups,
-    const gadgets::Gadgets& gadgets,const std::function<bool(const Json&)>& isAdvisorBlock){
-  const auto& type=field(message,"type");
-  if(type=="collapsed_read_search")return true;
-  const auto& content=field(field(message,"message"),"content");
-  const Json first=content.is_array()&&!content.empty()?content[0]:Json(nullptr);
-  if(type=="assistant"){
-    if(first.is_null())return false;
-    if(!isAdvisorBlock)throw std::invalid_argument("Advisor block predicate required");
-    return isAdvisorBlock(first)&&field(first,"type")=="advisor_tool_result"&&
-      field(field(first,"content"),"type")=="advisor_result";
-  }
-  if(type!="user")return false;
-  if(field(first,"type")!="tool_result"||value::truthy(field(first,"is_error"))||
-      !value::truthy(field(message,"toolUseResult")))return false;
-  const auto& id=field(first,"tool_use_id");
-  const auto found=id.is_string()?lookups.gadgetUseByGadgetUseID.find(id.get<std::string>()):lookups.gadgetUseByGadgetUseID.end();
-  if(found==lookups.gadgetUseByGadgetUseID.end())return false;
-  const auto& name=field(found->second.value(),"name");
-  const auto* gadget=name.is_string()?gadgets::findGadgetByName(gadgets,name.get<std::string>()):nullptr;
-  return gadget&&gadget->isResultTruncated?gadget->isResultTruncated(message.at("toolUseResult")):false;
 }
 } // namespace batbox::interactive::message_list_view

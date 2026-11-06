@@ -4,6 +4,15 @@ namespace batbox::execution {
 Json effectiveAppState(const Context& context,const Json& base){
   return context.appStateModifier?context.appStateModifier(base):base;
 }
+const Json& conversationMessages(const Context& context){
+  static const Json missing;
+  if(const Json& inline_=value::property(context.data,"messages");!inline_.is_null())return inline_;
+  return context.conversation?*context.conversation:missing;
+}
+void shareConversation(Context& context,Json messages){
+  if(context.data.is_object())context.data.erase("messages");
+  context.conversation=std::make_shared<const Json>(std::move(messages));
+}
 Context contextWithoutConversation(const Context& context){
   Context copy;
   if(context.data.is_object()){

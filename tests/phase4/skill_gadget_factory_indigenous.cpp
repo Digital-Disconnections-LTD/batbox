@@ -25,10 +25,6 @@ int main(){
     for(const auto& item:commands)if(item.at("name")==name)return item;
     return Json(nullptr);
   };
-  int usageCalls=0;
-  services.execution.recordSkillUsage=[&](const std::string& name){
-    check(name=="review","usage name");++usageCalls;
-  };
   services.execution.processPoetrySlashCommand=[](const std::string& name,
     const std::string& args,const std::vector<Json>&,
     const batbox::bats::BatContext&){
@@ -62,7 +58,6 @@ int main(){
   const Json parent={{"message",{{"id","parent-1"},{"content",Json::array({
     {{"type","tool_use"},{"name","Skill"},{"id","tool-1"}}})}}}};
   const auto output=gadget.call(input,callContext,{},parent,{}).get();
-  check(usageCalls==1,"local skill usage recorded once");
   check(output.data.at("commandName")=="review","call output");
   check(output.newMessages&&output.newMessages->size()==1&&
     output.newMessages->at(0).at("sourceToolUseID")=="tool-1","message tagging");

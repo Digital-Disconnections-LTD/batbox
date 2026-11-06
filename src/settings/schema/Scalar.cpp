@@ -20,12 +20,6 @@ ParseResult parseScalar(const Json& node,const Json& input,bool present,
   const Json& path,const MainConfig& config,const MainImports& imports){
   ParseResult result;result.present=present;result.value=input;
   const auto type=node.at("type").get<std::string>();
-  if(type=="undefined"){
-    result.valid=!present;
-    if(!result.valid)result.issues.push_back(
-      invalidTypeIssue("undefined",input,present,path));
-    return result;
-  }
   if(type=="string"||type=="number"||type=="boolean"){
     const bool matched=present&&(
       (type=="string"&&input.is_string())||

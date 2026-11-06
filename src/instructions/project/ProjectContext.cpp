@@ -25,7 +25,7 @@ std::vector<MemoryFileInfo> filterInjectedMemoryFiles(
   if(!required(services.skipAutoMemoryIndex,"skipAutoMemoryIndex"))return files;
   std::vector<MemoryFileInfo> result;
   for(const auto& file:files)
-    if(file.type!="AutoMem"&&file.type!="TeamMem")result.push_back(file);
+    if(file.type!="AutoMem")result.push_back(file);
   return result;
 }
 std::string getBatboxMds(const std::vector<MemoryFileInfo>& files,
@@ -42,17 +42,11 @@ std::string getBatboxMds(const std::vector<MemoryFileInfo>& files,
     if(file.type=="Project")description=" (project instructions, checked into the codebase)";
     else if(file.type=="Local")
       description=" (user's private project instructions, not checked in)";
-    else if(required(services.teamMemoryFeature,"teamMemoryFeature")&&file.type=="TeamMem")
-      description=" (shared team memory, synced across the organization)";
     else if(file.type=="AutoMem")
       description=" (user's auto-memory, persists across conversations)";
     else description=" (user's private global instructions for all projects)";
     const auto content=value::trim(file.content);
-    if(required(services.teamMemoryFeature,"teamMemoryFeature")&&file.type=="TeamMem")
-      memories.push_back("Contents of "+file.path+description+
-        ":\n\n<team-memory-content source=\"shared\">\n"+content+
-        "\n</team-memory-content>");
-    else memories.push_back("Contents of "+file.path+description+":\n\n"+content);
+    memories.push_back("Contents of "+file.path+description+":\n\n"+content);
   }
   if(memories.empty())return {};
   std::string poetry=std::string(instructionPoetry)+"\n\n";

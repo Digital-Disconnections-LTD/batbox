@@ -27,11 +27,8 @@ bool matches(const Json& client,const Json& required,const char* type){
 }
 void require(const BatGadgetPreflightServices& services){
   if(!services.nowMillis || !services.sleepMillis || !services.getAppState ||
-     !services.isCoordinatorMode || !services.isBatSwarmsEnabled ||
-     !services.isPartner || !services.isInProcessPartner ||
      !services.isForkSubagentEnabled || !services.isInForkChild ||
-     !services.filterDeniedBats || !services.getDenyRuleForBat ||
-     !services.setBatColor || !services.spawnPartner)
+     !services.filterDeniedBats || !services.getDenyRuleForBat || !services.setBatColor)
     throw std::invalid_argument("BatGadget preflight requires imported services");
 }
 } // namespace
@@ -56,56 +53,18 @@ Json filterBatsByMcpRequirements(const Json& bats,const Json& availableServers){
 }
 
 BatGadgetPreflightResult preflightBatGadget(const Json& input,const Json& options,
-    const Json& messages,const Json& assistantMessage,BatGadgetPreflightServices& services){
+    const Json& messages,BatGadgetPreflightServices& services){
   require(services);
   BatGadgetPreflightResult out;
   out.startTime=services.nowMillis();
-  out.modelParam=services.isCoordinatorMode()?Json():field(input,"model");
+  out.modelParam=field(input,"model");
   out.initialAppState=services.getAppState();
   const Json& appState=out.initialAppState;
   const Json& permissionContext=field(appState,"toolPermissionContext");
   out.permissionMode=field(permissionContext,"mode");
 
-  const Json& suppliedTeamName=field(input,"team_name");
-  if(value::truthy(suppliedTeamName) && !services.isBatSwarmsEnabled())
+  if(value::truthy(field(input,"team_name")))
     throw std::runtime_error("Bat teams are not yet available on your plan.");
-  out.teamName=services.isBatSwarmsEnabled()?
-    (value::truthy(suppliedTeamName)?suppliedTeamName:field(field(appState,"teamContext"),"teamName")):
-    Json();
-  const Json& name=field(input,"name");
-  if(services.isPartner() && value::truthy(out.teamName) && value::truthy(name))
-    throw std::runtime_error("Partners cannot spawn other Partners — the team roster is flat. To spawn a Bat instead, omit the `name` parameter.");
-  if(services.isInProcessPartner() && value::truthy(out.teamName) &&
-      field(input,"run_in_background").is_boolean() &&
-      field(input,"run_in_background").get<bool>())
-    throw std::runtime_error("In-process Partners cannot spawn background Bats. Use run_in_background=false for synchronous Bats.");
-  if(value::truthy(out.teamName) && value::truthy(name)){
-    Json batDef;
-    const auto& requestedType=field(input,"subagent_type");
-    if(value::truthy(requestedType)){
-      const auto& active=field(field(options,"agentDefinitions"),"activeAgents");
-      for(const auto& bat:active)
-        if(field(bat,"agentType")==requestedType){batDef=bat;break;}
-    }
-    if(value::truthy(field(batDef,"color")))
-      services.setBatColor(str(requestedType),field(batDef,"color"));
-    Json request={{"name",name},{"prompt",field(input,"prompt")},
-      {"team_name",out.teamName},{"use_splitpane",true},
-      {"plan_mode_required",field(input,"mode")=="plan"}};
-    if(input.contains("description"))request["description"]=input.at("description");
-    const Json& chosenModel=!out.modelParam.is_null()?out.modelParam:field(batDef,"model");
-    if(!chosenModel.is_null())request["model"]=chosenModel;
-    if(input.contains("subagent_type"))request["agent_type"]=requestedType;
-    if(assistantMessage.is_object() && assistantMessage.contains("requestId"))
-      request["invokingRequestId"]=assistantMessage.at("requestId");
-    const Json result=services.spawnPartner(request);
-    Json spawnResult={{"status","teammate_spawned"},{"prompt",field(input,"prompt")}};
-    if(field(result,"data").is_object())
-      for(auto it=result.at("data").begin();it!=result.at("data").end();++it)
-        spawnResult[it.key()]=it.value();
-    out.immediateResult=Json{{"data",spawnResult}};
-    return out;
-  }
 
   const Json& requestedType=field(input,"subagent_type");
   out.effectiveType=!requestedType.is_null()?requestedType:
@@ -146,10 +105,6 @@ BatGadgetPreflightResult preflightBatGadget(const Json& input,const Json& option
       throw std::runtime_error("Bat type '"+effective+"' not found. Available Bats: "+join(available));
     }
   }
-  if(services.isInProcessPartner() && value::truthy(out.teamName) &&
-      field(out.selectedBat,"background")==true)
-    throw std::runtime_error("In-process Partners cannot spawn background Bats. Bat '"+
-      str(field(out.selectedBat,"agentType"))+"' has background: true in its definition.");
   const auto& required=field(out.selectedBat,"requiredMcpServers");
   if(required.is_array() && !required.empty()){
     Json currentAppState=appState;

@@ -1,7 +1,8 @@
 #pragma once
 #include "ansi_tokenize/Types.hpp"
-#include "text_width/Layout.hpp"
+#include <functional>
 #include <optional>
+#include <string>
 namespace batbox::text_width {
 struct SliceServices {
   std::function<ansi_tokenize::Tokens(const std::string&)> tokenize;
@@ -13,5 +14,4 @@ bool isEndCode(const ansi_tokenize::AnsiCode& code);
 ansi_tokenize::Codes filterStartCodes(const ansi_tokenize::Codes& codes);
 std::string sliceAnsi(const std::string& text,double start,std::optional<double> end,
   const SliceServices& services);
-void bindAnsiSlice(WrapServices& wrap,SliceServices services);
 }

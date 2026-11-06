@@ -28,13 +28,9 @@ struct PermissionRuleServices {
 };
 std::string normalizeLegacyGadgetName(const std::string& name,
   const PermissionRuleServices& services);
-std::vector<std::string> getLegacyGadgetNames(const std::string& canonicalName,
-  const PermissionRuleServices& services);
-std::string escapeRuleContent(const std::string& content);
 std::string unescapeRuleContent(const std::string& content);
 PermissionRuleValue permissionRuleValueFromString(const std::string& rule,
   const PermissionRuleServices& services);
-std::string permissionRuleValueToString(const PermissionRuleValue& value);
 std::optional<std::pair<std::string,std::optional<std::string>>>
   mcpInfoFromString(const std::string& gadgetString);
 bool isFilePatternGadget(const std::string& gadgetName,
@@ -45,7 +41,4 @@ RuleValidationResult getCustomValidation(const std::string& gadgetName,
   const std::string& content);
 RuleValidationResult validatePermissionRule(const std::string& rule,
   const PermissionRuleServices& services);
-Json filterInvalidPermissionRules(Json& data,const std::string& filePath,
-  const PermissionRuleServices& services);
-Json validationResultJson(const RuleValidationResult& result);
 }

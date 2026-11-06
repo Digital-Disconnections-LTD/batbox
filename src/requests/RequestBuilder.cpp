@@ -39,7 +39,8 @@ Json buildParamsFromContext(const Json& retryContext, RequestCapture& capture,
   Json betasParams = capture.betas;
 
   require(deps.getLargeContextTreatment, "getLargeContextTreatment");
-  if (!includes(betasParams, headers.largeContext) && deps.getLargeContextTreatment(retryModel))
+  if (!includes(betasParams, headers.largeContext) && deps.getLargeContextTreatment(retryModel) &&
+      !headers.largeContext.empty())
     betasParams.push_back(headers.largeContext);
 
   Json providerBetas = Json::array();
@@ -49,8 +50,6 @@ Json buildParamsFromContext(const Json& retryContext, RequestCapture& capture,
     if (!capture.gadgetSearchHeader.empty()) providerBetas.push_back(capture.gadgetSearchHeader);
   }
   Json extraBodyParams = getExtraBodyParams(capture.extraBodyStr, providerBetas,
-    capture.antiDistillationFeature, capture.cliEntrypoint,
-    capture.includeFirstPartyBetas, capture.fakeGadgetInjectionEnabled,
     wire, deps.assembly);
 
   Json outputConfig = field(extraBodyParams, "output_config");
@@ -62,7 +61,7 @@ Json buildParamsFromContext(const Json& retryContext, RequestCapture& capture,
     if(supportsEffort&&capture.effortDefined&&capture.effort.is_string()&&
        !has(outputConfig,"effort"))outputConfig["effort"]=capture.effort;
   }else configureEffortParams(capture.effort, capture.effortDefined, outputConfig,
-    extraBodyParams, betasParams, supportsEffort, capture.internalUser, wire);
+    betasParams, supportsEffort, wire);
   configureMissionBudgetParams(field(options, "taskBudget"), outputConfig, betasParams,
     capture.includeFirstPartyBetas, wire.missionBudgetBetaHeader);
 
@@ -70,7 +69,8 @@ Json buildParamsFromContext(const Json& retryContext, RequestCapture& capture,
   if (value::truthy(outputFormat) && !has(outputConfig, "format")) {
     outputConfig["format"] = outputFormat;
     require(deps.modelSupportsStructuredOutputs, "modelSupportsStructuredOutputs");
-    if (deps.modelSupportsStructuredOutputs(model) && !includes(betasParams, headers.structuredOutputs))
+    if (deps.modelSupportsStructuredOutputs(model) && !headers.structuredOutputs.empty() &&
+        !includes(betasParams, headers.structuredOutputs))
       betasParams.push_back(headers.structuredOutputs);
   }
 
@@ -121,12 +121,9 @@ Json buildParamsFromContext(const Json& retryContext, RequestCapture& capture,
   const bool isFastModeForRetry = deps.isFastModeEnabled() && deps.isFastModeAvailable() &&
     !deps.isFastModeCooldown() && deps.isFastModeSupportedByModel(model) &&
     value::truthy(field(retryContext, "fastMode"));
-  if (capture.fastModeHeaderLatched && !includes(betasParams, headers.fastMode))
+  if (capture.fastModeHeaderLatched && !headers.fastMode.empty() &&
+      !includes(betasParams, headers.fastMode))
     betasParams.push_back(headers.fastMode);
-
-  if (capture.transcriptClassifierFeature && capture.afkHeaderLatched &&
-      capture.includeFirstPartyBetas && capture.isAgenticQuery &&
-      !includes(betasParams, headers.afkMode)) betasParams.push_back(headers.afkMode);
 
   const bool useStashedMC = capture.stashedMCEnabled && capture.provider == "firstParty" &&
     source && *source == "repl_main_thread";

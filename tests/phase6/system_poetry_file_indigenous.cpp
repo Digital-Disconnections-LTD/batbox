@@ -18,7 +18,8 @@ struct Fixture {
   event_loop::Loop loop;
   std::vector<std::string> log;
   std::shared_ptr<application_poetry::Provider> provider;
-  explicit Fixture(fs::path directory,bool simple=false):root(std::move(directory)){
+  explicit Fixture(fs::path directory,bool simple=false,
+      Json settings=Json{{"stablePromptPrefix",false}}):root(std::move(directory)){
     fs::create_directories(root/"project"/".git");
     std::ofstream(root/"project"/".git"/"HEAD")<<"ref: refs/heads/main\n";
     fs::create_directories(root/"config");
@@ -29,6 +30,7 @@ struct Fixture {
     inputs.config.configPath=root/"config"/"native-client.json";
     inputs.config.model="local-model";
     inputs.environment["BATBOX_SIMPLE"]=simple?"1":"0";
+    inputs.initialSettings=[settings]{return settings;};
     inputs.logDiagnostic=[this](const std::string& scope,const std::string& message,
         const std::optional<Json>&){log.push_back(scope+": "+message);};
     provider=std::make_shared<application_poetry::Provider>(loop,std::move(inputs));
@@ -113,6 +115,18 @@ void run(const fs::path& root){
     text.find("BATBOX_SIMPLE is set")!=std::string::npos&&
     text.find("\n  CUSTOM {{section:language}}\n  second line")!=std::string::npos,
     "/poetry did not show the source and preview: "+text);
+
+  Fixture stable(root/"stable",false,Json::object());
+  stable.write("STABLE HEAD ONE\n");
+  expect(stable.poetry().at(0)=="STABLE HEAD ONE","system.md was not used with a stable prefix");
+  stable.write("STABLE HEAD TWO, LONGER\n");
+  expect(stable.poetry().at(0)=="STABLE HEAD ONE",
+    "A system.md edit changed the prompt in the middle of a stable Flight");
+  expect(stable.provider->systemPoetrySource().head.find("STABLE HEAD ONE")==0,
+    "/poetry did not show the head in use");
+  stable.provider->resetProjectInstructionsAfterCompact();
+  stable.provider->clearPoetrySections();
+  expect(stable.poetry().at(0)=="STABLE HEAD TWO, LONGER","A system.md edit did not apply after compaction");
 
   Fixture simple(root/"simple",true);
   simple.write("CUSTOM HEAD\n");

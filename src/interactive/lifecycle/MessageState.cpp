@@ -47,13 +47,6 @@ void MessageState::setUserInputOnProcessing(std::optional<std::string> input){
   if(services_.publishProcessingInput)
     services_.publishProcessingInput(processingInput_);
 }
-std::optional<std::string> MessageState::placeholderText(
-    std::size_t displayedMessagesLength,bool viewingBatMission)const{
-  if(processingInput_&&!processingInput_->empty()&&!viewingBatMission&&
-      displayedMessagesLength<=userInputBaseline_)
-    return processingInput_;
-  return {};
-}
 MessageServices bindPresentationMessages(PresentationState& presentation,
     std::function<void()> requestRedraw,
     std::function<void(const std::optional<std::string>&)> publishProcessingInput){

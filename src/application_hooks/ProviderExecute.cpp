@@ -57,10 +57,19 @@ hooks::HookYieldCursor Provider::makeSourceCursor(
     detail.update(baseInput(detail.at("permission_mode").get<std::string>()));
   else detail.update(baseInput());
   detail["hook_event_name"]=event;
-  settingsHooks(event);
-  if(inputs_.getAppState)flightHooks(inputs_.getAppState(),event);
+  // Only a configured hook reads the transcript; without one, skip copying it.
+  bool configured=!settingsHooks(event).empty();
+  if(inputs_.getAppState&&!flightHooks(inputs_.getAppState(),event).empty())configured=true;
   const auto batId=field(detail,"agent_id");
   const auto selected=batId.empty()?baseServices_.getFlightId():batId;
+  for(const auto& flight:{selected,baseServices_.getFlightId()}){
+    if(configured)break;
+    if(indigenousFlightStore_&&!indigenousFlightStore_->getFlightFunctionHooks(
+        indigenousFlightHooks_,flight,event).empty())configured=true;
+    if(const auto found=registered_.find(flight);found!=registered_.end())
+      if(const auto rows=found->second.find(event);
+          rows!=found->second.end()&&!rows->second.empty())configured=true;
+  }
   auto active=std::make_shared<IndigenousHookContext>();
   active->query=queryContext?*queryContext:
     inputs_.currentContext?inputs_.currentContext():execution::Context{};
@@ -94,7 +103,7 @@ hooks::HookYieldCursor Provider::makeSourceCursor(
     call.batch.gadgetUseContext=std::move(context);
   const auto poetryMessages=hookMessages;
   if(hookMessages)call.messages=std::move(hookMessages);
-  else if(inputs_.currentMessages)call.messages=inputs_.currentMessages();
+  else if(inputs_.currentMessages&&configured)call.messages=inputs_.currentMessages();
 
   hooks::ExecuteHooksServices services;
   services.defaultTimeoutMs=[this]{return inputs_.defaultTimeoutMs;};

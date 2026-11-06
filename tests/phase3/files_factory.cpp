@@ -48,7 +48,6 @@ int main(){
 
   batbox::file_state_stash::FileStateStash state(100);
   files::FileWriteServices write;write.paths=paths;write.readFileState=&state;
-  write.checkTeamMemSecrets=[](const std::string&,const std::string&)->std::optional<std::string>{return std::nullopt;};
   write.matchingEditDenyRule=[](const std::string&){return false;};
   write.discoverSkillDirsForPaths=[](const std::string&,const std::string&){return std::vector<std::string>();};
   write.activateConditionalSkillsForPaths=[](const std::string&,const std::string&){};

@@ -35,7 +35,8 @@ int main(){
     batbox::event_loop::Loop owner;
     batbox::settings::persistence::WatchTargets targets;
     targets.dirs={root.string(),dropin.string()};
-    targets.settingsFiles={file,sibling};targets.dropInDir=dropin.string();
+    const auto replacementFragment=(dropin/"after-recreate.json").string();
+    targets.settingsFiles={file,sibling,fragment,replacementFragment};
     std::vector<std::string> events;
     batbox::settings::watcher::Events handlers;
     handlers.add=[&](const std::string& path){events.push_back("add:"+path);};
@@ -84,7 +85,6 @@ int main(){
     std::filesystem::create_directory(dropin);
     pump(160);
     before=events.size();
-    const auto replacementFragment=(dropin/"after-recreate.json").string();
     write(replacementFragment,"{\"restored\":true}");
     expect("add",replacementFragment,before);
     watcher.close();before=events.size();

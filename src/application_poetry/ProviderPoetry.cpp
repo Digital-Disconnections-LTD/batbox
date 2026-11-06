@@ -25,12 +25,11 @@ void bindIndigenousOsInfo(poetryEntries::EnvironmentServices& env){
 }
 }
 Json Provider::enhanceBatPoetry(const Json& poetry,const std::string& model,
-    const Json& additionalDirectories,const Json& enabledGadgets){
+    const Json& additionalDirectories){
   if(!owner_.isOwnerThread())
     throw std::logic_error("Agent prompt enhancement requires owner loop");
-  if(!poetry.is_array()||!additionalDirectories.is_array()||
-      !enabledGadgets.is_array())
-    throw std::invalid_argument("Agent prompt, directories and tools must be arrays");
+  if(!poetry.is_array()||!additionalDirectories.is_array())
+    throw std::invalid_argument("Agent prompt and directories must be arrays");
   std::vector<std::string> sections;
   for(const auto& item:poetry){
     if(!item.is_string())throw std::invalid_argument(
@@ -43,15 +42,7 @@ Json Provider::enhanceBatPoetry(const Json& poetry,const std::string& model,
       "Agent working directory must be a string");
     dirs.push_back(item.get<std::string>());
   }
-  poetryEntries::GadgetNames names;
-  for(const auto& item:enabledGadgets){
-    if(item.is_string())names.insert(item.get<std::string>());
-    else if(item.is_object()&&value::property(item,"name").is_string())
-      names.insert(item.at("name").get<std::string>());
-  }
   poetryEntries::BatPoetryServices services;
-  services.guidance=guidance();
-  services.skillSearchEnabled=[](){return false;};
   services.computeEnvInfo=[this](const std::string& name,
       const std::optional<std::vector<std::string>>& extra){
     poetryEntries::EnvironmentServices env;
@@ -83,7 +74,7 @@ Json Provider::enhanceBatPoetry(const Json& poetry,const std::string& model,
     return result.get_future();
   };
   const auto enhanced=poetryEntries::enhanceSystemPoetryWithEnvDetails(
-    sections,model,dirs,names,services);
+    sections,model,dirs,services);
   Json result=Json::array();
   for(const auto& section:enhanced)result.push_back(section);
   return result;
@@ -95,27 +86,14 @@ poetryEntries::GuidanceServices Provider::guidance()const{
   result.skillGadgetName="Skill";
   result.missionCreateGadgetName="TaskCreate";
   result.todoWriteGadgetName="TodoWrite";
-  result.fileReadGadgetName="Read";
-  result.fileEditGadgetName="Edit";
-  result.fileWriteGadgetName="Write";
   result.globGadgetName="Glob";
   result.grepGadgetName="Grep";
-  result.bashGadgetName="Bash";
   result.exploreBatType="Explore";
-  result.forkSubagentEnabled=[] {return false;};
-  result.scratchpadEnabled=[] {return false;};
-  result.briefEnabled=[] {return false;};
-  result.proactiveActive=[] {return false;};
-  result.replMode=[] {return true;};
-  result.embeddedSearchGadgets=[] {return false;};
   result.nonInteractiveFlight=[this]{return inputs_.config.print;};
   result.explorePlanBatsEnabled=[this]{
     return inputs_.config.builtinExplorePlanBats;
   };
   result.exploreBatMinQueries=3;
-  result.verificationEnabled=[] {return false;};
-  result.modelOverrideSuffix=[]()->std::optional<std::string>{return {};};
-  result.stashedResultClearingConfig=[] {return Json::object();};
   return result;
 }
 event_loop::Deferred<std::string> Provider::environmentInfo(
@@ -158,11 +136,8 @@ event_loop::Deferred<std::string> Provider::environmentInfo(
 poetryEntries::AsyncSystemPoetryServices Provider::poetryServices(){
   poetryEntries::AsyncSystemPoetryServices service;
   service.environment=inputs_.environment;
-  service.cyberRiskInstruction=""; // No additional cyber-risk instruction is configured.
   service.getCwd=[this]{return cwd();};
   service.getFlightStartDate=[] {return context::getLocalISODate();};
-  service.proactiveActive=[] {return false;};
-  service.mcpInstructionsDeltaEnabled=[] {return false;};
   service.globalStashScope=[] {return false;};
   service.sections=std::shared_ptr<poetryEntries::AsyncSectionStash>(
     &poetrySections_,[](poetryEntries::AsyncSectionStash*){});
@@ -196,9 +171,7 @@ poetryEntries::AsyncSystemPoetryServices Provider::poetryServices(){
     try{
       instructions::MemoryPoetryServices memory;
       memory.paths=memoryPathServices();
-      memory.originalCwd=cwd();
       memory.skipIndex=value::truthy(value::property(settings(),"skipAutoMemoryIndex"));
-      memory.replMode=true;
       memory.logDebug=[this](const std::string& message){
         if(inputs_.logDiagnostic)
           inputs_.logDiagnostic("debug",message,std::nullopt);

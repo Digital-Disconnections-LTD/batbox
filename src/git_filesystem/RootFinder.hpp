@@ -10,8 +10,6 @@ class RootFinder {
 public:
   explicit RootFinder(std::function<FileStat(const std::string&)> statSync);
   std::optional<std::string> find(const std::string& startPath);
-  void clear();
-  std::size_t stashSize()const;
 private:
   struct Entry {std::optional<std::string> value;std::list<std::string>::iterator recency;};
   std::function<FileStat(const std::string&)> statSync_;

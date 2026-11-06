@@ -41,9 +41,4 @@ HookResponseParse hookResponseSchemaSafeParse(const Json& input){
   if(!issues.empty())return {false,Json::object(),issues.dump(2)};
   return {true,std::move(output),{}};
 }
-void bindHookResponseSchema(PoetryHookServices& poetry,
-  BatHookServices& bat){
-  poetry.schemaSafeParse=hookResponseSchemaSafeParse;
-  bat.schemaSafeParse=hookResponseSchemaSafeParse;
-}
 } // namespace batbox::instructions::hooks::runtime

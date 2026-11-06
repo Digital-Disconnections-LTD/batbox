@@ -96,8 +96,6 @@ void Provider::bindDiscovery(){
   discovery_.autoMemoryEntrypoint=[this]{
     return instructions::getAutoMemEntrypoint(memoryPaths_,memoryPathStash_);
   };
-  discovery_.teamMemoryEnabled=[] {return false;};
-  discovery_.teamMemoryEntrypoint=[] {return std::string{};};
   discovery_.hasInstructionsLoadedHook=[this]{
     return bool(inputs_.instructionsLoadedHook);
   };
@@ -112,8 +110,6 @@ void Provider::bindDiscovery(){
   discovery_.skipProjectInstructions=[this]{
     return value::truthy(value::property(settings(),"skipProjectInstructions"));
   };
-  discovery_.teamMemoryFeature=[] {return false;};
-  discovery_.externalIncludesWarningShown=[] {return false;};
   discoveryAsync_=instructions::project::async::indigenousAsyncFs(owner_,discovery_);
 }
 void Provider::bindContext(){

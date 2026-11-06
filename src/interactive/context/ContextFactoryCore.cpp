@@ -13,7 +13,6 @@ ContextFactory::ContextFactory(ContextBindings bindings):
   bindings_(std::make_shared<const ContextBindings>(std::move(bindings))){
   need(bindings_->store,"store");
   need(bindings_->getMcpGadgets,"getMcpTools");
-  need(bindings_->feature,"feature");
   need(bindings_->commands,"commands");
   need(bindings_->thinkingConfig,"thinkingConfig");
   need(bindings_->loadedNestedMemoryPaths,"loadedNestedMemoryPaths");
@@ -26,8 +25,8 @@ gadgets::Gadgets ContextFactory::computeGadgets(const ContextBindings& b){
   const auto snapshot=state->snapshot();
   const auto& permission=field(snapshot,"toolPermissionContext");
   const auto mcpGadgets=b.getMcpGadgets(state);
-  auto assembled=b.assembleGadgets?b.assembleGadgets(permission,mcpGadgets):
-    gadgets::assembleGadgetPool(permission,mcpGadgets,b.catalog,b.catalogSettings);
+  need(b.assembleGadgets,"assembleGadgets");
+  auto assembled=b.assembleGadgets(permission,mcpGadgets);
   const auto& mode=field(permission,"mode");
   auto merged=mergeAndFilterGadgets(b.combinedInitialGadgets,assembled,
     mode.is_string()?mode.get<std::string>():std::string(),b.gadgetPool);
@@ -119,10 +118,6 @@ std::shared_ptr<GadgetUseContext> ContextFactory::make(
   context->setHasInterruptibleGadgetInProgress=b->setHasInterruptibleGadgetInProgress;
   context->resume=b->resume;
   context->setConversationId=b->setConversationId;
-  if(b->feature&&b->feature("HOOK_PROMPTS")){
-    need(b->requestPoetry,"requestPrompt");
-    context->requestPoetry=b->requestPoetry;
-  }
   bindContextCallbacks(*context,b);
   return context;
 }

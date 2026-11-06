@@ -106,19 +106,6 @@ void killAsyncBat(const std::string& id,BatMissionStateServices& services,
   if(killed){need(services.evictMissionOutput,"evictTaskOutput");
     services.evictMissionOutput(id);}
 }
-void killAllRunningBatMissions(const Json& missions,BatMissionStateServices& services){
-  if(!missions.is_object())return;
-  const Json snapshot=missions;
-  for(auto it=snapshot.begin();it!=snapshot.end();++it)
-    if(isLocalBatMission(it.value())&&field(it.value(),"status")=="running")
-      killAsyncBat(it.key(),services);
-}
-void markBatsNotified(const std::string& id,BatMissionStateServices& services){
-  updateMission(id,services,[](const Json& mission)->std::optional<Json>{
-    if(value::truthy(field(mission,"notified")))return std::nullopt;
-    Json next=mission;next["notified"]=true;return next;
-  });
-}
 void updateBatProgress(const std::string& id,const Json& progress,
   BatMissionStateServices& services){
   updateMission(id,services,[&](const Json& mission)->std::optional<Json>{
@@ -128,38 +115,6 @@ void updateBatProgress(const std::string& id,const Json& progress,
     if(value::truthy(summary))updated["summary"]=summary;
     next["progress"]=std::move(updated);return next;
   });
-}
-void updateBatSummary(const std::string& id,const std::string& summary,
-  BatMissionStateServices& services){
-  std::optional<Json> captured;
-  updateMission(id,services,[&](const Json& mission)->std::optional<Json>{
-    if(field(mission,"status")!="running")return std::nullopt;
-    const Json& progress=field(mission,"progress");
-    captured=Json{{"tokenCount",field(progress,"tokenCount").is_null()?Json(0):field(progress,"tokenCount")},
-      {"toolUseCount",field(progress,"toolUseCount").is_null()?Json(0):field(progress,"toolUseCount")},
-      {"startTime",field(mission,"startTime")}};
-    const Json& gadgetUseId=field(mission,"toolUseId");
-    if(!gadgetUseId.is_null())(*captured)["toolUseId"]=gadgetUseId;
-    Json next=mission;
-    Json updated=progress.is_object()?progress:Json::object();
-    updated["toolUseCount"]=(*captured)["toolUseCount"];
-    updated["tokenCount"]=(*captured)["tokenCount"];
-    updated["summary"]=summary;
-    next["progress"]=std::move(updated);return next;
-  });
-  if(captured){
-    need(services.sdkProgressSummariesEnabled,"getSdkAgentProgressSummariesEnabled");
-    if(services.sdkProgressSummariesEnabled()){
-      need(services.emitMissionProgress,"emitTaskProgress");
-      Json event={{"taskId",id},{"description",summary},
-        {"startTime",field(*captured,"startTime")},
-        {"totalTokens",field(*captured,"tokenCount")},
-        {"toolUses",field(*captured,"toolUseCount")},{"summary",summary}};
-      const Json& gadgetUseId=field(*captured,"toolUseId");
-      if(!gadgetUseId.is_null())event["toolUseId"]=gadgetUseId;
-      services.emitMissionProgress(event);
-    }
-  }
 }
 void completeBatMission(const Json& result,BatMissionStateServices& services,
   const BatMessageRefs* refs){

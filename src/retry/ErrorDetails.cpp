@@ -38,30 +38,6 @@ Json errorToJson(const ErrorRecord& error) {
   if (error.cause) out["cause"] = errorToJson(*error.cause);
   return out;
 }
-ErrorRecord errorFromJson(const Json& value) {
-  ErrorRecord out;
-  const std::string kind = internal::stringField(value, "kind");
-  out.kind = kind == "api" ? ErrorRecord::Kind::Api :
-    kind == "connection" ? ErrorRecord::Kind::Connection :
-    kind == "abort" ? ErrorRecord::Kind::Abort : ErrorRecord::Kind::Other;
-  Json status = internal::field(value, "status");
-  if (status.is_number_integer()) out.status = status.get<long>();
-  if (internal::has(value,"body")) out.body=value.at("body");
-  if (internal::has(value,"headers")) out.headers=value.at("headers");
-  if (internal::has(value,"legacyHeaders")) out.legacyHeaders=value.at("legacyHeaders");
-  out.message=internal::stringField(value,"message");
-  out.code=internal::stringField(value,"code");
-  out.name=internal::has(value,"name") ? internal::stringField(value,"name") : "Error";
-  if (internal::has(value,"cause") && value.at("cause").is_object())
-    out.cause=std::make_shared<ErrorRecord>(errorFromJson(value.at("cause")));
-  return out;
-}
-Json contextToJson(const RetryContext& context) {
-  Json out = {{"model", context.model}, {"thinkingConfig", context.thinkingConfig}};
-  if (context.maxTokensOverride) out["maxTokensOverride"] = *context.maxTokensOverride;
-  if (context.fastMode) out["fastMode"] = *context.fastMode;
-  return out;
-}
 CannotRetryError::CannotRetryError(std::optional<ErrorRecord> original, RetryContext context)
   : std::runtime_error(original ? original->message : "undefined"),
     originalError(std::move(original)), retryContext(std::move(context)) {}

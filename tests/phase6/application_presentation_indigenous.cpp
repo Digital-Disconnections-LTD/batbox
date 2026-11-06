@@ -1,4 +1,5 @@
 #include "application_presentation/Bindings.hpp"
+#include "api_errors/ApiErrors.hpp"
 #include "interactive/message_view/RetainedViews.hpp"
 #include <ftxui/screen/screen.hpp>
 #include <cassert>
@@ -25,7 +26,6 @@ int main(){
     [](const std::string&){},[]{return std::string("dark");},[]{}},"dark");
   messages::Services messages;
   messages.strictGadgetResultPairing=[]{return false;};
-  messages.featureGate=[](const std::string&){return false;};
   messages.logError=[](const std::string&){assert(false);};
   gadgets::Gadget gadget;gadget.name="Read";
   gadget.parseInput=[](const Json& input){return input;};
@@ -65,6 +65,31 @@ int main(){
     .find("real prompt")!=std::string::npos);
   assert(draw(mv::projectMessage(mv::prepareMessage(RenderItem(assistant),opts,imports),render))
     .find("real answer")!=std::string::npos);
+  // Error cards match the text the API error renderer writes.
+  messages.randomUUID=[]{return std::string("error-message");};
+  messages.nowISO=[]{return std::string("2026-11-05T00:00:00.000Z");};
+  api_errors::Providers errors;errors.messageServices=&messages;
+  errors.randomUUID=messages.randomUUID;errors.nowISO=messages.nowISO;
+  errors.nonInteractive=[]{return false;};
+  errors.apiProvider=[]{return std::string("firstParty");};
+  errors.modelStrings=[]{return Json::object();};
+  errors.wire.betaHeaderName="anthropic-beta";
+  const auto errorCard=[&](long status,const std::string& message){
+    api_errors::Failure failure;
+    failure.error.kind=retry::ErrorRecord::Kind::Api;
+    failure.error.status=status;failure.error.message=message;
+    auto rendered=std::make_shared<Json>(
+      api_errors::getAssistantMessageFromError(failure,"local model",errors));
+    return draw(mv::projectMessage(mv::prepareMessage(RenderItem(rendered),opts,imports),
+      render));
+  };
+  const auto tooLong=errorCard(400,"prompt is too long: 210000 tokens > 200000 maximum");
+  assert(tooLong.find("Context limit reached")!=std::string::npos);
+  const auto badKey=errorCard(401,"invalid x-api-key");
+  assert(badKey.find("Invalid API key")!=std::string::npos&&
+    badKey.find("/providers")!=std::string::npos);
+  const auto disabled=errorCard(400,"This organization has been disabled.");
+  assert(disabled.find("organization has been disabled")!=std::string::npos);
   auto retained=mv::RetainedViews::create(loop,[]{return 100.0;},[]{});
   retained->beginFrame("conversation");
   render=retained->bind(std::move(render),shell.retainedViews);

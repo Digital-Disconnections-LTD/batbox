@@ -20,7 +20,6 @@ struct Services {
     getDiscoveredRemoteSkill;
   std::function<LoadedSkill(const std::string&,const std::string&,std::stop_token)>
     loadRemoteSkill;
-  std::function<void(const std::string&)> recordSkillUsage;
   std::function<void(const std::string&)> logDebug;
   std::function<std::string()> getFlightId;
   std::function<std::optional<std::string>()> currentBatId;

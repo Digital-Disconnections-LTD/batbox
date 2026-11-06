@@ -17,14 +17,6 @@ namespace batbox::interactive::query_turn {
 void Run::start(){
   try{
     auto& s=*services;
-    need(s.isBatSwarmsEnabled,"isAgentSwarmsEnabled");
-    if(s.isBatSwarmsEnabled()){
-      need(s.getTeamName,"getTeamName");need(s.getBatName,"getAgentName");
-      const auto team=s.getTeamName(),bat=s.getBatName();
-      if(team&&!team->empty()&&bat&&!bat->empty()){
-        need(s.setMemberActive,"setMemberActive");s.setMemberActive(*team,*bat,true);
-      }
-    }
     generation=state->guard.tryStart();
     if(!generation){
       std::vector<std::string> queued;
@@ -53,17 +45,6 @@ void Run::prepare(){
     messages->insert(messages->end(),additions->begin(),additions->end());return messages;
   });
   need(s.setResponseLengthRef,"setResponseLengthRef");s.setResponseLengthRef(0);
-  need(s.feature,"feature");
-  if(s.feature("TOKEN_BUDGET")){
-    std::optional<double> budget;
-    if(request.input&&!request.input->empty()){
-      need(s.parseTokenBudget,"parseTokenBudget");budget=s.parseTokenBudget(*request.input);
-    }
-    if(!budget){need(s.getCurrentTurnTokenBudget,"getCurrentTurnTokenBudget");
-      budget=s.getCurrentTurnTokenBudget();}
-    need(s.snapshotOutputTokensForTurn,"snapshotOutputTokensForTurn");
-    s.snapshotOutputTokensForTurn(budget);
-  }
   need(s.clearApiMetrics,"clearApiMetrics");s.clearApiMetrics();
   need(s.clearStreamingGadgetUses,"clearStreamingToolUses");s.clearStreamingGadgetUses();
   need(s.clearStreamingText,"clearStreamingText");s.clearStreamingText();

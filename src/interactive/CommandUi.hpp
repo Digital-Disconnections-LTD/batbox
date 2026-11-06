@@ -99,7 +99,6 @@ public:
   // reserved for the command completion path.
   void setGadgetOverlay(std::optional<UiRequest> request,bool clearLocal=false,
     Action action={});
-  void clearLocalUi();
   bool busy()const;
   bool hasActiveLocalUi()const;
   bool hasActionableUi()const;

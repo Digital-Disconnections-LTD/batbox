@@ -186,12 +186,6 @@ void Loop::TimerHandle::cancel()const{
   else try{dispatcher_.postMission([weak=dispatcher_.core_,id=id_]{
     if(auto owner=weak.lock())owner->applyTimer(id,0);});}catch(const std::logic_error&){}
 }
-void Loop::TimerHandle::ref()const{
-  const auto core=dispatcher_.core_.lock();if(!core||core->closing)return;
-  if(dispatcher_.isOwnerThread())core->applyTimer(id_,1);
-  else try{dispatcher_.postMission([weak=dispatcher_.core_,id=id_]{
-    if(auto owner=weak.lock())owner->applyTimer(id,1);});}catch(const std::logic_error&){}
-}
 void Loop::TimerHandle::unref()const{
   const auto core=dispatcher_.core_.lock();if(!core||core->closing)return;
   if(dispatcher_.isOwnerThread())core->applyTimer(id_,2);
@@ -205,11 +199,6 @@ Loop::KeepAlive& Loop::KeepAlive::operator=(KeepAlive&& other)noexcept{
   return *this;
 }
 Loop::KeepAlive::~KeepAlive(){release();}
-bool Loop::KeepAlive::active()const{
-  if(id_==0||!dispatcher_.isOwnerThread())return false;
-  const auto core=dispatcher_.core_.lock();if(!core)return false;
-  const auto it=core->holds.find(id_);return it!=core->holds.end()&&!it->second->closed;
-}
 void Loop::KeepAlive::release(){
   const auto id=std::exchange(id_,0);if(id==0)return;
   const auto core=dispatcher_.core_.lock();if(!core||core->closing)return;

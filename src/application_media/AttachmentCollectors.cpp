@@ -53,20 +53,6 @@ std::vector<Json> skillRows(const Json& value){
     "Skill command provider must return an array");
   return std::vector<Json>(value.begin(),value.end());
 }
-void appendMcpSkills(std::vector<Json>& commands,const Json& appState){
-  const auto& mcp=field(field(appState,"mcp"),"commands");
-  if(!mcp.is_array())return;
-  std::unordered_set<std::string> seen;
-  for(const auto& command:commands)
-    seen.insert(stringOr(field(command,"name")));
-  for(const auto& command:mcp){
-    if(field(command,"type")!="prompt"||
-       field(command,"loadedFrom")!="mcp"||
-       value::truthy(field(command,"disableModelInvocation")))continue;
-    const auto name=stringOr(field(command,"name"));
-    if(!name.empty()&&seen.insert(name).second)commands.push_back(command);
-  }
-}
 std::string model(const execution::Context& context){
   return stringOr(field(options(context),"mainLoopModel"));
 }
@@ -185,16 +171,8 @@ void AggregateProvider::bindRemaining(attachments::Services& services){
     if(!self->inputs_.skillCommands)
       return unsupported(loop,"Skill command listing");
     auto commands=skillRows(self->inputs_.skillCommands());
-    if(self->inputs_.feature("MCP_SKILLS"))
-      appendMcpSkills(commands,self->inputs_.files.getAppState()->snapshot());
     const auto key=batId(context);
     auto& sent=self->sentSkillNames_[key];
-    if(self->suppressNextSkillListing_){
-      self->suppressNextSkillListing_=false;
-      for(const auto& command:commands)
-        sent.insert(stringOr(field(command,"name")));
-      return ready(loop,Json::array());
-    }
     std::vector<Json> newSkills;
     for(const auto& command:commands){
       const auto name=stringOr(field(command,"name"));
@@ -240,21 +218,5 @@ void AggregateProvider::bindRemaining(attachments::Services& services){
       return ready(loop,Json::array());
     return self->inputs_.getAsyncHookResponses();
   };
-  // These branches are feature-gated. Keep an explicit failure if an
-  // enabled feature reaches the aggregate without its corresponding service.
-  services.collectors.companionIntro=[&loop](const auto&,auto&){
-    return unsupported(loop,"Companion intro");};
-  services.collectors.autoMode=[&loop](const auto&,auto&){
-    return unsupported(loop,"Automatic permission mode");};
-  services.collectors.autoModeExit=[&loop](const auto&,auto&){
-    return unsupported(loop,"Automatic permission mode exit");};
-  services.collectors.partnerMailbox=[&loop](const auto&,auto&){
-    return unsupported(loop,"Teammate mailbox");};
-  services.collectors.teamContext=[&loop](const auto&,auto&){
-    return unsupported(loop,"Team context");};
-  services.collectors.compactionReminder=[&loop](const auto&,auto&){
-    return unsupported(loop,"Compaction reminder");};
-  services.collectors.contextEfficiency=[&loop](const auto&,auto&){
-    return unsupported(loop,"Context efficiency reminder");};
 }
 } // namespace batbox::application_media

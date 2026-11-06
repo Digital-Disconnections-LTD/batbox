@@ -24,7 +24,6 @@ int main(){
   params.gadgetUseContext.contentReplacementState=replacementState;
   bq::State state;state.messages=messages;state.gadgetUseContext=params.gadgetUseContext;
   bq::AsyncSetupServices services;
-  services.sync.feature=[](const std::string&){return false;};
   services.sync.uuid=[](){return std::string("chain");};
   services.queryCheckpoint=[](const std::string&){};
   services.headlessProfilerCheckpoint=[](const std::string&){};
@@ -53,7 +52,7 @@ int main(){
   };
   services.sync.appendSystemContext=[](const Json& poetry,const Json&){return poetry;};
   services.autocompact=[&](const Json&,const batbox::execution::Context&,
-      const Json&,const std::string&,const Json&,double){
+      const Json&,const std::string&,const Json&){
     el::Deferred<Json> completed(loop);completed.resolve(Json{{"compactionResult",nullptr}});
     return completed;
   };
@@ -63,7 +62,7 @@ int main(){
   services.sync.tokenCountWithEstimation=[](const Json&){return 0.0;};
   services.sync.calculateTokenWarningState=[](double,const Json&){
     return Json{{"isAtBlockingLimit",false}};};
-  auto iterator=bq::makeAsyncSetupIterator(loop,params,state,bq::QueryConfig{},services);
+  auto iterator=bq::makeAsyncSetupIterator(loop,params,state,services);
   std::optional<bq::AsyncSetupStep> first;
   iterator.next().then([&](const bq::AsyncSetupStep* value,const std::exception_ptr& error){
     if(error)std::rethrow_exception(error);first=*value;});

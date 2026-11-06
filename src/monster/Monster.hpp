@@ -37,7 +37,6 @@ class Roller {
 public:
   explicit Roller(Services services);
   std::shared_ptr<Roll> roll(const std::string& userId);
-  std::shared_ptr<Roll> rollWithSeed(const std::string& seed)const;
   std::string monsterUserId()const;
   std::optional<Monster> getMonster();
 private:

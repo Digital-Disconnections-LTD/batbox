@@ -27,11 +27,6 @@ void cleanup(const RunBatParams& params,const RunBatPreflight& preflight,
     need(services.clearFlightHooks,"clearSessionHooks");
     services.clearFlightHooks(preflight.rootSetAppState,prepared.batId);
   }
-  need(services.feature,"feature");
-  if(services.feature("PROMPT_CACHE_BREAK_DETECTION")){
-    need(services.cleanupBatTracking,"cleanupAgentTracking");
-    services.cleanupBatTracking(prepared.batId);
-  }
   if(prepared.context.query.readFileState)
     prepared.context.query.readFileState->clear();
   else{
@@ -45,9 +40,11 @@ void cleanup(const RunBatParams& params,const RunBatPreflight& preflight,
     Json& stashedContextMessages=
       prepared.exposedStashSafeParams->gadgetUseContext.query.data["messages"];
     if(stashedContextMessages.is_array())stashedContextMessages.clear();
+    prepared.exposedStashSafeParams->gadgetUseContext.query.conversation.reset();
   }
   Json& contextMessages=prepared.context.query.data["messages"];
   if(contextMessages.is_array())contextMessages.clear();
+  prepared.context.query.conversation.reset();
   need(services.clearBatTranscriptSubdir,"clearAgentTranscriptSubdir");
   services.clearBatTranscriptSubdir(prepared.batId);
   need(preflight.rootSetAppState,"rootSetAppState");
@@ -63,11 +60,6 @@ void cleanup(const RunBatParams& params,const RunBatPreflight& preflight,
   need(services.killShellMissionsForBat,"killShellTasksForAgent");
   services.killShellMissionsForBat(prepared.batId,params.gadgetUseContext.getAppState,
     preflight.rootSetAppState);
-  if(services.feature("MONITOR_TOOL")){
-    need(services.killMonitorMcpMissionsForBat,"killMonitorMcpTasksForAgent");
-    services.killMonitorMcpMissionsForBat(prepared.batId,
-      params.gadgetUseContext.getAppState,preflight.rootSetAppState);
-  }
 }
 }
 

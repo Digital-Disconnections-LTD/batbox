@@ -8,9 +8,7 @@ namespace batbox::interactive::cards {
 
 enum class UserTextKind {
   Hidden, Plan, BashOutput, LocalCommandOutput, Interrupted,
-  GithubWebhook, BashInput, Command, MemoryInput, Partner,
-  MissionNotification, ResourceUpdate, ForkBoilerplate,
-  CrossFlight, Channel, Poetry
+  BashInput, Command, MemoryInput, MissionNotification, ResourceUpdate, Poetry
 };
 
 struct UserTextProtocol {
@@ -20,15 +18,7 @@ struct UserTextProtocol {
   std::string commandMessageTag;
   std::string localCommandCaveatTag;
   std::string tickTag;
-  std::string partnerMessageTag;
   std::string missionNotificationTag;
-  std::string githubWebhookFeature;
-  std::string forkBatFeature;
-  std::string flightInboxFeature;
-  std::string channelFeature;
-  std::string channelAltFeature;
-  std::function<bool(const std::string&)> feature;
-  std::function<bool()> batSwarmsEnabled;
 };
 
 struct UserTextCard {

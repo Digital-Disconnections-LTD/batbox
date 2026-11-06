@@ -21,12 +21,6 @@ struct RenameServices {
     scheduleBridgeTitleUpdate;
   std::function<void(const std::string&)> setStandaloneBatName;
 };
-struct CostServices {
-  event_loop::Loop& loop;
-  explicit CostServices(event_loop::Loop& owner):loop(owner){}
-  std::function<bool()> isSubscriber,isUsingOverage,showCostForInternalUser;
-  std::function<std::string()> formatTotalCost;
-};
 struct ExitServices {
   event_loop::Loop& loop;
   explicit ExitServices(event_loop::Loop& owner):loop(owner){}
@@ -50,7 +44,6 @@ struct MonsterServices {
 user_input::CommandEntry makeRenameCommand(
   std::shared_ptr<user_input::UiCommandRouter> router,
   std::shared_ptr<RenameServices> services);
-user_input::CommandEntry makeCostCommand(std::shared_ptr<CostServices> services);
 user_input::CommandEntry makeExitCommand(
   std::shared_ptr<user_input::UiCommandRouter> router,
   std::shared_ptr<ExitServices> services);

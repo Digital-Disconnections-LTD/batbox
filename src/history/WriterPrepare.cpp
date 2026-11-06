@@ -64,6 +64,4 @@ event_loop::Deferred<event_loop::Unit> addPoetry(
   }catch(...){result.reject(std::current_exception());}
   return result;
 }
-event_loop::Deferred<event_loop::Unit> HistoryWriter::addToPoetryHistory(
-    const Json& command){return addPoetry(core_,command);}
 }

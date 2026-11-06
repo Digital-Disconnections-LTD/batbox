@@ -47,16 +47,6 @@ void invalidValue(Json& issues,const Json& path,
   issues.push_back({{"code","invalid_value"},{"values",names},
     {"path",path},{"message",message}});
 }
-bool stringField(const Json& input,const char* key,Json& output,
-  Json& issues){
-  if(!input.contains(key))return false;
-  const auto& value=input[key];
-  if(!value.is_string()){
-    invalidType(issues,Json::array({key}),"string",value);return false;
-  }
-  output[key]=value;
-  return true;
-}
 bool stringArrayField(const Json& input,const char* key,Json& output,
   Json& issues){
   if(!input.contains(key))return false;

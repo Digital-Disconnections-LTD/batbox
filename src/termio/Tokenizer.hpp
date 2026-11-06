@@ -12,7 +12,6 @@ public:
   explicit Tokenizer(bool x10Mouse=false):x10Mouse_(x10Mouse){}
   std::vector<Token> feed(const std::string& input);
   std::vector<Token> flush();
-  void reset();
   std::string buffer()const;
 private:
   InputState state_=InputState::ground;

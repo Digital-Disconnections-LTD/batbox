@@ -9,7 +9,6 @@ struct GitFilesystem::Watcher {
     bool dirty=false;
     std::function<Deferred<Json>()> compute;
   };
-  std::optional<std::string> gitDir,commonDir,branchRefPath;
   bool initialized=false;
   std::optional<Deferred<Unit>> initPromise;
   std::vector<std::string> watchedPaths;

@@ -25,8 +25,6 @@ void WriteQueue::scheduleDrain() {
   if(timer)return;
   timer=std::chrono::steady_clock::now()+interval;wake.notify_all();
 }
-void WriteQueue::incrementPendingWrites(){std::lock_guard lock(mutex);++pendingWriteCount;}
-void WriteQueue::decrementPendingWrites(){std::lock_guard lock(mutex);--pendingWriteCount;if(pendingWriteCount==0)finished.notify_all();}
 void WriteQueue::appendToFile(const std::string& file,const std::string& content) {
   try{services.appendFile(file,content);}
   catch(...){services.mkdir(value::dirname(file));services.appendFile(file,content);}
@@ -90,6 +88,5 @@ void WriteQueue::flush() {
     finished.wait(lock,[&]{return failure || completedDrains>=target;});
   }
   if(failure)std::rethrow_exception(failure);
-  finished.wait(lock,[&]{return pendingWriteCount==0;});
 }
 }

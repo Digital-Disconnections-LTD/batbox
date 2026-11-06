@@ -5,7 +5,6 @@
 #include "messages/RuntimeMessages.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/Platform.hpp"
-#include "utils/envUtils.hpp"
 #include <cmath>
 #include <filesystem>
 #include <set>
@@ -50,8 +49,7 @@ void Provider::executeAutoDream(const Json& context){
   if(!id.empty()&&id==lastTurnUuid_)return;
   lastTurnUuid_=id;
   auto pathServices=paths();
-  if(!instructions::isAutoMemoryEnabled(pathServices)||!dreamEnabled()||
-      isEnvTruthy(value::property(pathServices.environment,pathServices.keys.remoteMode)))return;
+  if(!instructions::isAutoMemoryEnabled(pathServices)||!dreamEnabled())return;
   launchDream(context,false);
 }
 event_loop::Deferred<Unit> Provider::consolidate(const Json& context){

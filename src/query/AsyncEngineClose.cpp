@@ -38,15 +38,14 @@ event_loop::Deferred<AsyncEngineStep> Run::returnEarly(const Json& value){
   }
   auto self=shared_from_this();
   auto finalizeClose=[self,returned](const std::exception_ptr& prior){
-    self->decision.reset();self->model.reset();self->abortCursor.reset();
+    self->decision.reset();self->model.reset();
     self->setup.reset();self->stage=Stage::Done;
     try{self->dispose(prior);}
     catch(...){self->closing->reject(std::current_exception());return;}
     if(prior)self->closing->reject(prior);
     else self->closing->resolve(AsyncEngineStep{true,{},returned});
   };
-  const bool hasNested=(decision&&decision->close)||model||
-    (abortCursor&&abortCursor->close);
+  const bool hasNested=(decision&&decision->close)||model;
   if(!hasNested){finalizeClose({});return *closing;}
   stage=Stage::Done;
   // AsyncGeneratorYield first awaits a received Return value. The ensuing
@@ -59,8 +58,6 @@ event_loop::Deferred<AsyncEngineStep> Run::returnEarly(const Json& value){
       if(self->decision&&self->decision->close)
         nested=self->decision->close();
       else if(self->model)nested=self->model->close();
-      else if(self->abortCursor&&self->abortCursor->close)
-        nested=self->abortCursor->close();
       if(!nested){finalizeClose({});return;}
       if(!self->loop.dispatcher().sameLoop(nested->dispatcher()))
         throw std::invalid_argument("Nested query close crossed event loops");

@@ -37,20 +37,19 @@ public:
   void enqueuePendingNotification(const Json& command);
   CommandRef peek(CommandPredicate filter={})const;
   CommandRef dequeue(CommandPredicate filter={});
-  CommandList dequeueAll();
   CommandList dequeueAllMatching(CommandPredicate predicate);
   void remove(const CommandList& commands);
   CommandList removeByFilter(CommandPredicate predicate);
   void clear();
   void reset();
   CommandList getByMaxPriority(const std::string& priority)const;
-  std::optional<PopEditableResult> popAllEditable(
-    const std::string& currentInput,std::size_t currentCursorOffset,
-    double nowMs);
+  // Takes the editable queued commands the filter accepts (all of them when it
+  // is empty); newestOnly takes just the most recently queued of them.
+  std::optional<PopEditableResult> popEditable(const CommandPredicate& filter,
+    bool newestOnly,const std::string& currentInput,
+    std::size_t currentCursorOffset,double nowMs);
   static bool isPoetryInputModeEditable(const std::string& mode);
   static bool isQueuedCommandEditable(const CommandRef& command);
-  static bool isQueuedCommandVisible(const CommandRef& command,
-                                     bool channelsEnabled);
   static bool isSlashCommand(const CommandRef& command);
 private:
   void notify();
@@ -69,6 +68,5 @@ struct ProcessQueueResult {bool processed=false;};
 using ExecuteInput=std::function<void(CommandList)>;
 ProcessQueueResult processQueueIfReady(CommandQueue& queue,
                                        const ExecuteInput& executeInput);
-bool hasQueuedCommands(const CommandQueue& queue);
 
 } // namespace batbox::interactive::submit

@@ -55,13 +55,6 @@ MessagePlan prepareMessage(RenderItem item,MessageOptions options,
       return result;
     }
     if(subtype=="microcompact_boundary")return result;
-    need(imports.feature,"feature");
-    if(imports.feature("HISTORY_SNIP")){
-      need(imports.isSnipBoundary,"isSnipBoundary");
-      if(imports.isSnipBoundary(message)){result.kind=MessageKind::SnipBoundary;return result;}
-      need(imports.isSnipMarker,"isSnipMarker");
-      if(imports.isSnipMarker(message))return result;
-    }
     if(subtype=="local_command"){
       result.kind=MessageKind::LocalCommand;
       BlockPlan block;block.kind=BlockKind::UserText;
@@ -78,32 +71,5 @@ MessagePlan prepareMessage(RenderItem item,MessageOptions options,
     result.kind=MessageKind::CollapsedReadSearch;
   }
   return result;
-}
-bool hasThinkingContent(const Json& message){
-  if(field(message,"type")!="assistant"||!value::truthy(field(message,"message")))return false;
-  const auto& content=field(field(message,"message"),"content");
-  if(!content.is_array())throw std::invalid_argument("Assistant content array required");
-  for(const auto& block:content){
-    const auto& type=field(block,"type");
-    if(type=="thinking"||type=="redacted_thinking")return true;
-  }
-  return false;
-}
-bool sameThinkingMarker(const Json& previous,const Json& next){
-  return (previous.is_discarded()&&next.is_discarded())||previous==next;
-}
-bool sameMessageView(const MessagePlan& previous,const MessagePlan& next){
-  const auto& a=*previous.item.message;const auto& b=*next.item.message;
-  const auto& p=previous.options;const auto& n=next.options;
-  if(field(a,"uuid")!=field(b,"uuid"))return false;
-  if(!sameThinkingMarker(p.lastThinkingBlockId,n.lastThinkingBlockId)&&
-      hasThinkingContent(b))return false;
-  if(p.verbose!=n.verbose)return false;
-  if(p.showThinkingInPlace!=n.showThinkingInPlace)return false;
-  if(latest(previous.item.message,p.latestBashOutputUUID)!=
-      latest(next.item.message,n.latestBashOutputUUID))return false;
-  if(p.transcriptMode!=n.transcriptMode)return false;
-  if(p.containerWidth!=n.containerWidth)return false;
-  return p.isStatic&&n.isStatic;
 }
 } // namespace batbox::interactive::message_view

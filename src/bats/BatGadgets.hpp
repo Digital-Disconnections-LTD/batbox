@@ -5,11 +5,9 @@
 
 namespace batbox::bats {
 struct BatGadgetFilterImports {
-  std::unordered_set<std::string> allBatDisallowed,customBatDisallowed,
-    asyncBatAllowed,inProcessPartnerAllowed;
+  std::unordered_set<std::string> allBatDisallowed,customBatDisallowed,asyncBatAllowed;
   std::string exitPlanModeGadgetName,batGadgetName;
   std::function<bool(const gadgets::Gadget&,const std::string&)> gadgetMatchesName;
-  std::function<bool()> isBatSwarmsEnabled,isInProcessPartner;
   std::function<Json(const std::string& spec)> permissionRuleValueFromString;
 };
 struct ResolvedBatGadgets {

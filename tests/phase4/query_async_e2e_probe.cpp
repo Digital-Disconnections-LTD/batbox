@@ -98,12 +98,9 @@ int main(int argc,char** argv){
     {"isNonInteractiveSession",false}}},
     {"agentId",nullptr},{"messages",params.messages}};
   query::AsyncEngineServices engine;
-  engine.config.getFlightId=[](){return std::string("session");};
-  engine.config.statsigFeatureGate=[](const std::string&){return false;};
   engine.setup.queryCheckpoint=[](const std::string&){};
   engine.setup.headlessProfilerCheckpoint=[](const std::string&){};
   auto& setup=engine.setup.sync;
-  setup.feature=[](const std::string&){return false;};
   setup.uuid=[](){return std::string("chain");};
   setup.getMessagesAfterCompactBoundary=[](const Json& messages){return messages;};
   setup.executionServices=&executionServices;
@@ -129,7 +126,7 @@ int main(int argc,char** argv){
       const std::string&){return ready(loop,Json{{"messages",messages}});};
   setup.appendSystemContext=[](const Json& poetry,const Json&){return poetry;};
   engine.setup.autocompact=[&](const Json&,const execution::Context&,
-      const Json&,const std::string&,const Json&,double){
+      const Json&,const std::string&,const Json&){
     return ready(loop,Json{{"compactionResult",nullptr}});};
   setup.getAppState=[](const execution::Context&){
     return Json{{"toolPermissionContext",{{"mode","default"}}},
@@ -140,10 +137,8 @@ int main(int argc,char** argv){
     return Json{{"isAtBlockingLimit",false}};};
   engine.model.queryCheckpoint=[](const std::string&){};
   auto& model=engine.model.sync;
-  model.feature=setup.feature;
   model.getAppState=setup.getAppState;
   model.prependUserContext=[](const Json& messages,const Json&){return messages;};
-  model.normalizeMessagesForAPI=[](const Json& messages,const gadgets::Gadgets&){return messages;};
   model.createUserMessage=executionServices.createUserMessage;
   model.createAssistantAPIErrorMessage=[](const Json& args){
     return Json{{"type","assistant"},{"apiError","error"},{"args",args}};};
@@ -185,8 +180,6 @@ int main(int argc,char** argv){
   engine.executePostSamplingHooks=[](const Json&,const query::Params&,
       const execution::Context&){};
   query::AsyncCompletionServices completion;
-  completion.sync.feature=setup.feature;
-  completion.reactiveCompactAvailable=[](){return false;};
   completion.handleStopHooks=[&](const Json&,const Json&,const query::Params&,
       const execution::Context&,std::optional<bool>){
     return query::AsyncStopCursor{[&]{return ready(loop,
@@ -196,7 +189,6 @@ int main(int argc,char** argv){
   query::bindAsyncCompletion(loop,engine,completion);
   query::AsyncGadgetTurnServices gadgetTurn;
   gadgetTurn.queryCheckpoint=[](const std::string&){};
-  gadgetTurn.sync.feature=setup.feature;
   gadgetTurn.sync.executionServices=&executionServices;
   gadgetTurn.sync.normalizeMessagesForAPI=[](const Json& messages,const gadgets::Gadgets&){
     return messages;};
@@ -211,7 +203,6 @@ int main(int argc,char** argv){
   };
   query::bindIndigenousGadgetUpdates(loop,gadgetTurn);
   query::bindAsyncGadgetTurn(loop,engine,gadgetTurn);
-  query::bindIndigenousAbortRemaining(loop,engine);
   std::vector<std::string> consumed;
   Json emitted=Json::array();Json terminal;
   std::weak_ptr<query::async_engine::Run> queryOwner;

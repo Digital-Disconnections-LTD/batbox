@@ -1,3 +1,4 @@
+#include "process/StandardDescriptors.hpp"
 #include "runtime/AsyncLaunch.hpp"
 #include "instructions/hooks/runtime/IndigenousManagedHookProcess.hpp"
 #include "runtime/Encoding.hpp"
@@ -287,7 +288,8 @@ IndigenousManagedHookProcess startIndigenousManagedHookProcess(
     const auto cwd=value::encodeUtf8(request.cwd);
     if(!cwd.empty())::posix_spawn_file_actions_addchdir_np(&actions,cwd.c_str());
     posix_spawnattr_t attrs;::posix_spawnattr_init(&attrs);
-    ::posix_spawnattr_setflags(&attrs,POSIX_SPAWN_SETPGROUP);
+    ::posix_spawnattr_setflags(&attrs,static_cast<short>(POSIX_SPAWN_SETPGROUP|
+      process::keepOnlyStandardDescriptors(&actions)));
     ::posix_spawnattr_setpgroup(&attrs,0);
     std::vector<std::string> environment;
     for(const auto& [name,value]:request.environment){

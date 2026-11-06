@@ -34,10 +34,6 @@ struct Response {
   Json headers = Json::object();
   Json body = nullptr;
 };
-Json getCustomHeaders(const std::string& configuredHeaders);
-void configureApiKeyHeaders(Json& headers, const std::string& authToken,
-                            bool isNonInteractiveFlight,
-                            const std::function<std::string(bool)>& keyHelper);
 class Client {
   struct Indigenous;
   std::unique_ptr<Indigenous> indigenous;

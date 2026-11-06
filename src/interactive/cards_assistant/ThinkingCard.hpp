@@ -16,7 +16,6 @@ struct ThinkingCard {
 ThinkingCard classifyThinking(const std::string& thinking, bool addMargin,
                               bool transcriptMode, bool verbose,
                               bool hideInTranscript);
-ThinkingCard classifyRedactedThinking(bool addMargin);
 
 // The original content block is retained until the display decision is made.
 ThinkingCard thinkingFromBlock(const Json& block, bool addMargin,

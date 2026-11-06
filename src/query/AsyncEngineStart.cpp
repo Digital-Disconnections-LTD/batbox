@@ -1,4 +1,5 @@
 #include "query/AsyncEngineInternal.hpp"
+#include <utility>
 
 namespace batbox::query {
 AsyncEngineIterator makeAsyncQueryLoop(event_loop::Loop& loop,Params params,
@@ -60,18 +61,14 @@ void Run::pump(){
       switch(stage){
         case Stage::Start:start();break;
         case Stage::SetupStart:pullSetup();break;
-        case Stage::SetupAwait:case Stage::ModelAwait:
-        case Stage::AbortAwait:case Stage::AbortCleanupAwait:
-        case Stage::SummaryAwait:case Stage::DecisionAwait:
+        case Stage::SetupAwait:case Stage::ModelAwait:case Stage::DecisionAwait:
         case Stage::ContextAwait:return;
         case Stage::ModelStart:pullModel();break;
         case Stage::AfterModel:afterModel();break;
         case Stage::AbortStart:startAbort();break;
         case Stage::AbortMissing:emitMissing();break;
-        case Stage::AbortCleanup:startAbortCleanup();break;
         case Stage::AbortInterruption:emitAbortInterruption();break;
         case Stage::AbortTerminal:finish(Json{{"reason","aborted_streaming"}});break;
-        case Stage::SummaryStart:startSummary();break;
         case Stage::DecisionStart:startDecision();break;
         case Stage::Done:{
           auto request=requests.front();requests.pop_front();
@@ -83,19 +80,25 @@ void Run::pump(){
   }catch(...){fail(std::current_exception());}
 }
 void Run::start(){
-  need(services.setup.sync.feature,"feature");
-  state.messages=params.messages;
+  // params.messages only seeds the first iteration.
+  state.messages=std::exchange(params.messages,Json::array());
   state.gadgetUseContext=params.gadgetUseContext;
   state.maxOutputTokensOverride=params.maxOutputTokensOverride;
-  if(services.setup.sync.feature("TOKEN_BUDGET"))
-    budgetTracker=createBudgetTracker(services.completion.budgetDependencies);
-  config=buildQueryConfig(services.config);
   need(services.startRelevantMemoryPrefetch,"startRelevantMemoryPrefetch");
   memoryPrefetch=services.startRelevantMemoryPrefetch(state.messages,state.gadgetUseContext);
   startSetup();
 }
 void Run::startSetup(){
-  setup.emplace(makeAsyncSetupIterator(loop,params,state,config,services.setup,remaining));
+  // Setup turns state.messages into prepared->messagesForQuery, and every
+  // later transition replaces state.messages, so the setup takes the array.
+  State forSetup;
+  {
+    Json messages=std::exchange(state.messages,Json::array());
+    forSetup=state;
+    forSetup.messages=std::move(messages);
+  }
+  setup.emplace(makeAsyncSetupIterator(loop,params,std::move(forSetup),
+    services.setup,remaining));
   stage=Stage::SetupStart;
 }
 void Run::pullSetup(){
@@ -116,7 +119,7 @@ void Run::pullSetup(){
         self->setup.reset();
         if(self->prepared->terminal){self->finish(*self->prepared->terminal);return;}
         if(self->prepared->compacted&&self->services.refreshUserContextAfterCompact){
-          self->refreshUserContext(false);return;
+          self->refreshUserContext();return;
         }
         self->stage=Stage::ModelStart;
       }else{
@@ -127,22 +130,21 @@ void Run::pullSetup(){
     }catch(...){self->fail(std::current_exception());}
   });
 }
-void Run::refreshUserContext(bool restartSetup){
-  const auto& context=restartSetup?state.gadgetUseContext:prepared->gadgetUseContext;
-  auto pending=services.refreshUserContextAfterCompact(params.userContext,context);
+void Run::refreshUserContext(){
+  auto pending=services.refreshUserContextAfterCompact(params.userContext,
+    prepared->gadgetUseContext);
   if(!loop.dispatcher().sameLoop(pending.dispatcher()))
     throw std::invalid_argument("Compact context refresh belongs to another event loop");
   stage=Stage::ContextAwait;
   auto self=shared_from_this();
-  pending.then([self,restartSetup](const Json* value,const std::exception_ptr& error){
+  pending.then([self](const Json* value,const std::exception_ptr& error){
     if(self->stage==Stage::Done)return;
     if(error){self->fail(error);return;}
     try{
       if(!value||!value->is_object())
         throw std::invalid_argument("Compact context refresh requires an object");
       self->params.userContext=*value;
-      if(restartSetup)self->startSetup();
-      else self->stage=Stage::ModelStart;
+      self->stage=Stage::ModelStart;
       self->pump();
     }catch(...){self->fail(std::current_exception());}
   });

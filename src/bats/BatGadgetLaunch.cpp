@@ -38,17 +38,9 @@ BatGadgetLaunchPlan prepareBatGadgetLaunch(const Json& input,
     {"isBuiltInAgent",builtIn},{"startTime",preflight.startTime},
     {"agentType",field(selected,"agentType")},
     {"isAsync",backgroundRequested && !services.isBackgroundMissionsDisabled()}};
-  need(services.feature,"feature");
-  const bool isCoordinator=services.feature("COORDINATOR_MODE")?
-    (need(services.coordinatorEnvironmentEnabled,"coordinatorEnvironmentEnabled"),
-      services.coordinatorEnvironmentEnabled()):false;
-  out.isCoordinator=isCoordinator;
   need(services.isForkSubagentEnabled,"isForkSubagentEnabled");
   const bool forceAsync=services.isForkSubagentEnabled();
-  const bool assistantForceAsync=services.feature("KAIROS")?
-    value::truthy(field(appState,"kairosEnabled")):false;
-  out.shouldRunAsync=(backgroundRequested || isCoordinator || forceAsync ||
-    assistantForceAsync || (services.isProactiveActive && services.isProactiveActive())) &&
+  out.shouldRunAsync=(backgroundRequested || forceAsync) &&
     !services.isBackgroundMissionsDisabled();
   Json workerPermission=field(appState,"toolPermissionContext");
   const Json& selectedMode=field(selected,"permissionMode");
@@ -101,7 +93,7 @@ BatGadgetLaunchPlan prepareBatGadgetLaunch(const Json& input,
   }
   run.availableGadgets=preflight.isForkPath?context.query.gadgets:workerGadgets;
   if(preflight.isForkPath){
-    run.forkContextMessages=field(context.query.data,"messages");
+    run.forkContextMessages=execution::conversationMessages(context.query);
     run.useExactGadgets=true;
   }
   if(out.worktree.worktreeInfo)

@@ -68,16 +68,6 @@ Completion AsyncProject::insertFileHistorySnapshot(std::string messageId,
       {"snapshot",snapshot},{"isSnapshotUpdate",update}});
   }));
 }
-Completion AsyncProject::insertQueueOperation(Json operation){
-  return event_loop::adoptAsyncReturn(queue_->trackWrite<Unit>([this,operation=std::move(operation)]{
-    return appendEntry(operation);
-  }));
-}
-Completion AsyncProject::insertAttributionSnapshot(Json snapshot){
-  return event_loop::adoptAsyncReturn(queue_->trackWrite<Unit>([this,snapshot=std::move(snapshot)]{
-    return appendEntry(snapshot);
-  }));
-}
 Completion AsyncProject::insertContentReplacement(Json replacements,
   std::optional<std::string> bat){
   return event_loop::adoptAsyncReturn(queue_->trackWrite<Unit>([this,replacements=std::move(replacements),

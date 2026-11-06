@@ -7,13 +7,11 @@
 
 namespace batbox::query::async_setup {
 struct Run:std::enable_shared_from_this<Run> {
-  enum class Stage {Start,AfterStart,AwaitBudget,AfterBudget,AfterSnip,
-    AwaitMicro,AfterMicro,AwaitCollapse,AfterCollapse,AwaitAuto,
-    YieldPost,AfterPost,AfterBlocking,Done};
+  enum class Stage {Start,AfterStart,AwaitBudget,AfterBudget,
+    AwaitMicro,AfterMicro,AwaitAuto,YieldPost,AfterPost,AfterBlocking,Done};
   event_loop::Loop& loop;
   Params params;
   State state;
-  QueryConfig config;
   AsyncSetupServices services;
   std::optional<double> remaining;
   PreparedIteration out;
@@ -22,11 +20,10 @@ struct Run:std::enable_shared_from_this<Run> {
   Json postMessages=Json::array();
   std::size_t postIndex=0;
   bool pausedAfterYield=false;
-  bool snipEnabled=false;
   std::exception_ptr failure;
-  Run(event_loop::Loop& owner,Params p,State s,QueryConfig c,AsyncSetupServices sv,
+  Run(event_loop::Loop& owner,Params p,State s,AsyncSetupServices sv,
       std::optional<double> budget)
-    :loop(owner),params(std::move(p)),state(std::move(s)),config(std::move(c)),
+    :loop(owner),params(std::move(p)),state(std::move(s)),
      services(std::move(sv)),remaining(budget){}
   event_loop::Deferred<AsyncSetupStep> next();
   void pump();
@@ -35,11 +32,8 @@ struct Run:std::enable_shared_from_this<Run> {
   void fail(std::exception_ptr error);
   void start();
   void startBudget();
-  void afterBudget(const Json& messages);
   void startMicrocompact();
   void afterMicrocompact(const Json& micro);
-  void startCollapses();
-  void afterCollapses(const Json& collapsed);
   void startAutocompact();
   void afterAutocompact(const Json& compact);
   void finishSetup();

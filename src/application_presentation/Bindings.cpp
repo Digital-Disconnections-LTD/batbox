@@ -8,6 +8,12 @@
 #include "interactive/cards_remaining/MessageLeaves.hpp"
 #include "interactive/cards_remaining/AttachmentProjection.hpp"
 #include "interactive/text_input/MeasuredText.hpp"
+#include "interactive/TranscriptRows.hpp"
+#include "interactive/cards/UserTextProjection.hpp"
+#include "interactive/cards_system/SystemAPIErrorProjection.hpp"
+#include "api_errors/ApiErrors.hpp"
+#include "text_width/AnsiSlice.hpp"
+#include "text_width/IndigenousLayout.hpp"
 #include "npm_wrap_ansi/Wrap.hpp"
 #include "runtime/Encoding.hpp"
 #include "runtime/IndigenousTime.hpp"
@@ -43,6 +49,30 @@ Json groupView(const Json& value,bool running,const std::vector<std::string>& su
     entries.push_back(value::trim(lines[i])+(i-1<suffixes.size()?suffixes[i-1]:std::string{}));
   return Json{{gv::viewKey,"group"},{"title",lines.front()},{"entries",entries},
     {"running",running}};
+}
+retry::ErrorRecord errorRecord(const Json& value){
+  retry::ErrorRecord error;
+  const auto kind=value::property(value,"kind");
+  error.kind=kind=="api"?retry::ErrorRecord::Kind::Api:
+    kind=="connection"?retry::ErrorRecord::Kind::Connection:
+    kind=="abort"?retry::ErrorRecord::Kind::Abort:retry::ErrorRecord::Kind::Other;
+  const auto text=[&](const char* name){
+    const auto& field=value::property(value,name);
+    return field.is_string()?field.get<std::string>():std::string{};};
+  error.message=text("message");error.code=text("code");
+  if(const auto name=text("name");!name.empty())error.name=name;
+  const auto& status=value::property(value,"status");
+  if(status.is_number_integer())error.status=status.get<long>();
+  for(const char* name:{"body","headers","legacyHeaders"}){
+    const auto& field=value::property(value,name);
+    if(!field.is_object())continue;
+    if(std::string(name)=="body")error.body=field;
+    else if(std::string(name)=="headers")error.headers=field;
+    else error.legacyHeaders=field;
+  }
+  const auto& cause=value::property(value,"cause");
+  if(cause.is_object())error.cause=std::make_shared<retry::ErrorRecord>(errorRecord(cause));
+  return error;
 }
 double steadyMs(){
   return static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -153,7 +183,6 @@ Bundle::Bundle(interactive::conversation_shell::Imports& shell,Inputs inputs):
      !inputs_.modelLabel||!inputs_.workingDirectory||!inputs_.permissionMode||
      !inputs_.statusText||!inputs_.shortcuts.loadBindings)
     throw std::invalid_argument("Indigenous presentation requires live theme, messages, Roster, commands, and chrome selectors");
-  if(!inputs_.feature)inputs_.feature=[](const std::string&){return false;};
   if(!inputs_.log)inputs_.log=[](const std::string&){};
   if(!inputs_.displayPath)inputs_.displayPath=[](const std::string& path){return path;};
   intl_=std::make_shared<intl::Stash>(intl::indigenousServices());
@@ -201,10 +230,7 @@ std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& s
   shell.surfaceOptions=[self](const auto& state){return self->surfaceOptions(state);};
   shell.messageImports=[self]{
     interactive::message_view::MessageImports out;
-    out.fullscreen=[]{return true;};out.feature=self->inputs_.feature;
-    out.isSnipBoundary=[](const Json& value){return value.value("type","")=="snip_boundary";};
-    out.isSnipMarker=[](const Json& value){return value.value("type","")=="snip_marker";};
-    out.isConnectorTextBlock=[](const Json& value){return value.value("type","")=="connector_text";};
+    out.fullscreen=[]{return true;};
     out.isAdvisorBlock=[](const Json& value){return value.value("type","")=="server_tool_use";};
     out.logError=self->inputs_.log;return out;
   };
@@ -225,6 +251,22 @@ std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& s
     return self->markdown_->renderStreaming(self->streaming_,text,dim);
   };
   shell.liveRetainedViews=[self]{return self->retainedServices();};
+  shell.renderStreamingPieces=[self](const std::string& text){
+    self->checkPieceTheme();
+    self->markdown_->setTerminalColumns(self->state_->viewport.columns);
+    return self->markdown_->renderStreamingPieces(self->responsePieces_,text,false);
+  };
+  shell.renderThinkingPieces=[self](const std::string& text){
+    self->checkPieceTheme();
+    self->markdown_->setTerminalColumns(self->state_->viewport.columns);
+    return self->markdown_->renderGrowingPieces(self->thinkingPieces_,text,true);
+  };
+  shell.renderQueuedInput=[self](const interactive::QueuedInput& input,bool margin,
+      int columns){
+    return interactive::cards::projectQueuedPoetry({interactive::queuedInputMarker(input),
+      input.text,interactive::queuedInputLabels(input),!input.delivering,margin},
+      std::max(1,columns),ip::poetryPalette(*self->inputs_.theme));
+  };
   // Mission elapsed times read the wall clock unless a pinned clock is given.
   std::function<long long()> missionClock;
   if(self->inputs_.nowMs)missionClock=[clock=self->inputs_.nowMs]{
@@ -239,6 +281,13 @@ std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& s
   shell.editorOptions.columns=self->state_->viewport.columns;
   return self;
 }
+void Bundle::checkPieceTheme(){
+  refreshMarkdownPalette();
+  const auto theme=inputs_.theme->currentTheme();
+  if(theme==pieceTheme_)return;
+  pieceTheme_=theme;
+  responsePieces_.reset();thinkingPieces_.reset();
+}
 interactive::MessageListSettings Bundle::listSettings(const interactive::PresentationState&)const{
   interactive::MessageListSettings out;
   out.messageServices=inputs_.messageServices;
@@ -247,9 +296,9 @@ interactive::MessageListSettings Bundle::listSettings(const interactive::Present
   for(const auto* gadget:active)if(gadget){
     out.gadgets->gadgets.push_back({gadget->name,static_cast<bool>(gadget->renderGroupedGadgetUse)});
   }
-  out.visibility={"(no content)","[Request interrupted by user for Gadget use]",inputs_.feature};
+  out.visibility={"(no content)","[Request interrupted by user for Gadget use]"};
   auto& cls=out.readSearch.classification;
-  cls.feature=inputs_.feature;cls.isFullscreen=[]{return true;};
+  cls.isFullscreen=[]{return true;};
   cls.isAutoManagedMemoryFile=[](const std::string&){return false;};
   cls.isMemoryDirectory=[](const std::string&){return false;};
   cls.isAutoManagedMemoryPattern=[](const std::string&){return false;};
@@ -262,9 +311,6 @@ interactive::MessageListSettings Bundle::listSettings(const interactive::Present
     auto end=command.find('\n',pos);return command.substr(pos+1,end==std::string::npos?end:end-pos-1);
   };
   out.readSearch.getDisplayPath=inputs_.displayPath;
-  out.readSearch.isTeamMemoryWriteOrEdit=[](const std::string&,const Json&){return false;};
-  out.readSearch.isTeamMemorySearch=[](const Json&){return false;};
-  out.readSearch.isTeamMemFile=[](const std::string&){return false;};
   out.readSearch.detectGitOperation=[](const std::string&,const std::string&){return Json();};
   return out;
 }
@@ -272,7 +318,9 @@ interactive::message_list_view::SurfaceOptions Bundle::surfaceOptions(const inte
   interactive::message_list_view::SurfaceOptions out;
   out.screen="prompt";out.conversationId=state.conversationId;
   out.columns=state.viewport.columns;out.virtualScroll=true;
-  out.isLoading=state.loading;out.streamingText=state.streamingText;
+  // The shell sets the live text itself; copying it here would cost a copy
+  // of the whole answer per frame.
+  out.isLoading=state.loading;
   out.thinkingInPlace=true;
   return out;
 }
@@ -290,9 +338,7 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.gadgets=inputs_.gadgets();out.commands=inputs_.commands();
   out.user.protocol={"(no content)","[Request interrupted by user]",
     "[Request interrupted by user for Gadget use]","command-message",
-    "local-command-caveat","tick","teammate-message","task-notification",
-    "GITHUB","FORK","INBOX","CHANNEL","CHANNELS",inputs_.feature,
-    [this]{return inputs_.feature("AGENT_SWARMS");}};
+    "local-command-caveat","tick","task-notification"};
   out.user.userPalette=ip::userCardPalette(*inputs_.theme);
   out.user.poetryPalette=ip::poetryPalette(*inputs_.theme);
   out.user.poetry.logError=inputs_.log;
@@ -304,10 +350,9 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.user.bashResult.outputPalette=ip::outputLinePalette(*inputs_.theme);
   out.user.bashResult.dimColor=subtle;
   out.user.bashResult.outputLine.stringWidth=[width=width_](const std::string& text){return width->stringWidth(Json(text));};
-  out.user.bashResult.outputLine.sliceAnsi=[](const std::string& text,double start,double end){
-    const auto begin=static_cast<std::size_t>(std::max(0.0,start));
-    const auto length=static_cast<std::size_t>(std::max(0.0,end-start));
-    return text.substr(std::min(begin,text.size()),length);
+  out.user.bashResult.outputLine.sliceAnsi=[slice=text_width::indigenousSliceServices(width_)](
+      const std::string& text,double start,double end){
+    return text_width::sliceAnsi(text,start,end,slice);
   };
   out.user.bashResult.outputLine.dim=[](const std::string& text){return text;};
   out.user.bashResult.outputLine.expandHint=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};
@@ -350,13 +395,11 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
     return ftxui::paragraph(value::encodeUtf8(gv::sanitize(
       card.text.empty()?card.planContent:card.text)));
   };
-  out.assistant.protocol={"(no content)","No response requested.","poetry is too long",
+  out.assistant.protocol={"(no content)","No response requested.","Prompt is too long",
     "Credit balance is too low",
     "Credit balance too low · Check billing with your model provider",
-    "Not logged in · Please run /login","Invalid API key · Fix external API key",
-    "Your ANTHROPIC_API_KEY belongs to a disabled organization · Update or unset the environment variable",
-    "Your ANTHROPIC_API_KEY belongs to a disabled organization · Unset the environment variable to use your subscription instead",
-    "OAuth token revoked · Please run /login","Request timed out",
+    "Invalid API key · Check this endpoint's key in /providers",
+    "Request timed out",
     "Opus is experiencing high load, please use /model to switch to Sonnet",
     "[Request interrupted by user]","API Error",
     {"You've hit your","You've used","You're now using extra usage",
@@ -365,7 +408,7 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.assistant.textImports.isKeychainLocked=[]{return false;};
   out.assistant.textImports.fallbackModelName=[this]{return inputs_.modelLabel();};
   out.assistant.textImports.startsWithApiErrorPrefix=[](const std::string& text){
-    return text.starts_with("API Error")||text.starts_with("Please run /login · API Error");};
+    return text.starts_with("API Error");};
   out.assistant.projection.palette=ip::assistantPalette(*inputs_.theme);
   // Markdown keeps terminal-default body text; color its leading marker only.
   out.assistant.projection.palette.text=roles.assistantMarker;
@@ -377,9 +420,35 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.assistant.projection.renderExpandHint=[this]{return ftxui::text(inputs_.shortcuts.display("expand","global","ctrl+o"));};
   out.system.palette=ip::systemPalette(*inputs_.theme);
   out.system.referenceMark="※";out.system.errorDot="●";out.system.eventMark="·";
-  out.system.renderSpecial=[](cards_system::SystemTextKind,const Json& message,
-      const cards_system::SystemTextCard&,bool)->std::optional<ftxui::Element>{
-    return renderComponent(message);
+  // A request being retried: the error and a countdown to the next attempt,
+  // counted from when the row first showed. Once the attempt starts only the
+  // error and attempt number stay.
+  out.system.renderSpecial=[seen=retrySeen_,errorColor=roles.statusErr,muted=roles.muted,
+      this](cards_system::SystemTextKind kind,const Json& message,
+      const cards_system::SystemTextCard&,bool verbose)->std::optional<ftxui::Element>{
+    if(kind!=cards_system::SystemTextKind::APIError)return renderComponent(message);
+    const auto number=[&](const char* name){
+      const auto& field=value::property(message,name);
+      return field.is_number()?field.get<double>():0.0;};
+    cards_system::APIErrorInput input;
+    input.retryAttempt=number("retryAttempt");
+    input.retryInMs=number("retryInMs");
+    input.maxRetries=number("maxRetries");
+    input.verbose=verbose;
+    input.formattedError=api_errors::formatAPIError(errorRecord(value::property(message,"error")));
+    if(const char* timeout=std::getenv("API_TIMEOUT_MS");timeout&&*timeout)
+      input.apiTimeoutEnvironment=timeout;
+    const auto& id=value::property(message,"uuid");
+    const auto key=id.is_string()?id.get<std::string>():std::string{};
+    const auto now=steadyMs();
+    const auto first=seen->try_emplace(key,now).first->second;
+    cards_system::APIErrorState state;
+    state.countdownMs=std::min(input.retryInMs,std::floor((now-first)/1000)*1000);
+    auto card=state.render(input);
+    if(!card.intervalActive)card.retryText="Attempt "+value::numberToString(input.retryAttempt)+
+      "/"+value::numberToString(input.maxRetries);
+    return cards_system::projectSystemAPIError(card,{errorColor,muted},
+      [this]{return ftxui::text(expandKey());});
   };
   out.remaining.palette=ip::leafPalette(*inputs_.theme,[](bool){return true;});
   out.remaining.images.getStoredImagePath=inputs_.storedImagePath?
@@ -392,27 +461,20 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.remaining.advisor.expandHint=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};
   out.remaining.historyShortcut=[this]{return inputs_.shortcuts.display("transcript","global","ctrl+r");};
   out.remaining.attachments.readSelectedBackground=[]{return Json();};
-  out.remaining.attachments.batSwarmsEnabled=[this]{return inputs_.feature("AGENT_SWARMS");};
-  out.remaining.attachments.skillSearchEnabled=[this]{return inputs_.feature("SKILL_SEARCH");};
-  out.remaining.attachments.isDemoEnvironment=[]{return false;};
   out.remaining.attachments.displayPath=inputs_.displayPath;
-  out.remaining.attachments.isShutdownApproved=[](const std::string&){return false;};
-  out.remaining.attachments.isPlanApproval=[](const std::string&,const std::string&){return false;};
-  out.remaining.attachments.formatPartnerContent=[](const std::string& text)->std::optional<std::string>{return text;};
-  out.remaining.attachments.lookupMission=[](const std::string&)->std::optional<Json>{return {};};
   auto& attach=out.remaining.attachmentProjection;
   attach.palette=ip::attachmentPalette(*inputs_.theme);
-  attach.selectedBackground=resolve;attach.partnerColor=[](const std::string&){return ftxui::Color::Default;};
+  attach.selectedBackground=resolve;
   attach.supportsHyperlinks=[this]{return inputs_.hyperlinks;};
   attach.filePathURL=fileUrl;attach.basename=basename;
   attach.expandHint=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};
-  attach.renderUserText=[missionCards](const std::string& text,bool margin,bool,bool){
+  // Poetry delivered mid-turn is the user's message: the same band and glyph.
+  attach.renderUserText=[missionCards,columns,poetry=out.user.poetryPalette,
+      glyph=out.user.highlight.pointerGlyph](const std::string& text,bool margin,bool,bool){
     if(auto element=missionCards(text,margin))return *element;
-    return ftxui::paragraph(value::encodeUtf8(text));};
+    return cards::projectQueuedPoetry({glyph,text,{},false,margin},columns,poetry);};
   attach.renderImage=[](int id){return ftxui::text("[Image #"+std::to_string(id)+"]");};
   attach.renderDiagnostics=[](const Json& value,bool){return renderComponent(value);};
-  attach.renderPlanApproval=[](const cards_remaining::MailboxItem& item){return ftxui::paragraph(value::encodeUtf8(item.text));};
-  attach.renderPartnerText=[](const cards_remaining::MailboxItem& item,bool){return ftxui::paragraph(value::encodeUtf8(item.text));};
   attach.renderAnsi=[](const std::string& text){return ftxui::paragraph(value::encodeUtf8(text));};
   out.gadgetResult=[this,viewStyle,columns](const message_view::MessagePlan&,
       const message_view::BlockPlan&,const MessageLookups&,const gadgets::Gadgets&){
@@ -582,7 +644,6 @@ interactive::message_view::RetainedViewServices Bundle::retainedServices()const{
   collapsed.readSelectedBackground=[]{return Json();};
   collapsed.readTheme=[this]{return gadgetTheme(*inputs_.theme);};
   collapsed.isFullscreen=[]{return true;};
-  collapsed.teamMemoryEnabled=[this]{return inputs_.feature("TEAMMEM");};
   collapsed.displayPath=inputs_.displayPath;
   // Hook timings arrive in milliseconds.
   collapsed.formatDuration=seconds;

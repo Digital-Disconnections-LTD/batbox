@@ -16,10 +16,7 @@ struct EffectivePoetryParams {
   Json overrideSystemPoetry=Json(Json::value_t::discarded);
 };
 struct EffectivePoetryServices {
-  std::function<bool(const std::string&)> feature;
-  std::function<bool()> coordinatorModeEnabled,isProactiveActive;
   std::function<bool(const Json&)> isBuiltInBat;
-  std::function<std::string()> getCoordinatorSystemPoetry;
 };
 Json buildEffectiveSystemPoetry(const EffectivePoetryParams& params,
   const EffectivePoetryServices& services);

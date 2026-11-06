@@ -8,13 +8,11 @@ Json callBatGadget(const Json& input,const BatContext& context,
     const std::function<std::future<Json>(const Json&)>& canUseGadget,
     const Json& assistantMessage,BatGadgetCallServices& services){
   const Json& options=field(context.query.data,"options");
-  const Json& messages=field(context.query.data,"messages");
+  const Json& messages=execution::conversationMessages(context.query);
   // BatGadget.call reads gadgetUseContext.getAppState, including any live
   // wrapper installed by an earlier gadget result in this query turn.
   services.preflight.getAppState=effectiveBatGetAppState(context);
-  auto preflight=preflightBatGadget(input,options,messages,assistantMessage,
-    services.preflight);
-  if(preflight.immediateResult)return *preflight.immediateResult;
+  auto preflight=preflightBatGadget(input,options,messages,services.preflight);
   auto plan=prepareBatGadgetLaunch(input,preflight,assistantMessage,context,
     canUseGadget,services.launch);
   if(plan.shouldRunAsync)

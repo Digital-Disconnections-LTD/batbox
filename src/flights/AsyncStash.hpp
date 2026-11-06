@@ -1,12 +1,10 @@
 #pragma once
 #include "event_loop/Deferred.hpp"
-#include "flights/Stash.hpp"
+#include "flights/Load.hpp"
 
 namespace batbox::flights {
 using AsyncTranscriptLoad=std::function<event_loop::Deferred<LoadedTranscript>(const std::string&)>;
 using FlightUuidSet=std::shared_ptr<runtime::OrderedStringSet>;
-event_loop::Deferred<LoadedTranscript> loadFlightFileAsync(event_loop::Loop&,
-  const std::string& flight,Paths&,const AsyncTranscriptLoad& loadTranscriptFile);
 
 class AsyncFlightMessageStash {
   event_loop::Loop& loop_;

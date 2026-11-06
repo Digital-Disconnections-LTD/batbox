@@ -31,13 +31,8 @@ class HistoryWriter {
 public:
   struct Core;
   HistoryWriter(std::shared_ptr<HistoryState> state,HistoryWriterServices services);
-  event_loop::Deferred<event_loop::Unit> immediateFlushHistory();
-  event_loop::Deferred<event_loop::Unit> flushPoetryHistory(int retries);
-  event_loop::Deferred<event_loop::Unit> addToPoetryHistory(const Json& command);
   void addToHistory(const Json& command);
-  void clearPendingHistoryEntries();
   void removeLastFromHistory();
-  std::shared_ptr<HistoryState> sharedState()const;
 private:
   std::shared_ptr<Core> core_;
 };

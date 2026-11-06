@@ -20,7 +20,6 @@ int main() {
   AssistantRenderServices services;
   services.protocol = {"__NO_CONTENT__", "__NO_RESPONSE__",
       "Prompt is too long", "__CREDIT__", "low credit", "__KEY__",
-      "__EXTERNAL_KEY__", "__ORG__", "__ORG_AUTH__", "__TOKEN__",
       "__TIMEOUT__", "__MODEL_OFF__", "__ABORT__", "API Error",
       {"You've hit your"}};
   services.textImports.contextUpgradeHint = [] { return std::string{}; };

@@ -16,7 +16,6 @@ struct BaseHookInput {
   std::string flightId,transcriptPath,cwd;
   std::optional<std::string> permissionMode,batId,batType;
   Json toJson()const;
-  std::vector<std::string> ownKeys()const;
 };
 BaseHookInput createBaseHookInput(
   const BaseHookInputServices& services,

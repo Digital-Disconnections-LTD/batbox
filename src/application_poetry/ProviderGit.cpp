@@ -1,6 +1,5 @@
 #include "application_poetry/Provider.hpp"
 #include "git/GitBindings.hpp"
-#include "git_filesystem/ConfigParser.hpp"
 #include "runtime/Platform.hpp"
 
 namespace batbox::application_poetry {
@@ -16,11 +15,6 @@ void Provider::bindGit(){
     return finder->find(path);
   };
   filesystem.getCwd=[this]{return cwd();};
-  git_filesystem::bindIndigenousConfigParser(owner_,filesystem);
-  filesystem.waitForScrollIdle=[this]{
-    event_loop::Deferred<event_loop::Unit> done(owner_);done.resolve({});
-    return done;
-  };
   // GitFilesystem owns the indigenous file watches and tears them down on destruction.
   filesystem.registerCleanup=[](std::function<void()>){};
   gitFilesystem_=std::make_unique<git_filesystem::GitFilesystem>(
@@ -29,7 +23,7 @@ void Provider::bindGit(){
   if(!diagnostics)diagnostics=[](const std::string&,const std::string&,
       const std::optional<Json>&){};
   gitBasics_=std::make_unique<git::GitBasics>(owner_,
-    git::indigenousBasicsImports(owner_,rootFinder_,*gitFilesystem_,
+    git::indigenousBasicsImports(rootFinder_,*gitFilesystem_,
       [this]{return cwd();},std::move(diagnostics)));
   execImports_.execa=process::indigenousExeca(owner_);
   execImports_.getCwd=[this]{return cwd();};

@@ -17,7 +17,6 @@ struct RowPlan {
   bool hasMetadata=false;
 };
 RowPlan prepareRow(RowRequest request,const MessageImports& imports);
-bool sameRowView(const RowRequest& previous,const RowRequest& next);
 MessageRefs progressFromLookup(const Json& message,const MessageLookups& lookups);
 GadgetIDs siblingsFromLookup(const Json& message,const MessageLookups& lookups);
 } // namespace batbox::interactive::message_view

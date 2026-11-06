@@ -3,6 +3,18 @@
 #include <stdexcept>
 
 namespace batbox::flights {
+namespace {
+// A title needs the gist of the first message, not a pasted file or log;
+// the rest would only add to the request the server has to read.
+constexpr std::size_t titleInputBytes=2000;
+std::string titleInput(std::string text){
+  if(text.size()<=titleInputBytes)return text;
+  auto cut=titleInputBytes;
+  while(cut>0&&(static_cast<unsigned char>(text[cut])&0xC0)==0x80)--cut;
+  text.resize(cut);
+  return text+"\n[...]";
+}
+}
 event_loop::Deferred<std::optional<std::string>> generateFlightTitle(
   event_loop::Loop& loop,const std::string& description,std::stop_token signal,
   TitleServices services){
@@ -22,7 +34,7 @@ event_loop::Deferred<std::optional<std::string>> generateFlightTitle(
       throw std::invalid_argument("Session title query imports required");
     TitleQuery input;
     input.systemPoetry=Json::array({flightTitlePoetry()});
-    input.userPoetry=trimmed;input.signal=signal;
+    input.userPoetry=titleInput(trimmed);input.signal=signal;
     input.outputFormat=Json{{"type","json_schema"},{"schema",{
       {"type","object"},{"properties",{{"title",{{"type","string"}}}}},
       {"required",Json::array({"title"})},{"additionalProperties",false}}}};

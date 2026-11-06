@@ -53,27 +53,12 @@ int main(){
     std::string::npos);
   AttachmentServices attachmentServices;
   attachmentServices.readSelectedBackground=[](){return Json();};
-  attachmentServices.skillSearchEnabled=[](){return false;};
-  attachmentServices.batSwarmsEnabled=[](){return true;};
-  attachmentServices.isShutdownApproved=[](const std::string& text){
-    return text=="approved";};
-  attachmentServices.isPlanApproval=[](const std::string&,const std::string&){
-    return false;};
-  attachmentServices.formatPartnerContent=[](const std::string&)
-      ->std::optional<std::string>{return {};};
-  attachmentServices.lookupMission=[](const std::string&)->std::optional<Json>{return {};};
   AttachmentProjectionImports projection;
-  projection.palette.blackCircle="●";
   projection.palette.subtle=ftxui::Color::GrayDark;
   projection.renderUserText=[](const std::string& value,bool,bool,bool){
     return ftxui::text(value);};
   projection.renderImage=[](int id){return ftxui::text("image "+std::to_string(id));};
   projection.renderDiagnostics=[](const Json&,bool){return ftxui::text("diagnostics");};
-  bool sawTranscriptMode=false;
-  projection.renderPartnerText=[&sawTranscriptMode](const MailboxItem& item,
-      bool transcriptMode){
-    sawTranscriptMode=transcriptMode;
-    return ftxui::text(item.text);};
   auto attachment=classifyAttachment(Json{{"type","queued_command"},
     {"prompt","queued text"},{"imagePasteIds",Json::array({2})}},
     false,false,false,attachmentServices);
@@ -81,19 +66,10 @@ int main(){
   assert(render(*projectAttachment(attachment,projection)).find("queued text")!=
     std::string::npos);
   attachment=classifyAttachment(Json{{"type","teammate_mailbox"},
-    {"messages",Json::array({Json{{"text","approved"}},
-      Json{{"text","{\"type\":\"idle_notification\"}"}},
-      Json{{"text","hello"},{"from","alice"}}})}},
-    false,false,false,attachmentServices);
-  assert(attachment.kind==AttachmentCard::Kind::Mailbox&&
-         attachment.mailbox.size()==1);
-  assert(render(*projectAttachment(attachment,projection)).find("hello")!=
-         std::string::npos);
-  attachment=classifyAttachment(Json{{"type","teammate_mailbox"},
     {"messages",Json::array({Json{{"text","hello"},{"from","alice"}}})}},
     false,false,true,attachmentServices);
-  (void)projectAttachment(attachment,projection);
-  assert(sawTranscriptMode);
+  assert(attachment.kind==AttachmentCard::Kind::Hidden&&
+         !projectAttachment(attachment,projection));
   attachment=classifyAttachment(Json{{"type","task_status"},{"taskId","t1"},
     {"taskType","local"},{"status","completed"},{"description","build"}},
     false,false,false,attachmentServices);
@@ -104,5 +80,5 @@ int main(){
     assert(text=="● Mission \"build\" completed in background");
     assert(render(*projectAttachment(attachment,projection)).find("Mission")!=std::string::npos);
   }
-  std::cout<<"9 native remaining-card composition cases pass\n";
+  std::cout<<"8 native remaining-card composition cases pass\n";
 }

@@ -79,7 +79,6 @@ int main(){
     }
     {
       Loop loop;auto lease=loop.hold();
-      check(lease.active(),"new keepalive not referenced");
       const auto begin=std::chrono::steady_clock::now();
       std::thread worker([lease=std::move(lease)]()mutable{
         std::this_thread::sleep_for(std::chrono::milliseconds(12));

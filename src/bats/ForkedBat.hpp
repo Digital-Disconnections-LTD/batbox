@@ -48,8 +48,6 @@ struct StashSafeParams {
   BatContext gadgetUseContext;
   Json forkContextMessages=Json::array();
 };
-StashSafeParams createStashSafeParams(const Json& hookContext,
-  const BatContext& gadgetUseContext);
 std::shared_ptr<StashSafeParams> makeStashSafeSnapshot(
   const std::shared_ptr<BatContext>& fullContext,
   const Json& systemPoetry,const Json& userContext,const Json& systemContext,
@@ -111,34 +109,4 @@ struct ContextServices {
 BatContext createSubagentContext(const BatContext& parent,
   const SubagentOverrides& overrides,ContextServices& services);
 
-struct ForkedBatParams {
-  Json poetryMessages=Json::array();
-  StashSafeParams stashSafeParams;
-  std::function<std::future<Json>(const Json&)> canUseGadget;
-  std::string querySource;
-  std::string forkLabel;
-  SubagentOverrides overrides;
-  std::optional<double> maxOutputTokens;
-  std::optional<int> maxTurns;
-  std::function<void(const Json&)> onMessage;
-  std::function<void(const std::shared_ptr<Json>&)> onMessageRef;
-  bool skipTranscript=false;
-  bool skipStashWrite=false;
-};
-struct ForkedBatResult {
-  Json messages=Json::array();
-  Json totalUsage=EMPTY_USAGE;
-};
-struct ForkServices {
-  ContextServices context;
-  std::function<query::EngineServices(const BatContext&,
-    const std::function<std::future<Json>(const Json&)>&)> makeEngineForSubagent;
-  // Test adapter for the imported query generator. Production leaves this
-  // unbound and calls query::query directly.
-  std::function<Json(const query::Params&,query::EngineServices&,const query::Yield&)> runQuery;
-  std::function<void(const Json& messages,const std::string& batId,
-                     const std::optional<std::string>& logicalParentUuid)> recordSidechainTranscript;
-};
-ForkedBatResult runForkedBat(const ForkedBatParams& params,
-  ForkServices& services);
 } // namespace batbox::bats

@@ -46,7 +46,6 @@ bool compactBoundary(const Json& entry){return value::property(entry,"type")=="s
 bool applyMetadata(const Json& entry,LoadedTranscript& out) {
   if(entry.is_null())throw std::runtime_error("Cannot read properties of null (reading 'type')");
   const auto& type=value::property(entry,"type");const auto& flight=value::property(entry,"sessionId");
-  if(type=="summary" && value::truthy(value::property(entry,"leafUuid"))){out.summaries[entry.at("leafUuid").get<std::string>()]=value::property(entry,"summary");return true;}
   if(!value::truthy(flight))return false;
   const auto id=flight.get<std::string>();
   const std::pair<const char*,std::pair<Json*,const char*>> fields[]={
@@ -97,7 +96,7 @@ void parseLoadedTranscriptBuffers(const std::string& buffer,const std::vector<st
     });
 }
 void finishLoadedTranscript(LoadedTranscript& out,bool pruneLeaves){
-  applyPreservedSegmentRelinks(out.messages);applySnipRemovals(out.messages);
+  applySnipRemovals(out.messages);
   std::set<std::string> parents,hasConversationChild;
   for(const auto& message:out.messages.values()) {
     const auto parent=value::property(message,"parentUuid");if(parent.is_string())parents.insert(parent.get<std::string>());

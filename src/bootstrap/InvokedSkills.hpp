@@ -24,8 +24,6 @@ void addInvokedSkill(InvokedSkillsState& state,
   const std::string& skillName,const std::string& skillPath,
   const std::string& content,std::optional<std::string> batId,
   const ClockMillis& clockMillis);
-std::shared_ptr<InvokedSkillMap> getInvokedSkills(
-  const InvokedSkillsState& state);
 InvokedSkillMap getInvokedSkillsForBat(const InvokedSkillsState& state,
   std::optional<std::string> batId);
 void clearInvokedSkills(InvokedSkillsState& state,

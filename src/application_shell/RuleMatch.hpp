@@ -13,6 +13,4 @@ bool hasWildcards(const std::string& pattern);
 bool matchWildcardPattern(const std::string& pattern,const std::string& command,
   bool caseInsensitive=false);
 ShellRule parsePermissionRule(const std::string& rule);
-Json suggestionForExactCommand(const std::string& gadgetName,const std::string& command);
-Json suggestionForPrefix(const std::string& gadgetName,const std::string& prefix);
 } // namespace batbox::application_shell

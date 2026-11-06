@@ -22,17 +22,10 @@ void Rewind::setSelectorVisible(bool value){
   selectorVisible_=value;
   if(services_.publishSelectorVisible)services_.publishSelectorVisible(value);
 }
-void Rewind::setPreselect(TurnMessageRef value){
-  preselect_=std::move(value);
-  if(services_.publishPreselect)services_.publishPreselect(preselect_);
-}
 void Rewind::handleShowMessageSelector(){
   setSelectorVisible(!selectorVisible_);
 }
 void Rewind::setMessageSelectorVisible(bool value){setSelectorVisible(value);}
-void Rewind::setMessageSelectorPreselect(TurnMessageRef value){
-  setPreselect(std::move(value));
-}
 void Rewind::rewindConversationTo(const TurnMessageRef& message){
   if(!services_.owner.isOwnerThread())throw std::logic_error("Rewind owner required");
   const auto previous=services_.messages.messages();
@@ -48,11 +41,6 @@ void Rewind::rewindConversationTo(const TurnMessageRef& message){
   services_.setConversationId(services_.randomUUID());
   need(services_.resetMicrocompactState,"resetMicrocompactState");
   services_.resetMicrocompactState();
-  need(services_.feature,"feature");
-  if(services_.feature("CONTEXT_COLLAPSE")){
-    need(services_.resetContextCollapse,"resetContextCollapse");
-    services_.resetContextCollapse();
-  }
   services_.store->setState([message](const app_state::AppStateRef& previous){
     auto updated=std::make_shared<app_state::AppState>(previous->shallowCopy());
     const auto& mode=field(*message,"permissionMode");

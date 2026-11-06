@@ -5,7 +5,6 @@
 namespace batbox::bats {
 namespace {
 const Json& field(const Json& value,const char* key){return value::property(value,key);}
-std::string text(const Json& value){return value.is_string()?value.get<std::string>():"";}
 template<class F>void need(const F& fn,const char* name){
   if(!fn)throw std::invalid_argument(std::string("BatGadget finalize requires ")+name);
 }
@@ -74,22 +73,6 @@ std::optional<Json> finalizeBatGadgetForeground(BatGadgetForegroundFinalState& s
   }
   Json batResult=finalizeBatGadget(messages,state.syncBatId,state.metadata,
     services.result);
-  need(services.feature,"feature");
-  if(services.feature("TRANSCRIPT_CLASSIFIER")){
-    need(services.classifyHandoffIfNeeded,"classifyHandoffIfNeeded");
-    need(state.context.getAppState,"toolUseContext.getAppState");
-    const Json current=effectiveBatGetAppState(state.context)();
-    const auto warning=services.classifyHandoffIfNeeded(messages,
-      state.context.query.gadgets,field(current,"toolPermissionContext"),
-      state.context.abortOwner?state.context.abortOwner->get_token():
-        state.context.query.stop,text(field(state.selectedBat,"agentType")),
-      field(batResult,"totalToolUseCount").get<int>());
-    if(warning){
-      Json content=Json::array({Json{{"type","text"},{"text",*warning}}});
-      for(const auto& block:batResult.at("content"))content.push_back(block);
-      batResult["content"]=std::move(content);
-    }
-  }
   Json data={{"status","completed"},{"prompt",state.poetry}};
   for(auto it=batResult.begin();it!=batResult.end();++it)
     data[it.key()]=it.value();

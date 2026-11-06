@@ -35,6 +35,9 @@ struct ExecResult {
   bool assistantAutoBackgroundedOwnProperty=false;
   std::optional<std::string> outputFilePath;
   std::optional<std::size_t> outputFileSize;
+  // The end of an output too large to read inline, where a failing build or
+  // test run prints its summary.
+  std::optional<std::string> stdoutTail;
   std::optional<std::string> outputMissionId;
   std::optional<std::string> preSpawnError;
   Json toJson()const;
@@ -55,6 +58,7 @@ struct FlightConfig {
   std::string outputDir;
   std::map<std::string,std::string> environmentOverrides;
   std::size_t maxInlineOutputBytes=30000;
+  std::size_t maxOutputTailBytes=6000;
   std::size_t maxBackgroundOutputBytes=5ull*1024*1024*1024;
   double defaultTimeoutMs=120000;
   double maxTimeoutMs=600000;
@@ -78,10 +82,6 @@ struct RunOptions {
   bool isMainThread=true;
   bool autoBackgroundEnabled=true;
   bool managedAssistantBackgroundEnabled=true;
-  bool useSandbox=false;
-  std::optional<std::string> sandboxTmpDir;
-  std::function<std::string(const std::string&)> sandboxWrap;
-  std::function<void(const std::string&)> logDebug;
   std::stop_token signal;
   std::function<std::string()> currentAbortReason;
   std::function<void(const Progress&)> onProgress;
@@ -111,7 +111,6 @@ public:
   void setCwd(const std::string& path);
   std::string outputPath(const std::string& missionId)const;
   std::string readOutput(const std::string& missionId)const;
-  std::exception_ptr backgroundCallbackFailure(const std::string& missionId)const;
 private:
   FlightConfig config_;
   mutable std::mutex mutex_;
@@ -124,7 +123,6 @@ private:
   void updateCwd(const std::shared_ptr<Job>& job,const RunOptions& options,
     const ExecResult& result);
 };
-std::string findSuitableShell(const std::map<std::string,std::string>& env);
 bool isAutobackgroundingAllowed(const std::string& command,
   const std::function<std::vector<std::string>(const std::string&)>& splitCommand);
 } // namespace batbox::shell

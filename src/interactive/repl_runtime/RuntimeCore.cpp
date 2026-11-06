@@ -8,11 +8,8 @@ template<class T>void need(const T& value,const char* name){
   if(!value)throw std::invalid_argument(std::string("REPL runtime binding required: ")+name);
 }
 }
-Runtime::Runtime(RuntimeServices services,TranscriptServices transcript,
-    IdleServices idle):
-  services_(std::move(services)),transcript_(std::move(transcript)),
-  idle_(std::move(idle)),
-  localCommands_(services_.initialLocalCommands){
+Runtime::Runtime(RuntimeServices services,TranscriptServices transcript):
+  services_(std::move(services)),transcript_(std::move(transcript)){
   need(services_.readFileState,"readFileState");
   need(services_.onDetachedError,"onDetachedError");
 }
@@ -33,9 +30,6 @@ void Runtime::start(){
   auto weak=weak_from_this();
   if(weak.expired())throw std::logic_error("REPL runtime requires shared lifetime");
   need(services_.hasActiveLocalUi,"hasActiveLocalUi");
-  need(services_.getSubmitCount,"getSubmitCount");
-  need(services_.recordUserActivity,"recordUserActivity");
-  need(services_.updateLastInteractionTime,"updateLastInteractionTime");
   need(services_.makeQueuedRequest,"makeQueuedRequest");
   need(services_.submitServices,"submitServices");
   need(services_.shutdownDiagnostics,"shutdownDiagnostics");
@@ -65,8 +59,6 @@ void Runtime::start(){
     if(auto self=weak.lock())self->scheduleNowCheck();
   });
   scheduleNowCheck();
-  observeInputActivity(services_.presentation.input.text,
-    services_.getSubmitCount());
   observeTranscriptMode();
   try{
     auto init=onInit();
@@ -91,7 +83,6 @@ event_loop::Deferred<event_loop::Unit> Runtime::stopAndWait(){
   unsubscribeQueue_={};
   if(queueReadiness_)queueReadiness_->stop();
   queueReadiness_.reset();
-  cancelIdleEffects();
   auto report=services_.onDetachedError;
   try{
     auto pending=services_.shutdownDiagnostics();
@@ -126,20 +117,6 @@ void Runtime::observeQueuedCommands(){
     need(services_.getAbortController,"getAbortController");
     if(auto abort=services_.getAbortController())abort->abort("interrupt");
     return;
-  }
-}
-void Runtime::observeInputActivity(const std::string& input,
-    std::size_t submitCount){
-  const auto previous=activitySnapshot_;
-  if(previous&&previous->first==input&&previous->second==submitCount)return;
-  activitySnapshot_=std::make_pair(input,submitCount);
-  need(services_.recordUserActivity,"recordUserActivity");
-  services_.recordUserActivity();
-  need(services_.updateLastInteractionTime,"updateLastInteractionTime");
-  services_.updateLastInteractionTime(true);
-  if(submitCount==1&&(!previous||previous->second!=1)){
-    need(services_.startBackgroundHousekeeping,"startBackgroundHousekeeping");
-    services_.startBackgroundHousekeeping();
   }
 }
 } // namespace batbox::interactive::repl_runtime

@@ -16,11 +16,6 @@ bool humanMessage(const Json& message){
     !value::truthy(field(message,"isMeta"))&&
     !gadgetResultContent(field(field(message,"message"),"content"));
 }
-bool humanTurn(const Json& message){
-  return field(message,"type")=="user"&&
-    !value::truthy(field(message,"isMeta"))&&
-    (!message.is_object()||!message.contains("toolUseResult"));
-}
 std::optional<std::string> batId(const execution::Context& context){
   const auto& value=field(context.data,"agentId");
   if(!value::truthy(value))return std::nullopt;
@@ -109,33 +104,5 @@ Json getPlanModeExitAttachment(const execution::Context& context,
   const auto plan=services.getPlan(id);
   return Json::array({Json{{"type","plan_mode_exit"},
     {"planFilePath",path},{"planExists",plan&&!plan->is_null()}}});
-}
-Json getVerifyPlanReminderAttachment(const Json& messages,
-    const Services& services){
-  if(!services.internalUser)
-    throw std::invalid_argument("Local user type import required");
-  if(!services.internalUser())return Json::array();
-  if(!services.verifyPlanEnabled)
-    throw std::invalid_argument("Plan verification feature import required");
-  if(!services.verifyPlanEnabled())return Json::array();
-  const auto app=current(services);
-  const auto pending=app->fieldRef("pendingPlanVerification");
-  if(!pending||!value::truthy(*pending)||
-     value::truthy(field(*pending,"verificationStarted"))||
-     value::truthy(field(*pending,"verificationCompleted")))
-    return Json::array();
-  if(messages.is_array()&&!messages.empty()){
-    int count=0;bool found=false;
-    for(std::size_t i=messages.size();i>0;){
-      const auto& message=messages[--i];
-      if(humanTurn(message))++count;
-      if(field(message,"type")=="attachment"&&
-         field(field(message,"attachment"),"type")=="plan_mode_exit"){
-        found=true;break;
-      }
-    }
-    if(!found||count==0||count%10!=0)return Json::array();
-  }
-  return Json::array({Json{{"type","verify_plan_reminder"}}});
 }
 } // namespace batbox::attachments::local

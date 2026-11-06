@@ -71,15 +71,6 @@ IndigenousFileReadStash::ReadResult IndigenousFileReadStash::readFile(const std:
 std::string IndigenousFileReadStash::read(const std::string& path){
   return readFile(path).content;
 }
-void IndigenousFileReadStash::invalidate(const std::string& path){
-  std::lock_guard lock(mutex_);
-  auto found=stash_.find(path);
-  if(found==stash_.end())return;
-  order_.erase(found->second.order);stash_.erase(found);
-}
-void IndigenousFileReadStash::clear(){
-  std::lock_guard lock(mutex_);stash_.clear();order_.clear();
-}
 std::size_t IndigenousFileReadStash::size()const{
   std::lock_guard lock(mutex_);return stash_.size();
 }

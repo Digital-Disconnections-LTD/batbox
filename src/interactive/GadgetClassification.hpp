@@ -20,7 +20,6 @@ struct SearchOrReadResult {
 };
 
 struct GadgetClassificationImports {
-  std::function<bool(const std::string&)> feature;
   std::function<bool()> isFullscreen;
   std::function<bool(const std::string&)> isAutoManagedMemoryFile;
   std::function<bool(const std::string&)> isMemoryDirectory;
@@ -31,7 +30,6 @@ struct GadgetClassificationImports {
   std::string writeGadgetName;
   std::string editGadgetName;
   std::string gadgetSearchName;
-  std::optional<std::string> snipGadgetName;
   std::string bashGadgetName;
 };
 

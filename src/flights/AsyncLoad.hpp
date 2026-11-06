@@ -14,6 +14,4 @@ struct AsyncLoadServices {
 event_loop::Deferred<LoadedTranscript> loadTranscriptFileAsync(event_loop::Loop&,
   const std::string& path,bool keepAllLeaves,const AsyncLoadServices&);
 void bindIndigenousAsyncFileReads(event_loop::Loop&,AsyncLoadServices&);
-event_loop::Deferred<std::optional<Json>> getBatTranscriptAsync(event_loop::Loop&,
-  const std::string& bat,Paths&,const AsyncLoadServices&,GraphServices);
 } // namespace batbox::flights

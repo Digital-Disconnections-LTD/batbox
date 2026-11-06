@@ -81,9 +81,4 @@ void LiveStream::abort() noexcept {
   ready_.notify_all();
 }
 
-bool LiveStream::aborted() const {
-  std::lock_guard lock(mutex_);
-  return aborted_;
-}
-
 } // namespace batbox::model

@@ -64,21 +64,17 @@ Json batGadgetInputShape(const BatGadgetSchemaOptions& options){
     "The type of specialized agent to use for this task",true);
   properties["model"]=choice(values({"standard","premium","fast"}),
     "Optional model override for this agent. Takes precedence over the agent definition's model frontmatter. If omitted, uses the agent definition's model, or inherits from the parent.",true);
-  if(!options.backgroundMissionsDisabled && !options.forkSubagentEnabled)
+  if(!options.backgroundMissionsDisabled)
     properties["run_in_background"]=property("boolean",
       "Set to true to run this agent in the background. You will be notified when it completes.",true);
   properties["name"]=property("string",
     "Name for the spawned agent. Makes it addressable via SendMessage({to: name}) while running.",true);
   properties["team_name"]=property("string",
     "Team name for spawning. Uses current team context if omitted.",true);
-  Json modes=values({"acceptEdits","bypassPermissions","default","dontAsk","plan"});
-  if(options.transcriptClassifier)modes.push_back("auto");
-  properties["mode"]=choice(modes,
+  properties["mode"]=choice(values({"acceptEdits","bypassPermissions","default","dontAsk","plan"}),
     "Permission mode for spawned teammate (e.g., \"plan\" to require plan approval).",true);
   properties["isolation"]=choice(values({"worktree"}),
     "Isolation mode. \"worktree\" creates a temporary git worktree so the agent works on an isolated copy of the repo.",true);
-  if(options.kairos)properties["cwd"]=property("string",
-    "Absolute path to run the agent in. Overrides the working directory for all filesystem and shell operations within this agent. Mutually exclusive with isolation: \"worktree\".",true);
   return Json{{"kind","object"},{"properties",properties}};
 }
 
@@ -162,7 +158,9 @@ Json batGadgetOutputShape(){
     {"outputFile",described(string,
       "Path to the output file for checking agent progress")},
     {"canReadOutputFile",described(optional(node("boolean")),
-      "Whether the calling agent has Read/Bash tools to check progress")}});
+      "Whether the calling agent has Read/Bash tools to check progress")},
+    {"canWaitForResult",described(optional(node("boolean")),
+      "Whether the calling agent has TaskOutput to wait for the result")}});
   return Json{{"kind","union"},{"options",Json::array({sync,async})}};
 }
 

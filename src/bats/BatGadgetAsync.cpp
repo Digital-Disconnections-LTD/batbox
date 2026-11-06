@@ -1,4 +1,5 @@
 #include "bats/BatGadgetAsync.hpp"
+#include "bats/BatGadgetPresentation.hpp"
 #include <stdexcept>
 
 namespace batbox::bats {
@@ -78,7 +79,7 @@ Json launchBatGadgetAsync(const Json& input,const Json& assistantMessage,
   if(parentFlight)batContext["parentSessionId"]=*parentFlight;
   if(assistantMessage.is_object() && assistantMessage.contains("requestId"))
     batContext["invokingRequestId"]=assistantMessage.at("requestId");
-  const bool summarize=planRef->isCoordinator || services.isForkSubagentEnabled() ||
+  const bool summarize=services.isForkSubagentEnabled() ||
     services.getSdkBatProgressSummariesEnabled();
   auto worktreeState=std::make_shared<BatGadgetWorktreeState>(planRef->worktree);
   auto cleanup=services.worktree;
@@ -115,17 +116,17 @@ Json launchBatGadgetAsync(const Json& input,const Json& assistantMessage,
       runWithCwd(*cwd,invoke);
     }else invoke();
   });
-  bool canReadOutputFile=false;
+  bool canReadOutputFile=false,canWaitForResult=false;
   for(const auto* gadget:context.query.gadgets){
-    if(gadget && (gadgets::gadgetMatchesName(*gadget,services.fileReadGadgetName) ||
-                gadgets::gadgetMatchesName(*gadget,services.bashGadgetName))){
-      canReadOutputFile=true;break;
-    }
+    if(!gadget)continue;
+    if(gadgets::gadgetMatchesName(*gadget,services.fileReadGadgetName) ||
+       gadgets::gadgetMatchesName(*gadget,services.bashGadgetName))canReadOutputFile=true;
+    if(gadgets::gadgetMatchesName(*gadget,missionOutputGadgetName))canWaitForResult=true;
   }
   return Json{{"data",{{"isAsync",true},{"status","async_launched"},
     {"agentId",missionId},{"description",registration.description},
     {"prompt",registration.poetry},
     {"outputFile",services.getMissionOutputPath(missionId)},
-    {"canReadOutputFile",canReadOutputFile}}}};
+    {"canReadOutputFile",canReadOutputFile},{"canWaitForResult",canWaitForResult}}}};
 }
 } // namespace batbox::bats

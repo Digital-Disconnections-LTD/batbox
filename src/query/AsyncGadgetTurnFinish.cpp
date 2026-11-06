@@ -1,6 +1,19 @@
 #include "query/AsyncGadgetTurnInternal.hpp"
 
 namespace batbox::query::async_gadget_turn {
+Json Run::historyThroughGadgetResults(bool take){
+  const Json& results=modelResult->gadgetResults;
+  if(attachmentHistory){
+    Json history=take?std::move(*attachmentHistory):*attachmentHistory;
+    if(take)attachmentHistory.reset();
+    if(results.is_array())
+      for(std::size_t i=attachmentHistoryResults;i<results.size();++i)history.push_back(results[i]);
+    return history;
+  }
+  Json history=appendMessages(prepared->messagesForQuery,modelResult->assistantMessages);
+  if(results.is_array())for(const Json& item:results)history.push_back(item);
+  return history;
+}
 void Run::consumeCommands(){
   Json consumed=Json::array();
   for(const Json& command:queuedCommands)
@@ -28,21 +41,6 @@ void Run::consumeCommands(){
   stage=Stage::Final;
 }
 void Run::finalize(){
-  const Json& batId=field(prepared->gadgetUseContext.data,"agentId");
-  need(services.sync.feature,"feature");
-  if(services.sync.feature("BG_SESSIONS")&&!value::truthy(batId)){
-    need(services.sync.shouldGenerateMissionSummary,"shouldGenerateTaskSummary");
-    if(services.sync.shouldGenerateMissionSummary()){
-      need(services.sync.maybeGenerateMissionSummary,"maybeGenerateTaskSummary");
-      Json history=appendMessages(prepared->messagesForQuery,
-        modelResult->assistantMessages);
-      history=appendMessages(history,modelResult->gadgetResults);
-      services.sync.maybeGenerateMissionSummary(Json{{"systemPrompt",params.systemPoetry},
-        {"userContext",params.userContext},{"systemContext",params.systemContext},
-        {"toolUseContext",prepared->gadgetUseContext.data},
-        {"forkContextMessages",history}});
-    }
-  }
   const int nextTurn=state.turnCount+1;
   if(params.maxTurns&&*params.maxTurns!=0&&nextTurn>*params.maxTurns){
     need(services.sync.createAttachmentMessage,"createAttachmentMessage");
@@ -53,20 +51,14 @@ void Run::finalize(){
   }
   need(services.queryCheckpoint,"queryCheckpoint");
   services.queryCheckpoint("query_recursive_call");
-  Json history=appendMessages(prepared->messagesForQuery,
-    modelResult->assistantMessages);
-  history=appendMessages(history,modelResult->gadgetResults);
   State next=state;
-  next.messages=std::move(history);
-  next.gadgetUseContext=updatedContext;
+  next.messages=historyThroughGadgetResults(true);
+  next.gadgetUseContext=std::move(updatedContext);
   next.autoCompactTracking=prepared->tracking;
   next.turnCount=nextTurn;
   next.maxOutputTokensRecoveryCount=0;
-  next.hasAttemptedReactiveCompact=false;
-  next.pendingGadgetUseSummary.reset();
-  next.pendingGadgetUseSummaryAsync=nextPendingSummary;
   next.maxOutputTokensOverride.reset();
   next.transition=Json{{"reason","next_turn"}};
-  finish(CompletionDecision{next,{}});
+  finish(CompletionDecision{std::move(next),{}});
 }
 } // namespace batbox::query::async_gadget_turn

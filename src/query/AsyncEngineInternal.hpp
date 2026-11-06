@@ -5,23 +5,18 @@
 namespace batbox::query::async_engine {
 struct Run:std::enable_shared_from_this<Run> {
   enum class Stage {Start,SetupStart,SetupAwait,ModelStart,ModelAwait,AfterModel,
-    AbortStart,AbortAwait,AbortMissing,AbortCleanup,AbortCleanupAwait,
-    AbortInterruption,AbortTerminal,SummaryStart,SummaryAwait,
-    DecisionStart,DecisionAwait,ContextAwait,Done};
+    AbortStart,AbortMissing,AbortInterruption,AbortTerminal,DecisionStart,DecisionAwait,ContextAwait,Done};
   event_loop::Loop& loop;
   Params params;
   std::vector<std::string>& consumedCommandUuids;
   AsyncEngineServices services;
   State state;
-  QueryConfig config;
-  std::optional<BudgetTracker> budgetTracker;
   std::optional<double> remaining;
   MemoryPrefetch memoryPrefetch;
   std::shared_ptr<PreparedIteration> prepared;
   std::shared_ptr<ModelPassResult> modelResult;
   std::optional<AsyncSetupIterator> setup;
   std::optional<AsyncModelPassIterator> model;
-  std::optional<AsyncModelCursor> abortCursor;
   std::optional<AsyncDecisionCursor> decision;
   std::vector<Json> missingArgs;
   std::size_t missingIndex=0;
@@ -46,16 +41,13 @@ struct Run:std::enable_shared_from_this<Run> {
   void start();
   void startSetup();
   void pullSetup();
-  void refreshUserContext(bool restartSetup);
+  void refreshUserContext();
   void startModel();
   void pullModel();
   void afterModel();
   void startAbort();
-  void pullAbort();
   void emitMissing();
-  void startAbortCleanup();
   void emitAbortInterruption();
-  void startSummary();
   void startDecision();
   void pullDecision();
 };

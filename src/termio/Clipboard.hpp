@@ -14,12 +14,9 @@ ClipboardServices indigenousClipboardServices(event_loop::Loop& loop,
 class ClipboardModule {
 public:
   ClipboardModule(event_loop::Loop& loop,ClipboardServices services);
-  std::string getClipboardPath()const;
-  std::string wrapForMultiplexer(const std::string& sequence)const;
   event_loop::Deferred<bool> tmuxLoadBuffer(const std::string& text);
   event_loop::Deferred<std::string> setClipboard(const std::string& text);
   void copyIndigenous(const std::string& text);
-  void resetLinuxCopyStash();
 private:
   struct Core;
   std::shared_ptr<Core> core_;

@@ -5,10 +5,10 @@
 
 namespace batbox::terminal_ftxui {
 struct PositionedMatches {
-  std::vector<terminal_render::MatchPosition> positions;
+  std::vector<terminal_search::MatchPosition> positions;
   double rowOffset=0,currentIndex=0;
 };
-std::vector<terminal_render::MatchPosition> scanElement(
+std::vector<terminal_search::MatchPosition> scanElement(
   const ftxui::Element& element,int columns,int rows,const std::string& query);
 // Every match is inverted; the current one also takes the highlight color.
 ftxui::Element withSearchOverlay(ftxui::Element content,

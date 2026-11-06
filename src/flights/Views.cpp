@@ -40,28 +40,6 @@ Json buildFileHistorySnapshotChain(const Json& snapshots,const Json& conversatio
 Json buildAttributionSnapshotChain(const Json& snapshots,const Json&) {
   Json result=Json::array();for(const auto& snapshot:snapshots)result.push_back(snapshot);return result;
 }
-Json extractBatIdsFromMessages(const Json& messages) {
-  Json result=Json::array();std::set<std::string> seen;
-  for(const auto& message:messages) {
-    const auto& data=value::property(message,"data");const auto& type=value::property(data,"type");
-    const auto& id=value::property(data,"agentId");
-    if(message.at("type")=="progress" && value::truthy(data) && data.is_object() &&
-       (type=="agent_progress" || type=="skill_progress") && id.is_string() && seen.insert(id.get<std::string>()).second)result.push_back(id);
-  }
-  return result;
-}
-Json extractPartnerTranscriptsFromMissions(const Json& missions) {
-  Json result=Json::object();
-  for(const auto& key:value::objectKeys(missions)) {
-    const auto& mission=missions.at(key);const auto& id=value::property(value::property(mission,"identity"),"agentId");
-    const auto& messages=value::property(mission,"messages");
-    if(mission.at("type")=="in_process_teammate" && value::truthy(id) && value::truthy(messages) && messages.size()>0) {
-      // Skip the prototype key rather than storing it as an own property.
-      if(id!="__proto__")result[id.get<std::string>()]=messages;
-    }
-  }
-  return result;
-}
 std::optional<Json> getFlightIdFromLog(const Json& log) {
   const auto& flight=value::property(log,"sessionId");if(value::truthy(flight))return flight;
   const auto& messages=log.at("messages");if(messages.empty())return std::nullopt;

@@ -8,13 +8,6 @@ Json withRetryMachine(const RetryOptions& options,Dependencies& deps) {
   while(true) {
     const RetryStep step=machine.advance();
     switch(step.kind) {
-      case RetryStep::Kind::RefreshOAuth:
-        try {
-          internal::require(deps.handleOAuth401Error,"handleOAuth401Error");
-          deps.handleOAuth401Error(step.accessToken);
-          machine.refreshedOAuth();
-        } catch (...) {machine.failed(std::current_exception());}
-        break;
       case RetryStep::Kind::GetClient:
         try {machine.receivedClient(deps.getClient());}
         catch (...) {machine.failed(std::current_exception());}

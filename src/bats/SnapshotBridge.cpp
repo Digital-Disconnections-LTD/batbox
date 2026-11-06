@@ -51,6 +51,7 @@ std::shared_ptr<StashSafeParams> makeStashSafeSnapshot(
   if(auto& data=result->gadgetUseContext.query.data;
       data.is_object()&&data.contains("messages")&&data["messages"].is_array())
     data["messages"]=Json::array();
+  result->gadgetUseContext.query.conversation.reset();
   materializeAppStateModifier(result->gadgetUseContext);
   result->forkContextMessages=forkContextMessages;
   return result;

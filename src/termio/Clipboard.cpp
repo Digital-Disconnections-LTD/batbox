@@ -22,19 +22,6 @@ struct ClipboardModule::Core {
 };
 ClipboardModule::ClipboardModule(event_loop::Loop& loop,ClipboardServices services):
   core_(std::make_shared<Core>(loop,std::move(services))){}
-std::string ClipboardModule::getClipboardPath()const{
-  const auto& env=core_->services.environment;
-  const auto indigenousAvailable=env.platform=="darwin"&&!present(env.getenv("SSH_CONNECTION"));
-  if(indigenousAvailable)return "native";
-  if(present(env.getenv("TMUX")))return "tmux-buffer";
-  return "osc52";
-}
-std::string ClipboardModule::wrapForMultiplexer(const std::string& sequence)const{
-  const auto& env=core_->services.environment;
-  if(present(env.getenv("TMUX")))return tmuxPassthrough(sequence);
-  if(present(env.getenv("STY")))return "\x1bP"+sequence+"\x1b\\";
-  return sequence;
-}
 event_loop::Deferred<bool> ClipboardModule::tmuxLoadBuffer(const std::string& text){
   event_loop::Deferred<bool> output(core_->loop);
   try{
@@ -90,5 +77,4 @@ event_loop::Deferred<std::string> ClipboardModule::setClipboard(const std::strin
   }catch(...){output.reject(std::current_exception());}
   return output;
 }
-void ClipboardModule::resetLinuxCopyStash(){core_->linuxCopy.reset();}
 }

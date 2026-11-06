@@ -48,8 +48,7 @@ void enumField(const Json& input,const char* key,
   detail::invalidValue(issues,Json::array({key}),values);
 }
 }
-SchemaResult permissions(const Json& input,const Config& config,
-  const PermissionRuleServices& rules){
+SchemaResult permissions(const Json& input,const PermissionRuleServices& rules){
   Json issues=Json::array();
   if(!input.is_object()){
     detail::invalidType(issues,Json::array(),"object",input);
@@ -58,23 +57,16 @@ SchemaResult permissions(const Json& input,const Config& config,
   Json result=Json::object();
   for(const auto key:{"allow","deny","ask"})
     permissionArray(input,key,result,issues,rules);
-  std::vector<std::string> modes={"acceptEdits","bypassPermissions",
-    "default","dontAsk","plan"};
-  if(config.transcriptClassifier)modes.push_back("auto");
-  enumField(input,"defaultMode",modes,result,issues);
+  enumField(input,"defaultMode",{"acceptEdits","bypassPermissions",
+    "default","dontAsk","plan"},result,issues);
   enumField(input,"disableBypassPermissionsMode",{"disable"},
     result,issues);
-  if(config.transcriptClassifier)
-    enumField(input,"disableAutoMode",{"disable"},result,issues);
   detail::stringArrayField(input,"additionalDirectories",result,issues);
-  constexpr std::array<const char*,7> known={"allow","deny","ask",
-    "defaultMode","disableBypassPermissionsMode","disableAutoMode",
-    "additionalDirectories"};
+  constexpr std::array<const char*,6> known={"allow","deny","ask",
+    "defaultMode","disableBypassPermissionsMode","additionalDirectories"};
   for(auto it=input.begin();it!=input.end();++it){
     bool recognized=false;
     for(const auto key:known)if(it.key()==key){recognized=true;break;}
-    if(it.key()=="disableAutoMode"&&!config.transcriptClassifier)
-      recognized=false;
     if(!recognized)result[it.key()]=it.value();
   }
   return {issues.empty(),issues.empty()?result:Json(nullptr),issues};

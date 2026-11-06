@@ -1,7 +1,7 @@
 #pragma once
 #include "terminal_events/ParsedKey.hpp"
 #include "termio/Tokenizer.hpp"
-#include "termio/Querier.hpp"
+#include "termio/Response.hpp"
 #include "runtime/JsonValue.hpp"
 #include <memory>
 #include <cstdint>

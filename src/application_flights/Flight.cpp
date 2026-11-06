@@ -119,10 +119,6 @@ void Flight::initialize(){
   project_=std::make_shared<flights::async_project::AsyncProject>(
     inputs_.owner,queue_,state_,std::move(imports));
 }
-event_loop::Deferred<flights::LoadedTranscript> Flight::load(const std::string& flight){
-  return flights::loadTranscriptFileAsync(inputs_.owner,
-    paths_->getTranscriptPathForFlight(flight),false,loadServices_);
-}
 event_loop::Deferred<bool> Flight::doesMessageExistInFlight(
     const std::string& uuid){
   if(!inputs_.owner.isOwnerThread())
@@ -194,17 +190,9 @@ std::filesystem::path Flight::planFilePath(const std::optional<std::string>& bat
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Plan paths require owner loop");
   return plans_->path(id(),bat);
 }
-std::optional<std::string> Flight::planContent(const std::optional<std::string>& bat){
-  if(!inputs_.owner.isOwnerThread())throw std::logic_error("Plan reads require owner loop");
-  return plans_->content(id(),bat);
-}
 bool Flight::restorePlan(const Json& log,bool remote){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Plan restore requires owner loop");
   return plans_->resume(log,id(),remote);
-}
-bool Flight::copyPlanForFork(const Json& log,const std::string& targetFlight){
-  if(!inputs_.owner.isOwnerThread())throw std::logic_error("Plan fork requires owner loop");
-  return plans_->fork(log,targetFlight);
 }
 void Flight::recordReplacement(const Json& replacements,const Json& bat){
   auto pending=project_->insertContentReplacement(replacements,

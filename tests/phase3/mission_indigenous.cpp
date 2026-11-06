@@ -89,6 +89,10 @@ int main(){
     check(stopped.data["task_id"]==longId&&stopped.data["task_type"]=="local_bash",
       "TaskStop result wrong");
     check(roster->get(longId)->status=="killed"&&terminated==1,"TaskStop did not kill process");
+    check(!mission_output::parseInput(Json{{"task_id","x"}}).contains("timeout"),
+      "TaskOutput fixed a default wait before the task type was known");
+    check(mission_output::parseInput(Json{{"task_id","x"},{"timeout",3600000}})["timeout"]==3600000,
+      "TaskOutput refused an hour-long wait");
     shell->cleanup(longId);
     auto abortRun=shell->run(shell::RunOptions{.command="sleep 20",.runInBackground=true});
     const auto abortId=*abortRun.backgroundMissionId;roster->registerShell(mission(abortId,"sleep 20"));
@@ -97,6 +101,14 @@ int main(){
     std::this_thread::sleep_for(std::chrono::milliseconds(100));stop.request_stop();
     bool abortError=false;try{(void)blocked.get();}catch(const shell_missions::MissionAbortError&){abortError=true;}
     check(abortError,"TaskOutput wait did not honor cancellation");
+    // A wait that ends before the task does must say the task is still running.
+    const auto shortWait=outputGadget.call(Json{{"task_id",abortId},{"timeout",50}},
+      context,{},Json(),{}).get();
+    const auto shortText=outputGadget.mapGadgetResultToGadgetResultBlockParam(shortWait.data,"toolu_2")
+      ["content"].get<std::string>();
+    check(shortWait.data["retrieval_status"]=="timeout"&&
+      shortText.find("still running; it has not failed")!=std::string::npos,
+      ("TaskOutput timeout read as a failure: "+shortText).c_str());
     roster->stop(abortId);shell->cleanup(abortId);
     shell::ExecResult early;early.code=0;
     roster->completeShell("early",early);roster->registerShell(mission("early","echo early"));

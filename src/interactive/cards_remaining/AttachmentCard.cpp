@@ -22,7 +22,7 @@ std::string plural(double value,const char* one,const char* many){
   return value==1?one:many;
 }
 AttachmentSpan span(std::string text,bool bold=false){
-  return {std::move(text),bold,{}, {}};
+  return {std::move(text),bold,{}};
 }
 void line(AttachmentCard& card,std::vector<AttachmentSpan> spans,
           std::string color="",bool response=true,int margin=0){
@@ -47,32 +47,7 @@ AttachmentCard classifyAttachment(const Json& attachment,bool addMargin,
   card.original=attachment;
   card.selectedBackground=services.readSelectedBackground();
   card.addMargin=addMargin;card.verbose=verbose;card.transcriptMode=transcriptMode;
-  require(services.skillSearchEnabled,"skill search feature");
-  const bool skillSearch=services.skillSearchEnabled();
-  if(skillSearch){
-    require(services.isDemoEnvironment,"demo environment");
-    (void)services.isDemoEnvironment();
-  }
   const auto type=field(attachment,"type");
-  require(services.batSwarmsEnabled,"Bat swarms feature");
-  if(services.batSwarmsEnabled()&&type=="teammate_mailbox"){
-    classifyAttachmentMailbox(card,services);
-    return card;
-  }
-  if(skillSearch&&type=="skill_discovery"){
-    const auto skills=arrayField(attachment,"skills");
-    if(skills.empty())return card;
-    std::string names;
-    for(const auto& skill:skills){
-      if(!names.empty())names+=", ";
-      names+=field(skill,"name");
-      const auto id=field(skill,"shortId");
-      if(!id.empty())names+=" ["+id+"]";
-    }
-    line(card,{span(num(skills.size()),true),
-      span(" relevant "+plural(skills.size(),"skill","skills")+": "+names)});
-    return card;
-  }
   if(type=="directory"){
     line(card,{span("Listed directory "),
       span(field(attachment,"displayPath")+"/",true)});
@@ -186,7 +161,7 @@ AttachmentCard classifyAttachment(const Json& attachment,bool addMargin,
     line(card,{span(std::string(verb)+" by "),
       span(field(attachment,"hookEvent"),true),span(" hook")});
   }else if(type=="task_status"){
-    classifyAttachmentMissionStatus(card,services);
+    classifyAttachmentMissionStatus(card);
   }else if(type=="teammate_shutdown_batch"){
     const auto count=number(attachment,"count");
     textLine(card,"● "+num(count)+" "+

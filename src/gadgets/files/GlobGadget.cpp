@@ -51,6 +51,7 @@ GadgetResult callGlob(const Json& input,const GadgetCallContext& context,const G
   GadgetResult gadget;
   gadget.data=Json{{"filenames",filenames},{"durationMs",now()-start},
     {"numFiles",filenames.size()},{"truncated",result.truncated}};
+  if(!result.incomplete.empty())gadget.data["incomplete"]=result.incomplete;
   return gadget;
 }
 
@@ -63,6 +64,9 @@ Json mapGlobResult(const Json& output,const std::string& id){
   if(content.empty())content="No files found";
   else if(output.at("truncated").get<bool>())
     content+="\n(Results are truncated. Consider using a more specific path or pattern.)";
+  const auto incomplete=output.find("incomplete");
+  if(incomplete!=output.end()&&incomplete->is_string())
+    content+="\n("+incomplete->get<std::string>()+")";
   return Json{{"tool_use_id",id},{"type","tool_result"},{"content",content}};
 }
 } // namespace batbox::gadgets::files

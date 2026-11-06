@@ -48,28 +48,13 @@ void Run::afterTombstones(){
     result.assistantMessages=Json::array();result.assistantRefs.clear();
     result.gadgetResults=Json::array();result.gadgetUseBlocks=Json::array();
     result.needsFollowUp=false;
-    if(prepared->streamingGadgetExecutor){
-      prepared->streamingGadgetExecutor->discard();
-      prepared->discardedExecutors.push_back(std::move(prepared->streamingGadgetExecutor));
-      need(prepared->executionServices,"executionServices");
-      prepared->streamingGadgetExecutor=std::make_unique<execution::StreamingGadgetExecutor>(
-        prepared->gadgetUseContext,*prepared->executionServices);
-    }
   }
   tombstones.clear();
   const auto& message=*currentMessage;
   currentEmission=cloneForYield(message,prepared->gadgetUseContext);
-  bool withheld=false;
-  need(services.sync.feature,"feature");
-  if(services.sync.feature("CONTEXT_COLLAPSE") &&
-     services.sync.collapseWithholdsPoetryTooLong &&
-     services.sync.collapseWithholdsPoetryTooLong(*message))withheld=true;
-  if(services.sync.reactiveWithholdsPoetryTooLong &&
-     services.sync.reactiveWithholdsPoetryTooLong(*message))withheld=true;
-  if(prepared->mediaRecoveryEnabled && services.sync.reactiveWithholdsMediaSizeError &&
-     services.sync.reactiveWithholdsMediaSizeError(*message))withheld=true;
-  if(isWithheldMaxOutputTokens(*message))withheld=true;
-  if(!withheld){emit(currentEmission,Stage::AfterAssistantYield);return;}
+  if(!isWithheldMaxOutputTokens(*message)){
+    emit(currentEmission,Stage::AfterAssistantYield);return;
+  }
   stage=Stage::AfterAssistantYield;
 }
 void Run::afterAssistantYield(){
@@ -82,39 +67,9 @@ void Run::afterAssistantYield(){
     for(const Json& block:content)if(field(block,"type")=="tool_use"){
       result.gadgetUseBlocks.push_back(block);
       result.needsFollowUp=true;
-      if(prepared->streamingGadgetExecutor &&
-         !prepared->gadgetUseContext.stop.stop_requested())
-        prepared->streamingGadgetExecutor->addGadget(block,*message);
     }
   }
-  if(prepared->streamingGadgetExecutor &&
-     !prepared->gadgetUseContext.stop.stop_requested())
-    completedGadgets=prepared->streamingGadgetExecutor->getCompletedResults();
-  else completedGadgets.clear();
-  completedIndex=0;
-  stage=Stage::EmitGadgetResult;
-}
-void Run::processGadgetResults(){
-  while(completedIndex<completedGadgets.size()){
-    const auto& update=completedGadgets[completedIndex];
-    if(update.message){
-      normalizedGadgetMessage=*update.message;
-      emit(std::make_shared<Json>(*update.message),Stage::AfterGadgetResultYield);
-      return;
-    }
-    ++completedIndex;
-  }
-  currentMessage.reset();currentEmission.reset();normalizedGadgetMessage.reset();
+  currentMessage.reset();currentEmission.reset();
   requestMessage();
-}
-void Run::afterGadgetResultYield(){
-  need(services.sync.normalizeMessagesForAPI,"normalizeMessagesForAPI");
-  const Json normalized=services.sync.normalizeMessagesForAPI(
-    Json::array({*normalizedGadgetMessage}),prepared->gadgetUseContext.gadgets);
-  if(normalized.is_array())for(const Json& item:normalized)
-    if(field(item,"type")=="user")result.gadgetResults.push_back(item);
-  ++completedIndex;
-  normalizedGadgetMessage.reset();
-  stage=Stage::EmitGadgetResult;
 }
 } // namespace batbox::query::async_model

@@ -22,7 +22,7 @@ struct TurnAbort {
 struct TurnRequest {
   TurnMessagesRef newMessages;
   std::shared_ptr<TurnAbort> abort;
-  bool shouldQuery=true,proactiveActive=false;
+  bool shouldQuery=true;
   std::vector<std::string> additionalAllowedGadgets;
   std::string mainLoopModel;
   std::optional<std::string> input;
@@ -34,13 +34,8 @@ struct QueryTurnState {
   QueryGuard guard;
   double loadingStartTime=0,totalPausedMs=0,lastQueryCompletionTime=0;
   bool skipIdleCheck=false;
-  std::optional<double> swarmStartTime;
-  std::optional<Json> swarmBudgetInfo;
 };
 struct QueryTurnServices {
-  std::function<bool()> isBatSwarmsEnabled,hasRunningSwarmBats;
-  std::function<std::optional<std::string>()> getTeamName,getBatName;
-  std::function<void(const std::string&,const std::string&,bool)> setMemberActive;
   std::function<void(const Json&)> enqueue;
   std::function<void()> resetTimingRefs,clearApiMetrics,clearStreamingGadgetUses,
     clearStreamingText,resetLoadingState,sendBridgeResult,clearAbortController,
@@ -48,11 +43,7 @@ struct QueryTurnServices {
   std::function<void(double)> setResponseLengthRef;
   std::function<void(const TurnMessageUpdate&)> setMessages;
   std::function<TurnMessagesRef()> getMessages;
-  std::function<bool(const std::string&)> feature;
-  std::function<std::optional<double>(const std::string&)> parseTokenBudget;
-  std::function<std::optional<double>()> getCurrentTurnTokenBudget;
-  std::function<void(std::optional<double>)> snapshotOutputTokensForTurn;
-  std::function<double()> now,getTurnOutputTokens,getBudgetContinuationCount;
+  std::function<double()> now;
   std::function<event_loop::Deferred<event_loop::Unit>(const std::string&,
     const TurnMessagesRef&,std::size_t)> mrOnBeforeQuery;
   std::function<event_loop::Deferred<event_loop::Unit>(const TurnMessagesRef&,
@@ -60,8 +51,7 @@ struct QueryTurnServices {
   std::function<event_loop::Deferred<event_loop::Unit>(const TurnMessagesRef&,bool)>
     mrOnTurnComplete;
   std::function<bool(const TurnMessageRef&)> isLoggableMessage,selectableUserMessagesFilter;
-  std::function<TurnMessageRef(double,const std::optional<Json>&,std::size_t)>
-    createTurnDurationMessage;
+  std::function<TurnMessageRef(double,std::size_t)> createTurnDurationMessage;
   std::function<std::string()> getInputValue;
   std::function<std::size_t()> getCommandQueueLength;
   std::function<bool()> isViewingBatMission;

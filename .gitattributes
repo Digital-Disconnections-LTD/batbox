@@ -8,3 +8,5 @@ src/poetryEntries/Static*.cpp whitespace=-blank-at-eol
 poetry/*.md text eol=lf
 # Keep patches LF to match release archives; context includes one-space blank lines.
 src/terminal_ftxui/patches/*.patch text eol=lf -whitespace
+# `git archive` (GitHub release tarballs, Homebrew) writes the commit here.
+cmake/ArchiveCommit.txt export-subst

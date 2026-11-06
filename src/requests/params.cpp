@@ -26,8 +26,6 @@ Json numberValue(double value) {
 } // namespace
 
 Json getExtraBodyParams(const std::optional<std::string>& extraBodyStr, const Json& betaHeaders,
-                        bool antiDistillationFeature, bool cliEntrypoint,
-                        bool includeFirstPartyBetas, bool fakeGadgetInjectionEnabled,
                         const WireProtocol& wire, const Dependencies& deps) {
   Json result = Json::object();
   if (extraBodyStr && !extraBodyStr->empty()) {
@@ -44,8 +42,6 @@ Json getExtraBodyParams(const std::optional<std::string>& extraBodyStr, const Js
       deps.logForDebugging(std::string("Error parsing BATBOX_EXTRA_BODY: ") + error.what());
     }
   }
-  if (antiDistillationFeature && cliEntrypoint && includeFirstPartyBetas && fakeGadgetInjectionEnabled)
-    result["anti_distillation"] = Json::array({"fake_tools"});
   if (betaHeaders.is_array() && !betaHeaders.empty()) {
     require(!wire.betaHeadersKey.empty(), "WireProtocol.betaHeadersKey");
     if (result.contains(wire.betaHeadersKey) && result[wire.betaHeadersKey].is_array()) {
@@ -61,8 +57,8 @@ Json getExtraBodyParams(const std::optional<std::string>& extraBodyStr, const Js
 }
 
 void configureEffortParams(const Json& effortValue, bool effortValueDefined,
-                           Json& outputConfig, Json& extraBodyParams, Json& betas,
-                           bool modelSupportsEffort, bool internalUser, const WireProtocol& wire) {
+                           Json& outputConfig, Json& betas,
+                           bool modelSupportsEffort, const WireProtocol& wire) {
   if (!modelSupportsEffort || has(outputConfig, "effort")) return;
   if (!effortValueDefined) {
     require(!wire.effortBetaHeader.empty(), "WireProtocol.effortBetaHeader");
@@ -71,14 +67,6 @@ void configureEffortParams(const Json& effortValue, bool effortValueDefined,
     require(!wire.effortBetaHeader.empty(), "WireProtocol.effortBetaHeader");
     outputConfig["effort"] = effortValue;
     betas.push_back(wire.effortBetaHeader);
-  } else if (internalUser) {
-    require(!wire.internalParamsKey.empty(), "WireProtocol.internalParamsKey");
-    Json existing = field(extraBodyParams, wire.internalParamsKey.c_str());
-    if (!value::truthy(existing)) existing = Json::object();
-    // Preserve existing object fields while adding the override.
-    if (!existing.is_object()) existing = Json::object();
-    existing["effort_override"] = effortValue;
-    extraBodyParams[wire.internalParamsKey] = std::move(existing);
   }
 }
 

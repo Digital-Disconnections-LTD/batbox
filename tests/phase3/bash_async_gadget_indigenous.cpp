@@ -63,10 +63,6 @@ int main(){
     services.preparePermissionMatcher=[](const Json&){
       return ready(std::function<bool(const std::string&)>(
         [](const std::string&){return true;}));};
-    services.shouldUseSandbox=[](const Json&){return false;};
-    services.sandboxCommand=[](const std::string& command,const Json&,const Json&){return command;};
-    services.annotateSandboxFailures=[](const std::string&,
-      const std::string& output){return output;};
     services.resetCwdIfOutsideProject=[](const Json&){return false;};
     std::vector<Json> recordedHints;
     services.recordHint=[&](const Json& hint){recordedHints.push_back(hint);};

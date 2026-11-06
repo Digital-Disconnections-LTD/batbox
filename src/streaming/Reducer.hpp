@@ -31,10 +31,8 @@ struct ReducerConfig {
   std::string model;
   std::string resolvedModel;
   std::string requestId;
-  std::string advisorModel;
   int maxOutputTokens = 0;
   std::int64_t startMillis = 0;
-  bool connectorTextEnabled = false;
   bool stashedMicrocompact = false;
   std::function<std::int64_t()> nowMillis;
   std::function<std::string()> randomUUID;
@@ -65,6 +63,11 @@ class Reducer {
   // statement, so callbacks after a refusal yield run only on demand.
   std::optional<MessageRef> beginEvent(const Json& part);
   std::optional<MessageRef> nextEmission();
+  // beginEvent, plus the rest of the event's emissions when they were all
+  // computed up front (every event but message_delta). more is true while
+  // nextEmission() still has emissions to produce on demand.
+  struct EventEmissions { Emissions ready; bool more = false; };
+  EventEmissions beginEventBatch(const Json& part);
   void finish() const;
   const std::vector<MessageRef>& messages() const { return newMessages_; }
   const Json& usage() const { return usage_; }

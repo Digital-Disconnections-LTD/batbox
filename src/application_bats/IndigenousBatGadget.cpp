@@ -91,9 +91,7 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
       if(!deniedBat(permission,string(field(bat,"agentType"))))result.push_back(bat);
     return result;
   };
-  poetry.feature=[](const std::string&){return false;};
-  poetry.coordinatorEnvironmentEnabled=[]{return false;};
-  poetry.getPoetry=[](const Json& bats,bool,const Json& allowedTypes){
+  poetry.getPoetry=[](const Json& bats,const Json& allowedTypes){
     std::string text="Launch a subagent to perform an independent task. Available agents:";
     if(bats.is_array())for(const auto& bat:bats){
       if(allowedTypes.is_array()&&std::find(allowedTypes.begin(),
@@ -101,10 +99,14 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
       text+="\n- "+string(field(bat,"agentType"))+": "+
         string(field(bat,"whenToUse"));
     }
-    text+="\nUse run_in_background: true for independent work; completion is "
-      "reported automatically. Foreground is the default when you need the "
-      "result before proceeding. The user can also background a foreground "
-      "agent with Ctrl+B. Include a complete task description for each agent.";
+    text+="\nUse run_in_background: true for independent work; its result "
+      "arrives as a notification when it finishes. Foreground is the default "
+      "when you need the result before proceeding. The user can also background "
+      "a foreground agent with Ctrl+B. Include a complete task description for "
+      "each agent.\nWaiting for a background agent: if your next step depends "
+      "on its result, call TaskOutput with task_id set to its agentId and "
+      "block: true, and do not launch another agent for the same work. If you "
+      "have independent work, do it first, then wait.";
     return ready(text);
   };
   bats::bindBatGadgetPoetry(gadget,std::move(poetry));
@@ -151,7 +153,12 @@ gadgets::Gadget IndigenousBatApplication::makeGadget(){
         childDepth=caller->depth+1;
       }
       if(launcher)borrowed=self->requireNestedCapacity(*launcher);
-      else self->requireCapacity(callContext.stopToken);
+      else{
+        const auto waiting=self->showWaitingBat(input,callContext.data);
+        try{self->requireCapacity(callContext.stopToken);}
+        catch(...){if(waiting)self->clearWaitingBat(*waiting);throw;}
+        if(waiting)self->clearWaitingBat(*waiting);
+      }
       reserved=true;
       bats::BatContext context=*callContext.batContext;
       context.query.data=callContext.data;
@@ -265,10 +272,6 @@ void IndigenousBatApplication::bindPreflight(bats::BatGadgetCallServices& gadget
   pre.nowMillis=platform::nowMillis;
   pre.sleepMillis=[](std::int64_t ms){std::this_thread::sleep_for(
     std::chrono::milliseconds(ms));};
-  pre.isCoordinatorMode=[] {return false;};
-  pre.isBatSwarmsEnabled=[] {return false;};
-  pre.isPartner=[] {return false;};
-  pre.isInProcessPartner=[] {return false;};
   pre.isForkSubagentEnabled=[] {return false;};
   pre.isInForkChild=[](const Json&){return false;};
   pre.filterDeniedBats=[](const Json& candidates,const Json& permission,
@@ -280,9 +283,6 @@ void IndigenousBatApplication::bindPreflight(bats::BatGadgetCallServices& gadget
   pre.getDenyRuleForBat=[](const Json&,const std::string&,
       const std::string&){return Json{{"source","session"}};};
   pre.setBatColor=[](const std::string&,const Json&){};
-  pre.spawnPartner=[](const Json&)->Json{
-    throw std::runtime_error("Bat teams are not configured");
-  };
   const Json definitions=batDefinitions();
   pre.generalPurposeBat=definitions["activeAgents"][0];
   pre.forkBat=Json();
@@ -307,11 +307,8 @@ void IndigenousBatApplication::bindLaunch(bats::BatGadgetCallServices& gadget){
     return fallback;
   };
   launch.isBuiltInBat=[](const Json& bat){return field(bat,"source")=="built-in";};
-  launch.feature=[](const std::string&){return false;};
-  launch.coordinatorEnvironmentEnabled=[]{return false;};
   launch.isForkSubagentEnabled=[]{return false;};
   launch.isBackgroundMissionsDisabled=[]{return false;};
-  launch.isProactiveActive=[]{return false;};
   launch.assembleGadgetPool=[get=inputs_.currentGadgets](const Json&,const Json&){return get();};
   launch.createBatId=inputs_.messages->randomUUID;
   launch.getCwd=[base=inputs_.config.cwd]{
@@ -349,10 +346,7 @@ void IndigenousBatApplication::bindLaunch(bats::BatGadgetCallServices& gadget){
       [self](const std::string& value){if(self->inputs_.logError)
         self->inputs_.logError(std::runtime_error(value));}));
   };
-  poetry.enhanceSystemPoetryWithEnvDetails=[enhance=inputs_.enhanceSystemPoetry](
-      const Json& poetryEntries,const std::string& model,const Json& directories){
-    return enhance(poetryEntries,model,directories,Json::array());
-  };
+  poetry.enhanceSystemPoetryWithEnvDetails=inputs_.enhanceSystemPoetry;
   poetry.createUserMessage=launch.createUserMessage;
 }
 } // namespace batbox::application_bats

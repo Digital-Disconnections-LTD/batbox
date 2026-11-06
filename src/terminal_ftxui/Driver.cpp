@@ -22,6 +22,7 @@ public:
     auto element=owner_.callbacks_.render();
     if(!element)throw std::logic_error("FTXUI render element required");
     owner_.frameRendered_=true;
+    owner_.lastFrame_=std::chrono::steady_clock::now();owner_.painted_=true;
     return element;
   }
   bool OnEvent(ftxui::Event event)override{
@@ -181,6 +182,14 @@ void Driver::pumpOnce(){
   if(!owner_.isOwnerThread())
     throw std::logic_error("FTXUI pump requires owner thread");
   if(!running_||!interactive_||inPump_)return;
+  if(redrawHeld_){
+    // A held redraw keeps the pump active until its frame is due.
+    pumpActive_=true;
+    if(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-
+        lastFrame_).count()>=options_.minFrameIntervalMs){
+      redrawHeld_=false;app_->Post(ftxui::Event::Custom);
+    }
+  }
   inPump_=true;
   try{
     loop_->RunOnce();
@@ -254,6 +263,8 @@ void Driver::flushScrollback(){
   for(const auto& row:pendingRows_)committedRowIds_.insert(row.id);
   pendingRows_.clear();
   pendingRowIds_.clear();
+  // Committing cleared the live frame; repaint it now, whatever the cap.
+  painted_=false;
   requestRedraw();
 }
 void Driver::requestRedraw(){
@@ -262,7 +273,12 @@ void Driver::requestRedraw(){
   if(!running_)return;
   if(!interactive_){drawRedirected();return;}
   if(inPump_){redrawAfterPump_=true;return;}
-  app_->Post(ftxui::Event::Custom);
+  // Too soon after the last frame: a later pump posts it (see pumpOnce).
+  const bool soon=painted_&&options_.minFrameIntervalMs>0&&
+    std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-
+      lastFrame_).count()<options_.minFrameIntervalMs;
+  if(soon)redrawHeld_=true;
+  else app_->Post(ftxui::Event::Custom);
   // A redraw while idle should not wait out the backed-off interval.
   pumpSchedule_->wake();
   if(scheduledPumpMs_>pumpSchedule_->current()&&pumpTimer_.valid()){
@@ -312,6 +328,7 @@ void Driver::setMode(Mode mode){
 }
 void Driver::teardown(bool notifyExit){
   pumpTimer_.cancel();pumpTimer_={};
+  redrawHeld_=false;painted_=false;
   running_=false;
   loop_.reset();
   component_.reset();

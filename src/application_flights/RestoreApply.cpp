@@ -239,8 +239,6 @@ Json normalizeForResume(const Json& messages,messages::Services* creator){
 void restoreMetadata(Flight& flight,const Json& log){
   flights::MetadataServices services;
   services.project=&flight.project()->state();
-  services.paths=flight.paths().get();
-  services.getFlightId=[&flight]{return flight.id();};
   flights::MetadataOperations metadata(std::move(services));
   metadata.clearFlightMetadata();metadata.restoreFlightMetadata(log);
 }
@@ -474,6 +472,8 @@ Deferred<Unit> Restore::resume(const std::string& id,const Json& log,
                     if(self->inputs_.onFileHistoryRestored)
                       self->inputs_.onFileHistoryRestored(
                         value::property(log,"fileHistorySnapshots"));
+                    if(self->inputs_.onFileHistoryResumed)
+                      self->inputs_.onFileHistoryResumed(log);
                     if(self->inputs_.fileStash){
                       const auto project=field(log,"projectPath");
                       restoreReadStash(messages,project.empty()?self->inputs_.flight->workingDirectory():

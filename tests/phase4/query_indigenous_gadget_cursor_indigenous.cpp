@@ -93,15 +93,6 @@ int main(){
   awaitClosed(loop,closeCursor.close());
   assert(calls.load()==beforeCloseCalls+1);
 
-  auto streaming=std::make_shared<query::PreparedIteration>();
-  streaming->gadgetUseContext=prepared->gadgetUseContext;
-  streaming->streamingGadgetExecutor=std::make_unique<execution::StreamingGadgetExecutor>(
-    streaming->gadgetUseContext,services);
-  streaming->streamingGadgetExecutor->addGadget(block,assistant);
-  auto remaining=query::makeIndigenousRemainingMessagesCursor(loop,streaming);
-  const auto streamed=await(loop,remaining.next());
-  assert(streamed&&(**streamed)["type"]=="user");
-  assert(!await(loop,remaining.next()));
   // The gadget executor waits on a worker while the gadget itself completes on
   // the same long-lived query owner loop. This is the async Bash call shape.
   bool completedOnOwner=false;

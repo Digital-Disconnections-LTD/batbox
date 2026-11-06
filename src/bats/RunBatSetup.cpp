@@ -43,8 +43,7 @@ RunBatPrepared setupRunBat(const RunBatParams& params,
   if(value::truthy(poetryOverride))out.systemPoetry=poetryOverride;
   else{
     out.systemPoetry=getBatSystemPoetry(params.batDefinition,
-      params.gadgetUseContext,preflight.resolvedBatModel,dirs,resolvedGadgets,
-      services.poetry);
+      params.gadgetUseContext,preflight.resolvedBatModel,dirs,services.poetry);
     need(services.asSystemPoetry,"asSystemPrompt");
     out.systemPoetry=services.asSystemPoetry(out.systemPoetry);
   }

@@ -23,16 +23,14 @@ GitFilesystem::GitFilesystem(event_loop::Loop& loop,Services services):
   loop_(loop),services_(std::move(services)),watcher_(std::make_shared<Watcher>()),
   alive_(std::make_shared<std::atomic_bool>(true)){
   if(!loop_.isOwnerThread())throw std::logic_error("GitFilesystem owner required");
-  if(!services_.readFile||!services_.stat||!services_.readdir||!services_.findGitRoot||
-     !services_.getCwd||!services_.parseGitConfigValue||!services_.waitForScrollIdle||
-     !services_.watchFile||!services_.unwatchFile||!services_.registerCleanup)
+  if(!services_.readFile||!services_.stat||!services_.findGitRoot||
+     !services_.getCwd||!services_.watchFile||!services_.unwatchFile||!services_.registerCleanup)
     throw std::invalid_argument("Git filesystem imports required");
 }
 GitFilesystem::~GitFilesystem(){
   alive_->store(false);
   if(loop_.isOwnerThread())stopWatching();
 }
-void GitFilesystem::clearResolveGitDirStash(){gitDirStash_.clear();}
 bool isSafeRefName(const std::string& name){
   if(name.empty()||name.front()=='-'||name.front()=='/'||name.find("..")!=std::string::npos)
     return false;

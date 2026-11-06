@@ -110,11 +110,6 @@ struct Run:std::enable_shared_from_this<Run> {
     scanPreserved();
     required(bool(services.setMessages),"setMessages");
     services.setMessages(Json::array());
-    required(bool(services.feature),"feature");
-    if(services.feature("PROACTIVE")||services.feature("KAIROS")){
-      required(bool(services.setContextBlocked),"setContextBlocked");
-      services.setContextBlocked(false);
-    }
     if(services.setConversationId){
       required(bool(services.randomUUID),"randomUUID");
       services.setConversationId(services.randomUUID());
@@ -155,11 +150,6 @@ struct Run:std::enable_shared_from_this<Run> {
         bool(services.getBatTranscriptPath),"Mission output symlink");
       services.initMissionOutputAsSymlink(mission.missionId,
         services.getBatTranscriptPath(mission.batId));
-    }
-    if(services.feature("COORDINATOR_MODE")){
-      required(bool(services.isCoordinatorMode)&&bool(services.saveMode),
-        "coordinator mode persistence");
-      services.saveMode(services.isCoordinatorMode()?"coordinator":"normal");
     }
     required(bool(services.getCurrentWorktreeFlight),"getCurrentWorktreeSession");
     if(auto worktree=services.getCurrentWorktreeFlight()){

@@ -36,7 +36,7 @@ int main(){
       "content")[0]["text"].get<std::string>();
   };
   services.scanItem=[&](std::size_t index,const std::string& query)
-      ->std::optional<std::vector<terminal_render::MatchPosition>>{
+      ->std::optional<std::vector<terminal_search::MatchPosition>>{
     return viewport->scanItem(index,query);
   };
   services.setPositions=[&](std::optional<PositionOverlay> value){

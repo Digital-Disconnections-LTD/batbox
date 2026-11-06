@@ -25,7 +25,19 @@ struct Services {
   // Indigenous lifetime accounting for retaining a roost while its nonblocking
   // prefetch is still scanning, selecting, reading or canceling.
   std::function<void(std::stop_source)> prefetchStarted,prefetchFinished;
+  // True when memories for a turn on this model are picked by keyword overlap
+  // with their names and descriptions instead of a model request.
+  std::function<bool(const std::string& model)> keywordSelection;
+  // Set per prefetch from keywordSelection.
+  bool selectByKeywords=false;
 };
+
+// Up to five filenames whose name or description shares words with query,
+// best match first; empty when nothing matches well enough.
+std::vector<std::string> selectMemoriesByKeywords(const std::string& query,
+  const std::vector<instructions::MemoryHeader>& memories);
+// The longest UTF-8 prefix of text within limit bytes, marked when cut.
+std::string boundedQuery(const std::string& text,std::size_t limit);
 
 std::string memoryHeader(const std::string& path,double mtimeMs,
   double nowMs);

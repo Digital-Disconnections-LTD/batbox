@@ -11,9 +11,7 @@ std::string messageId(const interactive::TurnMessageRef& message){
 }
 }
 void RewindModal::start(){
-  if(inputs_.preselected&&inputs_.preselectedIndex<inputs_.messages.size())
-    choose(inputs_.preselectedIndex);
-  else showList();
+  showList();
 }
 void RewindModal::showList(){
   if(!active_)return;
@@ -77,8 +75,7 @@ void RewindModal::showOptions(interactive::TurnMessageRef message,
     if(action.kind==interactive::UiAction::Kind::MoveSelection||
        action.kind==interactive::UiAction::Kind::TextChange)return;
     if(action.kind==interactive::UiAction::Kind::Cancel){
-      if(self->inputs_.preselected)self->complete();
-      else self->showList();
+      self->showList();
       return;
     }
     if(action.kind!=interactive::UiAction::Kind::Activate)return;
@@ -87,10 +84,8 @@ void RewindModal::showOptions(interactive::TurnMessageRef message,
       if(index==0)self->selectOption(message,"both");
       else if(index==1)self->selectOption(message,"conversation");
       else if(index==2)self->selectOption(message,"code");
-      else if(self->inputs_.preselected)self->complete();
       else self->showList();
     }else if(index==0)self->selectOption(message,"conversation");
-    else if(self->inputs_.preselected)self->complete();
     else self->showList();
   });
 }

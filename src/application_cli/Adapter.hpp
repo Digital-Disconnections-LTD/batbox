@@ -48,6 +48,8 @@ struct Inputs {
   std::function<void(bool lastResultError)> requestExit;
   std::function<void(std::exception_ptr)> report;
   std::function<void(std::string_view)> writeStdout,writeStderr;
+  // Called once, when no more input will arrive (stdin ended or end_session).
+  std::function<void()> inputClosed;
   explicit Inputs(event_loop::Loop& loop):owner(loop){}
 };
 
@@ -65,6 +67,10 @@ public:
   void onTurnRequested(const interactive::TurnRequest& request);
   void onTurnComplete(const interactive::TurnMessagesRef& messages,bool aborted,
     std::exception_ptr error={});
+  // A scheduled prompt waits behind queued input; false once input closed.
+  bool queueScheduled(std::string value);
+  // Starts the next queued prompt when no turn is running.
+  void runQueued();
 private:
   struct StdinPump;
   struct PendingPoetry {
@@ -86,6 +92,7 @@ private:
   void replayUser(const PendingPoetry& poetry,bool preserveOriginal=false,
     bool includeTimestamp=false);
   void submitNext();
+  void closeInput();
   void emit(Json message);
   void fail(std::exception_ptr error);
   void finish();

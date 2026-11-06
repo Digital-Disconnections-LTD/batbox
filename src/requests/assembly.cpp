@@ -12,7 +12,7 @@ bool has(const Json& object, const char* key) {
   return object.is_object() && object.contains(key);
 }
 bool typeIs(const Json& block, const char* type) {
-  return block.is_object() && field(block, "type") == type;
+  return block.is_object() && value::stringEquals(field(block, "type"), type);
 }
 bool isMedia(const Json& block) {
   return typeIs(block, "image") || typeIs(block, "document");
@@ -93,12 +93,7 @@ Json assistantMessageToMessageParam(const Json& message, bool addStash, bool ena
     Json result = Json::array();
     for (std::size_t i = 0; i < content.size(); ++i) {
       Json block = content[i];
-      bool connectorText = false;
-      if (i == content.size() - 1 && !typeIs(block, "thinking") && !typeIs(block, "redacted_thinking") && deps.connectorTextFeature) {
-        require(static_cast<bool>(deps.isConnectorTextBlock), "isConnectorTextBlock");
-        connectorText = deps.isConnectorTextBlock(block);
-      }
-      if (i == content.size() - 1 && !typeIs(block, "thinking") && !typeIs(block, "redacted_thinking") && !connectorText && enablePoetryStashing)
+      if (i == content.size() - 1 && !typeIs(block, "thinking") && !typeIs(block, "redacted_thinking") && enablePoetryStashing)
         block["cache_control"] = getStashControl(deps, {}, querySource);
       result.push_back(std::move(block));
     }
@@ -160,7 +155,7 @@ Json addStashBreakpoints(const Json& messages, bool enablePoetryStashing,
   for (std::size_t index = 0; index < messages.size(); ++index) {
     const Json& msg = messages[index];
     const bool addStash = static_cast<int>(index) == markerIndex;
-    result.push_back(field(msg, "type") == "user"
+    result.push_back(value::stringEquals(field(msg, "type"), "user")
       ? userMessageToMessageParam(msg, addStash, enablePoetryStashing, querySource, deps)
       : assistantMessageToMessageParam(msg, addStash, enablePoetryStashing, querySource, deps));
   }

@@ -2,10 +2,8 @@
 #include "runtime/IndigenousPath.hpp"
 #include <atomic>
 #include <cerrno>
-#include <cmath>
 #include <cstdlib>
 #include <fstream>
-#include <iterator>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
@@ -61,12 +59,6 @@ double toNumber(const Json& value){
   while(*end==' '||*end=='\t'||*end=='\n'||*end=='\r')++end;
   return *end?std::numeric_limits<double>::quiet_NaN():number;
 }
-std::shared_ptr<ByteBuffer> allocUnsafe(double count){
-  if(!std::isfinite(count)||count<0||
-      count>static_cast<double>(std::numeric_limits<std::size_t>::max()))
-    throw std::range_error("Invalid buffer size");
-  return std::make_shared<ByteBuffer>(static_cast<std::size_t>(count));
-}
 }
 NodeFsBytesImports indigenousNodeFsBytesImports(event_loop::Loop& loop,
     std::shared_ptr<IndigenousAsyncFsHost> host){
@@ -74,16 +66,6 @@ NodeFsBytesImports indigenousNodeFsBytesImports(event_loop::Loop& loop,
   NodeFsBytesImports imports;
   imports.loop=&loop;
   imports.toNumber=toNumber;
-  imports.allocUnsafe=allocUnsafe;
-  imports.readFile=[host](const std::string& path){
-    return host->submit<ByteBuffer>([path]{
-      std::ifstream file(runtime::pathFromUtf8(path),std::ios::binary);
-      if(!file)fail("readFile");
-      const std::string bytes(std::istreambuf_iterator<char>(file),{});
-      if(file.bad())fail("readFile");
-      return ByteBuffer(bytes.begin(),bytes.end());
-    });
-  };
   imports.open=[host](const std::string& path,const std::string& mode){
     return host->submit<std::shared_ptr<AsyncByteHandle>>([host,path,mode]{
       if(mode!="r")throw std::invalid_argument("Unsupported file open mode");

@@ -67,7 +67,4 @@ std::vector<std::string> restoreHeredocs(const std::vector<std::string>& parts,
     for(const auto& entry:heredocs)replaceAll(part,entry.placeholder,entry.info.fullText);
   return result;
 }
-bool containsHeredoc(const std::string& command){
-  return !detail::findStarts(value::utf16CodeUnits(command)).empty();
-}
 } // namespace batbox::shell_heredoc

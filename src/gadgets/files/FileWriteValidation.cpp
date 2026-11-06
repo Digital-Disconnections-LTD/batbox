@@ -12,10 +12,8 @@ void require(bool bound, const char* name) {
 
 ValidationResult validateWriteInput(const Json& input, const FileWriteServices& services) {
   const std::string fullPath = filesystem::expandPath(input.at("file_path").get<std::string>(), services.paths);
-  const std::string content = input.at("content").get<std::string>();
-  require(static_cast<bool>(services.checkTeamMemSecrets), "checkTeamMemSecrets");
-  if (const auto error = services.checkTeamMemSecrets(fullPath, content))
-    return {false, *error, 0};
+  if (services.planModeActive && services.planModeActive())
+    return {false, planModeFileChangeMessage, 1};
   require(static_cast<bool>(services.matchingEditDenyRule), "matchingEditDenyRule");
   if (services.matchingEditDenyRule(fullPath))
     return {false, "File is in a directory that is denied by your permission settings.", 1};

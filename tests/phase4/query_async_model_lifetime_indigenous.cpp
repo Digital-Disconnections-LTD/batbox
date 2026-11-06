@@ -22,7 +22,7 @@ void scenario(const std::string& mode){
   event_loop::Loop loop;
   query::Params params;params.querySource="sdk";params.messages=Json::array();
   if(mode=="fallback")params.fallbackModel="fallback";
-  query::State state;query::QueryConfig config;
+  query::State state;
   auto prepared=std::make_shared<query::PreparedIteration>();
   prepared->messagesForQuery=Json::array();
   prepared->fullSystemPoetry=Json::array();
@@ -36,7 +36,6 @@ void scenario(const std::string& mode){
   services.queryCheckpoint=[](const std::string&){};
   services.logError=[](const std::exception&){};
   services.logInternalError=[](const std::exception&){};
-  services.sync.feature=[](const std::string&){return false;};
   services.sync.prependUserContext=[](const Json& messages,const Json&){return messages;};
   services.sync.getAppState=[](const execution::Context&){return Json::object();};
   services.sync.createUserMessage=[](const Json& args){
@@ -47,8 +46,6 @@ void scenario(const std::string& mode){
       const std::string& level){
     return Json{{"type","system"},{"text",text},{"level",level}};};
   services.sync.renderModelName=[](const std::string& model){return model;};
-  services.sync.normalizeMessagesForAPI=[](const Json& messages,
-      const gadgets::Gadgets&){return messages;};
   services.sync.isImageSizeOrResizeError=[](const std::exception&){return false;};
   auto marker=std::make_shared<int>(7);
   std::weak_ptr<int> released=marker;
@@ -73,7 +70,7 @@ void scenario(const std::string& mode){
   marker.reset();
   {
     auto iterator=query::makeAsyncModelPassIterator(loop,params,state,
-      prepared,config,std::nullopt,std::move(services));
+      prepared,std::nullopt,std::move(services));
     auto step=await(loop,iterator.next());
     assert(!step.done);
     if(mode!="abandon"){

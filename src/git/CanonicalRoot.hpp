@@ -18,11 +18,6 @@ public:
   explicit CanonicalRoot(CanonicalRootImports imports);
   std::optional<std::string> find(const std::string& startPath);
   std::string resolve(const std::string& gitRoot);
-  void clear();
-  std::size_t stashSize()const;
-  bool stashDelete(const std::string& root);
-  std::optional<std::string> stashGet(const std::string& root)const;
-  bool stashHas(const std::string& root)const;
 private:
   struct Entry {std::string value;std::list<std::string>::iterator recency;};
   CanonicalRootImports imports_;

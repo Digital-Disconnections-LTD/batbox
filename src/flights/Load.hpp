@@ -2,7 +2,7 @@
 #include "flights/Transcript.hpp"
 #include "flights/Paths.hpp"
 namespace batbox::flights {
-struct ScanResult {std::size_t boundaryStartOffset=0;std::string postBoundaryBuf;bool hasPreservedSegment=false;};
+struct ScanResult {std::size_t boundaryStartOffset=0;std::string postBoundaryBuf;};
 struct LoadServices {
   bool disablePrecompactSkip=false,pruneLeaves=false;
   std::size_t skipThreshold=5*1024*1024;
@@ -15,7 +15,7 @@ struct LoadServices {
 struct LoadedTranscript {
   MessageMap messages;
   // String-keyed maps retain insertion order.
-  Json summaries=Json::object(),customTitles=Json::object(),tags=Json::object();
+  Json customTitles=Json::object(),tags=Json::object();
   Json aiTitles=Json::object();
   Json batNames=Json::object(),batColors=Json::object(),batSettings=Json::object();
   Json prNumbers=Json::object(),prUrls=Json::object(),prRepositories=Json::object();

@@ -31,8 +31,8 @@ void Shell::resetConversationNavigation(){
   searchOpen_=false;searchQuery_.clear();searchDraft_.clear();
   searchInput_.text.clear();searchInput_.caretUtf16=0;
   searchCount_=searchCurrent_=0;positions_.reset();sticky_={};
-  cursor_.reset();actions_->setCursor({});navigation_->setSearchQuery("");
-  prepared_.reset();listMemo_.clear();sliceAnchor_.reset();previousThinking_.reset();thinkingRef_.reset();
+  navigation_->setSearchQuery("");
+  prepared_.reset();listMemo_.clear();sliceAnchor_.reset();thinkingRef_.reset();
   suggestions_.clear();++completionGeneration_;
   retained_->unmountAll();surfaceState_={};
   pendingImageSpace_=false;
@@ -112,6 +112,45 @@ void Shell::stepBat(int direction){
   if(!from)return;
   if(at==ids.end()||at==ids.begin()){returnToLeader();return;}
   openBatConversation(*std::prev(at));
+}
+std::vector<std::string> Shell::missionListIds()const{
+  if(!imports_.missionSnapshot)return {};
+  const auto current=batConversation_?std::optional(batConversation_->id):std::nullopt;
+  return presentation_providers::footerBatIds(
+    presentation_providers::backgroundFooterMissions(imports_.missionSnapshot(),current));
+}
+bool Shell::onMissionListKey(const keyboard_input::KeyRef& key){
+  const auto named=[&](const char* name){return key->name&&*key->name==name;};
+  // The Flight row (empty id) leads the Bats.
+  auto ids=missionListIds();
+  ids.insert(ids.begin(),std::string{});
+  const auto at=std::find(ids.begin(),ids.end(),*selectedMission_);
+  if(at==ids.end()){selectedMission_.reset();requestRedraw();return false;}
+  const bool bare=!key->ctrl&&!key->meta&&!key->super&&!key->option&&!key->shift;
+  if(bare&&named("up")){
+    if(at==ids.begin())selectedMission_.reset();else selectedMission_=*std::prev(at);
+    requestRedraw();return true;
+  }
+  if(bare&&named("down")){
+    if(std::next(at)!=ids.end())selectedMission_=*std::next(at);
+    requestRedraw();return true;
+  }
+  if(named("return")||named("enter")){
+    const auto id=*selectedMission_;
+    selectedMission_.reset();
+    if(id.empty())returnToLeader();
+    else if(imports_.observeBatMission&&activeBatId()!=id)openBatConversation(id);
+    requestRedraw();return true;
+  }
+  if(named("escape")){selectedMission_.reset();requestRedraw();return true;}
+  if(bare&&key->sequence&&*key->sequence=="x"){
+    if(!selectedMission_->empty()&&imports_.stopBatMission){
+      try{imports_.stopBatMission(*selectedMission_);}
+      catch(...){reportDetached(std::current_exception());}
+    }
+    requestRedraw();return true;
+  }
+  selectedMission_.reset();requestRedraw();return false;
 }
 void Shell::backFromBat(){
   if(!batConversation_)return;

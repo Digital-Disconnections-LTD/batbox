@@ -4,15 +4,6 @@
 
 namespace batbox::instructions::hooks::runtime {
 namespace {
-std::optional<Json> configured(const std::optional<Json>& config,
-  const std::string& event){
-  if(!config||!config->is_object())return std::nullopt;
-  const auto it=config->find(event);
-  return it==config->end()?std::nullopt:std::optional<Json>(*it);
-}
-bool nonempty(const std::optional<Json>& value){
-  return value&&value->is_array()&&!value->empty();
-}
 HookDispatch dispatchFor(const WorktreeHookServices& services,
   const std::string& event,const std::string& field,const std::string& value){
   if(!services.createBaseHookInput)
@@ -28,25 +19,6 @@ HookDispatch dispatchFor(const WorktreeHookServices& services,
   dispatch.timeoutMs=services.defaultTimeoutMs;
   return dispatch;
 }
-}
-bool hasWorktreeCreateHook(const WorktreeHookServices& services){
-  if(!services.getHooksConfigFromSnapshot)
-    throw std::invalid_argument("Worktree snapshot import required");
-  const auto snapshotHooks=configured(services.getHooksConfigFromSnapshot(),
-    "WorktreeCreate");
-  if(nonempty(snapshotHooks))return true;
-  if(!services.getRegisteredHooks)
-    throw std::invalid_argument("Worktree registry import required");
-  const auto registeredHooks=configured(services.getRegisteredHooks(),
-    "WorktreeCreate");
-  if(!nonempty(registeredHooks))return false;
-  if(!services.shouldAllowManagedHooksOnly)
-    throw std::invalid_argument("Worktree managed policy import required");
-  const bool managedOnly=services.shouldAllowManagedHooksOnly();
-  for(const auto& matcher:*registeredHooks)
-    if(!(managedOnly&&matcher.is_object()&&matcher.contains("pluginRoot")))
-      return true;
-  return false;
 }
 event_loop::Deferred<std::string> executeWorktreeCreateHook(
   event_loop::Loop& loop,const WorktreeHookServices& services,
@@ -75,44 +47,6 @@ event_loop::Deferred<std::string> executeWorktreeCreateHook(
           }
           throw std::runtime_error("WorktreeCreate hook failed: "+
             (failedOutputs.empty()?"no successful output":failedOutputs));
-        }catch(...){output.reject(std::current_exception());}
-      });
-  }catch(...){output.reject(std::current_exception());}
-  return output;
-}
-event_loop::Deferred<bool> executeWorktreeRemoveHook(
-  event_loop::Loop& loop,const WorktreeHookServices& services,
-  const std::string& worktreePath){
-  if(!loop.isOwnerThread())throw std::logic_error("Worktree hook owner required");
-  event_loop::Deferred<bool> output(loop);
-  try{
-    if(!services.getHooksConfigFromSnapshot)
-      throw std::invalid_argument("Worktree snapshot import required");
-    const auto snapshotHooks=configured(services.getHooksConfigFromSnapshot(),
-      "WorktreeRemove");
-    if(!services.getRegisteredHooks)
-      throw std::invalid_argument("Worktree registry import required");
-    const auto registeredHooks=configured(services.getRegisteredHooks(),
-      "WorktreeRemove");
-    if(!nonempty(snapshotHooks)&&!nonempty(registeredHooks)){
-      output.resolve(false);return output;
-    }
-    auto dispatch=dispatchFor(services,"WorktreeRemove","worktree_path",
-      worktreePath);
-    if(!services.executeHooksOutsideRepl)
-      throw std::invalid_argument("Worktree executor import required");
-    services.executeHooksOutsideRepl(std::move(dispatch)).then(
-      [output,log=services.logForDebugging](
-        const std::vector<HookResult>* results,const std::exception_ptr& failure){
-        if(failure){output.reject(failure);return;}
-        try{
-          if(results->empty()){output.resolve(false);return;}
-          for(const auto& result:*results)if(!result.succeeded){
-            if(!log)throw std::invalid_argument("Worktree debug import required");
-            log("WorktreeRemove hook failed ["+result.command+"]: "+
-              value::trim(result.output),"error");
-          }
-          output.resolve(true);
         }catch(...){output.reject(std::current_exception());}
       });
   }catch(...){output.reject(std::current_exception());}

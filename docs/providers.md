@@ -92,7 +92,7 @@ batbox providers add llama.cpp --base-url http://gpu-box.lan:8080
 | `--key -` | Read the key from the first line of stdin and store it privately. |
 | `--base-url URL` | Replace the catalog URL. Required when the catalog URL has a placeholder. |
 | `--model ID` | The model to select. Defaults to the first model the server lists, then the catalog's first. |
-| `--id NAME` | Save under this endpoint id instead of the catalog id. |
+| `--id NAME` | Save under this endpoint id instead of the catalog id. An endpoint already saved under that id is replaced, keeping its `betas` and request limits. |
 | `--no-test` | Skip the connection test. |
 
 Without `--no-test`, `add` runs the same connection test as the picker and
@@ -104,6 +104,26 @@ or start the server later.
 `batbox providers show zen` prints one provider's URL, paths, key variable and
 models. `batbox doctor` includes local servers and a row per configured
 endpoint with its provider kind.
+
+## Edit endpoints with /config
+
+Open `/config` and choose **+ Add endpoint** to enter a label and base URL by
+hand. Each endpoint has its own Messages path, model list path, authentication
+header, API key or environment variable, custom headers, token limits and
+capabilities. Keys and custom headers use a masked input. Edits are saved in
+`native-client.json` and leave the settings they don't touch alone.
+
+**↻ Discover / refresh models** asks the endpoint's model list (`models_path`,
+normally `GET /v1/models`). Model ids are deduplicated and stored with the
+endpoint. Discovery supplies names only; context limits and capabilities come
+from the endpoint's settings. When the list is missing or empty, **+ Add model
+ID** still works.
+
+`/model` searches a long list and selects an endpoint's own route even when
+several endpoints serve the same model name. A request already in flight keeps
+the configuration it started with; edits apply from the next request. Under
+**⚙ Request settings**, compaction changes apply to the next request and the
+other defaults on the next launch.
 
 ## How Batbox talks to a server
 
@@ -166,10 +186,48 @@ The same keys work in a `profiles` entry, which also takes `model` and
 | `auth_header` | `authorization` sends `Authorization: Bearer <key>`. `x-api-key` sends the key in `x-api-key` (and adds `anthropic-version: 2023-06-01` for `anthropic` endpoints). `none` sends no credential. |
 | `auth_token`, `api_key_env` | The key itself, or the name of an environment variable that holds it. `auth_token` wins when both are set. |
 | `headers` | Extra request headers, single-line text values. |
+| `betas` | Anthropic beta names to send, such as `["context-1m-2025-08-07"]`. Empty by default. See [Beta features](#beta-features). |
 | `models` | Model ids offered by this endpoint. Each becomes a profile named `<endpoint>::<model>`. |
 | `context_window`, `max_output_tokens` | Required token limits. Output must not exceed context. |
 | `thinking`, `prompt_caching`, `adaptive_thinking`, `structured_outputs`, `effort`, `send_disabled_thinking` | Capability flags. They control which request fields Batbox builds. On `openai-chat`, thinking only reaches the server through the `reasoning` quirk below. |
-| `quirks` | `openai-chat` only. See the next section. |
+| `quirks` | `openai-chat` only. See [Quirks](#quirks-for-openai-chat). |
+
+### Named profiles
+
+A `profiles` entry is a named route of its own, outside any endpoint. It takes
+the same keys plus `model` and `api_key_helper`:
+
+```json
+{
+  "profile": "local",
+  "profiles": {
+    "local": {
+      "model": "your-model-id",
+      "base_url": "http://127.0.0.1:8000",
+      "messages_path": "/v1/messages",
+      "context_window": 200000,
+      "max_output_tokens": 8192,
+      "auth_header": "x-api-key",
+      "api_key_env": "BATBOX_MODEL_KEY",
+      "thinking": false,
+      "prompt_caching": false
+    }
+  }
+}
+```
+
+The token limits are examples: use your server's actual capacity. Turn on
+`thinking` and `prompt_caching` (poetry stashing) only when the server supports
+them. A profile name can't repeat an `<endpoint>::<model>` name.
+
+`profile`, `--profile NAME` or `BATBOX_PROFILE` selects the startup route.
+`/model NAME` changes the route for the next turn and `/model default` returns
+to the startup route. `--model`, `--base-url`, `--context-window` and
+`--max-output-tokens` override the selected route for one launch.
+
+Each profile has its own credentials, checked in this order: `auth_token`,
+`api_key_env`, then `api_key_helper`. Prefer an environment variable or a
+credential helper over a key written into the file.
 
 ### Quirks for `openai-chat`
 
@@ -200,6 +258,19 @@ a configuration error.
 
 Whatever the setting, `reasoning_content` or `reasoning` text in a reply is
 shown as a thinking block.
+
+Replaying thinking keeps the server's cache valid while a turn runs its tools:
+the template shows the thinking it generated, so the next request starts with
+the same tokens. The stock Qwen3 template (and GLM-4.5 and 4.6) only shows
+thinking for assistant messages after your latest message, so when you send
+the next one, the previous turn's assistant messages lose their thinking and
+the server rereads the conversation from the first of them. Batbox cannot
+avoid that from the client; sending less thinking renders the same prompt.
+Templates with an option to keep all thinking avoid it at the cost of a
+longer prompt: Qwen3.6 has `preserve_thinking` and GLM-4.7 has
+`clear_thinking: false`. A vLLM server can set them with
+`--default-chat-template-kwargs`; Batbox also sends `enable_thinking` in
+`chat_template_kwargs`, so check that your server merges the two.
 
 ### What the `openai-chat` translation does
 
@@ -238,8 +309,9 @@ Replies:
   digits, `_` and `-`. Short, empty or repeated ids are replaced with fresh
   `toolu_` ids.
 - A broken stream (unparsable chunk, end before a finish reason, a tool call
-  with no name) makes Batbox repeat the turn without streaming, unless
-  `BATBOX_DISABLE_NONSTREAMING_FALLBACK` is set.
+  with no name) makes Batbox repeat the turn without streaming, unless the
+  endpoint sets `"nonstreaming_fallback": false` (the default for local
+  endpoints; see [Request limits](request-limits.md)).
 
 Errors keep their HTTP status and are reported as Anthropic error types:
 401 and 403 as `authentication_error`, 429 as `rate_limit_error`, 503 as
@@ -259,8 +331,8 @@ Endpoints whose `provider` isn't `anthropic`, and any endpoint on `localhost`,
 `127.x.x.x`, `::1` or `0.0.0.0`, retry at most twice and never wait more than
 2 seconds between attempts, including when the server sends `retry-after`. A
 local server that is down or misconfigured fails within a few seconds.
-`BATBOX_MAX_RETRIES` overrides the count. Other `anthropic` endpoints keep the
-standard ladder of 10 retries with backoff up to 32 seconds.
+The endpoint's `max_retries` key overrides the count. Other `anthropic`
+endpoints keep the standard ladder of 10 retries with backoff up to 32 seconds.
 
 ### Not carried over to `openai-chat`
 
@@ -271,6 +343,35 @@ standard ladder of 10 retries with backoff up to 32 seconds.
 - Parallel tool calls on servers that interleave the arguments of several
   calls in one stream. Batbox detects this and repeats the turn without
   streaming.
+
+### Beta features
+
+`betas` turns on Anthropic beta features for one endpoint or `profiles` entry.
+It's empty by default, and then Batbox sends no beta header at all. Only the
+Anthropic kinds use it: `anthropic` and `vertex` send the names, joined with
+commas, in the `anthropic-beta` header, and `bedrock` sends them in the
+`anthropic_beta` body field. `openai-chat` ignores it.
+
+```json
+"betas": ["context-1m-2025-08-07", "interleaved-thinking-2025-05-14"]
+```
+
+Batbox sends the names as written and doesn't add request fields for them, so
+a beta that also needs fields in the request body has no effect by itself. When
+a server rejects a name with a 400, the error names it so you can take it out
+of the list.
+
+| Beta | What it turns on |
+|---|---|
+| `context-1m-2025-08-07` | The 1M-token context window on models that need an opt-in. Models with 1M context by default ignore it. |
+| `interleaved-thinking-2025-05-14` | Thinking between tool calls for models using manual thinking with a token budget. Adaptive thinking interleaves without it. |
+| `prompt-caching-scope-2026-01-05` | A `scope` on `cache_control` breakpoints. It isn't in Anthropic's public docs, and Vertex rejects it. |
+| `structured-outputs-2025-12-15` | JSON-schema structured outputs on servers that still gate them. Anthropic's API no longer needs a header. |
+| `token-efficient-tools-2026-03-28` | A more compact tool-call format. It isn't in Anthropic's public docs, which name `token-efficient-tools-2025-02-19`. |
+| `context-management-2025-06-27` | Context editing: the server clears old tool results and thinking blocks as the request's `context_management` asks. |
+| `web-search-2025-03-05` | An opt-in some gateways expect for the server `web_search` tool. Anthropic's API doesn't need it. |
+| `tool-search-tool-2025-10-19` | Tool search (tools marked `defer_loading`) on Bedrock. |
+| `advanced-tool-use-2025-11-20` | Tool search, programmatic tool calling and tool use examples on Anthropic's API, where it is no longer required. |
 
 ## Provider notes
 

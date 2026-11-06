@@ -33,14 +33,12 @@ void emptyCollectors(attachments::Services& services){
   };
   auto& c=services.collectors;
   c.atMentionedFiles=empty;c.mcpResources=empty;c.batMentions=empty;
-  c.skillDiscovery=empty;c.companionIntro=empty;c.changedFiles=empty;
+  c.changedFiles=empty;
   c.skillListing=empty;c.planMode=empty;c.planModeExit=empty;
-  c.autoMode=empty;c.autoModeExit=empty;c.todoReminders=empty;
-  c.missionReminders=empty;c.partnerMailbox=empty;c.teamContext=empty;
-  c.batPendingMessages=empty;c.compactionReminder=empty;
-  c.contextEfficiency=empty;c.selectedLinesIde=empty;c.openedFileIde=empty;
+  c.todoReminders=empty;c.missionReminders=empty;
+  c.batPendingMessages=empty;c.selectedLinesIde=empty;c.openedFileIde=empty;
   c.diagnostics=empty;c.lspDiagnostics=empty;c.unifiedMissions=empty;
-  c.asyncHookResponses=empty;c.verifyPlanReminder=empty;
+  c.asyncHookResponses=empty;
 }
 }
 int main(){
@@ -50,10 +48,7 @@ int main(){
   aggregate.triggers=std::make_shared<attachment_triggers::Services>(loop);
   aggregate.disableAttachments=[](){return false;};
   aggregate.simpleMode=[](){return false;};
-  aggregate.feature=[](const std::string&){return false;};
-  aggregate.skillSearchModulesPresent=[](){return false;};
   aggregate.isTodoV2Enabled=[](){return false;};
-  aggregate.isBatSwarmsEnabled=[](){return false;};
   std::vector<std::string> errors;
   aggregate.logError=[&](std::exception_ptr error){
     try{std::rethrow_exception(error);}catch(const std::exception& failure){
@@ -64,23 +59,13 @@ int main(){
   aggregate.randomUuid=[](){return std::string("id");};
   aggregate.nowIso=[](){return std::string("2026-10-29T00:00:00Z");};
   bootstrap::PoetryState poetry;
-  bootstrap::CostState cost;
-  cost.totalCostUSD=2;
-  cost.modelUsage={{"standard",{{"outputTokens",30}}}};
-  cost.outputTokensAtTurnStart=10;
-  cost.currentTurnTokenBudget=100;
   std::string date="2026-10-29";
   auto app=std::make_shared<app_state::AppState>();
   app->permissionContext=std::make_shared<value::SharedRecord>(
     value::SharedRecord::fromJson(Json{{"blocked",Json::array()}}));
   attachments::context::Services contextServices;
   contextServices.leaves.poetryState=&poetry;
-  contextServices.leaves.costState=&cost;
   contextServices.leaves.localIsoDate=[&]{return date;};
-  contextServices.leaves.feature=[](const std::string& key){
-    return key=="TOKEN_BUDGET";
-  };
-  contextServices.leaves.ultrathinkEnabled=[](){return true;};
   contextServices.leaves.getSettings=[](){return Json{{"outputStyle","concise"}};};
   contextServices.deferredGadgetsDeltaEnabled=[](){return true;};
   contextServices.gadgetSearchEnabledOptimistic=[](){return true;};
@@ -91,11 +76,9 @@ int main(){
   contextServices.clientSideInstruction=[](){
     return std::optional<attachments::context::ClientInstruction>{};
   };
-  contextServices.deferral.feature=[](const std::string&){return false;};
   contextServices.getAppState=[&]{return app;};
   contextServices.filterDeniedBats=[](const Json& bats,const Json&,
       const std::string&){return bats;};
-  contextServices.subscriptionType=[](){return std::string("free");};
   contextServices.effectiveContextWindow=[](const std::string&){return 1000.0;};
   attachments::context::bindContextCollectors(aggregate,contextServices);
   gadgets::Gadget search;search.name="ToolSearch";
@@ -120,16 +103,15 @@ int main(){
     aggregate));
   check(errors.empty(),"First aggregate logged a collector error");
   check(!contains(first,"date_change"),"Initial date should latch without emission");
-  check(contains(first,"ultrathink_effort"),"Effort attachment missing");
+  check(!contains(first,"ultrathink_effort"),"The ultrathink keyword produced an attachment");
   check(find(first,"deferred_tools_delta").at("addedNames")==
     Json::array({"ReadLater"}),"Deferred tool announcement missing");
   check(find(first,"agent_listing_delta").at("addedTypes")==
     Json::array({"research"}),"Agent announcement missing");
   check(find(first,"mcp_instructions_delta").at("addedNames")==
     Json::array({"docs"}),"MCP instruction announcement missing");
-  check(contains(first,"output_style")&&contains(first,"token_usage")&&
-    contains(first,"budget_usd")&&contains(first,"output_token_usage"),
-    "Main-thread style or budget attachment missing");
+  check(contains(first,"output_style")&&contains(first,"token_usage"),
+    "Main-thread style or token usage attachment missing");
   Json previous=Json::array();
   for(const auto& item:first)previous.push_back(
     Json{{"type","attachment"},{"attachment",item}});

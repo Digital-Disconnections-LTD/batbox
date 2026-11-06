@@ -42,11 +42,10 @@ bool indigenousIsExecutable(const std::string& shellPath){
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 }
-std::function<event_loop::Deferred<std::optional<std::string>>(const std::string&)>
-indigenousWhich(event_loop::Loop& loop,const std::string& pathEnvironment){
-  return [&loop,pathEnvironment](const std::string& executable){
-    event_loop::Deferred<std::optional<std::string>> result(loop);
-    if(executable.find('/')!=std::string::npos){result.resolve(std::nullopt);return result;}
+std::function<std::optional<std::string>(const std::string&)>
+indigenousWhich(const std::string& pathEnvironment){
+  return [pathEnvironment](const std::string& executable)->std::optional<std::string>{
+    if(executable.find('/')!=std::string::npos)return std::nullopt;
     std::size_t start=0;
     while(start<=pathEnvironment.size()){
       const auto end=pathEnvironment.find(':',start);
@@ -54,11 +53,11 @@ indigenousWhich(event_loop::Loop& loop,const std::string& pathEnvironment){
         end==std::string::npos?std::string::npos:end-start);
       const auto candidate=(dir.empty()?std::string("."):dir)+"/"+executable;
       const auto encoded=value::encodeUtf8(candidate);
-      if(::access(encoded.c_str(),X_OK)==0){result.resolve(candidate);return result;}
+      if(::access(encoded.c_str(),X_OK)==0)return candidate;
       if(end==std::string::npos)break;
       start=end+1;
     }
-    result.resolve(std::nullopt);return result;
+    return std::nullopt;
   };
 }
 } // namespace batbox::shell

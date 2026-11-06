@@ -30,10 +30,6 @@ int main(){
       source.nowMillis=[](){return std::int64_t(1000);};
       source.sleepMillis=[](std::int64_t){};
       source.getAppState=[](){return Json{{"toolPermissionContext",{{"mode","default"}}}};};
-      source.isCoordinatorMode=[](){return false;};
-      source.isBatSwarmsEnabled=[](){return true;};
-      source.isPartner=[](){return false;};
-      source.isInProcessPartner=[](){return false;};
       source.isForkSubagentEnabled=[](){return false;};
       source.isInForkChild=[](const Json&){return false;};
       source.filterDeniedBats=[](const Json& bats,const Json&,
@@ -41,26 +37,24 @@ int main(){
       source.getDenyRuleForBat=[](const Json&,const std::string&,
         const std::string&){return Json();};
       source.setBatColor=[](const std::string&,const Json&){};
-      source.spawnPartner=[](const Json& request){
-        assert(request.at("name")=="teammate");
-        return Json{{"data",{{"agentId","agent-2"}}}};
-      };
       return services;
     });
   gadgets::GadgetCallContext callContext;
   callContext.batContext=std::make_shared<bats::BatContext>(context);
-  const auto result=gadget.call(Json{{"prompt","Do work"},
-    {"name","teammate"},{"team_name","team"}},callContext,
-    [](const Json&){std::promise<Json> promise;promise.set_value(Json());
-      return promise.get_future();},Json{{"message",{{"id","m1"}}}},
-    [](const gadgets::GadgetProgress&){}).get();
-  assert(result.data.at("status")=="teammate_spawned");
-  assert(result.data.at("agentId")=="agent-2");
+  bool rejected=false;
+  try{
+    gadget.call(Json{{"prompt","Do work"},{"name","teammate"},{"team_name","team"}},
+      callContext,[](const Json&){std::promise<Json> promise;promise.set_value(Json());
+        return promise.get_future();},Json{{"message",{{"id","m1"}}}},
+      [](const gadgets::GadgetProgress&){}).get();
+  }catch(const std::runtime_error& error){
+    rejected=std::string(error.what())=="Bat teams are not yet available on your plan.";
+  }
+  assert(rejected);
   bats::BatGadgetPoetryDependencies poetry;
   poetry.filterDeniedBats=[](const Json& bats,const Json&,
     const std::string&){return bats;};
-  poetry.feature=[](const std::string&){return false;};
-  poetry.getPoetry=[](const Json& bats,bool,const Json&){
+  poetry.getPoetry=[](const Json& bats,const Json&){
     std::promise<std::string> ready;
     ready.set_value(bats.at(0).at("agentType").get<std::string>());
     return ready.get_future();

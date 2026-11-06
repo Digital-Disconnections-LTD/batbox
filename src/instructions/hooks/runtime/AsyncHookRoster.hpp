@@ -53,12 +53,10 @@ class AsyncHookRoster {
 public:
   AsyncHookRoster(event_loop::Loop& loop,AsyncHookServices services);
   void registerPendingAsyncHook(const AsyncHookRegistration& registration);
-  std::vector<PendingAsyncHook> getPendingAsyncHooks()const;
   event_loop::Deferred<std::vector<CheckedAsyncHookResponse>>
     checkForAsyncHookResponses();
   void removeDeliveredAsyncHooks(const std::vector<std::string>& processIds);
   event_loop::Deferred<event_loop::Unit> finalizePendingAsyncHooks();
-  void clearAllAsyncHooks();
   std::size_t size()const;
 private:
   friend struct RosterPoll;

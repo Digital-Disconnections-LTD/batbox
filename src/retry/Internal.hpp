@@ -1,6 +1,5 @@
 #pragma once
 #include "retry/Retry.hpp"
-#include "utils/envUtils.hpp"
 #include <cmath>
 #include <cctype>
 #include <optional>
@@ -11,7 +10,6 @@ namespace batbox::retry::internal {
 inline Json envValue(const Dependencies& deps, const std::string& key) {
   return deps.env.is_object() && deps.env.contains(key) ? deps.env.at(key) : Json();
 }
-inline bool envTruthy(const Dependencies& deps, const std::string& key) { return batbox::isEnvTruthy(envValue(deps, key)); }
 inline std::string envString(const Dependencies& deps, const std::string& key) {
   Json value = envValue(deps,key); return value.is_string() ? value.get<std::string>() : std::string();
 }
@@ -38,17 +36,8 @@ inline std::optional<std::string> headerGet(const Json& headers, const std::stri
   for (auto it=headers.begin();it!=headers.end();++it) if (lower(it.key())==key && it.value().is_string()) return it.value().get<std::string>();
   return std::nullopt;
 }
-bool isTransientCapacityError(const ErrorRecord& error);
 bool isStaleConnectionError(const ErrorRecord& error);
-bool isOAuthTokenRevokedError(const ErrorRecord& error);
-bool isAwsCredentialsProviderError(const ErrorRecord& error);
-bool isGoogleAuthLibraryCredentialError(const ErrorRecord& error);
-bool isBedrockAuthError(const ErrorRecord& error, const Dependencies& deps);
-bool isVertexAuthError(const ErrorRecord& error, const Dependencies& deps);
-bool handleAwsCredentialError(const ErrorRecord& error, Dependencies& deps);
-bool handleGcpCredentialError(const ErrorRecord& error, Dependencies& deps);
 bool isFastModeNotEnabledError(const ErrorRecord& error);
 std::optional<double> getRetryAfterMs(const ErrorRecord& error, const Dependencies& deps);
-std::optional<double> getRateLimitResetDelayMs(const ErrorRecord& error, Dependencies& deps);
 double getMaxRetries(const RetryOptions& options, const Dependencies& deps);
 } // namespace batbox::retry::internal

@@ -20,6 +20,7 @@ struct Files {
   gadgets::files::FileGadgetBindings presentation;
   std::function<gadgets::files::FileGadgetBindings(const std::string&)> makePresentation;
   std::function<bool(const std::string&)> readDenied, editDenied;
+  std::function<bool()> planModeActive;
   std::function<std::vector<std::string>(const Json&)> readIgnorePatterns;
   std::function<std::vector<std::string>(const std::vector<std::string>&,
     const std::string&)> normalizeIgnorePatterns;
@@ -38,8 +39,6 @@ struct Files {
   std::function<void(const std::string&)> clearDiagnostics,lspSave;
   std::function<void(const std::string&,const std::string&)> lspChange;
   std::function<std::optional<Json>(const std::string&)> remoteDiff;
-  std::function<std::optional<std::string>(const std::string&,const std::string&)>
-    checkTeamMemorySecrets;
   std::function<std::optional<gadgets::ValidationResult>(const std::string&,
     const std::string&,const std::function<std::string()>&)> validateSettingsEdit;
   std::function<int(const std::string&,const std::string&)> localeCompare;
@@ -52,7 +51,7 @@ struct Files {
 };
 
 struct Bash {
-  // The shell owner binds mission roster, sandbox, readonly classification,
+  // The shell owner binds mission roster, readonly classification,
   // permission and FTXUI callbacks here. Indigenous syntax/schema/hint/cwd leaves
   // are installed by this application provider.
   bash_gadget::Services services;

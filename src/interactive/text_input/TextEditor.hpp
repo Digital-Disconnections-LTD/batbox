@@ -4,7 +4,7 @@
 #include "interactive/PresentationState.hpp"
 #include "interactive/text_input/Cursor.hpp"
 #include "interactive/text_input/KillRing.hpp"
-#include "terminal_events/InputEvent.hpp"
+#include "terminal_events/Key.hpp"
 #include <functional>
 #include <optional>
 #include <string>

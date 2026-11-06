@@ -20,21 +20,14 @@ struct RequestCapture {
   bool stashedMCEnabled = false;
   bool thinkingClearLatched = false;
   bool fastModeHeaderLatched = false;
-  bool afkHeaderLatched = false;
   bool stashEditingHeaderLatched = false;
-  bool isAgenticQuery = false;
-  bool transcriptClassifierFeature = false;
   bool includeFirstPartyBetas = false;
-  bool internalUser = false;
   bool disableThinking = false;
   bool disableAdaptiveThinking = false;
   std::string provider;
   std::string gadgetSearchHeader;
   std::string stashEditingBetaHeader;
   std::optional<std::string> extraBodyStr;
-  bool antiDistillationFeature = false;
-  bool cliEntrypoint = false;
-  bool fakeGadgetInjectionEnabled = false;
   Json lastRequestBetas = Json::array();
 };
 
@@ -62,7 +55,6 @@ struct BuilderHeaders {
   std::string structuredOutputs;
   std::string redactThinking;
   std::string fastMode;
-  std::string afkMode;
   std::string contextManagement;
 };
 

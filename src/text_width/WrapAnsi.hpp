@@ -19,4 +19,5 @@ public:
 private:
   WrapAnsiRef wrapAnsiBun_,wrapAnsi_;
 };
+WrapAnsiModule indigenousWrapAnsiModule(bool bunAvailable=true);
 }

@@ -14,6 +14,12 @@ std::string text(const Json& object, const char* name) {
   const auto& value = field(object,name);
   return value.is_string() ? value.get<std::string>() : std::string{};
 }
+// text() without the copy.
+const std::string& textRef(const Json& object, const char* name) {
+  static const std::string empty;
+  const auto& value = field(object,name);
+  return value.is_string() ? value.get_ref<const std::string&>() : empty;
+}
 std::int64_t integer(const Json& value) {
   if (value.is_number_integer() || value.is_number_unsigned()) return value.get<std::int64_t>();
   if (value.is_number_float()) return static_cast<std::int64_t>(std::llround(value.get<double>()));
@@ -64,13 +70,17 @@ std::string documentText(const Json& block) {
     " omitted: this endpoint takes text and images only]";
 }
 // Plain string when every part is text; a parts array once an image is present.
-Json userContent(const Json& parts) {
-  std::vector<std::string> texts;
+Json userContent(Json parts) {
+  for (const auto& part : parts)
+    if (textRef(part,"type") != "text") return parts;
+  std::string joined;
   for (const auto& part : parts) {
-    if (text(part,"type") != "text") return parts;
-    texts.push_back(text(part,"text"));
+    const auto& value = textRef(part,"text");
+    if (value.empty()) continue;
+    if (!joined.empty()) joined += "\n\n";
+    joined += value;
   }
-  return joinTexts(texts,"\n\n");
+  return joined;
 }
 std::string toolResultText(const Json& block, Json& hoisted) {
   const auto& content = field(block,"content");
@@ -93,14 +103,14 @@ void translateUser(const Json& blocks, Json& messages, ToolIdMap& ids) {
   Json parts = Json::array(), hoisted = Json::array();
   for (const auto& block : blocks) {
     const auto type = text(block,"type");
-    if (type == "text") { if (!text(block,"text").empty()) parts.push_back(Json{{"type","text"},{"text",text(block,"text")}}); }
+    if (type == "text") { if (!textRef(block,"text").empty()) parts.push_back(Json{{"type","text"},{"text",textRef(block,"text")}}); }
     else if (type == "image") { if (auto image = imagePart(block)) parts.push_back(*image); }
     else if (type == "document") parts.push_back(Json{{"type","text"},{"text",documentText(block)}});
     else if (type == "tool_result")
       messages.push_back(Json{{"role","tool"},{"tool_call_id",ids.outgoing(text(block,"tool_use_id"))},
         {"content",toolResultText(block,hoisted)}});
-    else if (field(block,"text").is_string() && !text(block,"text").empty())
-      parts.push_back(Json{{"type","text"},{"text",text(block,"text")}});
+    else if (field(block,"text").is_string() && !textRef(block,"text").empty())
+      parts.push_back(Json{{"type","text"},{"text",textRef(block,"text")}});
   }
   if (!hoisted.empty()) {
     Json withImages = Json::array({Json{{"type","text"},{"text","Images returned by the tool calls above:"}}});
@@ -108,15 +118,15 @@ void translateUser(const Json& blocks, Json& messages, ToolIdMap& ids) {
     for (auto& part : parts) withImages.push_back(std::move(part));
     parts = std::move(withImages);
   }
-  if (!parts.empty()) messages.push_back(Json{{"role","user"},{"content",userContent(parts)}});
+  if (!parts.empty()) messages.push_back(Json{{"role","user"},{"content",userContent(std::move(parts))}});
 }
 void translateAssistant(const Json& blocks, Json& messages, ToolIdMap& ids, const ChatQuirks& quirks) {
   std::string content, reasoning;
   Json calls = Json::array();
   for (const auto& block : blocks) {
     const auto type = text(block,"type");
-    if (type == "text") content += text(block,"text");
-    else if (type == "thinking") reasoning += text(block,"thinking");
+    if (type == "text") content += textRef(block,"text");
+    else if (type == "thinking") reasoning += textRef(block,"thinking");
     else if (type == "tool_use") {
       const auto& input = field(block,"input");
       const auto arguments = input.is_string() ? input.get<std::string>() :
@@ -257,7 +267,7 @@ Json translateRequest(const Json& body, bool stream, const ChatQuirks& quirks) {
   if (system.is_string()) systemText = system.get<std::string>();
   else if (system.is_array()) {
     std::vector<std::string> texts;
-    for (const auto& block : system) if (text(block,"type") == "text") texts.push_back(text(block,"text"));
+    for (const auto& block : system) if (textRef(block,"type") == "text") texts.push_back(textRef(block,"text"));
     systemText = joinTexts(texts,"\n\n");
   }
   if (!systemText.empty()) messages.push_back(Json{{"role",quirks.systemRole},{"content",systemText}});

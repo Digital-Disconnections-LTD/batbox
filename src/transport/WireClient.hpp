@@ -25,6 +25,13 @@ void validateProviderKind(const std::string& kind);
 // Request path used when messages_path is absent: "/v1/chat/completions" for
 // openai-chat, "/v1/messages" otherwise.
 std::string defaultMessagesPath(std::string_view kind);
+// The "betas" field: names sent in anthropic-beta (Bedrock: the anthropic_beta
+// body field). Throws std::invalid_argument unless every entry is a nonempty
+// string of visible ASCII without commas.
+std::vector<std::string> parseBetas(const Json& betas);
+void validateBetas(const std::vector<std::string>& betas);
+// openai-chat has no beta header, so its betas are never sent.
+bool kindSendsBetas(std::string_view kind);
 
 // OpenAI Chat Completions differences between servers ("quirks" in
 // native-client.json). Absent keys keep these defaults.

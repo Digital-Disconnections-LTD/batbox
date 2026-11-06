@@ -3,9 +3,9 @@
 #include <stdexcept>
 
 namespace batbox::lsp {
-Client::Client(std::string name,std::vector<std::string> command,
+Client::Client(std::vector<std::string> command,
     std::map<std::string,std::string> env,std::string cwd,Notification notification):
-  name_(std::move(name)),notification_(std::move(notification)),
+  notification_(std::move(notification)),
   decoder_([this](Json message){receive(std::move(message));}){
   dispatcher_=std::thread([this]{dispatch();});
   try{
@@ -120,5 +120,4 @@ void Client::stop()noexcept{
     process_->close();process_.reset();
   }
 }
-long Client::pid()const{return process_?process_->pid():0;}
 }

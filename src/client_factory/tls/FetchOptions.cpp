@@ -33,10 +33,4 @@ NetworkOptions TlsOptions::getTLSFetchOptions(){
   result.values["dispatcher"]=true;
   return result;
 }
-std::optional<Json> TlsOptions::getWebSocketTLSOptions(){
-  const auto mtls=getMTLSConfig();
-  const auto ca=getCACertificates();
-  if(!mtls&&!ca)return std::nullopt;
-  return combine(mtls,ca);
-}
 }

@@ -15,7 +15,7 @@ namespace batbox::lsp {
 class Client final {
 public:
   using Notification=std::function<void(const std::string&,const Json&)>;
-  Client(std::string name,std::vector<std::string> command,
+  Client(std::vector<std::string> command,
     std::map<std::string,std::string> env,std::string cwd,
     Notification notification);
   ~Client();
@@ -25,13 +25,11 @@ public:
   void notify(const std::string& method,const Json& params);
   void markInitialized(){initialized_=true;}
   void stop()noexcept;
-  long pid()const;
 private:
   struct Pending {std::promise<Json> promise;};
   void receive(Json message);
   void dispatch();
   void write(const Json& message);
-  std::string name_;
   Notification notification_;
   std::mutex parserMutex_,queueMutex_,writeMutex_,pendingMutex_;
   std::condition_variable queueReady_;

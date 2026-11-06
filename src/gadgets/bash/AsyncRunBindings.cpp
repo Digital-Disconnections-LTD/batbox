@@ -12,7 +12,6 @@ bindManagedExec(event_loop::Loop& loop,std::shared_ptr<shell::ManagedShell> shel
     auto options=baseOptions;
     options.command=request.command;options.timeoutMs=request.timeoutMs;
     options.preventCwdChanges=request.preventCwdChanges;
-    options.useSandbox=request.useSandbox;
     options.autoBackgroundEnabled=request.shouldAutoBackground;
     return execManagedOnLoop(loop,shell,std::move(options),request.shouldAutoBackground);
   };

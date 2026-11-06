@@ -1,4 +1,5 @@
 #pragma once
+#include "diagnostics/DebugLogOptions.hpp"
 #include "runtime/JsonValue.hpp"
 #include <filesystem>
 #include <map>
@@ -7,6 +8,23 @@
 #include <vector>
 
 namespace batbox::application {
+// Per-endpoint request behaviour from native-client.json ("endpoints" and
+// "profiles" entries; top level for a single base_url setup). Absent keys
+// keep the defaults in docs/request-limits.md. Durations are milliseconds and
+// 0 means no limit.
+struct RequestLimits {
+  std::optional<bool> local,nonStreamingFallback;
+  std::optional<std::size_t> requestTimeoutMs,streamIdleTimeoutMs,
+    connectTimeoutMs,nonStreamingTimeoutMs,maxRetries;
+  bool empty()const{
+    return !local&&!nonStreamingFallback&&!requestTimeoutMs&&!streamIdleTimeoutMs&&
+      !connectTimeoutMs&&!nonStreamingTimeoutMs&&!maxRetries;
+  }
+};
+// Reads the RequestLimits keys present in row; throws on a wrong type.
+RequestLimits parseRequestLimits(const Json& row,const std::string& where);
+// The keys of limits that are set, for writing back to native-client.json.
+Json requestLimitsDocument(const RequestLimits& limits);
 struct InferenceProfile {
   std::string model,baseUrl,messagesPath="/v1/messages",modelsPath;
   std::string authToken,apiKeyHelper,apiKeyEnv,authHeader="authorization";
@@ -17,10 +35,13 @@ struct InferenceProfile {
   std::string region,project;
   Json quirks=Json::object();
   Json headers=Json::object();
+  // anthropic-beta names sent with every request; openai-chat ignores them.
+  std::vector<std::string> betas;
   std::size_t contextWindow=280000,maxOutputTokens=50000;
   bool thinking=false,poetryStashing=false,adaptiveThinking=false;
   bool structuredOutputs=false,effort=false;
   bool sendDisabledThinking=false;
+  RequestLimits limits;
 };
 // Indigenous endpoint catalog. Model IDs come from discovery or explicit entry;
 // capability and token limits remain operator supplied.
@@ -31,10 +52,12 @@ struct EndpointRecord {
   std::string region,project;
   Json quirks=Json::object();
   Json headers=Json::object();
+  std::vector<std::string> betas;
   std::vector<std::string> models;
   std::size_t contextWindow=0,maxOutputTokens=0;
   bool thinking=false,poetryStashing=false,adaptiveThinking=false;
   bool structuredOutputs=false,effort=false,sendDisabledThinking=false;
+  RequestLimits limits;
 };
 struct Config {
   std::filesystem::path cwd,configPath,stateDirectory,configDirectory;
@@ -53,11 +76,16 @@ struct Config {
   bool mcpServersConfigured=false;
   std::size_t contextWindow=280000,maxOutputTokens=50000,compactAt=100000;
   std::size_t maxSubagents=5,maxConcurrentSubagents=2;
+  // Top-level request limits: the single base_url profile used when no
+  // profiles or endpoints are configured.
+  RequestLimits requestLimits;
   // How deep Bats may nest: 1 is a Bat launched by the main Flight, 2 a Bat
   // launched by a Bat. 0 and 1 both keep Bats from launching Bats.
   std::size_t maxBatDepth=3;
   bool fullscreen=true,print=false,help=false,thinking=true;
   bool verbose=false,replayUserMessages=false;
+  // --debug, -d, --debug=FILTER, --debug-file PATH and --debug-to-stderr.
+  diagnostics::DebugLogOptions debug;
   std::string inputFormat="text",outputFormat="text";
   std::optional<std::string> initialPoetry,resumeFlight;
   bool continueFlight=false;
@@ -84,7 +112,6 @@ inline std::filesystem::path configurationDirectory(const Config& config){
 std::string resolveAuthToken(const Config& config);
 std::string resolveProfileAuthToken(const Config& config,const std::string& name);
 InferenceProfile selectedInferenceProfile(const Config& config);
-Json modelOptions(const Config& config);
 std::string commandLineUsage();
 std::string commandLineHelp();
 } // namespace batbox::application

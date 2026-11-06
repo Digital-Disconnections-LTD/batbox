@@ -62,8 +62,6 @@ void validate(const Config& config,const Imports& imports){
     require(imports.clearCompactWarningSuppression,
       "clearCompactWarningSuppression");
     require(imports.suppressCompactWarning,"suppressCompactWarning");
-    if(config.features.contains("PROMPT_CACHE_BREAK_DETECTION"))
-      require(imports.notifyStashDeletion,"notifyCacheDeletion");
   }
   if(config.fastMode){
     require(imports.disableFastModeInSettings,"disableFastModeInSettings");
@@ -105,6 +103,10 @@ std::optional<ModelProfile> LocalModelService::findProfile(const std::string& id
   if(found==config_.profiles.end())return std::nullopt;
   return found->second;
 }
+std::vector<std::string> requestBetas(const ModelProfile& profile){
+  if(!transport::kindSendsBetas(profile.provider))return {};
+  return profile.betas;
+}
 void LocalModelService::upsertRuntimeProfile(ModelProfile profile,std::string authToken){
   if(!owner_.isOwnerThread())throw std::logic_error("Runtime model changes require owner loop");
   if(profile.id.empty()||profile.wireModel.empty()||profile.contextTokens<=0||
@@ -117,6 +119,7 @@ void LocalModelService::upsertRuntimeProfile(ModelProfile profile,std::string au
     throw std::invalid_argument("Invalid runtime profile authentication");
   transport::validateProviderKind(profile.provider);
   transport::validateQuirks(profile.quirks);
+  transport::validateBetas(profile.betas);
   std::lock_guard lock(mutex_);
   runtimeAuthTokens_.insert_or_assign(profile.id,std::move(authToken));
   config_.profiles.insert_or_assign(profile.id,std::move(profile));
@@ -144,13 +147,13 @@ model::QueryServices LocalModelService::makeQueryServices(
   return services;
 }
 query::AsyncModelCursor LocalModelService::makeCursor(
-    const query::ModelRequest& request,
+    query::ModelRequest request,
     const std::function<void()>& onStreamingFallback){
   if(!owner_.isOwnerThread())
     throw std::logic_error("Local model cursor requires owner loop");
   model::PreflightInputs input;
-  input.messages=request.messages;
-  input.systemPoetry=request.systemPoetry;
+  input.messages=std::move(request.messages);
+  input.systemPoetry=std::move(request.systemPoetry);
   input.thinkingConfig=request.thinkingConfig;
   input.options=request.options;
   if(!input.options.is_object())input.options=Json::object();
@@ -244,7 +247,7 @@ event_loop::Deferred<model::MessageRef> LocalModelService::queryPoetryHook(
         modelRequest.signal=request.signal;
         modelRequest.options=std::move(request.input.options);
         modelRequest.getGadgetPermissionContext=[state=*permission]{return state;};
-        auto cursor=self->makeCursor(modelRequest);
+        auto cursor=self->makeCursor(std::move(modelRequest));
         query::collectLastAssistantMessage(self->owner_,std::move(cursor),
           request.signal).then([output](const model::MessageRef* message,
               const std::exception_ptr& failure){

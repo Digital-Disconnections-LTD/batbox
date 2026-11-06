@@ -1,4 +1,6 @@
-#include "commands_indigenous/CoreCatalog.hpp"
+#include "commands_indigenous/Clear.hpp"
+#include "commands_indigenous/Compact.hpp"
+#include "commands_indigenous/UiCommands.hpp"
 #include <iostream>
 #include <stdexcept>
 
@@ -38,7 +40,6 @@ int main(){
   clear->flightStartHooks=[&]{
     clearTrace.push_back("start");return ready(loop,Json::array());};
   clear->setMessages=[&](Json){clearTrace.push_back("messages");};
-  clear->feature=[](const std::string&){return false;};
   clear->clearFlightStashes=[&](const std::vector<std::string>&){
     clearTrace.push_back("caches");};
   clear->randomUUID=[](){return std::string("new");};
@@ -58,9 +59,6 @@ int main(){
   std::vector<std::string> compactTrace;
   compact->getMessages=[](){return Json::array({Json{{"type","user"}}});};
   compact->afterCompactBoundary=[](const Json& value){return value;};
-  compact->tryFlightMemoryCompaction=[&](const Json&,
-      const std::optional<std::string>&){
-    compactTrace.push_back("memory");return ready(loop,std::optional<Json>{});};
   compact->reactiveOnly=[](){return false;};
   compact->microcompactMessages=[&](const Json& messages){
     compactTrace.push_back("micro");return ready(loop,Json{{"messages",messages}});};
@@ -70,7 +68,6 @@ int main(){
       const std::string&){
     compactTrace.push_back("compact");return ready(loop,
       Json{{"userDisplayMessage","Summary"}});};
-  compact->clearLastSummarizedMessageId=[&]{compactTrace.push_back("last");};
   compact->suppressCompactWarning=[&]{compactTrace.push_back("warning");};
   compact->clearUserContextStash=[&]{compactTrace.push_back("userCache");};
   compact->runPostCompactCleanup=[&]{compactTrace.push_back("cleanup");};
@@ -134,10 +131,15 @@ int main(){
       const std::string& entrypoint){
     resumedAt=id+":"+entrypoint;return ready(loop,event_loop::Unit{});};
 
-  commands_indigenous::CoreCommandServices services{
-    router,clear,compact,{},model,resume,{}};
-  auto commands=commands_indigenous::buildCoreCommands(services);
-  check(commands.size()==5,"five core commands");
+  auto descriptions=std::make_shared<std::vector<Json>>();
+  std::vector<user_input::CommandEntry> commands;
+  commands.push_back(commands_indigenous::makeHelpCommand(router,
+    [descriptions]{return *descriptions;}));
+  commands.push_back(commands_indigenous::makeClearCommand(clear));
+  commands.push_back(commands_indigenous::makeCompactCommand(compact));
+  commands.push_back(commands_indigenous::makeModelCommand(router,model));
+  commands.push_back(commands_indigenous::makeResumeCommand(router,resume));
+  for(const auto& entry:commands)descriptions->push_back(entry.descriptor);
   check(commands[0].descriptor.at("name")=="help","help registration");
   check(commands[1].descriptor.at("aliases").at(0)=="reset",
     "clear aliases");
@@ -152,8 +154,8 @@ int main(){
     "clear order");
   auto compacted=await(loop,await(loop,commands[2].loadLocal())(""));
   check(compacted.at("type")=="compact","compact result");
-  check(compactTrace==std::vector<std::string>({"memory","micro","params",
-    "compact","last","warning","userCache","cleanup"}),
+  check(compactTrace==std::vector<std::string>({"micro","params",
+    "compact","warning","userCache","cleanup"}),
     "compact order");
   auto information=await(loop,commands[3].invokeUi("status"));
   check(information.result=="Current model: standard","model status");

@@ -50,61 +50,6 @@ void Run::afterStopHooks(){
     next.transition=Json{{"reason","stop_hook_blocking"}};
     finish(CompletionDecision{next,{}});return;
   }
-  stage=Stage::Budget;
-}
-void Run::checkBudget(){
-  need(services.sync.feature,"feature");
-  if(services.sync.feature("TOKEN_BUDGET")){
-    if(!budgetTracker)
-      throw std::invalid_argument("Unbound async completion import: budgetTracker");
-    need(services.sync.getCurrentTurnTokenBudget,"getCurrentTurnTokenBudget");
-    need(services.sync.getTurnOutputTokens,"getTurnOutputTokens");
-    const Json& bat=field(prepared->gadgetUseContext.data,"agentId");
-    const auto batId=bat.is_string()?
-      std::optional<std::string>(bat.get<std::string>()):std::nullopt;
-    const Json decision=checkTokenBudget(*budgetTracker,batId,
-      services.sync.getCurrentTurnTokenBudget(),services.sync.getTurnOutputTokens(),
-      services.sync.budgetDependencies);
-    if(field(decision,"action")=="continue"){
-      need(services.sync.incrementBudgetContinuationCount,
-        "incrementBudgetContinuationCount");
-      services.sync.incrementBudgetContinuationCount();
-      need(services.logForDebugging,"logForDebugging");
-      need(services.localeNumber,"localeNumber");
-      const auto number=[&](const char* key){
-        const Json& value=field(decision,key);
-        if(!value.is_number())throw std::invalid_argument(
-          std::string("Token budget decision missing ")+key);
-        return value.get<double>();
-      };
-      services.logForDebugging("Token budget continuation #"+
-        value::numberToString(number("continuationCount"))+": "+
-        value::numberToString(number("pct"))+"% ("+
-        services.localeNumber(number("turnTokens"))+" / "+
-        services.localeNumber(number("budget"))+")");
-      need(services.sync.createUserMessage,"createUserMessage");
-      const Json nudge=services.sync.createUserMessage(Json{{"content",
-        field(decision,"nudgeMessage")},{"isMeta",true}});
-      State next=nextState();
-      Json history=appendMessageArrays(prepared->messagesForQuery,
-        modelResult->assistantMessages);
-      Json nudgeItems=Json::array();nudgeItems.push_back(nudge);
-      next.messages=appendMessageArrays(history,nudgeItems);
-      next.maxOutputTokensRecoveryCount=0;
-      next.hasAttemptedReactiveCompact=false;
-      next.maxOutputTokensOverride.reset();
-      next.transition=Json{{"reason","token_budget_continuation"}};
-      finish(CompletionDecision{next,{}});return;
-    }
-    const Json& completionEvent=field(decision,"completionEvent");
-    if(value::truthy(field(completionEvent,"diminishingReturns"))){
-      need(services.logForDebugging,"logForDebugging");
-      const Json& pct=field(completionEvent,"pct");
-      services.logForDebugging("Token budget early stop: diminishing returns at "+
-        (pct.is_number()?value::numberToString(pct.get<double>()):
-          std::string("undefined"))+"%");
-    }
-  }
   finish(CompletionDecision{{},Json{{"reason","completed"}}});
 }
 } // namespace batbox::query::async_completion

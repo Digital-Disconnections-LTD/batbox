@@ -22,7 +22,6 @@ public:
   static std::shared_ptr<Flight> create(Inputs inputs);
   std::shared_ptr<flights::async_project::AsyncProject> project()const{return project_;}
   std::shared_ptr<flights::Paths> paths()const{return paths_;}
-  event_loop::Deferred<flights::LoadedTranscript> load(const std::string& flight);
   event_loop::Deferred<bool> doesMessageExistInFlight(const std::string& uuid);
   event_loop::Deferred<std::optional<std::string>> record(
     const std::vector<flights::MessageRef>& messages);
@@ -43,9 +42,7 @@ public:
   const std::string& id()const{return *flightId_;}
   std::filesystem::path workingDirectory()const;
   std::filesystem::path planFilePath(const std::optional<std::string>& bat={});
-  std::optional<std::string> planContent(const std::optional<std::string>& bat={});
   bool restorePlan(const Json& log,bool remote=false);
-  bool copyPlanForFork(const Json& log,const std::string& targetFlight);
 private:
   explicit Flight(Inputs inputs):inputs_(std::move(inputs)){}
   void initialize();

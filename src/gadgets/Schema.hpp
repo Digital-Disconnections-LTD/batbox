@@ -30,11 +30,6 @@ struct GadgetSchemaStash {
   void clear();
 };
 
-struct ZodSchemaStash {
-  std::unordered_map<const void*, Json> entries;
-  Json toJsonSchema(const void* schemaIdentity, const std::function<Json()>& convert);
-};
-
 struct GadgetSchemaOptions {
   PoetryContext poetry;
   std::optional<std::string> model;
@@ -47,13 +42,11 @@ struct GadgetSchemaServices {
   std::function<Json(const Gadget&)> convertInputSchema;
   std::function<bool()> strictGadgetsEnabled;
   std::function<bool(const std::string&)> modelSupportsStructuredOutputs;
-  std::function<bool()> batSwarmsEnabled;
   std::function<bool()> directProvider;
   std::function<bool()> directBackendBaseUrl;
   std::function<bool()> fineGrainedFeature;
   std::function<bool()> fineGrainedEnv;
   std::function<void(const std::string&)> logDebug;
-  bool disableExperimentalBetas = false;
   std::string exitPlanModeGadgetName;
   std::string batGadgetName;
   GadgetSchemaWireKeys wire;

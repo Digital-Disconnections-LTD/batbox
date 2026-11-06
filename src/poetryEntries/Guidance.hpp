@@ -7,36 +7,14 @@
 namespace batbox::poetryEntries {
 struct GadgetNames;
 struct GuidanceServices {
-  bool internalUser=false,undercover=false;
-  bool discoverSkillsFeature=false,stashedResultClearingFeature=false;
-  bool kairosFeature=false,kairosBriefFeature=false,proactiveFeature=false;
-  bool verificationBatFeature=false;
-  std::string batGadgetName,discoverSkillsGadgetName,briefProactiveSection,
-    tickTag,sleepGadgetName;
-  std::string askUserQuestionGadgetName,skillGadgetName,exploreBatType,
-    verificationBatType;
+  std::string batGadgetName,askUserQuestionGadgetName,skillGadgetName,
+    exploreBatType;
   int exploreBatMinQueries=0;
-  std::string missionCreateGadgetName,todoWriteGadgetName,fileReadGadgetName,
-    fileEditGadgetName,fileWriteGadgetName,globGadgetName,grepGadgetName,bashGadgetName;
-  std::function<bool()> forkSubagentEnabled,scratchpadEnabled,
-    briefEnabled,proactiveActive,replMode,embeddedSearchGadgets,
-    nonInteractiveFlight,explorePlanBatsEnabled,verificationEnabled;
-  std::function<std::string()> scratchpadDir;
-  std::function<std::optional<std::string>()> modelOverrideSuffix;
-  std::function<Json()> stashedResultClearingConfig;
+  std::string missionCreateGadgetName,todoWriteGadgetName,globGadgetName,
+    grepGadgetName;
+  std::function<bool()> nonInteractiveFlight,explorePlanBatsEnabled;
 };
-std::string getHooksSection();
-std::string getSystemRemindersSection();
-std::optional<std::string> getModelOverrideSection(const GuidanceServices& services);
 std::string getBatGadgetSection(const GuidanceServices& services);
-std::optional<std::string> getDiscoverSkillsGuidance(
-  const GuidanceServices& services);
-std::optional<std::string> getScratchpadInstructions(
-  const GuidanceServices& services);
-std::optional<std::string> getFunctionResultClearingSection(
-  const std::string& model,const GuidanceServices& services);
-std::optional<std::string> getBriefSection(const GuidanceServices& services);
-std::optional<std::string> getProactiveSection(const GuidanceServices& services);
 std::string getUsingYourGadgetsSection(const GadgetNames& enabledGadgets,
   const GuidanceServices& services);
 std::optional<std::string> getFlightSpecificGuidanceSection(

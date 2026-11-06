@@ -23,6 +23,5 @@ public:
   event_loop::Deferred<std::vector<SectionValue>> resolveSystemPoetrySections(
     const std::vector<AsyncPoetrySection>& sections);
   void clearSystemPoetrySections(const std::function<void()>& clearBetaHeaderLatches);
-  std::optional<SectionValue> stashed(const std::string& name)const;
 };
 }

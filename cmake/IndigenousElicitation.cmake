@@ -24,13 +24,6 @@ if(BUILD_TESTING)
     batbox_application_mcp_elicitation batbox_mcp)
   add_test(NAME phase6-indigenous-mcp-elicitation COMMAND batbox-indigenous-mcp-elicitation)
   set_tests_properties(phase6-indigenous-mcp-elicitation PROPERTIES TIMEOUT 45)
-  add_executable(batbox-indigenous-elicitation-date-format-driver
-    checks/indigenous_elicitation_date_format_driver.cpp)
-  target_link_libraries(batbox-indigenous-elicitation-date-format-driver PRIVATE
-    batbox_application_mcp_elicitation)
 
 endif()
 
-if(BUILD_TESTING)
-
-endif()

@@ -17,6 +17,9 @@ std::ptrdiff_t countNewlines(std::u16string_view text, std::size_t start = 0) {
 } // namespace
 
 std::string poetryDisplayText(const std::string& text) {
+  // UTF-8 never has fewer bytes than UTF-16 code units, so short text needs
+  // no conversion to know it fits.
+  if (text.size() <= maxDisplayChars) return text;
   const auto units = value::utf16CodeUnits(text);
   if (units.size() <= maxDisplayChars) return text;
   const auto head = units.substr(0, headChars);

@@ -1,6 +1,5 @@
 #include "instructions/MemoryPoetry.hpp"
 #include "instructions/MemoryTypes.hpp"
-#include <stdexcept>
 
 namespace batbox::instructions {
 namespace {
@@ -11,30 +10,9 @@ void append(std::vector<std::string>& out,const std::optional<std::vector<std::s
   if(source)out.insert(out.end(),source->begin(),source->end());
 }
 }
-std::vector<std::string> buildSearchingPastContextSection(const std::string& autoMemDir,
-  const MemoryPoetryServices& services){
-  if(!services.searchPastContextEnabled)return {};
-  if(!services.getProjectDir)throw std::invalid_argument("Missing project directory import");
-  const auto projectDir=services.getProjectDir(services.originalCwd);
-  const bool embedded=services.embeddedSearchGadgets||services.replMode;
-  const auto memSearch=embedded
-    ?"grep -rn \"<search term>\" "+autoMemDir+" --include=\"*.md\""
-    :services.grepGadgetName+" with pattern=\"<search term>\" path=\""+
-      autoMemDir+"\" glob=\"*.md\"";
-  const auto transcriptSearch=embedded
-    ?"grep -rn \"<search term>\" "+projectDir+"/ --include=\"*.jsonl\""
-    :services.grepGadgetName+" with pattern=\"<search term>\" path=\""+
-      projectDir+"/\" glob=\"*.jsonl\"";
-  return {"## Searching past context","","When looking for past context:",
-    "1. Search topic files in your memory directory:","```",memSearch,"```",
-    "2. Session transcript logs (last resort — large files, slow):",
-    "```",transcriptSearch,"```",
-    "Use narrow search terms (error messages, file paths, function names) rather than broad keywords.",
-    ""};
-}
 std::vector<std::string> buildMemoryLines(const std::string& displayName,
   const std::string& memoryDir,const std::optional<std::vector<std::string>>& extraGuidelines,
-  bool skipIndex,const MemoryPoetryServices& services){
+  bool skipIndex){
   std::vector<std::string> howToSave;
   if(skipIndex){
     howToSave={"## How to save memories","",
@@ -80,8 +58,6 @@ std::vector<std::string> buildMemoryLines(const std::string& displayName,
     ""});
   append(lines,extraGuidelines);
   lines.push_back("");
-  const auto search=buildSearchingPastContextSection(memoryDir,services);
-  lines.insert(lines.end(),search.begin(),search.end());
   return lines;
 }
 } // namespace batbox::instructions

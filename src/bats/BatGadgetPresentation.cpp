@@ -36,37 +36,23 @@ bool hasStatus(const Json& data,const char* status) {
 }
 } // namespace
 
-Json mapBatGadgetResult(const Json& data,const std::string& gadgetUseId,
-    const std::string& fileReadGadgetName,const std::string& bashGadgetName) {
-  if (hasStatus(data,"teammate_spawned")) {
-    const std::string text="Spawned successfully.\nagent_id: "+
-      interpolated(data,"teammate_id")+"\nname: "+interpolated(data,"name")+
-      "\nteam_name: "+interpolated(data,"team_name")+
-      "\nThe agent is now running and will receive instructions via mailbox.";
-    return resultBlock(gadgetUseId,Json::array({contentText(text)}));
-  }
-  if (hasStatus(data,"remote_launched")) {
-    const std::string text="Remote agent launched in CCR.\ntaskId: "+
-      interpolated(data,"taskId")+"\nsession_url: "+
-      interpolated(data,"sessionUrl")+"\noutput_file: "+
-      interpolated(data,"outputFile")+
-      "\nThe agent is running remotely. You will be notified automatically when it completes."
-      "\nBriefly tell the user what you launched and end your response.";
-    return resultBlock(gadgetUseId,Json::array({contentText(text)}));
-  }
+Json mapBatGadgetResult(const Json& data,const std::string& gadgetUseId) {
   if (hasStatus(data,"async_launched")) {
-    const std::string prefix="Async agent launched successfully.\nagentId: "+
-      interpolated(data,"agentId")+
-      " (internal ID - do not mention to user. Use SendMessage with to: '"+
-      interpolated(data,"agentId")+
-      "' to continue this agent.)\nThe agent is working in the background. You will be notified automatically when it completes.";
-    const bool readable=data.contains("canReadOutputFile") &&
-      value::truthy(data.at("canReadOutputFile"));
-    const std::string instructions=readable?
-      "Do not duplicate this agent's work — avoid working with the same files or topics it is using. Work on non-overlapping tasks, or briefly tell the user what you launched and end your response.\noutput_file: "+
-      interpolated(data,"outputFile")+
-      "\nIf asked, you can check progress before completion by using "+
-      fileReadGadgetName+" or "+bashGadgetName+" tail on the output file.":
+    const auto id=interpolated(data,"agentId");
+    const std::string prefix="Async agent launched successfully.\nagentId: "+id+
+      " (internal ID - do not mention to user. Use SendMessage with to: '"+id+
+      "' to continue this agent.)\nThe agent is working in the background. Its result "
+      "will come back to you as a notification when it finishes. Do not launch another "
+      "agent for the same work.";
+    // Older results carry no canWaitForResult; TaskOutput is a core Gadget.
+    const bool canWait=!data.contains("canWaitForResult") ||
+      value::truthy(data.at("canWaitForResult"));
+    const std::string instructions=canWait?
+      "- If your next step needs this agent's result, wait for it: call TaskOutput with "
+      "task_id: \""+id+"\" and block: true. It returns the result when the agent finishes.\n"
+      "- If you have other work that does not depend on the result, do that first, keeping "
+      "away from the files and topics the agent is working on. Then wait with TaskOutput "
+      "if you still need the result.":
       "Briefly tell the user what you launched and end your response. Do not generate any other text — agent results will arrive in a subsequent message.";
     return resultBlock(gadgetUseId,Json::array({contentText(prefix+"\n"+instructions)}));
   }
@@ -166,7 +152,7 @@ std::string groupedBatGadgetUseText(const Json& entries){
     // the Bat's outcome, which arrives later as a notification.
     const auto& status=value::property(value::property(entry,"output"),"status");
     if(value::property(entry,"isError")==true)state="Failed";
-    else if(status=="async_launched"||status=="remote_launched"||status=="teammate_spawned")
+    else if(status=="async_launched")
       state=by.empty()?"Launched":"";
     else if(value::property(entry,"isResolved")==true)state="Completed";
     else if(value::property(entry,"isInProgress")==true||

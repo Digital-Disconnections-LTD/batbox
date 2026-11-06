@@ -46,7 +46,8 @@ GlobResult glob(const std::string& filePattern,const std::string& cwd,
     services.getFileReadIgnorePatterns(permission),searchDir);
   require(static_cast<bool>(services.noIgnore),"noIgnore");
   require(static_cast<bool>(services.hidden),"hidden");
-  std::vector<std::string> args={"--files","--glob",searchPattern,"--sort=modified"};
+  // Newest first, so a result cut at the limit keeps the recently changed files.
+  std::vector<std::string> args={"--files","--glob",searchPattern,"--sortr=modified"};
   if(services.noIgnore())args.push_back("--no-ignore");
   if(services.hidden())args.push_back("--hidden");
   for(const auto& pattern:ignore){args.push_back("--glob");args.push_back("!"+pattern);}
@@ -55,14 +56,15 @@ GlobResult glob(const std::string& filePattern,const std::string& cwd,
     args.push_back("--glob");args.push_back(exclusion);
   }
   require(static_cast<bool>(services.ripGrep),"ripGrep");
-  const auto all=services.ripGrep(args,searchDir,stopToken);
-  std::vector<std::string> absolute;
-  absolute.reserve(all.size());
-  for(const auto& path:all)absolute.push_back(fs::path(path).is_absolute()
-    ? path : (fs::path(searchDir)/path).lexically_normal().string());
-  const bool truncated=absolute.size()>offset+limit;
-  const auto begin=std::min(offset,absolute.size());
-  const auto end=std::min(offset+limit,absolute.size());
-  return {std::vector<std::string>(absolute.begin()+begin,absolute.begin()+end),truncated};
+  auto found=services.ripGrep(args,searchDir,stopToken);
+  const auto& all=found.lines;
+  const bool truncated=all.size()>offset+limit;
+  const auto begin=std::min(offset,all.size());
+  const auto end=std::min(offset+limit,all.size());
+  std::vector<std::string> files;
+  files.reserve(end-begin);
+  for(auto at=begin;at<end;++at)files.push_back(fs::path(all[at]).is_absolute()
+    ? all[at] : (fs::path(searchDir)/all[at]).lexically_normal().string());
+  return {std::move(files),truncated,std::move(found.incomplete)};
 }
 } // namespace batbox::gadgets::files

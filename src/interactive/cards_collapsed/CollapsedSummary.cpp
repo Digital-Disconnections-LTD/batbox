@@ -57,7 +57,7 @@ std::string join(const std::vector<std::string>& values){
 
 void appendCollapsedSummary(std::vector<Span>& out,const Json& message,
    const CollapsedCounts& counts,bool fullscreen,bool active,
-   bool teamMemoryEnabled,const CollapsedServices& services){
+   const CollapsedServices& services){
   if(fullscreen){
     const auto commits=arrayField(message,"commits");
     for(const auto& [kind,verb]:
@@ -144,29 +144,5 @@ void appendCollapsedSummary(std::vector<Span>& out,const Json& message,
   }
   if(memoryWrite>0)counted(out,active?"writing":"wrote",
       memoryWrite,"memory","memories");
-  if(teamMemoryEnabled){
-    const double teamRead=count(message,"teamMemoryReadCount");
-    const double teamSearch=count(message,"teamMemorySearchCount");
-    const double teamWrite=count(message,"teamMemoryWriteCount");
-    if(teamRead>0){
-      const bool first=out.empty();comma(out);
-      text(out,(first?capital(active?"recalling":"recalled"):
-        active?"recalling":"recalled")+" ");
-      text(out,number(teamRead),true);
-      text(out,std::string(" team ")+plural(teamRead,"memory","memories"));
-    }
-    if(teamSearch>0){
-      const bool first=out.empty();comma(out);
-      text(out,(first?capital(active?"searching":"searched"):
-        active?"searching":"searched")+" team memories");
-    }
-    if(teamWrite>0){
-      const bool first=out.empty();comma(out);
-      text(out,(first?capital(active?"writing":"wrote"):
-        active?"writing":"wrote")+" ");
-      text(out,number(teamWrite),true);
-      text(out,std::string(" team ")+plural(teamWrite,"memory","memories"));
-    }
-  }
 }
 }

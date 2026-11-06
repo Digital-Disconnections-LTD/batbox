@@ -4,8 +4,8 @@ The `indigenous` preset builds the terminal executable in Release mode, with the
 developer checks disabled. CMake 3.24+, Ninja, a C++20 compiler and
 Git are required. FTXUI is pinned and fetched by CMake. Ada URL and cmark-gfm
 also have pinned source fallbacks; an installed system cmark-gfm is preferred.
-The application uses CURL, OpenSSL, ICU, libuv, libvips, yaml-cpp, PCRE2,
-nlohmann-json and libwebsockets.
+The application uses CURL, OpenSSL, ICU, libuv, libvips, yaml-cpp, PCRE2
+and nlohmann-json.
 
 The main build target and executable are `batbox` on every platform (`batbox.exe`
 on Windows). Once prerequisites below are installed, `bash gadgets/install-linux.sh`,
@@ -13,6 +13,10 @@ on Windows). Once prerequisites below are installed, `bash gadgets/install-linux
 builds and installs the command on your user PATH. POSIX installers accept
 `--skip-build` for a binary already built in `build/indigenous`. Windows accepts
 `-RuntimeRoot C:\msys64\ucrt64` when the UCRT64 prefix is not detected automatically.
+
+The POSIX installers and `gadgets/build-macos.sh` build with six parallel jobs.
+Set `BATBOX_BUILD_JOBS` to use another number, for example `BATBOX_BUILD_JOBS=2`
+on a small machine.
 
 ## Homebrew (macOS)
 
@@ -30,7 +34,10 @@ Installing by the full name trusts that one formula; to use the short name
 and later only load trusted formulae from non-official taps).
 The formula builds from source (or pours a bottle when the tap has one), pins
 FTXUI and Ada as formula resources, and takes every other library from Homebrew.
-`batbox --version` reports the installed version. The canonical formula lives in
+`batbox --version` reports the installed version on its first line, then the
+Git commit and the date the build was configured. A build from a source archive
+has no Git history and says `commit unknown` unless CMake gets
+`-DBATBOX_GIT_COMMIT=<commit>`. The canonical formula lives in
 `packaging/homebrew/Formula/batbox.rb`; [RELEASING.md](../RELEASING.md) explains
 how a release reaches the tap.
 
@@ -40,6 +47,8 @@ data files from its prefix. Offline builds can supply pre-unpacked sources with
 `-DFETCHCONTENT_SOURCE_DIR_BATBOX_FTXUI_UPSTREAM=<dir>` and
 `-DBATBOX_ADA_SOURCE_DIR=<dir>`; with `-DFETCHCONTENT_FULLY_DISCONNECTED=ON` and
 `-DBATBOX_FETCH_CMARK_GFM=OFF` the configure step makes no network requests.
+`-DBATBOX_FORCE_BUNDLED_CMARK_GFM=ON` ignores an installed cmark-gfm and
+statically links the pinned release instead.
 
 ## Linux
 
@@ -48,7 +57,7 @@ On Debian/Ubuntu:
 ```sh
 sudo apt-get install cmake ninja-build g++ git pkg-config \
   nlohmann-json3-dev libcurl4-openssl-dev libssl-dev libicu-dev \
-  libuv1-dev libvips-dev libyaml-cpp-dev libpcre2-dev libwebsockets-dev \
+  libuv1-dev libvips-dev libyaml-cpp-dev libpcre2-dev \
   libcmark-gfm-dev libcmark-gfm-extensions-dev
 cmake --preset indigenous
 cmake --build --preset indigenous --parallel 6
@@ -72,7 +81,7 @@ including Homebrew library prefixes and the AppKit clipboard adapter:
 
 ```sh
 brew install cmake ninja pkgconf nlohmann-json curl openssl@3 icu4c \
-  libuv vips yaml-cpp pcre2 libwebsockets cmark-gfm git ripgrep
+  libuv vips yaml-cpp pcre2 cmark-gfm git ripgrep
 bash gadgets/build-macos.sh
 ./build/indigenous/batbox --help
 ```
@@ -93,7 +102,7 @@ pacman -S --needed git mingw-w64-ucrt-x86_64-gcc \
   mingw-w64-ucrt-x86_64-curl mingw-w64-ucrt-x86_64-openssl \
   mingw-w64-ucrt-x86_64-icu mingw-w64-ucrt-x86_64-libuv \
   mingw-w64-ucrt-x86_64-libvips mingw-w64-ucrt-x86_64-yaml-cpp \
-  mingw-w64-ucrt-x86_64-pcre2 mingw-w64-ucrt-x86_64-libwebsockets
+  mingw-w64-ucrt-x86_64-pcre2
 cmake --preset indigenous
 cmake --build --preset indigenous --parallel 6
 ./build/indigenous/batbox.exe --help
@@ -104,9 +113,8 @@ build inside its MSYS2 environment so dependency DLLs are on PATH. A relocatable
 `gadgets/package_indigenous.py --runtime-root /ucrt64`; see
 [indigenous-windows.md](indigenous-windows.md). Indigenous interactive Windows acceptance
 remains separate work. MSYS2 documents the
-[UCRT64 environment](https://www.msys2.org/docs/environments/),
-[libvips package](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-libvips)
-and [libwebsockets package](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-libwebsockets).
+[UCRT64 environment](https://www.msys2.org/docs/environments/)
+and [libvips package](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-libvips).
 
 ## Developer checks
 
@@ -180,4 +188,4 @@ and manual dispatch. Artifacts are preview packages. A configured workflow is no
 a claim that hosted jobs have run.
 
 Before release, test the packages on clean machines and exercise real terminals,
-clipboard, browser authentication, and credential storage. See [the roadmap](../ROADMAP.md).
+clipboard, browser authentication, and credential storage.

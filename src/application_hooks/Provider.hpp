@@ -6,7 +6,7 @@
 #include "instructions/hooks/runtime/EnvHooks.hpp"
 #include "instructions/hooks/runtime/HookOutputParser.hpp"
 #include "instructions/hooks/runtime/IndigenousCommandFull.hpp"
-#include "instructions/hooks/runtime/StopPoetryWrappers.hpp"
+#include "instructions/hooks/runtime/HookEventWrappers.hpp"
 #include "instructions/hooks/runtime/PoetryHookExecutor.hpp"
 #include "instructions/hooks/runtime/BatHookExecutor.hpp"
 #include "instructions/hooks/runtime/StructuredOutputEnforcement.hpp"
@@ -108,6 +108,9 @@ public:
   event_loop::Deferred<hooks::EnvHookResult> cwdChanged(
     const std::string& oldCwd,const std::string& newCwd);
   event_loop::Deferred<event_loop::Unit> clearCwdEnvFiles();
+  // What SessionStart, Setup, CwdChanged and FileChanged hooks wrote to their
+  // environment files, for the Bash Gadget to run before each command.
+  event_loop::Deferred<std::optional<std::string>> flightEnvironmentScript();
   bool hasHooksFor(const std::string& event)const;
   bool hasActiveJobs()const;
   event_loop::Deferred<std::string> createWorktreeHook(
@@ -116,12 +119,6 @@ public:
     const Json& configured,const std::string& source,bool isBat,
     std::optional<std::string> skillRoot={});
   void clearFlightHooks(const std::string& flightId);
-  std::string addFunctionHook(const std::string& flightId,
-    const std::string& event,const std::string& matcher,
-    std::function<hooks::FunctionHookReply(const Json&,std::stop_token)> callback,
-    const std::string& errorMessage,std::optional<double> timeout={});
-  void removeFunctionHook(const std::string& flightId,
-    const std::string& event,const std::string& id);
 private:
   hooks::HookYieldCursor makeSourceCursor(const std::string& event,
     Json detail,std::string matchQuery,std::stop_token signal,
@@ -157,6 +154,7 @@ private:
   hooks::HookParserServices parser_;
   hooks::BaseHookInputServices baseServices_;
   std::shared_ptr<hooks::FlightEnvironment> flightEnvironment_;
+  std::string environmentFlightId_;
   std::shared_ptr<hooks::AsyncHookRoster> asyncRoster_;
   std::shared_ptr<hooks::PoetryHookHost> poetryHost_;
   std::shared_ptr<hooks::BatHookHost> batHost_;

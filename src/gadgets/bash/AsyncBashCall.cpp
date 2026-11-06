@@ -16,8 +16,7 @@ void require(bool value,const char* name){
   if(!value)throw std::invalid_argument(std::string("async Bash import required: ")+name);
 }
 shell::RunOptions optionsFor(const AsyncExecRequest& request,const Json& input,
-  const gadgets::GadgetCallContext& context,std::shared_ptr<const Services> service){
-  const auto& services=*service;
+  const gadgets::GadgetCallContext& context){
   shell::RunOptions options;
   options.command=request.command;
   options.description=stringField(input,"description");
@@ -30,15 +29,6 @@ shell::RunOptions optionsFor(const AsyncExecRequest& request,const Json& input,
     context.currentAbortReason:[data=context.data]{return stringField(data,"abortReason");};
   options.autoBackgroundEnabled=request.shouldAutoBackground;
   options.managedAssistantBackgroundEnabled=false;
-  if(request.useSandbox){
-    require(bool(services.getSandboxTmpDir),"getSandboxTmpDir");
-    require(bool(services.logDebug),"logDebug");
-    options.useSandbox=true;options.sandboxTmpDir=services.getSandboxTmpDir();
-    options.sandboxWrap=[service,rawInput=input,data=context.data](
-      const std::string& command){
-      return service->sandboxCommand(command,rawInput,data);};
-    options.logDebug=services.logDebug;
-  }
   return options;
 }
 struct State:std::enable_shared_from_this<State>{
@@ -97,7 +87,7 @@ struct State:std::enable_shared_from_this<State>{
       imports.exec=[&owner=loop,service=services,rawInput=input,
         gadgetContext=context](const AsyncExecRequest& request){
         return execManagedOnLoop(owner,service->shell,
-          optionsFor(request,rawInput,gadgetContext,service),request.shouldAutoBackground);};
+          optionsFor(request,rawInput,gadgetContext),request.shouldAutoBackground);};
       imports.spawnBackgroundMission=[missionHost=host,gadgetContext=context](const AsyncRunInput& input,
         const AsyncShellCommand& command){
         return missionHost->spawnShellMission(input,command,gadgetContext);};
@@ -116,8 +106,6 @@ struct State:std::enable_shared_from_this<State>{
           service->showBackgroundHint(data);};
       imports.startPolling=bindMissionOutputPoller(loop,*services->missionOutputPoller);
       imports.isAutoBackgroundAllowed=host->isAutoBackgroundAllowed;
-      imports.shouldUseSandbox=[service=services,rawInput=input](const AsyncRunInput&){
-        return service->shouldUseSandbox(rawInput);};
       imports.nowMs=[started=std::chrono::steady_clock::now()]{
         return std::chrono::duration<double,std::milli>(
           std::chrono::steady_clock::now()-started).count();};
@@ -160,16 +148,20 @@ struct State:std::enable_shared_from_this<State>{
     }
     try{
       auto self=shared_from_this();
-      auto command=prepared.command;
+      // Persistence needs only where the output is, not the output itself.
+      shell::ExecResult location;
+      location.outputFilePath=prepared.command.outputFilePath;
+      location.outputMissionId=prepared.command.outputMissionId;
       auto complete=[self,prepared=std::move(prepared)](
-        const BashPersistedOutput& persisted){
-          self->afterPersistence(prepared,persisted);
+        const BashPersistedOutput& persisted)mutable{
+          self->afterPersistence(std::move(prepared),persisted);
         };
-      (void)persistBashOutputAsync(loop,command,host->fileOps,std::move(complete));
+      (void)persistBashOutputAsync(loop,location,host->fileOps,std::move(complete));
     }catch(...){reject(std::current_exception(),false);}
   }
   void afterPersistence(BashPreparedResult prepared,BashPersistedOutput persisted){
     try{
+      throwIfBashFailed(prepared,persisted);
       auto finalInput=prepareBashFinalInput(input,prepared,*services);
       if(!finalInput.isImage){
         resolve(finishBashFinalOutput(input,prepared,persisted,finalInput,{},*services));
@@ -208,9 +200,6 @@ event_loop::Deferred<gadgets::GadgetResult> callAsyncBash(event_loop::Loop& loop
   }
   require(bool(host),"taskHost");
   require(bool(services->shell),"shell");require(bool(services->missionOutputPoller),"taskOutputPoller");
-  require(bool(services->shouldUseSandbox),"shouldUseSandbox");
-  require(bool(services->sandboxCommand),"sandboxCommand");
-  require(bool(services->annotateSandboxFailures),"annotateSandboxFailures");
   require(bool(services->resetCwdIfOutsideProject),"resetCwdIfOutsideProject");
   require(bool(services->splitCommand),"splitCommand");
   require(bool(services->splitWithOperators),"splitWithOperators");

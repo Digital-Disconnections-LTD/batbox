@@ -46,7 +46,6 @@ std::shared_ptr<AggregateProvider> AggregateProvider::create(AggregateInputs inp
   if(!inputs.poetryState)inputs.poetryState=std::make_shared<bootstrap::PoetryState>();
   if(!inputs.transitions)inputs.transitions=
     std::make_shared<bootstrap::FlightTransitions>();
-  if(!inputs.feature)inputs.feature=[](const std::string&){return false;};
   if(!inputs.log)inputs.log=[](const std::string&){};
   return std::shared_ptr<AggregateProvider>(new AggregateProvider(std::move(inputs)));
 }
@@ -65,12 +64,8 @@ attachments::Services AggregateProvider::services(
   auto& loop=inputs_.files.owner;
   attachments::Services result{loop};
   auto self=shared_from_this();
-  result.feature=inputs_.feature;
   result.isTodoV2Enabled=inputs_.isTodoV2Enabled?
     inputs_.isTodoV2Enabled:[] {return false;};
-  result.isBatSwarmsEnabled=inputs_.isBatSwarmsEnabled?
-    inputs_.isBatSwarmsEnabled:[] {return false;};
-  result.skillSearchModulesPresent=[] {return false;};
   result.disableAttachments=[] {return envTruthy("BATBOX_DISABLE_ATTACHMENTS");};
   result.simpleMode=[] {return envTruthy("BATBOX_SIMPLE");};
   result.logError=[self](std::exception_ptr error){
@@ -119,18 +114,10 @@ attachments::Services AggregateProvider::services(
   }
   attachments::context::Services context;
   context.leaves.poetryState=inputs_.poetryState.get();
-  context.leaves.costState=inputs_.costState.get();
   context.leaves.localIsoDate=inputs_.localIsoDate?
     inputs_.localIsoDate:localDate;
-  context.leaves.feature=inputs_.feature;
-  context.leaves.kairosActive=[] {return false;};
-  context.leaves.ultrathinkEnabled=inputs_.ultrathinkEnabled?
-    inputs_.ultrathinkEnabled:[] {return false;};
   context.leaves.getSettings=[self]{
     return self->inputs_.settings?self->inputs_.settings():Json::object();};
-  context.deferral.feature=inputs_.feature;
-  context.deferral.forkSubagentEnabled=[] {return false;};
-  context.deferral.replBridgeActive=[] {return false;};
   context.deferredGadgetsDeltaEnabled=inputs_.deferredGadgetsEnabled?
     inputs_.deferredGadgetsEnabled:[] {return false;};
   context.gadgetSearchEnabledOptimistic=[] {return false;};
@@ -143,7 +130,6 @@ attachments::Services AggregateProvider::services(
   context.modelSupportsGadgetReference=inputs_.modelSupportsGadgetReference;
   context.getAppState=inputs_.files.getAppState;
   context.filterDeniedBats=inputs_.filterDeniedBats;
-  context.subscriptionType=inputs_.subscriptionType;
   context.effectiveContextWindow=inputs_.effectiveContextWindow;
   attachments::context::bindContextCollectors(result,std::move(context));
 
@@ -156,9 +142,6 @@ attachments::Services AggregateProvider::services(
   local.missionListId=inputs_.missionListId;
   local.listMissions=inputs_.listMissions;
   local.todoV2Enabled=result.isTodoV2Enabled;
-  local.internalUser=inputs_.internalUser?
-    inputs_.internalUser:[] {return false;};
-  local.verifyPlanEnabled=[feature=inputs_.feature]{return feature("VERIFY_PLAN");};
   local.getNewDiagnostics=[self]{
     if(self->inputs_.getNewDiagnostics)return self->inputs_.getNewDiagnostics();
     if(self->inputs_.ideAvailable&&self->inputs_.ideAvailable())
@@ -188,10 +171,20 @@ attachments::Services AggregateProvider::services(
         (evicted.is_array()&&!evicted.empty()))
       throw std::runtime_error("Task attachment offsets are unavailable");};
   local.missionOutputPath=inputs_.missionOutputPath;
-  local.structuredPatch=inputs_.structuredPatch;
+  if(inputs_.structuredPatch)local.structuredPatch=inputs_.structuredPatch;
   local.compactLinePrefixEnabled=[] {return false;};
   attachments::local::bindLocalCollectors(result,std::move(local));
   bindRemaining(result);
+  if(inputs_.headFileChanges)
+    result.collectors.headFileChanges=[self,&loop](const attachments::Input&,
+        execution::Context& context){
+      const auto files=context.readFileState;
+      return ready(loop,self->inputs_.headFileChanges([files](const std::string& path){
+        if(!files)return false;
+        const auto state=files->get(path);
+        return state&&!state->offset&&!state->limit;
+      }));
+    };
   return result;
 }
 

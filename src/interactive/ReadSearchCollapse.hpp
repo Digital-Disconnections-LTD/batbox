@@ -15,9 +15,6 @@ struct ReadSearchImports {
   std::function<std::optional<std::string>(const std::string&)>
       extractBashCommentLabel;
   std::function<std::string(const std::string&)> getDisplayPath;
-  std::function<bool(const std::string&, const Json&)> isTeamMemoryWriteOrEdit;
-  std::function<bool(const Json&)> isTeamMemorySearch;
-  std::function<bool(const std::string&)> isTeamMemFile;
   std::function<Json(const std::string&, const std::string&)> detectGitOperation;
 };
 

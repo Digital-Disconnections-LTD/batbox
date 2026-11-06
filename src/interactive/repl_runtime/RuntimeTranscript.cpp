@@ -21,13 +21,7 @@ void Runtime::observeTranscriptMode(){
   inTranscriptObserved_=active;
   if(!active){
     searchQuery_.clear();
-    searchCount_=0;
-    searchCurrent_=0;
-    searchOpen_=false;
-    ++editorGeneration_;
     if(transcript_.cancelEditorTimer)transcript_.cancelEditorTimer();
-    dumpMode_=false;
-    editorStatus_.clear();
   }
   if(transcript_.setHighlight)
     transcript_.setHighlight(active?searchQuery_:std::string{});
@@ -35,12 +29,8 @@ void Runtime::observeTranscriptMode(){
     transcript_.clearPositions();
   if(transcript_.requestRedraw)transcript_.requestRedraw();
 }
-void Runtime::setTranscriptSearch(std::string query,bool open,
-    std::size_t count,std::size_t current){
+void Runtime::setTranscriptSearch(std::string query){
   searchQuery_=std::move(query);
-  searchOpen_=open;
-  searchCount_=count;
-  searchCurrent_=current;
   const bool active=transcriptScreen_&&virtualScrollActive_;
   if(transcript_.setHighlight)
     transcript_.setHighlight(active?searchQuery_:std::string{});

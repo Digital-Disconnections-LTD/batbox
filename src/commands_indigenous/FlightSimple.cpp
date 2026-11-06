@@ -15,40 +15,6 @@ void require(bool ready,const char* name){
   if(!ready)throw std::invalid_argument(std::string("Command import required: ")+name);
 }
 }
-user_input::CommandEntry makeCostCommand(std::shared_ptr<CostServices> services){
-  if(!services)throw std::invalid_argument("Cost services required");
-  user_input::CommandEntry entry;
-  entry.descriptor={{"type","local"},{"name","cost"},
-    {"description","Show total cost and duration of this Flight"},
-    {"supportsNonInteractive",true}};
-  entry.loadLocal=[services]{
-    event_loop::Deferred<user_input::LocalCall> loaded(services->loop);
-    loaded.resolve([services](const std::string&){
-      event_loop::Deferred<Json> output(services->loop);
-      try{
-        require(bool(services->isSubscriber)&&
-          bool(services->formatTotalCost),"cost provider");
-        std::string text;
-        if(services->isSubscriber()){
-          require(bool(services->isUsingOverage)&&
-            bool(services->showCostForInternalUser),"subscription status");
-          text=services->isUsingOverage()?
-            "You are currently using your overages to power your Batbox "
-            "usage. We will automatically switch you back to your subscription "
-            "rate limits when they reset":
-            "You are currently using your subscription to power your Batbox usage";
-          if(services->showCostForInternalUser())
-            text+="\n\n[INTERNAL] Showing cost anyway:\n "+
-              services->formatTotalCost();
-        }else text=services->formatTotalCost();
-        output.resolve(Json{{"type","text"},{"value",text}});
-      }catch(...){output.reject(std::current_exception());}
-      return output;
-    });
-    return loaded;
-  };
-  return entry;
-}
 user_input::CommandEntry makeRewindCommand(
     std::shared_ptr<RewindServices> services){
   if(!services)throw std::invalid_argument("Rewind services required");

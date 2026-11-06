@@ -15,9 +15,6 @@ Json parseObject(const Json& input){
   return input;
 }
 }
-bool isEnabledForNonInteractiveFlight(bool isNonInteractiveFlight){
-  return isNonInteractiveFlight;
-}
 Gadget makeSyntheticOutputGadget(const std::string& protocolName){
   if(protocolName.empty())
     throw std::invalid_argument("Structured-output protocol name required");

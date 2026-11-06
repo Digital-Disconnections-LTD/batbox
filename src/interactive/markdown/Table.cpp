@@ -113,8 +113,9 @@ std::string renderTable(const Token& table,int terminalWidth,
         const auto label=col<headers.size()&&!headers[col].empty()?headers[col]:
           "Column "+std::to_string(col+1);
         auto value=trimEnd(formatCell(row[col]));
-        value=std::regex_replace(value,std::regex(R"(\n+)")," ");
-        value=value::trim(std::regex_replace(value,std::regex(R"(\s+)")," "));
+        static const std::regex newlines(R"(\n+)"),spaces(R"(\s+)");
+        value=std::regex_replace(value,newlines," ");
+        value=value::trim(std::regex_replace(value,spaces," "));
         const auto firstWidth=terminalWidth-services.stringWidth(label)-3;
         const auto followingWidth=terminalWidth-3;
         auto wrapped=wrapText(value,std::max(firstWidth,10),false,wrapAnsi);

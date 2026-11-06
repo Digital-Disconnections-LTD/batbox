@@ -39,17 +39,12 @@ public:
   Completion insertMessageChainRefs(std::vector<MessageRef> messages,bool sidechain=false,
     std::optional<std::string> bat=std::nullopt,
     std::optional<std::string> startingParent=std::nullopt,Json team=Json::object());
-  Completion insertMessageChain(Json messages,bool sidechain=false,
-    std::optional<std::string> bat=std::nullopt,
-    std::optional<std::string> startingParent=std::nullopt,Json team=Json::object());
   Deferred<std::optional<std::string>> recordTranscriptRefs(
     const std::vector<MessageRef>& messages,const Json& team,
     std::optional<std::string> startingParent,const std::vector<MessageRef>& all);
   Completion recordSidechainTranscriptRefs(const std::vector<MessageRef>& messages,
     std::optional<std::string> bat,std::optional<std::string> startingParent);
   Completion insertFileHistorySnapshot(std::string messageId,Json snapshot,bool update);
-  Completion insertQueueOperation(Json operation);
-  Completion insertAttributionSnapshot(Json snapshot);
   Completion insertContentReplacement(Json replacements,std::optional<std::string> bat);
   Completion recordContextCollapseCommit(Json commit);
   Completion recordContextCollapseSnapshot(Json snapshot);

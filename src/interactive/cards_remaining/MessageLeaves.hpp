@@ -47,15 +47,4 @@ AdvisorCard classifyAdvisor(const Json& block,bool addMargin,
     const GadgetIDs& resolvedIDs,const GadgetIDs& erroredIDs,
     bool shouldAnimate,bool verbose,const std::optional<std::string>& advisorModel,
     const AdvisorServices& services);
-
-struct PartnerHeaderCard {
-  bool visible=false;
-  std::string name,color,poetry,exitHint;
-};
-struct PartnerHeaderServices {
-  std::function<std::optional<Json>()> readViewedPartner;
-  std::function<std::string()> exitShortcut;
-};
-PartnerHeaderCard classifyPartnerHeader(
-    const PartnerHeaderServices& services);
 }

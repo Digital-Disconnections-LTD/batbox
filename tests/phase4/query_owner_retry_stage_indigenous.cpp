@@ -19,7 +19,6 @@ int main() {
   deps.random=[]{return 0.25;};
   deps.nowMs=[]{return 1000.0;};
   deps.isFastModeEnabled=[&]{assert(loop.isOwnerThread());return false;};
-  deps.isSubscriber=[&]{assert(loop.isOwnerThread());return false;};
   deps.isDefaultPremiumModel=[&](const std::string&){
     assert(loop.isOwnerThread());return false;};
   deps.getClient=[&]{assert(!loop.isOwnerThread());return batbox::Json::object();};

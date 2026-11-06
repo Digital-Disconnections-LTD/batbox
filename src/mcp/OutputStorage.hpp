@@ -10,7 +10,6 @@ struct StorageConfig {
   std::string hostedServerPrefix="batbox.ai ";
 };
 std::string extensionForMimeType(const std::optional<std::string>& mimeType);
-bool isBinaryContentType(const std::string& contentType);
 Json persistBinaryContent(const std::string& bytes,const std::optional<std::string>& mimeType,
   const std::string& persistId,const StorageConfig& config);
 std::string getBinaryBlobSavedMessage(const std::string& filepath,

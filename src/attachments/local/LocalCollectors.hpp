@@ -21,7 +21,7 @@ struct Services {
   bootstrap::FlightTransitions* transitions=nullptr;
   std::function<std::string()> flightId,missionListId;
   std::function<event_loop::Deferred<Json>(const std::string&)> listMissions;
-  std::function<bool()> todoV2Enabled,internalUser,verifyPlanEnabled;
+  std::function<bool()> todoV2Enabled;
   std::function<event_loop::Deferred<Json>()> getNewDiagnostics;
   std::function<Json()> checkLspDiagnostics;
   std::function<void()> clearLspDiagnostics;
@@ -42,6 +42,9 @@ struct Services {
     bashGadgetName="Bash";
 };
 
+// One hunk spanning the changed lines with context lines on each side, in
+// the shape of structuredPatch's "hunks"; empty when the lines are the same.
+Json lineHunks(const std::string& before,const std::string& after,int context);
 std::string getSnippetForTwoFileDiff(const std::string& before,
   const std::string& after,const Services& services);
 event_loop::Deferred<Json> getChangedFiles(execution::Context& context,
@@ -59,8 +62,6 @@ event_loop::Deferred<Json> getDiagnosticAttachments(
 Json getLspDiagnosticAttachments(const execution::Context& context,
   const Services& services);
 event_loop::Deferred<Json> getUnifiedMissionAttachments(const Services& services);
-Json getVerifyPlanReminderAttachment(const Json& messages,
-  const Services& services);
 void bindLocalCollectors(attachments::Services& aggregation,Services services);
 Services makeIndigenousLocalServices(event_loop::Loop& loop,
   std::shared_ptr<files::Services> fileServices,

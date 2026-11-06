@@ -6,8 +6,7 @@
 #include <memory>
 
 namespace batbox::git {
-BasicsImports indigenousBasicsImports(event_loop::Loop& loop,
-  std::shared_ptr<git_filesystem::RootFinder> finder,
+BasicsImports indigenousBasicsImports(std::shared_ptr<git_filesystem::RootFinder> finder,
   git_filesystem::GitFilesystem& filesystem,
   std::function<std::string()> getCwd,
   std::function<void(const std::string&,const std::string&,

@@ -1,5 +1,5 @@
 add_library(batbox_bun_text_width
-  src/bun_text_width/Sdk.cpp src/bun_text_width/WidthCore.cpp
+  src/bun_text_width/WidthCore.cpp
   src/bun_text_width/Grapheme.cpp src/bun_text_width/Classification.cpp
   src/bun_text_width/Tables.cpp src/bun_text_width/WrapRows.cpp
   src/bun_text_width/WrapTrim.cpp src/bun_text_width/WrapPreserve.cpp

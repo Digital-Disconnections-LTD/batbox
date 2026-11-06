@@ -109,12 +109,6 @@ std::vector<Item> items(const Inputs& input,const std::vector<Json>& board){
   }
   return result;
 }
-std::string errorText(std::exception_ptr error){
-  try{if(error)std::rethrow_exception(error);}
-  catch(const std::exception& issue){return issue.what();}
-  catch(...){return "Mission operation failed";}
-  return "";
-}
 }
 class MissionDialog final:public std::enable_shared_from_this<MissionDialog> {
 public:

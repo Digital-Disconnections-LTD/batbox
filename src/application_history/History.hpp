@@ -5,6 +5,7 @@
 #include "fs_operations/NodeFsAsyncIndigenous.hpp"
 #include "locking/ProperLock.hpp"
 #include "cleanup/Roster.hpp"
+#include "paste_store/PasteStore.hpp"
 #include <memory>
 #include <unordered_set>
 
@@ -26,6 +27,8 @@ public:
   void record(const std::string& display,const Json& pastedContents);
   void removeLast();
   event_loop::Deferred<event_loop::Unit> flush();
+  // Removes stored pastes last changed before cutoffMs.
+  event_loop::Deferred<event_loop::Unit> cleanupOldPastes(double cutoffMs);
   std::shared_ptr<history::HistorySimpleCursor> reader();
   event_loop::Loop& owner()const{return inputs_.owner;}
 private:
@@ -38,6 +41,7 @@ private:
   std::shared_ptr<history::HistoryState> state_;
   std::unique_ptr<history::HistoryWriter> writer_;
   history::HistoryViewImports view_;
+  paste_store::Services pastes_;
 };
 
 class Navigator final:public std::enable_shared_from_this<Navigator> {
@@ -61,6 +65,8 @@ public:
   void cancelSearch();
   std::optional<std::string> executeSearch();
   bool searching()const{return searching_;}
+  // An older prompt is in the input from Up.
+  bool browsing()const{return index_!=0;}
   const std::string& searchQuery()const{return searchQuery_;}
   bool searchFailed()const{return searchFailed_;}
 private:

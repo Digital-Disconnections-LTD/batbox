@@ -152,11 +152,4 @@ Acquired acquire(const std::string& file,const Options& options,
     std::optional<Precision> stashedPrecision){
   return attempt(file,options,stashedPrecision,false);
 }
-bool check(const std::string& file,const Options& options){
-  try{return !(statMtime(lockPath(file,options))<nowMs()-options.staleMs);}
-  catch(const std::system_error& error){
-    if(error.code()==std::errc::no_such_file_or_directory)return false;
-    throw;
-  }
-}
 }

@@ -54,9 +54,4 @@ void stashAllowedDomain(const FetchServices& services,const std::string& hostnam
   while(stash.allowedDomains.size()>=maxDomains)stash.allowedDomains.pop_front();
   stash.allowedDomains.push_back({hostname,std::chrono::steady_clock::now()+domainTTL});
 }
-void clearWebFetchStash(FetchServices& services){
-  if(!services.stash)return;
-  auto& stash=*services.stash;std::lock_guard lock(stash.mutex);
-  stash.urls.clear();stash.allowedDomains.clear();stash.totalBytes=0;
-}
 } // namespace batbox::gadgets::web

@@ -20,7 +20,7 @@ struct PoetrySubmitRequest {
   std::string mode="prompt",mainLoopModel,querySource;
   Json pastedContents=Json::object();
   Json messages=Json::array(),ideSelection=Json();
-  bool isExternalLoading=false,hasInterruptibleGadgetInProgress=false;
+  bool isExternalLoading=false;
   bool skipSlashCommands=false;
   std::shared_ptr<TurnAbort> activeAbort;
   PoetryHelpers helpers;

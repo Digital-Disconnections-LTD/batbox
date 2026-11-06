@@ -17,22 +17,29 @@ target_link_libraries(batbox-phase5-application-gadgets-indigenous PRIVATE batbo
 add_test(NAME phase5-application-gadgets-indigenous COMMAND batbox-phase5-application-gadgets-indigenous
   ${CMAKE_SOURCE_DIR}/tests/phase4/mcp_stdio_server.py
   ${CMAKE_SOURCE_DIR}/tests/phase3/web_fake_scrapling.py)
-batbox_indigenous(phase5-remaining-commands-indigenous
-  tests/phase5/remaining_commands_indigenous.cpp batbox_core_commands)
 
 add_executable(batbox-application-model-http tests/phase6/application_model_http_probe.cpp)
 target_link_libraries(batbox-application-model-http PRIVATE batbox_application_model)
 add_test(NAME phase6-application-model-http COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_SOURCE_DIR}/tests/phase6/application_model_http.py --probe
   $<TARGET_FILE:batbox-application-model-http>)
+add_executable(batbox-request-limits-probe tests/phase6/request_limits_probe.cpp)
+target_link_libraries(batbox-request-limits-probe PRIVATE batbox_application_model
+  batbox_providers)
+add_test(NAME phase6-request-limits-http COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_SOURCE_DIR}/tests/phase6/request_limits_http.py --probe
+  $<TARGET_FILE:batbox-request-limits-probe>)
+set_tests_properties(phase6-request-limits-http PROPERTIES TIMEOUT 90)
+batbox_indigenous(phase6-token-estimation-indigenous
+  tests/phase6/token_estimation_indigenous.cpp batbox_core)
 batbox_indigenous(phase6-application-poetry-indigenous
   tests/phase6/application_poetry_indigenous.cpp batbox_application_poetry)
+batbox_indigenous(phase6-stable-prompt-prefix-indigenous
+  tests/phase6/stable_prompt_prefix_indigenous.cpp batbox_application_poetry)
 batbox_indigenous(phase6-system-poetry-file-indigenous
   tests/phase6/system_poetry_file_indigenous.cpp batbox_application_commands)
 batbox_indigenous(phase6-application-presentation-indigenous
   tests/phase6/application_presentation_indigenous.cpp batbox_application_presentation)
-add_executable(batbox-indigenous-mcp-connections tests/phase6/mcp_connections_indigenous.cpp)
-target_link_libraries(batbox-indigenous-mcp-connections PRIVATE batbox_mcp_runtime)
 
 batbox_indigenous(phase6-application-usage-indigenous
   tests/phase6/application_usage_indigenous.cpp batbox_application_commands)
@@ -52,6 +59,39 @@ if(UNIX)
   add_test(NAME phase6-nested-bats-smoke COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/checks/nested_bats_smoke.py $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-nested-bats-smoke PROPERTIES TIMEOUT 180)
+  add_test(NAME phase6-indigenous-bash-error-output-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/indigenous_bash_error_output_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-indigenous-bash-error-output-smoke PROPERTIES TIMEOUT 90)
+  add_test(NAME phase6-indigenous-bash-results-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/indigenous_bash_results_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-indigenous-bash-results-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-indigenous-search-results-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/indigenous_search_results_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-indigenous-search-results-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-indigenous-plan-mode-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/indigenous_plan_mode_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-indigenous-plan-mode-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-indigenous-bat-wait-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/indigenous_bat_wait_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-indigenous-bat-wait-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-hook-conditions-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/hook_conditions_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-hook-conditions-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-hook-environment-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/hook_environment_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-hook-environment-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-skill-gitignore-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/skill_gitignore_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-skill-gitignore-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-shell-discovery-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/shell_discovery_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-shell-discovery-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-debug-flags-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/debug_flags_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-debug-flags-smoke PROPERTIES TIMEOUT 180)
+  add_test(NAME phase6-symlink-permissions-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/symlink_permissions_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-symlink-permissions-smoke PROPERTIES TIMEOUT 180)
 endif()
 batbox_indigenous(phase6-bat-depth-config-indigenous
   tests/phase6/bat_depth_config_indigenous.cpp batbox_application_config)
@@ -74,8 +114,6 @@ target_compile_options(batbox-phase6-cli-args-indigenous PRIVATE
 batbox_indigenous(phase6-indigenous-host-lifetime
   tests/phase6/indigenous_host_lifetime.cpp batbox_indigenous_host)
 set_tests_properties(phase6-indigenous-host-lifetime PROPERTIES TIMEOUT 45)
-add_executable(batbox-indigenous-lsp-format-driver checks/indigenous_lsp_format_driver.cpp)
-target_link_libraries(batbox-indigenous-lsp-format-driver PRIVATE batbox_indigenous_lsp)
 target_compile_options(batbox-phase6-indigenous-lsp-grouped PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/UNDEBUG>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-UNDEBUG>)
@@ -87,6 +125,21 @@ target_link_libraries(batbox-phase6-visual-goldens-indigenous PRIVATE
 add_test(NAME phase6-visual-goldens-indigenous
   COMMAND batbox-phase6-visual-goldens-indigenous
   ${CMAKE_SOURCE_DIR}/tests/phase6/goldens/visual)
+batbox_indigenous(phase6-markdown-pieces-indigenous
+  tests/phase6/markdown_pieces_indigenous.cpp batbox_application_presentation)
+add_executable(batbox-phase6-tui-frame-bench-indigenous
+  tests/phase6/tui_frame_bench_indigenous.cpp)
+target_link_libraries(batbox-phase6-tui-frame-bench-indigenous PRIVATE
+  batbox_application_presentation)
+add_test(NAME phase6-tui-frame-bench-indigenous
+  COMMAND batbox-phase6-tui-frame-bench-indigenous)
+add_executable(batbox-phase6-settings-file-path-indigenous
+  tests/phase6/settings_file_path_indigenous.cpp)
+target_link_libraries(batbox-phase6-settings-file-path-indigenous PRIVATE
+  batbox_application_presentation batbox_application_gadgets
+  batbox_application_permissions batbox_application_commands)
+add_test(NAME phase6-settings-file-path-indigenous
+  COMMAND batbox-phase6-settings-file-path-indigenous)
 batbox_indigenous(phase6-visual-roles-indigenous
   tests/phase6/visual_roles_indigenous.cpp batbox_application_commands)
 batbox_indigenous(phase6-mission-notice-card-indigenous

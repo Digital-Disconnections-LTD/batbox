@@ -1,5 +1,6 @@
 #include "application_hooks/Provider.hpp"
 #include "instructions/hooks/runtime/HookSchema.hpp"
+#include "instructions/hooks/runtime/IfCondition.hpp"
 #include "runtime/JsonValue.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/Platform.hpp"
@@ -78,8 +79,8 @@ std::vector<hooks::HookMatcher> parseMatchers(const Json& settings,
           if(!name.is_string())throw std::invalid_argument(
             "HTTP hook allowedEnvVars entries must be strings");
       }
-      if(hook.contains("if"))throw std::invalid_argument(
-        "Configured hook if conditions need a native permission matcher");
+      if(hook.contains("if")&&!hook.at("if").is_string())
+        throw std::invalid_argument("Hook if condition must be a string");
       hooks::MatchedHook row;row.kind=type=="http"?
         hooks::HookKind::Http:type=="prompt"?
         hooks::HookKind::Poetry:type=="agent"?
@@ -159,7 +160,6 @@ void Provider::configure(){
   flightImports.random=[]{
     static thread_local std::mt19937_64 generator(std::random_device{}());
     return std::generate_canonical<double,53>(generator);};
-  flightImports.defaultHookShell="sh";
   flightImports.hookEvents={"PreToolUse","PostToolUse","PostToolUseFailure",
     "Notification","UserPromptSubmit","SessionStart","SessionEnd","Stop",
     "SubagentStart","SubagentStop","PreCompact","PostCompact",
@@ -220,8 +220,11 @@ void Provider::configure(){
   hooks::bindHookConfig(matcher_,configServices_);
   matcher_.normalizeLegacyGadgetName=[](const std::string& value){return value;};
   matcher_.getLegacyGadgetNames=[](const std::string&){return std::vector<std::string>{};};
-  matcher_.prepareIfConditionMatcher=[this](const Json&){
-    return ready(owner_,std::optional<hooks::IfConditionMatcher>{});};
+  // An "if" condition is a permission rule matched against the Gadget call.
+  matcher_.prepareIfConditionMatcher=[this](const Json& input){
+    return hooks::indigenousPrepareIfConditionMatcher(owner_,
+      inputs_.currentGadgets?inputs_.currentGadgets():gadgets::Gadgets{},
+      settings::PermissionRuleServices{})(input);};
   matcher_.logDebug=[this](const std::string& message,const std::string&){
     inputs_.log(message);};
   command_.getProjectRoot=[this]{return runtime::pathToUtf8(inputs_.config.cwd);};

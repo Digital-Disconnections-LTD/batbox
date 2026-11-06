@@ -45,7 +45,7 @@ std::vector<std::string> extractDebugCategories(const std::string& message){
   std::smatch match;
   static const std::regex mcp(R"re(^MCP server ["']([^"']+)["'])re");
   static const std::regex prefix(R"(^([^:\[]+):)");
-  static const std::regex bracket(R"(^\[([^\]]+)])");
+  static const std::regex bracket(R"(^\[([^\]]+)\])");
   static const std::regex secondary(
     R"(:\s*([^:]+?)(?:\s+(?:type|mode|status|event))?:)");
   if(std::regex_search(message,match,mcp)){

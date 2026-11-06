@@ -6,17 +6,16 @@
 namespace batbox::retry {
 
 struct RetryStep {
-  enum class Kind { RefreshOAuth, GetClient, Operation, Yield, Sleep, Complete };
+  enum class Kind { GetClient, Operation, Yield, Sleep, Complete };
   Kind kind;
   Json value;
   double attempt = 0;
   double delayMs = 0;
   RetryContext context;
-  std::string accessToken;
   RetryStep(Kind kind,Json value=Json(),double attempt=0,double delayMs=0,
-            RetryContext context={},std::string accessToken={})
+            RetryContext context={})
       : kind(kind),value(std::move(value)),attempt(attempt),delayMs(delayMs),
-        context(std::move(context)),accessToken(std::move(accessToken)) {}
+        context(std::move(context)) {}
 };
 
 // Retry state transitions between await and yield points.
@@ -25,7 +24,6 @@ class RetryMachine {
 public:
   RetryMachine(const RetryOptions& options, Dependencies& deps);
   RetryStep advance();
-  void refreshedOAuth();
   void receivedClient(Json client);
   void receivedOperation(Json result);
   void resumedYield();
@@ -34,8 +32,7 @@ public:
   std::stop_token signal() const { return options_.signal; }
 private:
   enum class Phase {
-    Start, NeedClient, NeedOperation, HandleError, PersistentLoop,
-    ReadyPersistentSleep, ReadyOrdinarySleep, WaitingOAuth, WaitingClient,
+    Start, NeedClient, NeedOperation, HandleError, ReadySleep, WaitingClient,
     WaitingOperation, WaitingYield, WaitingSleep, Finished
   };
   RetryOptions options_;
@@ -46,15 +43,9 @@ private:
   int consecutive529Errors_ = 0;
   std::optional<ErrorRecord> lastError_;
   std::optional<ErrorRecord> pendingError_;
-  double persistentAttempt_ = 0;
   double attempt_ = 1;
   double delayMs_ = 0;
-  double remainingMs_ = 0;
-  double sleepChunkMs_ = 0;
-  double reportedAttempt_ = 0;
   bool wasFastModeActive_ = false;
-  bool persistent_ = false;
-  bool pendingYieldPersistent_ = false;
   Phase phase_ = Phase::Start;
   Json result_;
   void recordFailure(std::exception_ptr error);

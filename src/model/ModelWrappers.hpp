@@ -16,11 +16,6 @@ using StreamFactory = std::function<NextMessage()>;
 
 using UserAbortError = transport::APIUserAbortError;
 
-// Consume the stream factory and return its final assistant message.
-MessageRef queryModelWithoutStreaming(const StreamFactory& streamFactory,
-                                      const std::function<bool()>& signalAborted);
-NextMessage queryModelWithStreaming(const StreamFactory& streamFactory);
-
 double getNonstreamingFallbackTimeoutMs(const Json& environment);
 std::optional<std::string> getPreviousRequestIdFromMessages(const Json& messages);
 

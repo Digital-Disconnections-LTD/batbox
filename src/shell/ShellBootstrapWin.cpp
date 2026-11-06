@@ -40,11 +40,10 @@ bool indigenousIsExecutable(const std::string& shellPath){
   if(shellPath.empty())return false;
   return executable(runtime::pathFromUtf8(shellPath));
 }
-std::function<event_loop::Deferred<std::optional<std::string>>(const std::string&)>
-indigenousWhich(event_loop::Loop& loop,const std::string& pathEnvironment){
-  return [&loop,pathEnvironment](const std::string& executableName){
-    event_loop::Deferred<std::optional<std::string>> result(loop);
-    result.resolve(findOnPath(executableName,pathEnvironment));return result;
+std::function<std::optional<std::string>(const std::string&)>
+indigenousWhich(const std::string& pathEnvironment){
+  return [pathEnvironment](const std::string& executableName){
+    return findOnPath(executableName,pathEnvironment);
   };
 }
 } // namespace batbox::shell

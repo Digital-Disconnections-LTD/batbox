@@ -354,10 +354,7 @@ void retryPolicy(){
     deps.nowMs=[]{return 0.0;};
     deps.createSystemAPIErrorMessage=[](const retry::ErrorRecord&,double,double,double){return Json::object();};
     deps.isFastModeEnabled=[]{return false;};
-    deps.isSubscriber=[]{return false;};
-    deps.isEnterpriseSubscriber=[]{return false;};
     deps.isDefaultPremiumModel=[](const std::string&){return false;};
-    deps.getOAuthAccessToken=[]()->std::optional<std::string>{return std::nullopt;};
     deps.clearApiKeyHelperStash=[]{};
     deps.disableKeepAlive=[]{};
     deps.logForDebugging=[](const std::string&){};

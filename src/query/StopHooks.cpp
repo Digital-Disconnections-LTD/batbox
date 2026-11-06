@@ -94,7 +94,7 @@ Json handleStopHooks(const Json& messagesForQuery,const Json& assistantMessages,
   const Params& params,const execution::Context& context,
   std::optional<bool> stopHookActive,StopHookServices& services,const Yield& yield){
   using namespace stop_internal;
-  need(yield,"yield");need(services.feature,"feature");
+  need(yield,"yield");
   const Json stopContext={{"messages",concatMessages(messagesForQuery,assistantMessages)},
     {"systemPrompt",params.systemPoetry},
     {"userContext",params.userContext},{"systemContext",params.systemContext},
@@ -106,15 +106,6 @@ Json handleStopHooks(const Json& messagesForQuery,const Json& assistantMessages,
     services.saveStashSafeParams(services.createStashSafeParams(stopContext));
   }
   const Json& batId=field(context.data,"agentId");
-  const Json& jobDir=field(services.environment,"BATBOX_JOB_DIR");
-  if(services.feature("TEMPLATES")&&value::truthy(jobDir)&&
-     params.querySource.starts_with("repl_main_thread")&&!value::truthy(batId)){
-    need(services.classifyAndWriteJobState,"classifyAndWriteJobState");
-    Json assistants=Json::array();
-    for(const Json& message:fullMessages)if(field(message,"type")=="assistant")assistants.push_back(message);
-    services.classifyAndWriteJobState(stringField(services.environment,"BATBOX_JOB_DIR"),
-      assistants,std::chrono::milliseconds(60000));
-  }
   need(services.isBareMode,"isBareMode");
   if(!services.isBareMode()){
     need(services.isEnvDefinedFalsy,"isEnvDefinedFalsy");
@@ -122,20 +113,11 @@ Json handleStopHooks(const Json& messagesForQuery,const Json& assistantMessages,
       need(services.executePoetrySuggestion,"executePromptSuggestion");
       services.executePoetrySuggestion(stopContext);
     }
-    if(services.feature("EXTRACT_MEMORIES")&&!value::truthy(batId)){
-      need(services.isExtractModeActive,"isExtractModeActive");
-      if(services.isExtractModeActive()){
-        need(services.executeExtractMemories,"executeExtractMemories");
-        services.executeExtractMemories(stopContext);
-      }
-    }
     if(!value::truthy(batId)){
       need(services.executeAutoDream,"executeAutoDream");
       services.executeAutoDream(stopContext);
     }
   }
-  if(services.feature("CHICAGO_MCP")&&!value::truthy(batId))
-    if(services.cleanupComputerUseAfterTurn)try{services.cleanupComputerUseAfterTurn(context);}catch(...){}
   try{
     need(services.getAppState,"getAppState");
     const Json appState=execution::effectiveAppState(context,services.getAppState(context));

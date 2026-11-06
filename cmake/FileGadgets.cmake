@@ -7,17 +7,14 @@ target_sources(batbox_core PRIVATE
   src/file_state_stash/FileStateStash.cpp
   src/file_state_stash/Path.cpp
   src/file_state_stash/Helpers.cpp
-  src/file_state_stash/FileGadgetBindings.cpp
-  src/file_state_stash/QueryBindings.cpp
-  src/file_state_stash/ExecutionBindings.cpp
   src/filesystem/FileOps.cpp
   src/filesystem/Paths.cpp
   src/filesystem/Range.cpp
   src/filesystem/RangeFast.cpp
   src/filesystem/RangeStream.cpp
   ${BATBOX_RIPGREP_PROCESS_SOURCE}
+  src/filesystem/RipgrepOutcome.cpp
   src/gadgets/files/BinaryExtensions.cpp
-  src/gadgets/files/EditInput.cpp
   src/gadgets/files/EditMatch.cpp
   src/gadgets/files/EditPatch.cpp
   src/gadgets/files/EditUnicode.cpp

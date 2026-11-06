@@ -39,7 +39,7 @@ struct StreamingAttemptDependencies {
   bool firstPartyProvider = false;
   bool firstPartyBaseUrl = false;
   bool injectCorrelationId = false; // Production requests do not add correlation IDs.
-  std::function<OpenedStream(const Json&, const std::optional<std::string>&)> openStream;
+  std::function<OpenedStream(Json&&, const std::optional<std::string>&)> openStream;
 };
 
 struct PreparedStreamingAttempt {

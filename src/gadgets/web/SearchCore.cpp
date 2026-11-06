@@ -6,42 +6,6 @@ namespace batbox::gadgets::web {
 namespace {std::string textValue(const Json& value){
   return value.is_string()?value.get<std::string>():value.is_null()?"undefined":value::stringify(value);
 }}
-Json makeOutputFromSearchResponse(const Json& blocks,const std::string& query,double durationSeconds){
-  Json results=Json::array();
-  std::string textAcc;
-  bool inText=true;
-  for(const auto& block:blocks){
-    const std::string type=block.value("type",std::string());
-    if(type=="server_tool_use"){
-      if(inText){
-        inText=false;
-        const auto trimmed=value::trim(textAcc);
-        if(!trimmed.empty())results.push_back(trimmed);
-        textAcc.clear();
-      }
-      continue;
-    }
-    if(type=="web_search_tool_result"){
-      const auto content=value::property(block,"content");
-      if(!content.is_array()){
-        results.push_back("Web search error: "+textValue(value::property(content,"error_code")));
-        continue;
-      }
-      Json hits=Json::array();
-      for(const auto& row:content)hits.push_back({{"title",value::property(row,"title")},
-        {"url",value::property(row,"url")}});
-      results.push_back({{"tool_use_id",value::property(block,"tool_use_id")},{"content",hits}});
-    }
-    if(type=="text"){
-      const auto text=textValue(value::property(block,"text"));
-      if(inText)textAcc+=text;
-      else {inText=true;textAcc=text;}
-    }
-  }
-  if(!textAcc.empty())results.push_back(value::trim(textAcc));
-  return {{"query",query},{"results",results},{"durationSeconds",durationSeconds}};
-}
-
 Json mapSearchResult(const Json& output,const std::string& gadgetUseID){
   const auto query=textValue(value::property(output,"query"));
   std::string formatted="Web search results for query: \""+query+"\"\n\n";

@@ -51,8 +51,6 @@ int main(){
   model::PreflightInputs input;
   input.options={{"model","batbox-model"},{"querySource","sdk"}};
   model::QueryServices services;
-  services.preflight.isSubscriber=[](){return false;};
-  services.preflight.isNonCustomPrimaryModel=[](const std::string&){return false;};
   services.preflight.getAPIProvider=[](){return std::string("local");};
   services.reducer.randomUUID=[](){return std::string("uuid");};
   services.reducer.timestamp=[](){return std::string("now");};
@@ -91,33 +89,10 @@ int main(){
     "preflight-microtask","builder"}));
 
   std::vector<std::string> delayed;
-  event_loop::Deferred<bool> configGate(loop);
-  model::PreflightServices configImports;
-  configImports.isSubscriber=[](){return false;};
-  configImports.isNonCustomPrimaryModel=[](const std::string&){return true;};
-  configImports.getAPIProvider=[](){return std::string("local");};
-  query::OwnerPreflightAwaits configAwaits;
-  configAwaits.offSwitchActivated=[&]{
-    delayed.push_back("config-await");return configGate;};
-  configAwaits.remainingSegment=[&](const model::PreflightInputs&,
-      const model::PreflightServices&,model::PreflightState seed){
-    delayed.push_back("config-remaining");return seed;};
-  auto configPending=query::startOwnerPreflight(loop,input,configImports,configAwaits);
-  auto heartbeat=loop.setTimeout(1,[&]{delayed.push_back("config-heartbeat");});
-  auto release=loop.setTimeout(20,[&]{configGate.resolve(false);});
-  const auto configResult=await(loop,configPending);
-  assert(!configResult.offSwitch);
-  assert(delayed==std::vector<std::string>({"config-await",
-    "config-heartbeat","config-remaining"}));
-
-  delayed.clear();
   event_loop::Deferred<std::optional<std::string>> profileGate(loop);
   model::PreflightInputs profileInput=input;
   profileInput.options["model"]="application-inference-profile/test";
   model::PreflightServices profileImports;
-  profileImports.isSubscriber=[](){return true;};
-  profileImports.isNonCustomPrimaryModel=[](const std::string&){
-    throw std::logic_error("subscriber should skip model gate");return false;};
   profileImports.getAPIProvider=[](){return std::string("bedrock");};
   query::OwnerPreflightAwaits profileAwaits;
   profileAwaits.inferenceProfileBackingModel=[&](const std::string&){
@@ -138,11 +113,8 @@ int main(){
   delayed.clear();
   event_loop::Deferred<bool> searchGate(loop);
   model::PreflightServices searchImports;
-  searchImports.isSubscriber=[](){return true;};
-  searchImports.isNonCustomPrimaryModel=[](const std::string&){return false;};
   searchImports.getAPIProvider=[](){return std::string("local");};
   searchImports.getMergedBetas=[](const std::string&,bool){return Json::array();};
-  searchImports.isAdvisorEnabled=[](){return false;};
   query::OwnerPreflightAwaits searchAwaits;
   searchAwaits.gadgetSearchEnabled=[&](const std::string&,const Json&,const Json&){
     delayed.push_back("search-await");return searchGate;};

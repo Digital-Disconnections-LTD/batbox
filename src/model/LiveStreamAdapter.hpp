@@ -8,7 +8,7 @@
 namespace batbox::model {
 class StreamObservation;
 
-OpenedStream openLiveStream(transport::WireClient& client, const Json& streamingParams,
+OpenedStream openLiveStream(transport::WireClient& client, Json streamingParams,
                             std::stop_token signal,
                             const std::optional<std::string>& clientRequestId = std::nullopt);
 void consumeLiveStream(OpenedStream& opened, streaming::Reducer& reducer,

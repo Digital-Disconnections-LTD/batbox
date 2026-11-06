@@ -10,9 +10,7 @@ int main() {
   UserTextRenderServices services;
   services.protocol = {"__NO_CONTENT__", "__INTERRUPT__",
       "__INTERRUPT_TOOL__", "command-message", "local-command-caveat",
-      "tick", "teammate-message", "task-notification", "GITHUB",
-      "FORK", "INBOX", "CHANNEL", "CHANNELS",
-      [](const std::string&) { return false; }, [] { return false; }};
+      "tick", "task-notification"};
   services.userPalette = {ftxui::Color::YellowLight, ftxui::Color::White,
     ftxui::Color::GrayDark, ftxui::Color::Blue, ftxui::Color::Cyan};
   services.poetryPalette = {ftxui::Color::Cyan, ftxui::Color::YellowLight,

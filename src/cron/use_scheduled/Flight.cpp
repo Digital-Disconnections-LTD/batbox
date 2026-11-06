@@ -68,7 +68,8 @@ void Flight::commit(){
       return;
     }
     const auto message=services->createScheduledMissionFireMessage(
-      "Running scheduled task ("+services->formatCronFireTime()+")");
+      "Running scheduled task ("+services->formatCronFireTime()+"): "+
+        mission->poetry);
     services->appendMessageAtomically(message);
     enqueueForLead(services,mission->poetry);
   };

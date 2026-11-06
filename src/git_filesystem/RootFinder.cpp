@@ -44,8 +44,6 @@ std::optional<std::string> RootFinder::find(const std::string& startPath){
   if(stash_.size()>50){stash_.erase(recency_.back());recency_.pop_back();}
   return value;
 }
-void RootFinder::clear(){stash_.clear();recency_.clear();}
-std::size_t RootFinder::stashSize()const{return stash_.size();}
 std::shared_ptr<RootFinder> indigenousRootFinder(){
   return std::make_shared<RootFinder>([](const std::string& path){
     std::error_code error;

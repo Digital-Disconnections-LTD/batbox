@@ -63,7 +63,6 @@ int main(){
     imports.unregisterForeground=[](const std::string&){};
     imports.markMissionNotified=[](const std::string&){};
     imports.isAutoBackgroundAllowed=[](const std::string&){return true;};
-    imports.shouldUseSandbox=[](const AsyncRunInput&){return false;};
     imports.nowMs=[] {return 0.0;};imports.getDefaultTimeoutMs=[] {return 5000.0;};
     imports.onUnobservedError=[](std::exception_ptr error){std::rethrow_exception(error);};
     for(int i=0;i<12;i++){

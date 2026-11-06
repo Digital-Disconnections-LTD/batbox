@@ -46,4 +46,5 @@ std::shared_ptr<Segmenter> indigenousSegmenter(const std::string& granularity){
   };
   return result;
 }
+Services indigenousServices(){return {indigenousSegmenter};}
 } // namespace batbox::intl

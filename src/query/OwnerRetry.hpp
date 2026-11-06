@@ -6,9 +6,6 @@
 namespace batbox::query {
 
 struct OwnerRetryAwaits {
-  // Complete OAuth 401 recovery before requesting a client for an auth retry.
-  std::function<event_loop::Deferred<event_loop::Unit>(const std::string&)>
-    refreshOAuth;
   std::function<event_loop::Deferred<event_loop::Unit>(double,std::stop_token)>
     sleep;
 };

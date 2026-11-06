@@ -29,16 +29,16 @@ void bindIndigenousFileReads(LoadServices& services) {
 LoadedTranscript loadTranscriptFile(const std::string& path,bool keepAllLeaves,LoadServices& services) {
   LoadedTranscript out;
   try {
-    std::optional<std::string> buffer;std::vector<std::string> metadata;bool preserved=false;
+    std::optional<std::string> buffer;std::vector<std::string> metadata;
     if(!services.disablePrecompactSkip) {
       const auto size=services.stat(path);
       if(size>services.skipThreshold) {
-        auto scan=services.readTranscriptForLoad(path,size);buffer=std::move(scan.postBoundaryBuf);preserved=scan.hasPreservedSegment;
+        auto scan=services.readTranscriptForLoad(path,size);buffer=std::move(scan.postBoundaryBuf);
         if(scan.boundaryStartOffset>0)metadata=services.scanPreBoundaryMetadata(path,scan.boundaryStartOffset);
       }
     }
     if(!buffer)buffer=services.readFile(path);
-    if(!keepAllLeaves && !preserved && !services.disablePrecompactSkip && buffer->size()>services.skipThreshold)
+    if(!keepAllLeaves && !services.disablePrecompactSkip && buffer->size()>services.skipThreshold)
       buffer=services.walkChainBeforeParse(*buffer);
     parseLoadedTranscriptBuffers(*buffer,metadata,out);
   }catch(const std::exception&){} // Preserve maps populated before a read or parse failure.

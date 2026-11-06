@@ -9,7 +9,9 @@ namespace batbox::poetryEntries {
 std::string_view builtInSystemPoetrySource();
 inline constexpr const char* kUsingYourToolsSection="using_your_tools";
 // Every name {{section:NAME}} accepts, in the order unreferenced sections are
-// appended. Some render nothing unless their feature is on.
+// appended. ant_model_override, scratchpad, frc, numeric_length_anchors,
+// token_budget and brief are no longer produced and render nothing; they stay
+// accepted so an existing system.md renders as before.
 const std::vector<std::string>& systemPoetrySectionNames();
 // Line endings become LF, a UTF-8 byte order mark and <!-- --> comments are
 // removed (a line holding only a comment goes with its line break), and

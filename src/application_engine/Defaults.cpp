@@ -1,7 +1,6 @@
 #include "application_engine/Defaults.hpp"
 #include "application_engine/AutoPolicy.hpp"
 #include "application/Async.hpp"
-#include "api_errors/ApiErrors.hpp"
 #include "instructions/hooks/runtime/HookBlockingMessages.hpp"
 #include "interactive/background/NotificationAttachments.hpp"
 #include "messages/RuntimeMessages.hpp"
@@ -73,9 +72,8 @@ application_hooks::PermissionImports permissionImports(
 }
 Json environment(){
   Json result=Json::object();
-  for(const auto* key:{"BATBOX_ENABLE_PROMPT_SUGGESTION",
-      "BATBOX_JOB_DIR","BATBOX_MAX_OUTPUT_TOKENS"})
-    if(const auto* value=std::getenv(key))result[key]=value;
+  if(const auto* value=std::getenv("BATBOX_ENABLE_PROMPT_SUGGESTION"))
+    result["BATBOX_ENABLE_PROMPT_SUGGESTION"]=value;
   return result;
 }
 bool envDefinedFalsy(const Json& value){
@@ -152,14 +150,6 @@ query::AsyncMessageCursor queuedCursor(event_loop::Loop& owner,
   };
   return cursor;
 }
-void rejectUnsupportedFeatures(const std::set<std::string>& features){
-  for(const auto* feature:{"EXPERIMENTAL_SKILL_SEARCH","TOKEN_BUDGET",
-      "BG_SESSIONS","CHICAGO_MCP","TEMPLATES","EXTRACT_MEMORIES",
-      "CONTEXT_COLLAPSE","REACTIVE_COMPACT","HISTORY_SNIP",
-      "CACHED_MICROCOMPACT"})
-    if(features.contains(feature))throw std::invalid_argument(
-      std::string("Enabled ")+feature+" needs a native query provider");
-}
 }
 Inputs makeDefaultEngineInputs(DefaultInputs input){
   auto& engine=input.engine;
@@ -179,9 +169,6 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
   need(engine.checkpoint,"query checkpoint logger");
   need(engine.logError,"query error logger");
   need(engine.addNotification,"query notification provider");
-  rejectUnsupportedFeatures(engine.features);
-  if(engine.flightId.empty())engine.flightId=input.flight->id();
-  engine.flightIdProvider=[flight=input.flight]{return flight->id();};
   if(input.poetry&&!engine.refreshUserContextAfterCompact)
     engine.refreshUserContextAfterCompact=[poetry=input.poetry,owner=&engine.owner](
         const Json& previous,const execution::Context&){
@@ -195,7 +182,7 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
               throw std::invalid_argument("Project context refresh requires an object");
             auto context=previous.is_object()?previous:Json::object();
             // Refresh provider-owned keys, including removals; preserve the
-            // coordinator/bat additions assembled for this particular query.
+            // additions assembled for this particular query.
             for(const auto* key:{"batboxMd","currentDate","projectRecovery"})
               context.erase(key);
             for(auto entry=fresh->begin();entry!=fresh->end();++entry)
@@ -264,8 +251,6 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
   auto& stop=engine.stopHooks;
   const auto owner=engine.owner.dispatcher();
   auto pendingSnapshot=std::make_shared<std::shared_ptr<bats::StashSafeParams>>();
-  stop.feature=[features=engine.features](const std::string& key){
-    return features.contains(key);};
   stop.createStashSafeParams=[owner,get=input.activeBatContext,pendingSnapshot](
       const Json& context){
     need(get,"active agent context for cache-safe snapshot");
@@ -340,12 +325,6 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
       const std::string& level){
     return messages::createSystemMessage(content,level,*messages);};
   auto& completion=engine.completion;
-  completion.sync.isPoetryTooLongMessage=api_errors::isPoetryTooLongMessage;
-  completion.sync.isWithheldMediaSizeError=api_errors::isMediaSizeErrorMessage;
-  completion.sync.getFeatureValue=[features=engine.features](
-      const std::string& name,bool fallback){
-    return features.contains(name)?true:fallback;};
-  completion.sync.environment=stop.environment;
   completion.sync.executeStopFailureHooks=[hooks=input.hooks,
       log=engine.logError](const Json& last,const execution::Context& context){
     Json detail={{"error",field(last,"errorDetails")},
@@ -356,17 +335,12 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
         catch(const std::exception& failure){log(failure);}
       });
   };
-  completion.logForDebugging=engine.checkpoint;
-  completion.localeNumber=[](double value){return value::numberToString(value);};
   auto& turn=engine.gadgetTurn;
   turn.sync.createAttachmentMessage=stop.createAttachmentMessage;
   turn.sync.createUserInterruptionMessage=stop.createUserInterruptionMessage;
   turn.sync.currentAbortReason=[execution=engine.execution]{
     return execution->currentAbortReason?execution->currentAbortReason():
       std::string{};};
-  turn.sync.createGadgetUseSummaryMessage=[messages](const std::string& summary,
-      const Json& ids){return messages::createGadgetUseSummaryMessage(
-        summary,ids,*messages);};
   turn.sync.getCommandsByMaxPriority=[get=input.commandQueue](
       const std::string& priority){
     return commandArray(get().getByMaxPriority(priority));};
@@ -419,10 +393,9 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
     disabled.dispose=[](){};
     return disabled;
   };
-  engine.postSamplingHooks=input.postSamplingHooks?
-    input.postSamplingHooks:std::function<void(const Json&,
-      const query::Params&,const execution::Context&)>(
-      [](const Json&,const query::Params&,const execution::Context&){});
+  // Unset when nothing is configured, so the query skips building the
+  // sampled conversation for it.
+  engine.postSamplingHooks=input.postSamplingHooks;
   return std::move(engine);
 }
 } // namespace batbox::application_engine

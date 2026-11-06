@@ -18,8 +18,6 @@ void addInvokedSkill(InvokedSkillsState& state,
     if(existingKey==key){existingInfo=std::move(info);return;}
   state.invokedSkills->emplace_back(key,std::move(info));
 }
-std::shared_ptr<InvokedSkillMap> getInvokedSkills(
-  const InvokedSkillsState& state){return state.invokedSkills;}
 InvokedSkillMap getInvokedSkillsForBat(const InvokedSkillsState& state,
   std::optional<std::string> batId){
   InvokedSkillMap filtered;

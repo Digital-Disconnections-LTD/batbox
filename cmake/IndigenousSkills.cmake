@@ -13,10 +13,6 @@ target_compile_options(batbox_application_skills PRIVATE -Wall -Wextra -Wpedanti
 target_link_libraries(batbox_application_bats PUBLIC batbox_application_skills)
 
 if(BUILD_TESTING)
-  add_executable(batbox-indigenous-skill-shell-format-driver
-    checks/indigenous_skill_shell_format_driver.cpp)
-  target_link_libraries(batbox-indigenous-skill-shell-format-driver PRIVATE
-    batbox_application_skills)
   add_executable(batbox-indigenous-skill-shell-runtime
     checks/indigenous_skill_shell_runtime.cpp)
   target_link_libraries(batbox-indigenous-skill-shell-runtime PRIVATE

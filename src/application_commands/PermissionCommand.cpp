@@ -73,7 +73,6 @@ private:
       if(from!=mode){
         if(transitions_){
           bootstrap::handlePlanModeTransition(*transitions_,from,mode);
-          bootstrap::handleAutoModeTransition(*transitions_,from,mode);
           if(from=="plan"&&mode!="plan")
             bootstrap::setHasExitedPlanMode(*transitions_,true);
         }

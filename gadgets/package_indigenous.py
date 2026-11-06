@@ -46,15 +46,22 @@ def binary_target(binary):
     raise ValueError('Unsupported binary format; use package_macos.py for Mach-O')
 
 
+def strip_binary(target, strip):
+    """Drop the symbol table from the packaged copy; the build keeps its own."""
+    subprocess.run([strip, '--strip-unneeded', str(target)], check=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--source', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--commit', default='local-build')
-    parser.add_argument('--label', default='halloween-preview')
+    parser.add_argument('--label', default='preview')
     parser.add_argument('--runtime-root', type=Path,
                         help='coherent Windows UCRT64 prefix containing bin DLLs and CA data')
+    parser.add_argument('--strip',
+                        help='strip executable for the target (default: strip, or strip.exe from --runtime-root)')
     parser.add_argument('--objdump',
                         help='PE objdump executable for recursive Windows DLL inventory')
     args = parser.parse_args()
@@ -83,6 +90,10 @@ def main():
         target = stage / 'bin' / ('batbox.exe' if target_os == 'windows' else 'batbox')
         shutil.copyfile(binary, target)
         target.chmod(0o755)
+        strip = args.strip
+        if not strip and target_os == 'windows' and (args.runtime_root / 'bin/strip.exe').is_file():
+            strip = str(args.runtime_root / 'bin/strip.exe')
+        strip_binary(target, strip or 'strip')
         runtime_files = []
         if target_os == 'windows':
             try:
@@ -90,7 +101,7 @@ def main():
                     stage, binary, args.runtime_root.resolve(strict=True), args.objdump)
             except ValueError as error:
                 parser.error(str(error))
-        shutil.copyfile(source / 'docs/HALLOWEEN-PREVIEW.md', stage / 'README.md')
+        shutil.copyfile(source / 'docs/getting-started.md', stage / 'README.md')
         shutil.copyfile(source / 'docs/BUILDING.md', stage / 'BUILDING.md')
         (stage / 'licenses').mkdir(exist_ok=True)
         shutil.copyfile(license_path, stage / 'licenses/FTXUI-LICENSE')

@@ -90,7 +90,11 @@ def main(binary):
                                       capture_output=True, text=True, timeout=60)
 
             version = run("--version")
-            check(version.returncode == 0 and version.stdout.startswith("batbox "),
+            lines = version.stdout.splitlines()
+            check(version.returncode == 0 and len(lines) == 3 and
+                  re.fullmatch(r"batbox \d+\.\d+\.\d+", lines[0]) is not None and
+                  re.fullmatch(r"commit ([0-9a-f]{7,40}|unknown)", lines[1]) is not None and
+                  re.fullmatch(r"built (\d{4}-\d{2}-\d{2}|unknown)", lines[2]) is not None,
                   "--version: " + version.stdout + version.stderr)
             alias = run("version")
             check(alias.returncode == 0 and alias.stdout == version.stdout and not alias.stderr,

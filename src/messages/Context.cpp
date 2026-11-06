@@ -35,10 +35,14 @@ std::ptrdiff_t findLastCompactBoundaryIndex(const Json& messages) {
     if (value::truthy(messages[i]) && isCompactBoundaryMessage(messages[i])) return i;
   return -1;
 }
-Json getMessagesAfterCompactBoundary(const Json& messages,bool includeSnipped,BoundaryServices& services) {
+Json getMessagesAfterCompactBoundary(const Json& messages) {
   const auto index=findLastCompactBoundaryIndex(messages);
-  const auto sliced=index<0 ? messages : Json(messages.begin()+index,messages.end());
-  if (!includeSnipped && services.feature("HISTORY_SNIP")) return services.projectSnippedView(sliced);
+  return index<0 ? messages : Json(messages.begin()+index,messages.end());
+}
+Json getMessagesAfterCompactBoundary(Json&& messages) {
+  const auto index=findLastCompactBoundaryIndex(messages);
+  Json sliced=std::move(messages);
+  if (index>0) sliced.erase(sliced.begin(),sliced.begin()+index);
   return sliced;
 }
 }

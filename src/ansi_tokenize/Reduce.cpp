@@ -1,6 +1,5 @@
 #include "ansi_tokenize/AnsiTokenize.hpp"
 #include <algorithm>
-#include <unordered_set>
 
 namespace batbox::ansi_tokenize {
 namespace {
@@ -39,19 +38,6 @@ Codes undoAnsiCodes(const Codes& codes){
     copy->code=copy->endCode;
     result.push_back(std::move(copy));
   }
-  return result;
-}
-Codes diffAnsiCodes(const Codes& from,const Codes& to){
-  std::unordered_set<std::string> endsInTo,startsInTo,startsInFrom;
-  for(const auto& code:to){endsInTo.insert(code->endCode);startsInTo.insert(code->code);}
-  for(const auto& code:from)startsInFrom.insert(code->code);
-  Codes remove;
-  for(const auto& code:from){
-    if(isIntensityCode(*code)?!startsInTo.contains(code->code):
-       !endsInTo.contains(code->endCode))remove.push_back(code);
-  }
-  Codes result=undoAnsiCodes(remove);
-  for(const auto& code:to)if(!startsInFrom.contains(code->code))result.push_back(code);
   return result;
 }
 } // namespace batbox::ansi_tokenize

@@ -8,7 +8,6 @@ namespace batbox::retry {
 namespace {
 constexpr double DEFAULT_MAX_RETRIES = 10;
 constexpr double BASE_DELAY_MS = 500;
-constexpr double PERSISTENT_RESET_CAP_MS = 6 * 60 * 60 * 1000;
 const std::set<std::string> FOREGROUND_529_RETRY_SOURCES = {
   "repl_main_thread", "repl_main_thread:outputStyle:custom",
   "repl_main_thread:outputStyle:Explanatory", "repl_main_thread:outputStyle:Learning",
@@ -16,12 +15,8 @@ const std::set<std::string> FOREGROUND_529_RETRY_SOURCES = {
   "hook_prompt", "verification_agent", "side_question", "auto_mode",
 };
 }
-bool shouldRetry529(const std::optional<std::string>& querySource, bool bashClassifierFeature) {
-  return !querySource || FOREGROUND_529_RETRY_SOURCES.count(*querySource) != 0 ||
-    (bashClassifierFeature && *querySource == "bash_classifier");
-}
-bool isPersistentRetryEnabled(const Dependencies& deps) {
-  return deps.unattendedRetryFeature ? internal::envTruthy(deps,"BATBOX_UNATTENDED_RETRY") : false;
+bool shouldRetry529(const std::optional<std::string>& querySource) {
+  return !querySource || FOREGROUND_529_RETRY_SOURCES.count(*querySource) != 0;
 }
 bool is529Error(const ErrorRecord& error) {
   if (!error.isAPIError()) return false;
@@ -61,49 +56,10 @@ double getDefaultMaxRetries(const Dependencies& deps) {
   return DEFAULT_MAX_RETRIES;
 }
 namespace internal {
-bool isTransientCapacityError(const ErrorRecord& error) {
-  return is529Error(error) || (error.isAPIError() && error.status == 429);
-}
 bool isStaleConnectionError(const ErrorRecord& error) {
   if (!error.isConnectionError()) return false;
   const auto details=extractConnectionErrorDetails(error);
   return details && (details->code=="ECONNRESET" || details->code=="EPIPE");
-}
-bool isOAuthTokenRevokedError(const ErrorRecord& error) {
-  return error.isAPIError() && error.status==403 && contains(error.message,"OAuth token has been revoked");
-}
-bool isAwsCredentialsProviderError(const ErrorRecord& error) {
-  return error.name=="CredentialsProviderError";
-}
-bool isGoogleAuthLibraryCredentialError(const ErrorRecord& error) {
-  const std::string& msg=error.message;
-  return contains(msg,"Could not load the default credentials") ||
-    contains(msg,"Could not refresh access token") || contains(msg,"invalid_grant");
-}
-bool isBedrockAuthError(const ErrorRecord& error, const Dependencies& deps) {
-  if (envTruthy(deps,"BATBOX_USE_BEDROCK")) {
-    if (isAwsCredentialsProviderError(error) || (error.isAPIError() && error.status==403)) return true;
-  }
-  return false;
-}
-bool handleAwsCredentialError(const ErrorRecord& error, Dependencies& deps) {
-  if (isBedrockAuthError(error,deps)) {
-    require(deps.clearAwsCredentialsStash,"clearAwsCredentialsCache"); deps.clearAwsCredentialsStash(); return true;
-  }
-  return false;
-}
-bool isVertexAuthError(const ErrorRecord& error, const Dependencies& deps) {
-  if (envTruthy(deps,"BATBOX_USE_VERTEX")) {
-    if (isGoogleAuthLibraryCredentialError(error)) return true;
-    if (error.isAPIError() && error.status==401) return true;
-  }
-  return false;
-}
-bool handleGcpCredentialError(const ErrorRecord& error, Dependencies& deps) {
-  if (isVertexAuthError(error,deps)) {
-    require(deps.clearGcpCredentialsStash,"clearGcpCredentialsCache"); deps.clearGcpCredentialsStash(); return true;
-  }
-  return false;
 }
 bool isFastModeNotEnabledError(const ErrorRecord& error) {
   return error.isAPIError() && error.status==400 && contains(error.message,"Fast mode is not enabled");
@@ -116,19 +72,6 @@ std::optional<double> getRetryAfterMs(const ErrorRecord& error, const Dependenci
   }
   return std::nullopt;
 }
-std::optional<double> getRateLimitResetDelayMs(const ErrorRecord& error, Dependencies& deps) {
-  const auto resetHeader=headerGet(error.headers,deps.wire.rateLimitReset);
-  if (!resetHeader || resetHeader->empty()) return std::nullopt;
-  double resetUnixSec;
-  try { std::size_t end=0; resetUnixSec=std::stod(value::trim(*resetHeader),&end);
-    if (end!=value::trim(*resetHeader).size()) return std::nullopt;
-  } catch (...) { return std::nullopt; }
-  if (!std::isfinite(resetUnixSec)) return std::nullopt;
-  require(deps.nowMs,"nowMs");
-  const double delayMs=resetUnixSec*1000-deps.nowMs();
-  if (delayMs<=0) return std::nullopt;
-  return std::min(delayMs,PERSISTENT_RESET_CAP_MS);
-}
 double getMaxRetries(const RetryOptions& options, const Dependencies& deps) {
   const double configured=options.maxRetries.value_or(getDefaultMaxRetries(deps));
   if (deps.maxRetriesCap && envString(deps,"BATBOX_MAX_RETRIES").empty())
@@ -138,8 +81,6 @@ double getMaxRetries(const RetryOptions& options, const Dependencies& deps) {
 }
 bool shouldRetry(const ErrorRecord& error, Dependencies& deps) {
   // Rate-limit behavior comes from actual responses and retry policy.
-  if (isPersistentRetryEnabled(deps) && internal::isTransientCapacityError(error)) return true;
-  if (internal::envTruthy(deps,"BATBOX_REMOTE") && (error.status==401 || error.status==403)) return true;
   // A rejected credential does not change between attempts.
   if (error.status==401 || error.status==403) {
     if (error.status==401 && deps.clearApiKeyHelperStash) deps.clearApiKeyHelperStash();
@@ -148,31 +89,17 @@ bool shouldRetry(const ErrorRecord& error, Dependencies& deps) {
   if (internal::contains(error.message,"\"type\":\"overloaded_error\"")) return true;
   if (parseMaxTokensContextOverflowError(error,deps)) return true;
   const auto retryHeader=internal::headerGet(error.headers,deps.wire.shouldRetry);
-  if (retryHeader=="true") {
-    internal::require(deps.isSubscriber,"isSubscriber");
-    if (!deps.isSubscriber()) return true;
-    internal::require(deps.isEnterpriseSubscriber,"isEnterpriseSubscriber");
-    if (deps.isEnterpriseSubscriber()) return true;
-  }
-  if (retryHeader=="false") {
-    const bool is5xxError=error.status && *error.status>=500;
-    if (!(internal::envString(deps,"BATBOX_USER_TYPE")=="ant" && is5xxError)) return false;
-  }
+  if (retryHeader=="true") return true;
+  if (retryHeader=="false") return false;
   if (error.isConnectionError()) return true;
   if (!error.status || *error.status==0) return false;
   if (error.status==408) return true;
   if (error.status==409) return true;
-  if (error.status==429) {
-    internal::require(deps.isSubscriber,"isSubscriber");
-    if (!deps.isSubscriber()) return true;
-    internal::require(deps.isEnterpriseSubscriber,"isEnterpriseSubscriber");
-    return deps.isEnterpriseSubscriber();
-  }
+  if (error.status==429) return true;
   if (error.status==401) {
     internal::require(deps.clearApiKeyHelperStash,"clearApiKeyHelperCache");
     deps.clearApiKeyHelperStash(); return true;
   }
-  if (internal::isOAuthTokenRevokedError(error)) return true;
   if (*error.status>=500) return true;
   return false;
 }

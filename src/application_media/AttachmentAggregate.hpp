@@ -1,9 +1,10 @@
 #pragma once
-#include "application_media/Attachments.hpp"
+#include "attachments/files/FileAttachments.hpp"
+#include "file_state_stash/FileStateStash.hpp"
+#include "messages/Messages.hpp"
 #include "application_media/Bindings.hpp"
 #include "attachments/Aggregate.hpp"
 #include "attachments/local/LocalCollectors.hpp"
-#include "bootstrap/Costs.hpp"
 #include "bootstrap/PoetryState.hpp"
 #include "bootstrap/FlightTransitions.hpp"
 #include "query/AsyncGadgetTurn.hpp"
@@ -11,10 +12,20 @@
 #include <set>
 
 namespace batbox::application_media {
+struct AttachmentInputs {
+  event_loop::Loop& owner;
+  std::function<std::shared_ptr<gadgets::files::FileReadServices>()> readServices;
+  std::function<app_state::AppStateRef()> getAppState;
+  std::function<bool(const std::string&,const app_state::AppStateRef&)>
+    isFileReadDenied;
+  std::function<execution::Context()> currentContext;
+  std::shared_ptr<file_state_stash::FileStateStash> readFileState;
+  std::shared_ptr<messages::Services> messages;
+  explicit AttachmentInputs(event_loop::Loop& loop):owner(loop){}
+};
 struct AggregateInputs {
   AttachmentInputs files;
   std::shared_ptr<Bundle> media;
-  std::function<bool(const std::string&)> feature;
   std::function<void(const std::string&)> log;
   std::function<std::string()> cwd,flightId,localIsoDate;
   std::function<Json()> settings,skillCommands,mcpClients,mcpResources;
@@ -36,18 +47,18 @@ struct AggregateInputs {
     const std::string&,int)> structuredPatch;
   std::function<event_loop::Deferred<Json>(const std::string&)> listMissions;
   std::function<std::string()> missionListId;
-  std::function<bool()> isTodoV2Enabled,isBatSwarmsEnabled,
-    ideAvailable,lspAvailable,internalUser,batListInMessages,
+  std::function<bool()> isTodoV2Enabled,ideAvailable,lspAvailable,batListInMessages,
     deferredGadgetsEnabled,mcpInstructionsDeltaEnabled,
-    tokenUsageAttachmentEnabled,ultrathinkEnabled;
+    tokenUsageAttachmentEnabled;
   std::function<double(const std::string&)> effectiveContextWindow;
   std::function<Json(const Json&,const Json&,const std::string&)>
     filterDeniedBats;
-  std::function<std::string()> subscriptionType;
   std::function<Json(const std::string&)> drainBatPendingMessages;
+  // Changed head files for the main Flight; the predicate names files whose
+  // changes the changed-file attachments already deliver.
+  std::function<Json(const std::function<bool(const std::string&)>&)> headFileChanges;
   std::shared_ptr<attachment_triggers::Services> triggers;
   std::shared_ptr<bootstrap::PoetryState> poetryState;
-  std::shared_ptr<bootstrap::CostState> costState;
   std::shared_ptr<bootstrap::FlightTransitions> transitions;
   explicit AggregateInputs(event_loop::Loop& owner):files(owner){}
 };
@@ -64,7 +75,6 @@ public:
   query::AsyncMessageCursor turnCursor(const Json& queuedCommands,
     const execution::Context& context,const Json& messages,
     const std::string& querySource);
-  void suppressNextSkillListing(){suppressNextSkillListing_=true;}
 private:
   explicit AggregateProvider(AggregateInputs inputs):inputs_(std::move(inputs)){}
   attachments::Services services(
@@ -73,7 +83,6 @@ private:
   void observeMode();
   AggregateInputs inputs_;
   std::map<std::string,std::set<std::string>> sentSkillNames_;
-  bool suppressNextSkillListing_=false;
   std::optional<std::string> previousMode_;
 };
 } // namespace batbox::application_media

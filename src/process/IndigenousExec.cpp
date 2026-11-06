@@ -1,3 +1,4 @@
+#include "process/StandardDescriptors.hpp"
 #include "runtime/AsyncLaunch.hpp"
 #include "process/ExecFileNoThrow.hpp"
 #include "runtime/Encoding.hpp"
@@ -125,7 +126,8 @@ ExecaResult run(ExecaRequest request){
     if(cwdBytes&&!cwdBytes->empty())
       posix_spawn_file_actions_addchdir_np(&actions,cwdBytes->c_str());
     posix_spawnattr_t attributes;posix_spawnattr_init(&attributes);
-    posix_spawnattr_setflags(&attributes,POSIX_SPAWN_SETPGROUP);
+    posix_spawnattr_setflags(&attributes,static_cast<short>(POSIX_SPAWN_SETPGROUP|
+      process::keepOnlyStandardDescriptors(&actions)));
     posix_spawnattr_setpgroup(&attributes,0);
     std::vector<std::string> arguments;arguments.push_back(executable);
     for(const auto& arg:request.args)arguments.push_back(value::encodeUtf8(arg));

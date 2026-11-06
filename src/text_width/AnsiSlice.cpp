@@ -31,9 +31,4 @@ std::string sliceAnsi(const std::string& text,double start,std::optional<double>
   const auto starts=filterStartCodes(s.reduceAnsiCodes(active));
   result+=s.ansiCodesToString(s.undoAnsiCodes(starts));return result;
 }
-void bindAnsiSlice(WrapServices& wrap,SliceServices services){
-  wrap.sliceAnsi=[services=std::move(services)](const std::string& text,double start,double end){
-    return sliceAnsi(text,start,end,services);
-  };
-}
 } // namespace batbox::text_width

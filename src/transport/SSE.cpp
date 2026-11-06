@@ -1,5 +1,7 @@
 #include "transport/SSE.hpp"
 #include "transport/Errors.hpp"
+#include <algorithm>
+#include <utility>
 
 // C++ adaptation of SDK decoding algorithms; see THIRD_PARTY_NOTICES.md
 // and third_party/notices/third-party/sdk/ for attribution and Apache-2.0 terms.
@@ -50,7 +52,12 @@ std::vector<std::string> LineDecoder::decode(std::string_view chunk) {
   // Consumed bytes are dropped once per chunk instead of once per line.
   std::size_t start = 0;
   const std::string_view view(buffer);
-  while (const auto pattern = findNewlineIndex(view,carriageReturnIndex.value_or(start))) {
+  // The first search skips bytes an earlier chunk already searched.
+  auto searchStart = [&] {
+    const auto from = carriageReturnIndex.value_or(start);
+    return std::max(from, std::exchange(searchFrom, 0));
+  };
+  while (const auto pattern = findNewlineIndex(view,searchStart())) {
     if (pattern->carriage && !carriageReturnIndex) {
       carriageReturnIndex = pattern->index;
       continue;
@@ -66,6 +73,7 @@ std::vector<std::string> LineDecoder::decode(std::string_view chunk) {
     start = pattern->index;
     carriageReturnIndex.reset();
   }
+  searchFrom = view.size() - start;
   if (start) {
     buffer.erase(0,start);
     if (carriageReturnIndex) *carriageReturnIndex -= start;
@@ -85,20 +93,22 @@ std::vector<ServerSentEvent> SSEDecoder::consume(std::vector<std::string>&& inpu
       std::string joined;
       if (data.size() == 1) joined = std::move(data.front());
       else for (std::size_t i = 0; i < data.size(); ++i) { if (i) joined += '\n'; joined += data[i]; }
-      result.push_back({std::move(event),std::move(joined),std::move(chunks)});
-      chunks.clear();
+      result.push_back({std::move(event),std::move(joined)});
       event.reset(); data.clear();
       continue;
     }
-    chunks.push_back(std::move(line));
-    const std::string_view kept = chunks.back();
+    const std::string_view kept = line;
     if (kept.starts_with(':')) continue;
     const auto colon = kept.find(':');
     const auto field = kept.substr(0,colon);
     auto value = colon == std::string_view::npos ? std::string_view{} : kept.substr(colon+1);
     if (value.starts_with(' ')) value.remove_prefix(1);
     if (field == "event") event = std::string(value);
-    else if (field == "data") data.emplace_back(value);
+    else if (field == "data") {
+      // The value is the tail of line; keep it without another allocation.
+      line.erase(0, static_cast<std::size_t>(value.data() - line.data()));
+      data.push_back(std::move(line));
+    }
   }
   return result;
 }

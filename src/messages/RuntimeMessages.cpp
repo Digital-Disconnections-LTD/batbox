@@ -35,21 +35,11 @@ Json createStopHookSummaryMessage(const Json& args,Services& services){
   for(const char* key:{"toolUseID","hookLabel","totalDurationMs"})copyIf(message,args,key);
   return message;
 }
-Json createTurnDurationMessage(double duration,const std::optional<Json>& budget,
-    std::optional<std::size_t> count,Services& services){
+Json createTurnDurationMessage(double duration,std::optional<std::size_t> count,
+    Services& services){
   Json message={{"type","system"},{"subtype","turn_duration"},{"durationMs",duration}};
-  if(budget){
-    for(const auto& [source,target]:std::vector<std::pair<std::string,std::string>>{
-        {"tokens","budgetTokens"},{"limit","budgetLimit"},{"nudges","budgetNudges"}})
-      if(budget->contains(source))message[target]=budget->at(source);
-  }
   if(count)message["messageCount"]=*count;
   message["timestamp"]=requireNow(services);message["uuid"]=requireUUID(services);
   message["isMeta"]=false;return message;
-}
-Json createGadgetUseSummaryMessage(const std::string& summary,const Json& ids,
-    Services& services){
-  return {{"type","tool_use_summary"},{"summary",summary},{"precedingToolUseIds",ids},
-    {"uuid",requireUUID(services)},{"timestamp",requireNow(services)}};
 }
 } // namespace batbox::messages

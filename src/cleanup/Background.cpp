@@ -38,12 +38,6 @@ struct Run:std::enable_shared_from_this<Run>{
           const std::exception_ptr& error){
           if(error)self->result.reject(error);else self->advance();
         });return;}
-      if(services.userType&&*services.userType==services.internalUserType){
-        services.packageStashCleanup().then([self](const event_loop::Unit*,
-          const std::exception_ptr& error){
-          if(error)self->result.reject(error);else self->result.resolve(event_loop::Unit{});
-        });return;
-      }
       result.resolve(event_loop::Unit{});
     }catch(...){result.reject(std::current_exception());}
   }
@@ -53,8 +47,7 @@ void require(const BackgroundServices& services){
     !services.oldMessageFiles||!services.oldFlightFiles||!services.oldPlanFiles||
     !services.oldFileHistoryBackups||!services.oldFlightEnvDirs||
     !services.oldDebugLogs||!services.oldImageStashes||!services.oldPastes||
-    !services.staleBatWorktrees||!services.getCutoffDateMs||
-    !services.packageStashCleanup||services.internalUserType.empty())
+    !services.staleBatWorktrees||!services.getCutoffDateMs)
     throw std::invalid_argument("background cleanup imports required");
 }
 }

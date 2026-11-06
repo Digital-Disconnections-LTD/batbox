@@ -41,13 +41,10 @@ struct WireProtocol {
   std::string retryAfter;
   std::string shouldRetry;
   std::string overageDisabledReason;
-  std::string rateLimitReset;
 };
 struct Dependencies {
   Json env = Json::object(); // Batbox configuration values
   WireProtocol wire;
-  bool unattendedRetryFeature = false;
-  bool bashClassifierFeature = false;
   bool disableKeepAliveOnStaleConnection = false;
   // Short ladder for servers that answer quickly or not at all (local
   // servers, translated providers): at most this many retries, unless
@@ -66,13 +63,7 @@ struct Dependencies {
   std::function<void(const std::string&)> handleFastModeOverageRejection;
   std::function<void()> handleFastModeRejectedByAPI;
   std::function<void(double, const std::string&)> triggerFastModeCooldown;
-  std::function<std::optional<std::string>()> getOAuthAccessToken;
-  std::function<void(const std::string&)> handleOAuth401Error;
   std::function<void()> clearApiKeyHelperStash;
-  std::function<void()> clearAwsCredentialsStash;
-  std::function<void()> clearGcpCredentialsStash;
-  std::function<bool()> isSubscriber;
-  std::function<bool()> isEnterpriseSubscriber;
   std::function<bool(const std::string&)> isDefaultPremiumModel;
   std::function<void()> disableKeepAlive;
   std::function<void(const std::string&)> logForDebugging;
@@ -100,11 +91,8 @@ struct OverflowData { double inputTokens, maxTokens, contextLimit; };
 struct ConnectionErrorDetails { std::string code, message; bool isSSLError; };
 
 Json errorToJson(const ErrorRecord& error);
-ErrorRecord errorFromJson(const Json& value);
-Json contextToJson(const RetryContext& context);
 std::optional<ConnectionErrorDetails> extractConnectionErrorDetails(const ErrorRecord& error);
-bool shouldRetry529(const std::optional<std::string>& querySource, bool bashClassifierFeature);
-bool isPersistentRetryEnabled(const Dependencies& deps);
+bool shouldRetry529(const std::optional<std::string>& querySource);
 bool is529Error(const ErrorRecord& error);
 std::optional<OverflowData> parseMaxTokensContextOverflowError(const ErrorRecord& error, Dependencies& deps);
 std::optional<std::string> getRetryAfter(const ErrorRecord& error, const WireProtocol& wire);

@@ -17,10 +17,6 @@ event_loop::Deferred<InputResult> dispatchKnown(const CommandEntry& entry,
   SlashServices& services){
   const auto& command=entry.descriptor;
   const auto type=field(command,"type");
-  if(type=="prompt"&&value::property(command,"userInvocable")!=false){
-    require(static_cast<bool>(services.recordSkillUsage),"recordSkillUsage");
-    services.recordSkillUsage(name);
-  }
   if(value::property(command,"userInvocable")==false){
     InputResult value;
     value.messages.push_back(userMessage("/"+name,preceding,services.messages));

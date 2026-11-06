@@ -18,7 +18,6 @@ int main(){
   inputs.store=store;inputs.initialMessages=initial;inputs.readFileState=stash;
   inputs.engine=std::make_shared<query::AsyncEngineServices>();
   inputs.nowMs=[]{return 100.0;};
-  inputs.feature=[](const std::string&){return false;};
   inputs.onDetachedError=[](std::exception_ptr error){
     if(error)std::rethrow_exception(error);
   };
@@ -35,7 +34,6 @@ int main(){
   inputs.makeSubmitRequest=[](const std::string& text,const ix::InputState&){
     ix::submit::PoetrySubmitRequest request;request.input=text;return request;
   };
-  inputs.presentationImports.stream.connectorTextEnabled=[]{return false;};
   inputs.presentationImports.stream.nowMs=[]{return 100.0;};
   inputs.presentationImports.newConversationId=[]{return "next";};
   inputs.presentationImports.removeTranscriptMessage=[](const Json&){};

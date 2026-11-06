@@ -1,24 +1,11 @@
 #include "application_poetry/Provider.hpp"
+#include "application_poetry/Stamp.hpp"
 #include "project_recovery/Recovery.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "utils/envUtils.hpp"
-#include <chrono>
 #include <filesystem>
 
 namespace batbox::application_poetry {
-namespace {
-std::string stamp(const std::filesystem::path& path){
-  std::error_code error;
-  const auto time=std::filesystem::last_write_time(path,error);
-  if(error)return "missing";
-  const auto size=std::filesystem::file_size(path,error);
-  const auto ticks=time.time_since_epoch();
-  const auto seconds=std::chrono::duration_cast<std::chrono::seconds>(ticks);
-  return std::to_string(seconds.count())+":"+
-    std::to_string(static_cast<long long>((ticks-seconds).count()))+":"+
-    (error?std::string("directory"):std::to_string(size));
-}
-}
 
 event_loop::Deferred<std::string> Provider::projectRecovery(){
   if(!owner_.isOwnerThread())
@@ -30,17 +17,24 @@ event_loop::Deferred<std::string> Provider::projectRecovery(){
       value::truthy(value::property(currentSettings,"bareMode"))){
     output.resolve({});return output;
   }
+  // A stable head keeps the packet it was built with, including no packet;
+  // changes to the three startup files reach the model at the tail.
+  const bool stable=stablePromptPrefix();
+  if(stable&&projectRecoveryStash_)return *projectRecoveryStash_;
   const auto working=runtime::pathFromUtf8(cwd());
   const auto directory=project_recovery::findDirectory(working);
   if(!directory){
-    projectRecoveryStash_.reset();projectRecoveryStamp_.clear();
+    projectRecoveryStamp_.clear();
+    if(stable)projectRecoveryStash_=output;else projectRecoveryStash_.reset();
     output.resolve({});return output;
   }
   // Directory metadata detects newly added topic filenames; topic contents
   // remain on demand. Only the three startup files affect the loaded packet.
-  auto signature=runtime::pathToUtf8(*directory)+"\n"+stamp(*directory);
-  for(const char* name:{"Makefile","00_project.md","10_memory.md"})
-    signature+="\n"+stamp(*directory/name);
+  auto signature=runtime::pathToUtf8(*directory)+"\n"+fileStamp(*directory);
+  for(const char* name:{"Makefile","00_project.md","10_memory.md"}){
+    signature+="\n"+fileStamp(*directory/name);
+    if(stable)trackHeadFile(runtime::pathToUtf8(*directory/name));
+  }
   if(projectRecoveryStash_&&signature==projectRecoveryStamp_)
     return *projectRecoveryStash_;
   projectRecoveryStamp_=signature;projectRecoveryStash_=output;

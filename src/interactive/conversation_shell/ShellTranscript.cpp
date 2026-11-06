@@ -82,7 +82,7 @@ std::string Shell::renderTranscriptChunk(const PreparedMessageList& full,
   options.hideLogo=true;
   options.isLoading=false;
   options.streamingText.reset();options.streamingThinking.reset();
-  options.unseenDivider.reset();options.cursor.reset();
+  options.unseenDivider.reset();
   options.inProgressGadgetUseIDs.clear();options.streamingGadgetUseIDs.clear();
   options.renderRange=std::pair{begin,end};
   message_list_view::SurfaceState surface;

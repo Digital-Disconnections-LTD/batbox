@@ -28,14 +28,11 @@ bool hasUnresolvedHooksFromLookup(const std::string& gadgetUseID,
 bool hasContentAfterIndex(const MessageRefs& messages, std::size_t index,
                           const GadgetIDs& streamingGadgetUseIDs,
                           const MessageDecisionImports& imports);
-bool isMessageStreaming(const Json& message, const GadgetIDs& streamingGadgetUseIDs);
-bool allGadgetsResolved(const Json& message, const GadgetIDs& resolvedGadgetUseIDs);
 bool shouldRenderStatically(const Json& message,
                             const GadgetIDs& streamingGadgetUseIDs,
                             const GadgetIDs& inProgressGadgetUseIDs,
                             const GadgetIDs& siblingGadgetUseIDs,
                             const std::string& screen,
                             const MessageDecisionLookups& lookups);
-std::string expandKey(const Json& message);
 
 } // namespace batbox::interactive

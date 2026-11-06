@@ -1,3 +1,4 @@
+#include "process/StandardDescriptors.hpp"
 #include "runtime/AsyncLaunch.hpp"
 #include "mcp/StdioClient.hpp"
 #include "process/IndigenousJsonlProcess.hpp"
@@ -146,7 +147,8 @@ StdioClient::StdioClient(const std::vector<std::string>& command,const std::stri
   for(int fd:{toChild[0],toChild[1],fromChild[0],fromChild[1],errChild[0],errChild[1]})
     posix_spawn_file_actions_addclose(&actions,fd);
   posix_spawnattr_t attributes;posix_spawnattr_init(&attributes);
-  posix_spawnattr_setflags(&attributes,POSIX_SPAWN_SETPGROUP);
+  posix_spawnattr_setflags(&attributes,static_cast<short>(POSIX_SPAWN_SETPGROUP|
+    process::keepOnlyStandardDescriptors(&actions)));
   posix_spawnattr_setpgroup(&attributes,0);
   std::vector<char*> argv;
   for(const auto& arg:command)argv.push_back(const_cast<char*>(arg.c_str()));

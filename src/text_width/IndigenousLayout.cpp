@@ -19,13 +19,4 @@ SliceServices indigenousSliceServices(std::shared_ptr<StringWidth> width){
   };
   return s;
 }
-WrapServices indigenousLayoutServices(std::shared_ptr<StringWidth> width,WrapAnsiRef wrap){
-  if(!width||!wrap||!*wrap)throw std::invalid_argument("Native layout width and wrapping imports required");
-  WrapServices services;bindAnsiSlice(services,indigenousSliceServices(width));
-  services.stringWidth=[width=std::move(width)](const std::string& text){return width->stringWidth(text);};
-  services.wrapAnsi=[wrap=std::move(wrap)](const std::string& text,double columns,bool trim,bool hard){
-    return (*wrap)(text,columns,Json{{"trim",trim},{"hard",hard}});
-  };
-  return services;
-}
 }

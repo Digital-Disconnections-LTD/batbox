@@ -156,9 +156,8 @@ bats::ResumeResult IndigenousBatApplication::resumeMission(const std::string& id
     };
     services.filterUnresolvedGadgetUses=bats::filterUnresolvedGadgetUses;
     services.filterOrphanedThinkingOnlyMessages=normalization::filterOrphanedThinkingOnlyMessages;
-    services.filterWhitespaceOnlyAssistantMessages=[messages=inputs_.messages](const Json& values){
-      normalization::Dependencies deps;deps.messageServices=messages.get();
-      return normalization::filterWhitespaceOnlyAssistantMessages(values,deps);
+    services.filterWhitespaceOnlyAssistantMessages=[](const Json& values){
+      return normalization::filterWhitespaceOnlyAssistantMessages(values);
     };
     services.reconstructForSubagentResumeIndigenous=gadget_results::reconstructForSubagentResume;
     services.isDirectory=[](const std::string& path){return std::filesystem::is_directory(runtime::pathFromUtf8(path));};
@@ -196,7 +195,6 @@ bats::ResumeResult IndigenousBatApplication::resumeMission(const std::string& id
     services.getParentFlightId=[self,id]{return self->parentFlightId(id);};
     services.runWithBatContext=indigenous.async.runWithBatContext;
     services.runWithCwdOverride=indigenous.async.runWithCwdOverride;
-    services.isCoordinatorMode=[]{return false;};
     services.isForkSubagentEnabled=[]{return false;};
     services.getSdkBatProgressSummariesEnabled=[]{return false;};
     services.getMissionOutputPath=registration_.getMissionOutputPath;

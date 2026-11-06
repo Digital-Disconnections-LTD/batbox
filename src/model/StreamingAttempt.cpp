@@ -21,15 +21,14 @@ PreparedStreamingAttempt prepareStreamingAttempt(double attempt,
   state.start = deps.nowMillis ? deps.nowMillis() : currentMillis();
   state.attemptStartTimes.push_back(state.start);
   if(deps.queryCheckpoint)deps.queryCheckpoint("query_client_creation_end");
-  const Json params = deps.paramsFromContext(context);
-  deps.captureAPIRequest(params);
-  state.maxOutputTokens = value::property(params, "max_tokens").get<double>();
+  Json streamingParams = deps.paramsFromContext(context);
+  deps.captureAPIRequest(streamingParams);
+  state.maxOutputTokens = value::property(streamingParams, "max_tokens").get<double>();
   if(deps.queryCheckpoint)deps.queryCheckpoint("query_api_request_sent");
   if(!deps.hasBatId && deps.headlessProfilerCheckpoint)
     deps.headlessProfilerCheckpoint("api_request_sent");
   state.clientRequestId = deps.injectCorrelationId && deps.firstPartyProvider && deps.firstPartyBaseUrl
     ? std::optional<std::string>(deps.randomUUID()) : std::nullopt;
-  Json streamingParams = params;
   streamingParams["stream"] = true;
   return {std::move(streamingParams),state.clientRequestId};
 }
@@ -49,7 +48,7 @@ OpenedStream executeStreamingAttempt(double attempt,
     throw std::invalid_argument("Streaming attempt dependencies are required");
   PreparedStreamingAttempt prepared=prepareStreamingAttempt(attempt,context,state,deps);
   return finishStreamingAttempt(state,
-    deps.openStream(prepared.requestParams,prepared.clientRequestId),deps);
+    deps.openStream(std::move(prepared.requestParams),prepared.clientRequestId),deps);
 }
 
 } // namespace batbox::model

@@ -7,7 +7,6 @@ namespace batbox::flights::scanning::detail {
 struct LoadState {
   std::string out;
   std::size_t boundaryStartOffset=0,bufFileOff=0;
-  bool hasPreservedSegment=false;
   std::string lastSnap,carry,straddleSnapCarry;
   bool hasLastSnap=false;
   std::size_t straddleSnapTailEnd=0;

@@ -1,13 +1,16 @@
+#include "interactive/repl_runtime/Runtime.hpp"
 #include "interactive/conversation_shell/Shell.hpp"
 #include "interactive/conversation_shell/PoetryViewport.hpp"
 #include "interactive/presentation_providers/MissionFooter.hpp"
 #include "terminal_ftxui/ElementSearch.hpp"
 #include "terminal_ftxui/TextFit.hpp"
+#include "interactive/gadget_views/GadgetViewModel.hpp"
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace batbox::interactive::conversation_shell {
 namespace {
@@ -55,7 +58,7 @@ std::string oneLine(std::string value,std::size_t width){
 const ViewState Shell::viewState()const{
   const auto& view=presentation().viewport;
   const bool pill=!viewport_->atBottom();
-  auto result=ViewState{presentation(),sticky_,cursor_,
+  auto result=ViewState{presentation(),sticky_,
     searchOpen_?searchEditor_->view(searchInput_):
       editor_->view(presentation().input),navigation_->searchQuery(),
     searchCount_,searchCurrent_,newMessageCount_,view.columns,view.rows,
@@ -70,12 +73,19 @@ const ViewState Shell::viewState()const{
   if(result.batId)result.batTrail=presentation_providers::batTrail(
     result.backgroundMissions,*result.batId);
   result.missionsCollapsed=missionsCollapsed_;
+  result.selectedMission=selectedMission_;
   result.remembering=remembering_;
   result.activityFrame=activityFrame_;
   result.welcomeFrame=welcomeFrame_;
   if(workingSince_&&imports_.nowMs)
     result.workingMs=std::max(0.0,imports_.nowMs()-*workingSince_);
   result.streamMode=presentation().streamMode.value_or("");
+  if(presentation().loading){
+    const auto messages=std::make_shared<TurnMessages>(presentation().messages.begin(),
+      presentation().messages.end());
+    if(const auto status=repl_runtime::stopHookSpinnerSuffix(messages,true))
+      result.stopHookStatus=*status;
+  }
   result.historySearch=!batConversation_&&historyNavigator_&&historyNavigator_->searching();
   return result;
 }
@@ -89,19 +99,41 @@ ftxui::Element Shell::renderInline(){
 }
 ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& plan){
   retained_->beginFrame(plan.options.conversationId);
+  auto view=viewState();
   auto projected=imports_.projectionServices();
   currentGadgets_=projected.gadgets;
+  // While the list under the input shows a group's Bats, the transcript
+  // keeps one line for them; the full rows return once they finish.
+  if(auto listed=presentation_providers::runningBatGadgetUses(view.backgroundMissions);
+      !listed.empty()&&projected.groupedGadgetUse){
+    projected.groupedGadgetUse=[grouped=std::move(projected.groupedGadgetUse),
+        listed=std::move(listed)](const gadgets::Gadget& gadget,
+        const std::vector<cards_gadget_use::GroupedGadgetUseEntry>& entries,
+        bool animate,const gadgets::Gadgets& roster){
+      auto result=grouped(gadget,entries,animate,roster);
+      const bool shown=std::any_of(entries.begin(),entries.end(),
+          [&](const cards_gadget_use::GroupedGadgetUseEntry& entry){
+        const auto& id=value::property(entry.param,"id");
+        return id.is_string()&&listed.contains(id.get<std::string>());
+      });
+      const auto refused=static_cast<std::size_t>(std::count_if(entries.begin(),entries.end(),
+          [](const cards_gadget_use::GroupedGadgetUseEntry& entry){return entry.isError;}));
+      return shown?gadget_views::launchedGroupView(std::move(result),refused):result;
+    };
+  }
   message_list_view::ProjectionImports renderer;
   renderer.messages=retained_->bind(std::move(projected),
     imports_.liveRetainedViews?imports_.liveRetainedViews():imports_.retainedViews);
   renderer.renderStreamingMarkdown=imports_.renderStreamingMarkdown;
+  renderer.renderQueuedInput=imports_.renderQueuedInput;
+  renderer.responsePieces=&responsePieces_;
+  renderer.thinkingPieces=&thinkingPieces_;
   renderer.renderLogo=imports_.chrome.renderLogo;
   renderer.renderDivider=imports_.chrome.renderDivider;
   renderer.renderVirtualList=[this](const message_list_view::SurfacePlan& source,
       const message_list_view::RowRenderer& rows){
     return viewport_->projectList(source,rows);
   };
-  auto view=viewState();
   auto header=imports_.chrome.renderHeader(view);
   // With a status row the chrome sits under the input, where the eyes are.
   const bool statusBelow=static_cast<bool>(imports_.chrome.renderStatus);
@@ -187,8 +219,12 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   pillScreenRow_=pillRows?std::optional<int>(rows-poetryRows-1-belowPoetry):std::nullopt;
   missionScreenRow_=missionRows?std::optional<int>(rows-belowPoetry):std::nullopt;
   footerMissionIds_.clear();
+  const bool listFocused=view.selectedMission.has_value()&&!view.missionsCollapsed;
   const auto window=presentation_providers::footerWindow(view.backgroundMissions,
-    view.rows,view.missionsCollapsed,view.batId);
+    view.rows,view.missionsCollapsed,listFocused&&!view.selectedMission->empty()?
+      view.selectedMission:view.batId,listFocused?1:0);
+  // The Flight row, shown while the list has focus, has an empty id.
+  if(listFocused&&missionRows>1)footerMissionIds_.push_back(std::string{});
   for(auto i=window.begin;i<window.end&&
       footerMissionIds_.size()<static_cast<std::size_t>(std::max(0,missionRows-1));++i)
     footerMissionIds_.push_back(view.backgroundMissions[i].at("id").get<std::string>());
@@ -266,16 +302,25 @@ ftxui::Element Shell::render(){
   options.isLoading=presentation().loading;
   options.streamingText=presentation().showStreamingText?
     presentation().streamingText:std::nullopt;
+  // A new snapshot only when the reasoning changed; its identity tells the
+  // surface to recheck visibility. One copy per change, none per frame.
   const auto& thinking=presentation().streamingThinking;
-  if(thinking.has_value()!=previousThinking_.has_value()||
-      (thinking&&previousThinking_&&
-       (thinking->thinking!=previousThinking_->thinking||
-        thinking->isStreaming!=previousThinking_->isStreaming||
-        thinking->streamingEndedAt!=previousThinking_->streamingEndedAt))){
-    previousThinking_=thinking;
+  if(thinking.has_value()!=static_cast<bool>(thinkingRef_)||
+      (thinking&&(thinking->isStreaming!=thinkingRef_->isStreaming||
+        thinking->streamingEndedAt!=thinkingRef_->streamingEndedAt||
+        thinking->thinking!=thinkingRef_->thinking)))
     thinkingRef_=thinking?std::make_shared<const StreamingThinking>(*thinking):nullptr;
-  }
   options.streamingThinking=thinkingRef_;
+  if(!batConversation_)options.queuedInputs=presentation().queuedInputs;
+  // Live text is split into rows so only those near the viewport are laid
+  // out; settled pieces are reused from frame to frame.
+  responsePieces_.clear();thinkingPieces_.clear();
+  if(imports_.renderStreamingPieces&&options.streamingText&&!options.streamingText->empty())
+    responsePieces_=imports_.renderStreamingPieces(*options.streamingText);
+  if(imports_.renderThinkingPieces&&thinkingRef_&&!thinkingRef_->thinking.empty())
+    thinkingPieces_=imports_.renderThinkingPieces(thinkingRef_->thinking);
+  options.streamingTextParts=std::max<std::size_t>(1,responsePieces_.size());
+  options.streamingThinkingParts=std::max<std::size_t>(1,thinkingPieces_.size());
   newMessageCount_=options.unseenDivider?options.unseenDivider->count:0;
   lastHasGadgetsInProgress_=!options.inProgressGadgetUseIDs.empty();
   auto plan=message_list_view::prepareSurface(prepared_,std::move(options),
@@ -285,11 +330,10 @@ ftxui::Element Shell::render(){
   if(plan.options.unseenDivider){
     const auto prefix=value::slice(plan.options.unseenDivider->firstUnseenUuid,0,24);
     for(std::size_t i=0;i<plan.rows.size();++i){
-      if(value::slice(plan.rows[i].key,0,24)==prefix){dividerIndex_=i;break;}
+      if(message_list_view::hasUuidPrefix(plan.rows[i].key,prefix)){dividerIndex_=i;break;}
     }
   }
   navigation_->setItems(prepared_->renderable);
-  actions_->setItems(prepared_->renderable);
   return renderFullscreen(plan);
 }
 ftxui::Element Shell::renderSnapshot(){return render();}

@@ -49,10 +49,8 @@ AppStateRef getDefaultAppState(const DefaultAppStateServices& services){
   set("isBriefOnly",false);
   set("showTeammateMessagePreview",false);
   set("selectedIPAgentIndex",-1);
-  set("coordinatorTaskIndex",-1);
   set("viewSelectionMode","none");
   set("footerSelection",nullptr);
-  set("kairosEnabled",false);
   undefined("remoteSessionUrl");
   set("remoteConnectionStatus","connecting");
   set("remoteBackgroundTaskCount",0);

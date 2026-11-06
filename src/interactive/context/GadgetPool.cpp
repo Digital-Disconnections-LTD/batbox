@@ -10,26 +10,11 @@ bool isMcp(const gadgets::Gadget& gadget){
 }
 const Json& field(const Json& value,const char* key){return value::property(value,key);}
 }
-bool isPrActivitySubscriptionGadget(const std::string& name){
-  return name.ends_with("subscribe_pr_activity")||
-    name.ends_with("unsubscribe_pr_activity");
-}
-gadgets::Gadgets applyCoordinatorGadgetFilter(const gadgets::Gadgets& available,
-                                        const GadgetPoolServices& services){
-  gadgets::Gadgets filtered;
-  for(const auto* gadget:available){
-    if(!gadget)throw std::invalid_argument("Null Gadget in pool");
-    if(services.coordinatorAllowedNames.contains(gadget->name)||
-       isPrActivitySubscriptionGadget(gadget->name))filtered.push_back(gadget);
-  }
-  return filtered;
-}
 gadgets::Gadgets mergeAndFilterGadgets(const gadgets::Gadgets& initial,
     const gadgets::Gadgets& assembled,const std::string& permissionMode,
     const GadgetPoolServices& services){
   (void)permissionMode;
   if(!services.localeCompare)throw std::invalid_argument("Gadget localeCompare required");
-  if(!services.feature)throw std::invalid_argument("Gadget feature binding required");
   gadgets::Gadgets builtIn,mcp;
   std::unordered_set<std::string> seen;
   for(const auto* pool:{&initial,&assembled})for(const auto* gadget:*pool){
@@ -43,12 +28,6 @@ gadgets::Gadgets mergeAndFilterGadgets(const gadgets::Gadgets& initial,
   std::stable_sort(builtIn.begin(),builtIn.end(),byName);
   std::stable_sort(mcp.begin(),mcp.end(),byName);
   builtIn.insert(builtIn.end(),mcp.begin(),mcp.end());
-  if(services.feature("COORDINATOR_MODE")){
-    if(!services.isCoordinatorMode)
-      throw std::invalid_argument("Coordinator mode binding required");
-    if(services.isCoordinatorMode())
-      return applyCoordinatorGadgetFilter(builtIn,services);
-  }
   return builtIn;
 }
 Json mergeClients(const Json& initial,const Json& connected){

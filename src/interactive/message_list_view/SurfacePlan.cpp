@@ -1,4 +1,5 @@
 #include "interactive/message_list_view/Surface.hpp"
+#include <algorithm>
 #include <stdexcept>
 
 namespace batbox::interactive::message_list_view {
@@ -14,14 +15,13 @@ SurfacePlan prepareSurface(std::shared_ptr<const PreparedMessageList> prepared,
   const auto& o=result.options;const auto& messages=*result.prepared;
   const bool thinkingVisible=state.thinkingVisible(o.streamingThinking,nowMs);
   result.lastThinkingBlockId=lastThinkingBlockId(messages.normalizedMessages,o.hidePastThinking,thinkingVisible);
-  result.latestBashOutputUUID=latestBashOutputUUID(messages.normalizedMessages);
-  std::ptrdiff_t divider=-1,selected=-1;
+  result.latestBashOutputUUID=state.latestBashOutput(result.prepared);
+  std::ptrdiff_t divider=-1;
   const auto prefix=o.unseenDivider?value::slice(o.unseenDivider->firstUnseenUuid,0,24):"";
   for(std::size_t index=0;index<messages.renderable->size();++index){
     const auto& item=(*messages.renderable)[index];
     const auto& id=field(*item.message,"uuid").get_ref<const std::string&>();
-    if(o.unseenDivider&&divider<0&&value::slice(id,0,24)==prefix)divider=index;
-    if(o.cursor&&selected<0&&id==o.cursor->uuid)selected=index;
+    if(o.unseenDivider&&divider<0&&hasUuidPrefix(id,prefix))divider=index;
   }
   // Only collapsed read/search rows look ahead, and only grouped items differ
   // from their root message once materialized; build the list on demand.
@@ -41,12 +41,10 @@ SurfacePlan prepareSurface(std::shared_ptr<const PreparedMessageList> prepared,
   for(std::size_t index=0;index<messages.renderable->size();++index){
     const auto& item=(*messages.renderable)[index];
     const auto& type=field(*item.message,"type");
-    const bool isSelected=static_cast<std::ptrdiff_t>(index)==selected;
     message_view::RowRequest request{item,{},lookups,o.streamingGadgetUseIDs,o.screen,canAnimate,o.isLoading,false};
     request.options.columns=o.columns;
     request.options.showThinkingInPlace=o.thinkingInPlace;
-    request.options.verbose=o.verbose||state.expanded(*item.message)||
-      (o.cursor&&o.cursor->expanded&&isSelected);
+    request.options.verbose=o.verbose;
     request.options.inProgressGadgetUseIDs=o.inProgressGadgetUseIDs;
     request.options.lastThinkingBlockId=result.lastThinkingBlockId;
     request.options.latestBashOutputUUID=result.latestBashOutputUUID;
@@ -56,7 +54,7 @@ SurfacePlan prepareSurface(std::shared_ptr<const PreparedMessageList> prepared,
       ((o.streamingText&&!o.streamingText->empty())||
         hasContentAfterIndex(materialize(),index,o.streamingGadgetUseIDs,decisions));
     SurfaceRow row{field(*item.message,"uuid").get<std::string>()+"-"+o.conversationId,
-      std::move(request),isSelected,{}};
+      std::move(request),{}};
     if(o.unseenDivider&&static_cast<std::ptrdiff_t>(index)==divider)row.unseenCount=o.unseenDivider->count;
     result.rows.push_back(std::move(row));
   }
@@ -77,15 +75,25 @@ SurfacePlan prepareSurface(std::shared_ptr<const PreparedMessageList> prepared,
             result.showStreamingThinking=false;
       }
     }
-    const auto addTransient=[&](SurfaceRow::Kind kind,const char* name){
-      message_view::RowRequest request{RenderItem{MessageRef{}},{},{},{}};
-      SurfaceRow row{o.conversationId+name,std::move(request),false,{}};
-      row.kind=kind;result.rows.push_back(std::move(row));
+    const auto addTransient=[&](SurfaceRow::Kind kind,const char* name,std::size_t parts){
+      for(std::size_t part=0;part<std::max<std::size_t>(1,parts);++part){
+        message_view::RowRequest request{RenderItem{MessageRef{}},{},{},{}};
+        SurfaceRow row{o.conversationId+name+(part?"-"+std::to_string(part):""),
+          std::move(request),{}};
+        row.kind=kind;row.part=part;result.rows.push_back(std::move(row));
+      }
     };
     if(result.showStreamingThinking)
-      addTransient(SurfaceRow::Kind::StreamingThinking,"-live-thinking");
+      addTransient(SurfaceRow::Kind::StreamingThinking,"-live-thinking",o.streamingThinkingParts);
     if(result.showStreamingText)
-      addTransient(SurfaceRow::Kind::StreamingText,"-live-response");
+      addTransient(SurfaceRow::Kind::StreamingText,"-live-response",o.streamingTextParts);
+    for(std::size_t index=0;index<o.queuedInputs.size();++index){
+      message_view::RowRequest request{RenderItem{MessageRef{}},{},{},{}};
+      SurfaceRow row{o.conversationId+"-queued-"+o.queuedInputs[index].id,
+        std::move(request),{}};
+      row.kind=SurfaceRow::Kind::QueuedInput;row.part=index;
+      result.rows.push_back(std::move(row));
+    }
   }
   return result;
 }

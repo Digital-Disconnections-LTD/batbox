@@ -109,8 +109,6 @@ static Json run(const Json& item){
   trace.push_back(Json::array({"agentContext",context}));fn();};
  services.runWithCwdOverride=[&](const std::string& cwd,const auto& fn){
   trace.push_back(Json::array({"cwd",cwd}));fn();};
- services.isCoordinatorMode=[&]{trace.push_back(Json::array({"coordinator"}));
-  return field(item,"coordinator")==true;};
  services.isForkSubagentEnabled=[&]{trace.push_back(Json::array({"forkEnabled"}));
   return field(item,"forkEnabled")==true;};
  services.getSdkBatProgressSummariesEnabled=[&]{trace.push_back(Json::array({"sdkSummaries"}));

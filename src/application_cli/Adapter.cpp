@@ -236,7 +236,7 @@ void Adapter::start(){
 }
 void Adapter::beginText(){
   if(inputIsTerminal()){
-    inputClosed_=true;
+    closeInput();
     if(inputs_.poetry&&!inputs_.poetry->empty())poetryEntries_.push_back(*inputs_.poetry);
     submitNext();return;
   }
@@ -259,7 +259,7 @@ void Adapter::beginText(){
         if(auto next=repeat.lock())(*next)();
         return;
       }
-      current->inputClosed_=true;
+      current->closeInput();
       current->textCollector_.reset();
       current->stdinTimeout_.cancel();
       if(current->inputs_.poetry&&!current->inputs_.poetry->empty())
@@ -276,7 +276,7 @@ void Adapter::beginText(){
   stdinTimeout_=inputs_.owner.setTimeout(3000,[weak,text]{
     auto self=weak.lock();if(!self||self->sawInput_||self->inputClosed_)return;
     self->inputs_.writeStderr("Warning: no stdin data received in 3s, proceeding without it.\n");
-    self->inputClosed_=true;
+    self->closeInput();
     self->textCollector_.reset();
     self->stdin_->stop();
     if(self->inputs_.poetry&&!self->inputs_.poetry->empty())
@@ -297,16 +297,12 @@ void Adapter::beginStream(){
     return cli::structured::write(self->inputs_.owner,value,
       [](const Json& item)->std::optional<std::string>{return item.dump();},
       [self](const std::string& line){self->inputs_.writeStdout(line);});};
-  services.randomUUID=inputs_.randomUUID;
-  services.logHookError=[weak](const std::string&,const std::string& error){
-    if(auto self=weak.lock())self->inputs_.writeStderr(error+"\n");};
   services.processLine.logForDebugging=[](const std::string&,const Json&){};
   services.processLine.notifyCommandLifecycle=[](const std::string&,const std::string&){};
   services.processLine.fatalInput=[weak](const std::string& error){
     if(auto self=weak.lock())self->inputs_.writeStderr(error+"\n");};
   services.processLine.setEnvironment=[](const std::string&,const std::string&){
     throw std::runtime_error("SDK environment updates are not supported by the native CLI");};
-  services.replayUserMessages=inputs_.replayUserMessages;
   structured_=std::make_shared<cli::structured::StructuredFlight>(
     inputs_.owner,std::move(services));
   if(hookInitialUserMessage_&&!hookInitialUserMessage_->empty())
@@ -322,7 +318,7 @@ void Adapter::nextStreamInput(){
       const std::exception_ptr& error){
     auto self=weak.lock();if(!self||self->stopped_)return;
     if(error){self->fail(error);return;}
-    if(!item||item->done){self->inputClosed_=true;self->submitNext();return;}
+    if(!item||item->done){self->closeInput();self->submitNext();return;}
     if(item->value)self->acceptStreamInput(*item->value);
     if(!self->inputPaused_)self->nextStreamInput();
   });
@@ -510,7 +506,7 @@ void Adapter::acceptStreamInput(Json message){
         inputs_.interruptTurn();
         response["subtype"]="success";
         if(subtype=="end_session"){
-          inputClosed_=true;
+          closeInput();
           if(stdin_)stdin_->stop();
         }
       }
@@ -523,6 +519,17 @@ void Adapter::acceptStreamInput(Json message){
     if(subtype=="end_session"&&inputClosed_)submitNext();
   }
 }
+void Adapter::closeInput(){
+  if(inputClosed_)return;
+  inputClosed_=true;
+  if(inputs_.inputClosed)inputs_.inputClosed();
+}
+bool Adapter::queueScheduled(std::string value){
+  if(stopped_||inputClosed_||value.empty())return false;
+  poetryEntries_.emplace_back(std::move(value));
+  return true;
+}
+void Adapter::runQueued(){submitNext();}
 void Adapter::enqueueUser(Json message,std::string value,
     std::optional<std::string> uuid){
   if(!uuid&&inputs_.replayUserMessages)uuid=inputs_.randomUUID();

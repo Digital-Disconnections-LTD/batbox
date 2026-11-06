@@ -15,12 +15,6 @@ LocalServiceBuilder::LocalServiceBuilder(LocalModelService& service,
   normalization=makeNormalization();
   errors=makeErrors();
 }
-const ModelProfile& LocalServiceBuilder::profile(const std::string& id)const{
-  const auto found=runtime.config.profiles.find(id);
-  if(found==runtime.config.profiles.end())
-    throw std::invalid_argument("Unconfigured local model: "+id);
-  return found->second;
-}
 Json LocalServiceBuilder::gadgetMetadata()const{
   Json result=Json::array();
   for(const auto* gadget:gadgets){
@@ -42,9 +36,6 @@ messages::Services LocalServiceBuilder::makeMessages(){
   service.strictGadgetResultPairing=[strict=config.strictGadgetResultPairing]{
     return strict;
   };
-  service.featureGate=[features=config.features](const std::string& name){
-    return features.contains(name);
-  };
   service.logError=[&host=host](const std::string& value){
     host.imports_.debug("error",value);
   };
@@ -53,7 +44,6 @@ messages::Services LocalServiceBuilder::makeMessages(){
 normalization::Dependencies LocalServiceBuilder::makeNormalization(){
   normalization::Dependencies deps;
   deps.messageServices=&messages;
-  deps.featureGate=messages.featureGate;
   deps.gadgetSearchEnabledOptimistic=[enabled=runtime.config.gadgetSearch]{
     return enabled;
   };
@@ -83,8 +73,6 @@ normalization::Dependencies LocalServiceBuilder::makeNormalization(){
     };
   }else deps.normalizeAttachmentForAPI=host.imports_.normalizeAttachmentForAPI;
   deps.validateImagesForAPI=normalization::validateImagesForAPI;
-  deps.historySnipFeature=runtime.config.features.contains("historySnip");
-  deps.historySnipRuntimeEnabled=deps.historySnipFeature;
   return deps;
 }
 api_errors::Providers LocalServiceBuilder::makeErrors(){
@@ -92,20 +80,14 @@ api_errors::Providers LocalServiceBuilder::makeErrors(){
   result.randomUUID=platform::randomUUID;
   result.nowISO=[]{return platform::isoTimestamp();};
   result.nonInteractive=[enabled=runtime.config.nonInteractive]{return enabled;};
-  result.subscriber=[enabled=runtime.config.subscriber]{return enabled;};
-  result.shouldProcessRateLimits=[](bool){return false;};
-  result.oauthAccessToken=[]() -> std::optional<std::string>{return {};};
-  result.apiKeySource=[]{return std::string("local");};
   result.apiProvider=[provider=runtime.config.provider]{return provider;};
-  result.isDefaultPremiumModel=[main=runtime.config.mainModel](const auto& name){
-    return name==main;
-  };
-  result.env=runtime.config.environment;
   result.wire=runtime.config.errorWire;
   result.policyURL=runtime.config.policyURL;
   result.preferredModel=runtime.config.mainModel;
-  result.statusURL=runtime.config.statusURL;
-  result.usageURL=runtime.config.usageURL;
+  const auto& selected=value::property(options,"model");
+  const auto found=runtime.config.profiles.find(
+    selected.is_string()?selected.get<std::string>():runtime.config.mainModel);
+  if(found!=runtime.config.profiles.end())result.betas=requestBetas(found->second);
   return result;
 }
 } // namespace batbox::application_model

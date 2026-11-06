@@ -27,11 +27,6 @@ struct Run:std::enable_shared_from_this<Run> {
   Run(Input args,execution::Context& context,Services imports):
     input(std::move(args)),original(context),timed(context),
     services(std::move(imports)),output(services.loop){}
-  bool feature(const char* key){
-    if(!services.feature)
-      throw std::invalid_argument("Attachment feature import required");
-    return services.feature(key);
-  }
   void fail(const std::exception_ptr& error){output.reject(error);}
   Deferred<Json> maybe(const char* label,
       const std::function<Deferred<Json>()>& start){
@@ -128,12 +123,6 @@ struct Run:std::enable_shared_from_this<Run> {
         add(user,"at_mentioned_files",c.atMentionedFiles,true,true);
         add(user,"mcp_resources",c.mcpResources,true,true);
         add(user,"agent_mentions",c.batMentions,true);
-        if(feature("EXPERIMENTAL_SKILL_SEARCH")){
-          if(!services.skillSearchModulesPresent)
-            throw std::invalid_argument("Skill search module import required");
-          if(services.skillSearchModulesPresent()&&!input.skipSkillDiscovery)
-            add(user,"skill_discovery",c.skillDiscovery,true);
-        }
       }
       query::ownerPromiseAll(services.loop,user).then(
         [self=shared_from_this()](const std::vector<Json>* values,
@@ -149,21 +138,15 @@ struct Run:std::enable_shared_from_this<Run> {
     std::vector<Deferred<Json>> thread,main;
     queued(thread);
     add(thread,"date_change",c.dateChange,false);
-    add(thread,"ultrathink_effort",c.ultrathinkEffort,false);
     add(thread,"deferred_tools_delta",c.deferredGadgetsDelta,false);
     add(thread,"agent_listing_delta",c.batListingDelta,false);
     add(thread,"mcp_instructions_delta",c.mcpInstructionsDelta,false);
-    if(feature("BUDDY"))add(thread,"companion_intro",c.companionIntro,false);
     add(thread,"changed_files",c.changedFiles,true,true);
     nested(thread);
     dynamic(thread);
     add(thread,"skill_listing",c.skillListing,true,true);
     add(thread,"plan_mode",c.planMode,false,true);
     add(thread,"plan_mode_exit",c.planModeExit,false,true);
-    if(feature("TRANSCRIPT_CLASSIFIER")){
-      add(thread,"auto_mode",c.autoMode,false,true);
-      add(thread,"auto_mode_exit",c.autoModeExit,false,true);
-    }
     thread.push_back(maybe("todo_reminders",[this,&c]{
       if(!services.isTodoV2Enabled)
         throw std::invalid_argument("Todo version import required");
@@ -173,19 +156,8 @@ struct Run:std::enable_shared_from_this<Run> {
         throw std::invalid_argument("Unbound todo reminder collector");
       return asAsync([this,&selected]{return selected(input,original);});
     }));
-    if(!services.isBatSwarmsEnabled)
-      throw std::invalid_argument("Agent swarms import required");
-    if(services.isBatSwarmsEnabled()){
-      if(input.querySource!="session_memory")
-        add(thread,"teammate_mailbox",c.partnerMailbox,false,true);
-      add(thread,"team_context",c.teamContext,false,true);
-    }
     add(thread,"agent_pending_messages",c.batPendingMessages,false,true);
     add(thread,"critical_system_reminder",c.criticalSystemReminder,false);
-    if(feature("COMPACTION_REMINDERS"))
-      add(thread,"compaction_reminder",c.compactionReminder,false);
-    if(feature("HISTORY_SNIP"))
-      add(thread,"context_efficiency",c.contextEfficiency,false);
     if(isMainThread){
       add(main,"ide_selection",c.selectedLinesIde,false,true);
       add(main,"ide_opened_file",c.openedFileIde,false,true);
@@ -195,9 +167,8 @@ struct Run:std::enable_shared_from_this<Run> {
       add(main,"unified_tasks",c.unifiedMissions,false,true);
       add(main,"async_hook_responses",c.asyncHookResponses,false,true);
       add(main,"token_usage",c.tokenUsage,false,true);
-      add(main,"budget_usd",c.budgetUsd,false,true);
-      add(main,"output_token_usage",c.outputTokenUsage,false,true);
-      add(main,"verify_plan_reminder",c.verifyPlanReminder,false,true);
+      if(c.headFileChanges)
+        add(main,"head_file_changes",c.headFileChanges,false,true);
     }
     auto allThread=query::ownerPromiseAll(services.loop,thread);
     auto allMain=query::ownerPromiseAll(services.loop,main);

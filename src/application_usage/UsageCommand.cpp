@@ -199,7 +199,6 @@ ContextData analyze(const Sources& sources,
     params.customSystemPoetry=value::property(options,"customSystemPrompt");
     params.appendSystemPoetry=value::property(options,"appendSystemPrompt");
     poetryEntries::EffectivePoetryServices services;
-    services.feature=[](const std::string&){return false;};
     const auto result=poetryEntries::buildEffectiveSystemPoetry(params,services);
     effectivePoetry.clear();
     if(result.is_array())for(const auto& item:result)

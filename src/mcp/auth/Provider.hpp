@@ -39,7 +39,6 @@ public:AuthenticationCancelledError():std::runtime_error("Authentication was can
 };
 std::string getServerKey(const std::string& name,const Json& config);
 std::string getScopeFromMetadata(const Json& metadata);
-std::string redactSensitiveUrlParams(const std::string& url);
 http::Response normalizeOAuthErrorBody(http::Response response);
 std::string buildRedirectUri(int port=3118);
 bool hasMcpDiscoveryButNoToken(const std::string& name,const Json& config,
@@ -48,12 +47,6 @@ void clearServerTokensFromLocalStorage(const std::string& name,const Json& confi
   const ::batbox::auth::storage::Storage& storage);
 void revokeServerTokens(const std::string& name,const Json& config,
   const Services& services,bool preserveStepUpState=false);
-void saveMcpClientSecret(const std::string& name,const Json& config,
-  const std::string& secret,const ::batbox::auth::storage::Storage& storage);
-void clearMcpClientConfig(const std::string& name,const Json& config,
-  const ::batbox::auth::storage::Storage& storage);
-Json getMcpClientConfig(const std::string& name,const Json& config,
-  const ::batbox::auth::storage::Storage& storage);
 
 class Provider {
 public:
@@ -61,7 +54,6 @@ public:
     std::string redirectUri=buildRedirectUri(),bool handleRedirection=false,
     bool skipBrowserOpen=false);
   const std::string& redirectUrl()const{return redirectUri_;}
-  std::optional<std::string> authorizationUrl()const;
   Json clientMetadata()const;
   std::optional<std::string> clientMetadataUrl()const;
   void setMetadata(Json metadata);
@@ -87,7 +79,7 @@ private:
   Json config_,metadata_;
   Services services_;
   bool handleRedirection_,skipBrowserOpen_;
-  std::optional<std::string> verifier_,authorizationUrl_,state_,scopes_,pendingStepUpScope_;
+  std::optional<std::string> verifier_,state_,scopes_,pendingStepUpScope_;
   mutable std::recursive_mutex mutex_;
   Json read()const;
   Json entry()const;

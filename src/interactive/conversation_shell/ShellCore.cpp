@@ -2,6 +2,7 @@
 #include "interactive/text_input/TextEditorIndigenous.hpp"
 #include "interactive/TranscriptRows.hpp"
 #include "runtime/JsonValue.hpp"
+#include "runtime/MessageMutation.hpp"
 #include <cctype>
 #include <stdexcept>
 
@@ -39,9 +40,7 @@ Shell::Shell(Imports imports):imports_(std::move(imports)),
   need(imports_.input.writePlain,"writePlain");
   need(imports_.input.onExit,"onExit");
   need(imports_.onRepin,"onRepin");
-  need(imports_.getSubmitCount,"getSubmitCount");
   need(imports_.copyMessageText,"copyMessageText");
-  need(imports_.editMessage,"editMessage");
   need(imports_.nowMs,"nowMs");
   need(imports_.logForDebugging,"logForDebugging");
   need(imports_.terminalProgressEnabled,"terminalProgressEnabled");
@@ -118,7 +117,7 @@ void Shell::initialize(){
       self->currentGadgets_);
   };
   search.scanItem=[weak](std::size_t index,const std::string& query)
-      ->std::optional<std::vector<terminal_render::MatchPosition>>{
+      ->std::optional<std::vector<terminal_search::MatchPosition>>{
     if(auto self=weak.lock())return self->viewport_->scanItem(index,query);
     return {};
   };
@@ -145,34 +144,6 @@ void Shell::initialize(){
   search.performanceNow=imports_.nowMs;
   search.logForDebugging=imports_.logForDebugging;
   navigation_=std::make_shared<transcript_navigation::Navigation>(std::move(search));
-  message_actions::Services action(imports_.owner);
-  action.itemHeight=[weak](std::size_t index)->std::optional<double>{
-    if(auto self=weak.lock())return self->viewport_->ranges().itemHeight(index);
-    return {};
-  };
-  action.scrollToBottom=[weak]{if(auto self=weak.lock())self->jumpToBottom();};
-  action.onCursorChanged=[weak](std::optional<message_actions::Cursor> value){
-    if(auto self=weak.lock()){
-      self->cursor_=std::move(value);
-      if(self->cursor_){
-        const auto index=self->actions_->selectedIndex();
-        if(index>=0)self->viewport_->scrollToIndex(static_cast<std::size_t>(index));
-      }
-      self->requestRedraw();
-    }
-  };
-  action.copy=imports_.copyMessageText;
-  action.edit=[weak](MessageRef message){
-    auto self=weak.lock();
-    if(!self)throw std::runtime_error("Conversation shell closed");
-    if(!self->batConversation_)return self->imports_.editMessage(std::move(message));
-    event_loop::Deferred<event_loop::Unit> result(self->imports_.owner);
-    result.reject(std::make_exception_ptr(std::runtime_error(
-      "Use a follow-up to continue this Bat conversation")));
-    return result;
-  };
-  action.onDetachedError=imports_.onDetachedError;
-  actions_=std::make_unique<message_actions::MessageActionsController>(std::move(action));
   CommandUi::Callbacks commands;
   commands.onUiChanged=[weak](std::optional<UiRequest> value){
     if(auto self=weak.lock()){
@@ -450,8 +421,67 @@ void Shell::submitPoetry(const std::string& text){
     }
   });
 }
+bool Shell::restoreQueued(bool newestOnly){
+  if(batConversation_||!imports_.takeQueued)return false;
+  auto& input=presentation().input;
+  auto restored=imports_.takeQueued(newestOnly,input.text,input.caretUtf16);
+  if(!restored)return false;
+  input.text=std::move(restored->text);
+  const auto length=value::stringLength(input.text);
+  input.caretUtf16=newestOnly?length:std::min(restored->cursorOffset,length);
+  if(!restored->images.empty()){
+    if(!input.pastedContents.is_object())input.pastedContents=Json::object();
+    for(auto& image:restored->images){
+      const auto& id=value::property(image,"id");
+      const auto key=id.is_string()?id.get<std::string>():
+        id.is_number()?value::numberToString(id.get<double>()):value::stringify(id);
+      input.pastedContents[key]=std::move(image);
+    }
+  }
+  suggestions_.clear();++completionGeneration_;
+  if(historyNavigator_)historyNavigator_->reset();
+  ++presentation().revision;requestRedraw();
+  return true;
+}
+namespace {
+// What a frame can show of the live stream. Events that leave it unchanged
+// (pings, block stops, usage, text inside an inline line) paint nothing.
+struct LiveShape {
+  std::size_t messages=0;
+  const Json* last=nullptr;
+  std::uint64_t mutations=0;
+  std::optional<std::size_t> text,thinking;
+  bool thinkingStreaming=false;
+  std::optional<double> thinkingEnded;
+  std::optional<std::string> mode;
+  std::size_t gadgets=0,gadgetInput=0;
+  bool loading=false;
+  bool operator==(const LiveShape&)const=default;
+};
+LiveShape liveShape(const PresentationState& state,bool inlineMode){
+  LiveShape shape;
+  shape.messages=state.messages.size();
+  shape.last=state.messages.empty()?nullptr:state.messages.back().get();
+  shape.mutations=runtime::messageMutationEpoch();
+  if(inlineMode){
+    if(const auto visible=visibleStreamingTextView(state))shape.text=visible->size();
+  }else if(state.streamingText)shape.text=state.streamingText->size();
+  if(state.streamingThinking){
+    shape.thinking=state.streamingThinking->thinking.size();
+    shape.thinkingStreaming=state.streamingThinking->isStreaming;
+    shape.thinkingEnded=state.streamingThinking->streamingEndedAt;
+  }
+  shape.mode=state.streamMode;
+  shape.gadgets=state.streamingGadgetUses.size();
+  for(const auto& use:state.streamingGadgetUses)shape.gadgetInput+=use.unparsedGadgetInput.size();
+  shape.loading=state.loading;
+  return shape;
+}
+}
 void Shell::applyStream(StreamInput input){
   if(!imports_.owner.isOwnerThread())throw std::logic_error("Stream owner required");
+  const bool inlineMode=driver_&&driver_->mode()==terminal_ftxui::Mode::Inline;
+  const auto before=liveShape(imports_.presentation,inlineMode);
   if(input.event){
     auto& state=imports_.presentation;
     const auto& type=value::property(*input.event,"type");
@@ -485,20 +515,13 @@ void Shell::applyStream(StreamInput input){
     }
   }
   applyStreamMessage(imports_.presentation,input,imports_.input.presentation);
-  observeLastMessage();
+  if(liveShape(imports_.presentation,inlineMode)==before)return;
   commitInlineScrollback();requestRedraw();
-}
-void Shell::observeLastMessage(){
-  const auto& messages=imports_.presentation.messages;
-  const auto current=messages.empty()?MessageRef{}:messages.back();
-  if(current==lastObservedMessage_)return;
-  lastObservedMessage_=current;
 }
 void Shell::messagesChanged(){
   if(!imports_.owner.isOwnerThread())throw std::logic_error("Message owner required");
   rebuildTranscriptRows(imports_.presentation);
   ++imports_.presentation.revision;
-  observeLastMessage();
   commitInlineScrollback();requestRedraw();
 }
 void Shell::syncFocus(){

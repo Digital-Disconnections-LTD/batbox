@@ -29,6 +29,7 @@ ftxui::Color colorFor(Kind kind) {
     case Kind::Progress: return palette.progress;
     case Kind::System: return palette.system;
     case Kind::Error: return palette.error;
+    case Kind::Queued: return palette.queued;
   }
   return ftxui::Color::Default;
 }
@@ -80,13 +81,6 @@ ftxui::Element renderPresentation(const interactive::PresentationState& state,
                                   ftxui::Dimensions dimensions) {
   return std::make_shared<PresentationNode>(
       layoutPresentation(state, dimensions.dimx, dimensions.dimy), dimensions);
-}
-
-ftxui::Element renderPresentation(const interactive::PresentationState& state,
-                                  ftxui::Dimensions dimensions,
-                                  const std::unordered_set<std::string>& excluded) {
-  return std::make_shared<PresentationNode>(
-      layoutPresentation(state, dimensions.dimx, dimensions.dimy, &excluded), dimensions);
 }
 
 ftxui::Element renderPresentation(const interactive::PresentationState& state,

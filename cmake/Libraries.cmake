@@ -53,7 +53,7 @@ target_link_libraries(batbox_connectors PUBLIC batbox_core CURL::libcurl)
 target_compile_options(batbox_connectors PRIVATE -Wall -Wextra -Wpedantic)
 add_library(batbox_transport
   src/transport/Messages.cpp
-  src/transport/Errors.cpp src/transport/Headers.cpp
+  src/transport/Errors.cpp
   src/transport/SSE.cpp src/transport/Client.cpp)
 target_sources(batbox_transport PRIVATE src/transport/RetryAdapter.cpp
   src/transport/RawHttp.cpp src/transport/WireClient.cpp
@@ -74,13 +74,7 @@ target_sources(batbox_core PRIVATE
   src/normalization/ImageValidation.cpp
   src/normalization/Pipeline.cpp
   src/normalization/References.cpp
-  src/normalization/Tags.cpp
-  src/model_config/Capabilities.cpp
-  src/model_config/Context.cpp
   src/model_config/ModelNames.cpp
-  src/model_config/Output.cpp
-  src/model_config/PoetryStashing.cpp
-  src/timers/Timers.cpp
   src/formatting/Format.cpp
   src/accounting/Cost.cpp
   src/accounting/Flight.cpp
@@ -109,13 +103,11 @@ add_library(batbox_model
 target_link_libraries(batbox_model PUBLIC batbox_transport batbox_core batbox_event_loop)
 target_compile_options(batbox_model PRIVATE -Wall -Wextra -Wpedantic)
 add_library(batbox_compaction
-  src/compaction/Partial.cpp
   src/compaction/Restore.cpp
   src/compaction/Summary.cpp
   src/compaction/Workflow.cpp
   src/compaction/Auto.cpp src/compaction/Helpers.cpp src/compaction/Cleanup.cpp
   src/compaction/Poetry.cpp src/compaction/poetryEntries/Base.cpp
-  src/compaction/poetryEntries/Partial.cpp src/compaction/poetryEntries/Prefix.cpp
   src/compaction/poetryEntries/Boundary.cpp)
 target_link_libraries(batbox_compaction PUBLIC batbox_core)
 target_compile_options(batbox_compaction PRIVATE -Wall -Wextra -Wpedantic)
@@ -140,7 +132,7 @@ add_library(batbox_shell
   src/gadgets/mission_stop/MissionStop.cpp src/gadgets/mission_stop/Result.cpp
   src/shell/ManagedShell.cpp ${BATBOX_SHELL_SPAWN_SOURCE} src/shell/WindowsPaths.cpp
   src/shell/Output.cpp src/shell/ShellDiscovery.cpp
-  src/shell/CommandHandle.cpp src/shell/StaticCommand.cpp src/shell/TailFile.cpp src/shell/MissionOutputPoller.cpp
+  src/shell/CommandHandle.cpp src/shell/TailFile.cpp src/shell/MissionOutputPoller.cpp
   src/shell/FormatDuration.cpp src/shell/ShellCwdCompletion.cpp
   src/gadgets/bash/Helpers.cpp src/gadgets/bash/Result.cpp src/gadgets/bash/BashGadget.cpp
   src/gadgets/bash/Schema.cpp src/gadgets/bash/Accumulator.cpp
@@ -156,8 +148,8 @@ target_link_libraries(batbox_shell PUBLIC batbox_core batbox_event_loop)
 target_compile_options(batbox_shell PRIVATE -Wall -Wextra -Wpedantic)
 add_library(batbox_query
   src/execution/Dispatch.cpp src/execution/Call.cpp
-  src/execution/Orchestration.cpp src/execution/StreamingExecutor.cpp
-  src/query/Config.cpp src/query/TokenBudget.cpp src/query/Recovery.cpp
+  src/execution/Orchestration.cpp
+  src/query/Recovery.cpp
   src/query/Entry.cpp src/query/Setup.cpp src/query/ModelPass.cpp
   src/query/Completion.cpp src/query/GadgetTurn.cpp src/query/Engine.cpp
   src/query/StopHooks.cpp src/query/StopHooksPartner.cpp)
@@ -182,7 +174,7 @@ add_library(batbox_bats
   src/bats/BatGadgetPreflight.cpp
   src/bats/BatGadgetWorktree.cpp
   src/bats/StashSafe.cpp src/bats/SubagentContext.cpp
-  src/bats/RunForkedBat.cpp src/bats/SnapshotBridge.cpp
+  src/bats/SnapshotBridge.cpp
   src/bats/TypedBatState.cpp)
 target_link_libraries(batbox_bats PUBLIC batbox_query)
 target_compile_options(batbox_bats PRIVATE -Wall -Wextra -Wpedantic)

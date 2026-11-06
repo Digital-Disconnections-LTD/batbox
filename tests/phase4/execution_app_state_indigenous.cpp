@@ -98,9 +98,7 @@ int main(){
   prepared.currentModel="main";
   prepared.appState=be::effectiveAppState(after,base);
   prepared.gadgetUseContext=after;
-  bq::QueryConfig config;
   bq::ModelServices modelServices;
-  modelServices.feature=[](const std::string&){return false;};
   modelServices.prependUserContext=[](const Json& messages,const Json&){return messages;};
   modelServices.getAppState=[&](const be::Context&){return base;};
   modelServices.callModel=[](const bq::ModelRequest& request,const std::function<void()>&){
@@ -108,7 +106,7 @@ int main(){
       Json::array({"root","external-1","external-2","external-3","skill-1","skill-2"}));
     return batbox::model::NextMessage{[]{return std::optional<batbox::model::MessageRef>{};}};
   };
-  bq::runModelPass(params,state,prepared,config,std::nullopt,modelServices,
+  bq::runModelPass(params,state,prepared,std::nullopt,modelServices,
     [](const Json&){});
 
   auto snapshot=ba::makeStashSafeSnapshot(parent,Json::array(),Json::object(),Json::object(),

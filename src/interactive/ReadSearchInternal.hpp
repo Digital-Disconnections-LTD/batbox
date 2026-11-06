@@ -20,9 +20,6 @@ struct Group {
   int memorySearchCount = 0;
   runtime::OrderedStringSet memoryReadFilePaths;
   int memoryWriteCount = 0;
-  std::optional<int> teamMemorySearchCount;
-  std::optional<runtime::OrderedStringSet> teamMemoryReadFilePaths;
-  std::optional<int> teamMemoryWriteCount;
   std::vector<std::string> nonMemSearchArgs;
   std::optional<std::string> latestDisplayHint;
   int mcpCallCount = 0;
@@ -41,7 +38,6 @@ struct Group {
 const Json* member(const Json& object, const char* key);
 const Json* firstBlock(const Json& message);
 std::string value(const Json& object, const char* key);
-bool feature(const ReadSearchImports& imports, const char* name);
 bool fullscreen(const ReadSearchImports& imports);
 std::optional<GadgetInfo> collapsibleGadgetInfo(const RenderItem& item,
                                              const ReadSearchImports& imports);

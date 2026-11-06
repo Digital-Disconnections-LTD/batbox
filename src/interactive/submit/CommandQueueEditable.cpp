@@ -1,5 +1,6 @@
 #include "interactive/submit/CommandQueue.hpp"
 #include "messages/TextContent.hpp"
+#include <algorithm>
 #include <stdexcept>
 
 namespace batbox::interactive::submit {
@@ -27,14 +28,22 @@ Json imageBlocks(const CommandRef& command,std::int64_t startId){
   return result;
 }
 }
-std::optional<PopEditableResult> CommandQueue::popAllEditable(
+std::optional<PopEditableResult> CommandQueue::popEditable(
+    const CommandPredicate& filter,bool newestOnly,
     const std::string& currentInput,std::size_t currentCursorOffset,
     double nowMs){
   if(!owner_.isOwnerThread())throw std::logic_error("Queue owner thread required");
   if(queue_.empty())return {};
+  const auto taken=[&](const CommandRef& command){
+    return isQueuedCommandEditable(command)&&(!filter||filter(command));
+  };
   CommandList editable,nonEditable;
-  for(const auto& command:queue_)
-    (isQueuedCommandEditable(command)?editable:nonEditable).push_back(command);
+  if(newestOnly){
+    const auto newest=std::find_if(queue_.rbegin(),queue_.rend(),taken);
+    for(const auto& command:queue_)
+      (newest!=queue_.rend()&&command==*newest?editable:nonEditable).push_back(command);
+  }else for(const auto& command:queue_)
+    (taken(command)?editable:nonEditable).push_back(command);
   if(editable.empty())return {};
   std::vector<std::string> queuedTexts;
   std::string queuedJoined;

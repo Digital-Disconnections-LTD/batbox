@@ -1,10 +1,11 @@
 #pragma once
-#include "fs_operations/NodeFsAsync.hpp"
+#include "event_loop/Deferred.hpp"
 #include <condition_variable>
 #include <deque>
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 namespace batbox::fs_operations {
 class IndigenousAsyncFsHost {
@@ -35,7 +36,4 @@ private:
   std::vector<std::thread> workers_;
   bool stopping_=false;
 };
-
-NodeFsAsyncImports indigenousNodeFsAsyncImports(event_loop::Loop& loop,
-  std::shared_ptr<IndigenousAsyncFsHost> host);
 }

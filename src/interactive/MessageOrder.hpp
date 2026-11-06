@@ -11,7 +11,6 @@ namespace batbox::interactive {
 using MessageRefs = std::vector<MessageRef>;
 
 bool isGadgetUseRequestMessage(const Json& message);
-bool isGadgetUseResultMessage(const Json& message);
 bool isHookAttachmentMessage(const Json& message);
 std::optional<std::string> getGadgetUseID(const Json& message);
 runtime::OrderedStringSet getGadgetUseIDs(const MessageRefs& messages);

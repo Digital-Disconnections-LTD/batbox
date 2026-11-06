@@ -41,9 +41,6 @@ struct BatGadgetBackgroundServices {
   std::function<void(const std::string&,const std::string&,
     const BatMessageRefs&,const RootSetAppState&)> failAsyncBat;
   std::function<void(const Json&,const RootSetAppState&)> enqueueBatNotification;
-  std::function<bool(const std::string&)> feature;
-  std::function<std::optional<std::string>(const Json&,const gadgets::Gadgets&,
-    const Json&,std::stop_token,const std::string&,int)> classifyHandoffIfNeeded;
   std::function<std::string(std::exception_ptr)> errorMessage;
   std::function<void(const std::string&)> clearInvokedSkillsForBat;
 };

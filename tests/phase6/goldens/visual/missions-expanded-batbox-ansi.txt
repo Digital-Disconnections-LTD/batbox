@@ -1,17 +1,21 @@
-Active Missions (4) · Ctrl+T collapse · /missions
-  ● Audit the parser · running · 1s · 4 Gadgets · Reading src/parser.cpp · “Two spans drift”
-▸ └ ● Check the lexer · running · 1s · 2 Gadgets · Searching for Span · “Offsets look right”
-  ● Draft release notes · running · 1s · 1 Gadget · Reading CHANGELOG.md
-  ● npm test --watch · running · 1s
+Active Missions (4) · ↓ select · Ctrl+T collapse · /missions
+  ● Audit the parser       Reading src/parser.cpp                   running  1s  4 Gadgets  0 tokens
+▸ └ ● Check the lexer      Searching for Span                       running  1s  2 Gadgets  0 tokens
+  ● Draft release notes    Reading CHANGELOG.md                     running  1s   1 Gadget  0 tokens
+  ● npm test --watch                                                running  1s
 Flight › Audit the parser › Check the lexer · Alt+↑↓ move · Alt+← home · Ctrl+T list
 # styles
 0:0-99 fg=35 bg=- d
 1:0-3 fg=35 bg=-
+1:25-48 fg=- bg=- d
 2:0-1 fg=35 bg=- b
 2:2-3 fg=- bg=- d
 2:4-5 fg=35 bg=-
-2:6-91 fg=- bg=- b
+2:6-24 fg=- bg=- b
+2:25-48 fg=- bg=- d
 3:0-3 fg=35 bg=-
+3:25-48 fg=- bg=- d
 4:0-3 fg=35 bg=-
+4:25-48 fg=- bg=- d
 5:0-42 fg=35 bg=- b
 5:43-83 fg=90 bg=-

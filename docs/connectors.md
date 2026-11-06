@@ -25,7 +25,7 @@ that names the problem and the fix; nothing hangs or crashes.
 ## Which Scrapling tool WebFetch calls
 
 Batbox talks to `scrapling mcp` through the same MCP client it uses for your
-own MCP servers. The first time WebFetch runs, it lists the server's tools once
+own [MCP servers](#mcp-servers). The first time WebFetch runs, it lists the server's tools once
 and picks the plain HTTP fetch tool by name: `make_request` (Scrapling 0.4.15
 and later) or `get` (Scrapling 0.3 to 0.4.14). Both take `url` and
 `extraction_type` (Batbox asks for `markdown`) and return the page's status,
@@ -210,3 +210,42 @@ outside your repository.
 
 Search and browser work support cancellation. A browser helper is a separate
 process, and its own website timeouts may differ from Batbox's connection timeout.
+
+## MCP servers
+
+MCP servers add Gadgets, poetry commands and resources. `/mcp` shows each
+server's state and offers **Reconnect**, **Enable** or **Disable**, **Log in**
+and **Log out**. Batbox remembers disabled servers in `mcp-state.json` in your
+configuration folder.
+
+User servers load from `~/.batbox/mcp.json`; a project's `.mcp.json` adds its
+servers and replaces user entries with the same name. An `mcpServers` object in
+`native-client.json`, or `--mcp-config PATH`, is used instead of both files.
+
+```json
+{
+  "mcpServers": {
+    "local": {"command": "my-mcp-server", "args": [], "env": {}},
+    "remote": {"type": "http", "url": "https://example.org/mcp"}
+  }
+}
+```
+
+Batbox connects over stdio, Streamable HTTP (`"type": "http"`) and SSE
+(`"type": "sse"`). An entry with a `url` and no `type` is HTTP. A server's poetry
+commands join the slash-command catalog, and its resources can join the
+conversation context. Strings in an entry accept `${VARIABLE}` and
+`${VARIABLE:-default}`; an unset variable without a default is an error that
+names it.
+
+Remote servers take static `headers`, and `headersHelper` can add more. Batbox
+runs the helper as a shell command in the project directory with
+`BATBOX_MCP_SERVER_NAME` and `BATBOX_MCP_SERVER_URL` set; it must print a JSON
+object of string header values within 10 seconds. If it fails, Batbox connects
+with the static headers. Keep secrets in your private configuration or
+environment.
+
+Servers that use OAuth sign in with **Log in** in `/mcp`. On macOS the
+credentials go to the Keychain; on Linux and Windows they are stored in
+`.batbox-credentials.json` in your configuration folder. WebSocket servers and
+enterprise XAA sign-in are not supported.

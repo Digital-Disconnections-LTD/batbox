@@ -41,7 +41,6 @@ void handleMessageFromStream(const Json& message,
       if (c.onTombstone) c.onTombstone(field(message, "message"));
       return;
     }
-    if (messageType == "tool_use_summary") return;
     if (messageType == "assistant") {
       const auto& payload = field(message, "message");
       const auto& content = field(payload, "content");
@@ -97,14 +96,6 @@ void handleMessageFromStream(const Json& message,
         return std::nullopt;
       });
     const auto& block = field(event, "content_block");
-    required(imports.connectorTextEnabled, "connectorTextEnabled");
-    if (imports.connectorTextEnabled()) {
-      required(imports.isConnectorTextBlock, "isConnectorTextBlock");
-      if (imports.isConnectorTextBlock(block)) {
-        mode(c, "responding");
-        return;
-      }
-    }
     const auto blockType = typeOf(block);
     if (blockType == "thinking" || blockType == "redacted_thinking") {
       mode(c, "thinking");

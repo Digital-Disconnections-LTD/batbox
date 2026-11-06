@@ -31,8 +31,6 @@ public:
   std::shared_future<void> enqueueWrite(const std::string& file,EntryReader entry);
   std::shared_future<void> enqueueWrite(const std::string& file,Json entry);
   void flush();
-  void incrementPendingWrites();
-  void decrementPendingWrites();
 private:
   struct Entry {EntryReader read;std::shared_ptr<std::promise<void>> completion;};
   struct FileQueue {std::string file;std::deque<Entry> entries;};
@@ -46,7 +44,6 @@ private:
   std::optional<std::chrono::steady_clock::time_point> timer;
   std::exception_ptr failure;
   std::vector<std::shared_ptr<std::promise<void>>> failedCompletions;
-  std::size_t pendingWriteCount=0;
   std::size_t completedDrains=0;
   std::thread worker;
   void scheduleDrain(); // mutex held

@@ -37,28 +37,6 @@ Json withRetryOwnerSegments(event_loop::Loop& loop,
   while(true) {
     const auto step=invokeOwnerSegment(owner,stop,[&]{return machine->advance();});
     switch(step.kind) {
-      case retry::RetryStep::Kind::RefreshOAuth:
-        try {
-          auto pending=invokeOwnerSegment(owner,stop,[&]{
-            if(awaits.refreshOAuth)return awaits.refreshOAuth(step.accessToken);
-            event_loop::Deferred<event_loop::Unit> ready(loop);
-            retry::internal::require(deps.handleOAuth401Error,"handleOAuth401Error");
-            deps.handleOAuth401Error(step.accessToken);
-            ready.resolve(event_loop::Unit{});
-            return ready;
-          });
-          (void)waitOwnerDeferred(owner,stop,pending);
-          (void)invokeOwnerSegment(owner,stop,[&]{
-            machine->refreshedOAuth();return event_loop::Unit{};
-          });
-        } catch (...) {
-          if(stop.stop_requested())throw;
-          auto failure=std::current_exception();
-          (void)invokeOwnerSegment(owner,stop,[&]{
-            machine->failed(failure);return event_loop::Unit{};
-          });
-        }
-        break;
       case retry::RetryStep::Kind::GetClient:
         try {
           Json client=deps.getClient();

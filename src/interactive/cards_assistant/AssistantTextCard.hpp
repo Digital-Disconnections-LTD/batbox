@@ -8,8 +8,7 @@
 namespace batbox::interactive::cards_assistant {
 
 enum class Kind {
-  Hidden, RateLimit, ContextLimit, CreditBalance, InvalidKey,
-  ExternalInvalidKey, OrganizationDisabled, TokenRevoked, Timeout,
+  Hidden, RateLimit, ContextLimit, CreditBalance, InvalidKey, Timeout,
   ModelUnavailable, Interrupted, ApiError, Markdown
 };
 struct Protocol {
@@ -19,10 +18,6 @@ struct Protocol {
   std::string creditBalanceLow;
   std::string creditBalanceDisplay;
   std::string invalidKey;
-  std::string externalInvalidKey;
-  std::string organizationDisabled;
-  std::string organizationDisabledWithAuth;
-  std::string tokenRevoked;
   std::string apiTimeout;
   std::string modelOffSwitch;
   std::string userAbort;

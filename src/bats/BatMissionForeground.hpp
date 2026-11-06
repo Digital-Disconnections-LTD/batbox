@@ -11,7 +11,6 @@ struct ObservedBackgroundSignal {
 class ForegroundSignals {
  public:
   ObservedBackgroundSignal createObserved(const std::string& missionId);
-  std::shared_future<void> create(const std::string& missionId);
   void resolve(const std::string& missionId);
   void erase(const std::string& missionId);
  private:

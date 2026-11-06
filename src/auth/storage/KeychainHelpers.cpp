@@ -43,17 +43,4 @@ std::string KeychainState::username()const{
 void KeychainState::clear(){
   data.reset();stashedAt=0;++generation;readInFlight.reset();
 }
-void KeychainState::prime(const std::optional<std::string>& stdoutText){
-  if(stashedAt!=0)return;
-  std::optional<Json> next;
-  if(stdoutText&&!stdoutText->empty()){
-    try{
-      auto parsed=value::parse(*stdoutText);
-      if(!parsed.is_null())next=std::move(parsed);
-    }
-    catch(...){return;}
-  }
-  data=next;
-  stashedAt=services_.nowMs();
-}
 }

@@ -27,7 +27,6 @@ ix::MessageRef inputDelta(int index, const std::string& fragment) {
 }
 ix::PresentationImports imports() {
   ix::PresentationImports result;
-  result.stream.connectorTextEnabled = [] { return false; };
   result.stream.nowMs = [] { return 1000.0; };
   result.newConversationId = [] { return "conversation"; };
   result.removeTranscriptMessage = [](const Json&) {};
@@ -48,7 +47,6 @@ struct UpdaterReplay {
     };
     callbacks.onStreamingText = [this](ix::TextUpdate update) { text = update(text); };
     ix::StreamImports streamImports;
-    streamImports.connectorTextEnabled = [] { return false; };
     streamImports.nowMs = [] { return 1000.0; };
     ix::handleMessageFromStream(*message, callbacks, streamImports);
   }

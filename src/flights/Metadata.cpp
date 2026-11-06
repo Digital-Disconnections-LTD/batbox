@@ -16,18 +16,6 @@ std::string unescapeJsonString(const std::string& raw) {
   if(raw.find('\\')==std::string::npos)return raw;
   try{return value::parse('"'+raw+'"').get<std::string>();}catch(const std::exception&){return raw;}
 }
-std::optional<std::string> extractJsonStringField(const std::string& text,const std::string& key) {
-  for(const auto& pattern:{'"'+key+"\":\"",'"'+key+"\": \""}) {
-    const auto at=text.find(pattern);if(at==std::string::npos)continue;
-    const auto start=at+pattern.size();auto i=start;
-    while(i<text.size()) {
-      if(text[i]=='\\'){i+=2;continue;}
-      if(text[i]=='"')return unescapeJsonString(text.substr(start,i-start));
-      ++i;
-    }
-  }
-  return std::nullopt;
-}
 std::optional<std::string> extractLastJsonStringField(const std::string& text,const std::string& key) {
   std::optional<std::string> last;
   for(const auto& pattern:{'"'+key+"\":\"",'"'+key+"\": \""}) {

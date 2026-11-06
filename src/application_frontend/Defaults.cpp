@@ -112,7 +112,6 @@ Bundle::Bundle(application_runtime::Inputs& runtime,Inputs inputs):
   store_(runtime.store),inputs_(std::move(inputs)),commands_(runtime.commands){
   if(!inputs_.messages||!inputs_.poetry||!inputs_.flight||!inputs_.permission||!store_)
     throw std::invalid_argument("Frontend requires message, prompt, session, permission and state owners");
-  if(!inputs_.feature)inputs_.feature=[](const std::string&){return false;};
   if(!inputs_.log)inputs_.log=[](const std::string&){};
   if(!inputs_.onError)inputs_.onError=[](std::exception_ptr error){if(error)std::rethrow_exception(error);};
   if(!inputs_.redraw)inputs_.redraw=[]{};
@@ -141,14 +140,13 @@ std::shared_ptr<user_input::UserInputServices> Bundle::makeUserInputServices(){
     user_input::UserInputServices input;
     Owned(event_loop::Loop& owner,messages::Services& messages,
         const std::vector<user_input::CommandEntry>& commands):
-      slash{owner,messages,commands,{},{},{},{},{},{},{},{}},
-      input{owner,messages,slash,{},{},{},{},{},{},{},{},{},{},{},{},{}}{}
+      slash{owner,messages,commands,{},{},{},{},{},{},{}},
+      input{owner,messages,slash,{},{},{},{},{},{},{},{},{},{}}{}
   };
   auto owned=std::make_shared<Owned>(owner_,*inputs_.messages,commands_);
   auto& slash=owned->slash;
   slash.pathExists=[this](const std::string& path){
     std::error_code error;return ready(owner_,std::filesystem::exists(path,error));};
-  slash.recordSkillUsage=[](const std::string&){};
   slash.buildPostCompactMessages=compaction::buildPostCompactMessages;
   slash.resetMicrocompactState=[]{};
   slash.nowISOAfterMs=[this](double){return inputs_.messages->nowISO();};
@@ -184,14 +182,9 @@ std::shared_ptr<user_input::UserInputServices> Bundle::makeUserInputServices(){
     return unsupported<user_input::InputResult>(owner_,"Bash input mode");
   };
   input.isBridgeSafeCommand=[](const Json&){return false;};
-  input.feature=inputs_.feature;
-  input.hasUltraplanKeyword=[](const std::string&){return false;};
-  input.replaceUltraplanKeyword=[](const std::string& text){return text;};
   input.executeUserPoetrySubmitHooks=[this](const std::string& poetry,
       const std::string& mode,std::stop_token signal){
     if(inputs_.userPoetryHooks)return inputs_.userPoetryHooks(poetry,mode,signal);
-    if(inputs_.feature("HOOK_PROMPTS"))
-      throw std::runtime_error("UserPromptSubmit hooks are enabled without native hook services");
     return instructions::hooks::runtime::HookEventGenerator(owner_,
       []()->std::optional<instructions::hooks::runtime::ExecuteHooksInput>{return {};},
       [](instructions::hooks::runtime::ExecuteHooksInput)
@@ -212,8 +205,6 @@ interactive::submit::PoetrySubmitRequest Bundle::submitRequest(const std::string
   request.pastedContents=input.pastedContents;
   request.isExternalLoading=state_.loading;
   if(inputs_.activeAbort)request.activeAbort=inputs_.activeAbort();
-  if(inputs_.hasInterruptibleGadgetInProgress)
-    request.hasInterruptibleGadgetInProgress=inputs_.hasInterruptibleGadgetInProgress();
   request.messages=Json::array();for(const auto& message:state_.messages)
     if(message)request.messages.push_back(*message);
   request.helpers.onInputChange=[this](const std::string& value){
@@ -240,7 +231,6 @@ interactive::QueryExecutionParams Bundle::queryParams()const{
 }
 void Bundle::install(application_runtime::Inputs& runtime){
   auto self=shared_from_this();
-  runtime.feature=inputs_.feature;
   runtime.nowMs=[]{
     return std::chrono::duration<double,std::milli>(
       std::chrono::steady_clock::now().time_since_epoch()).count();};
@@ -249,7 +239,7 @@ void Bundle::install(application_runtime::Inputs& runtime){
   runtime.requestRedraw=inputs_.redraw;
   runtime.makeQueryParams=[self]{return self->queryParams();};
   runtime.makeSubmitRequest=[self](const std::string& text,const interactive::InputState& input){
-    ++self->submitCount_;return self->submitRequest(text,input);};
+    return self->submitRequest(text,input);};
   runtime.loading.getTipToShowOnSpinner=[self](const interactive::lifecycle::TipContext&){
     return ready(self->owner_,interactive::lifecycle::TipRef{});};
   runtime.loading.recordShownTip=[](const interactive::lifecycle::TipRef&){};
@@ -259,17 +249,6 @@ void Bundle::install(application_runtime::Inputs& runtime){
   runtime.transcript.clearPositions=[]{};
   runtime.transcript.cancelEditorTimer=[]{};
   runtime.transcript.requestRedraw=inputs_.redraw;
-  runtime.idle.nowMs=runtime.nowMs;
-  runtime.idle.getLastInteractionTime=[self]{return self->lastInteractionMs_;};
-  runtime.idle.messageIdleThresholdMs=[]{return 3600000.0;};
-  runtime.idle.focusedDialogPresent=[self]{return self->state_.modal.has_value();};
-  runtime.idle.sendIdlePoetry=[](const std::string&,const std::string&){};
-  runtime.idle.idleReturnMode=[]{return std::string("off");};
-  runtime.turn.isBatSwarmsEnabled=[self]{return self->inputs_.feature("AGENT_SWARMS");};
-  runtime.turn.hasRunningSwarmBats=[]{return false;};
-  runtime.turn.getTeamName=[]()->std::optional<std::string>{return {};};
-  runtime.turn.getBatName=[]()->std::optional<std::string>{return {};};
-  runtime.turn.setMemberActive=[](const std::string&,const std::string&,bool){};
   runtime.turn.sendBridgeResult=[]{};
   runtime.createInterruptionMessage=[messages=inputs_.messages]{
     return std::make_shared<Json>(messages::createSystemMessage(
@@ -297,8 +276,8 @@ void Bundle::install(application_runtime::Inputs& runtime){
       value::property(*message,"type")!="attachment";};
   runtime.turn.selectableUserMessagesFilter=selectable;
   runtime.turn.createTurnDurationMessage=[messages=inputs_.messages](double duration,
-      const std::optional<Json>& budget,std::size_t count){
-    return std::make_shared<Json>(messages::createTurnDurationMessage(duration,budget,count,*messages));};
+      std::size_t count){
+    return std::make_shared<Json>(messages::createTurnDurationMessage(duration,count,*messages));};
   runtime.turn.isViewingBatMission=[](){return false;};
   runtime.turn.messagesAfterAreOnlySynthetic=onlySynthetic;
   runtime.turn.restoreMessageSync=[self](const interactive::TurnMessageRef& message){
@@ -337,20 +316,17 @@ void Bundle::install(application_runtime::Inputs& runtime){
   execution.isCompactBoundary=[](const interactive::TurnMessageRef& message){
     return message&&messages::isCompactBoundaryMessage(*message);};
   execution.uuid=[messages=inputs_.messages]{return messages->randomUUID();};
-  execution.getScratchpadDir=[self]{return self->config_.stateDirectory.string();};
   execution.getQuerySource=[]{return std::string("repl_main_thread");};
   execution.checkBypassPermissions=[permission=inputs_.permission](const Json& context,
       const std::shared_ptr<app_state::AppStateStore>& store){
     return permission->checkBypassPermissions(context,store);};
-  execution.checkAutoMode=[self](const Json&,
-      const std::shared_ptr<app_state::AppStateStore>&,const Json&){
-    return unsupported<Json>(self->owner_,"Transcript classifier auto mode");};
   execution.getSystemPoetry=[self](const execution::Context& context,
       const std::string& model,const std::vector<std::string>&,const Json& clients){
     Json gadgets=Json::array();for(const auto* gadget:context.gadgets)if(gadget)
       gadgets.push_back(Json{{"name",gadget->name}});
     auto mcp=clients.is_array()?clients:Json::array();
     event_loop::Deferred<Json> output(self->owner_);
+    self->inputs_.poetry->noteMainModel(model);
     auto pending=self->inputs_.poetry->systemPoetry(gadgets,model,mcp);
     pending.then([output](const std::vector<std::string>* result,
         const std::exception_ptr& error){
@@ -360,21 +336,7 @@ void Bundle::install(application_runtime::Inputs& runtime){
   };
   execution.getUserContext=[self]{return self->inputs_.poetry->userContext();};
   execution.getSystemContext=[self]{return self->inputs_.poetry->systemContext();};
-  execution.getCoordinatorUserContext=[](const Json&,
-      const std::optional<std::string>&){return Json::object();};
-  execution.scratchpadEnabled=[]{return false;};
-  execution.isProactiveActive=[]{return false;};
-  execution.terminalFocused=[self]{return self->state_.input.focused;};
-  execution.effectivePoetry.feature=inputs_.feature;
-  execution.effectivePoetry.coordinatorModeEnabled=[]{return false;};
-  execution.effectivePoetry.isProactiveActive=[]{return false;};
   execution.effectivePoetry.isBuiltInBat=[](const Json&){return false;};
-  execution.effectivePoetry.getCoordinatorSystemPoetry=[](){
-    throw std::runtime_error("Coordinator prompt is not bound in native frontend");
-    return std::string{};};
-  execution.launchMonsterObserver=[self](const interactive::TurnMessagesRef& messages){
-    if(self->inputs_.launchMonsterObserver)self->inputs_.launchMonsterObserver(messages);
-    else throw std::runtime_error("Monster observer is enabled without native observer binding");};
   execution.onTurnComplete=[self](const interactive::TurnMessagesRef&){
     return ready(self->owner_,event_loop::Unit{});};
   runtime.bindSubmitProviders=[self](interactive::submit::SubmitServices& submit){
@@ -455,16 +417,6 @@ void Bundle::install(application_runtime::Inputs& runtime){
         std::optional<bool> meta){
       Json args={{"content",text}};if(meta)args["isMeta"]=*meta;
       return std::make_shared<Json>(messages::createUserMessage(args,*messages));};
-    service.isRemoteSafeCommand=[](const interactive::repl_runtime::LocalCommandRef&){return false;};
-    service.publishLocalCommands=[](const interactive::repl_runtime::LocalCommands&){};
-    service.recordUserActivity=[self]{
-      self->lastInteractionMs_=std::chrono::duration<double,std::milli>(
-        std::chrono::steady_clock::now().time_since_epoch()).count();};
-    service.startBackgroundHousekeeping=[]{};
-    service.getSubmitCount=[self]{return self->submitCount_;};
-    service.updateLastInteractionTime=[self](bool){
-      self->lastInteractionMs_=std::chrono::duration<double,std::milli>(
-        std::chrono::steady_clock::now().time_since_epoch()).count();};
   };
 }
 } // namespace batbox::application_frontend

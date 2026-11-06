@@ -37,23 +37,10 @@ void LoadingState::resetTimingRefs(){
   totalPausedMs_=0;
   pauseStartTime_.reset();
 }
-void LoadingState::observePermissionPause(bool paused,double nowMs){
-  if(paused&&!pauseStartTime_)pauseStartTime_=nowMs;
-  else if(!paused&&pauseStartTime_){
-    totalPausedMs_+=nowMs-*pauseStartTime_;
-    pauseStartTime_.reset();
-  }
-}
 void LoadingState::observeQueryActive(){
   const bool active=guard_.isActive();
   if(active&&!wasQueryActive_)resetTimingRefs();
   wasQueryActive_=active;
-  presentation_.loading=isLoading();
-  changed();
-}
-void LoadingState::setExternalLoading(bool value){
-  externalLoading_=value;
-  if(value)resetTimingRefs();
   presentation_.loading=isLoading();
   changed();
 }
@@ -70,19 +57,6 @@ void LoadingState::setResponseLength(
     last.lastTokenTime=services_.nowMs();
     last.endResponseLength=presentation_.responseLengthUtf16;
   }
-  changed();
-}
-void LoadingState::syncResponseLengthFromPresentation(){
-  responseLength_=static_cast<double>(presentation_.responseLengthUtf16);
-}
-void LoadingState::onStreamingText(TextUpdate update){
-  if(!presentation_.showStreamingText)return;
-  need(update,"streaming text updater");
-  presentation_.streamingText=update(presentation_.streamingText);
-  changed();
-}
-void LoadingState::setShowStreamingText(bool visible){
-  presentation_.showStreamingText=visible;
   changed();
 }
 void LoadingState::tipError(std::exception_ptr error){
@@ -136,7 +110,6 @@ void LoadingState::pickNewSpinnerTip(){
   });
 }
 void LoadingState::resetLoadingState(){
-  externalLoading_=false;
   messages_.setUserInputOnProcessing({});
   responseLength_=0;
   presentation_.responseLengthUtf16=0;
@@ -151,9 +124,5 @@ void LoadingState::resetLoadingState(){
   need(services_.clearSpeculativeChecks,"clearSpeculativeChecks");
   services_.clearSpeculativeChecks();
   changed();
-}
-void LoadingState::clearBashGadgets(){
-  bashGadgets_->clear();
-  bashGadgetsProcessedIndex_=0;
 }
 } // namespace batbox::interactive::lifecycle

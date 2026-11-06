@@ -8,9 +8,9 @@ struct StringWidth::ShortWidths {
   std::unordered_map<std::string,double> widths;
 };
 StringWidth::StringWidth(Services services):shortWidths_(std::make_shared<ShortWidths>()),
-  services_(std::move(services)),emoji_(services_.emojiRegex()),bun_(services_.resolveBunStringWidth()){}
+  services_(std::move(services)),emoji_(services_.emojiRegex()){}
 double StringWidth::stringWidth(const Json& text)const{
-  return bun_?bun_(text,bunOptions_):stringWidthJavaScript(text);
+  return stringWidthJavaScript(text);
 }
 namespace {
 // Width of text whose bytes are all below DEL and not ESC: the visible
@@ -26,7 +26,7 @@ std::optional<double> asciiWidth(std::string_view text){
 }
 }
 double StringWidth::stringWidthUtf8(std::string_view text)const{
-  if(!bun_)if(const auto width=asciiWidth(text))return *width;
+  if(const auto width=asciiWidth(text))return *width;
   return stringWidth(Json(std::string(text)));
 }
 double StringWidth::stringWidthJavaScript(const Json& value)const{

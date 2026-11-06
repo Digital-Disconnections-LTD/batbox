@@ -12,6 +12,5 @@ ParseResult parseNode(const Json& node,const Json& input,bool present,
   const Json& path,const MainConfig& config,const MainImports& imports);
 ParseResult parseScalar(const Json& node,const Json& input,bool present,
   const Json& path,const MainConfig& config,const MainImports& imports);
-Json fieldsForConfig(const Json& descriptor,const MainConfig& config);
 void appendIssues(Json& target,const Json& source,const Json& prefix);
 }

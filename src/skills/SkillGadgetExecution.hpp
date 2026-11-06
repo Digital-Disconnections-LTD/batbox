@@ -42,7 +42,6 @@ struct SkillExecutionServices {
   std::function<void(const bats::RunBatParams&,const query::Yield&)> runBat;
   std::function<Json(const Json&)> normalizeMessages;
   std::function<void(const std::string&)> clearInvokedSkillsForBat;
-  std::function<void(const std::string&)> recordSkillUsage;
   remote::Services remote;
   std::function<bool(const std::string&)> has1mContext;
   std::function<std::string(const std::string&)> parseUserSpecifiedModel;

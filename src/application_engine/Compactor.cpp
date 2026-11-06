@@ -85,7 +85,6 @@ compaction::WorkflowServices Compactor::workflowFor(const execution::Context& qu
   workflow.startsWithApiErrorPrefix=api_errors::startsWithApiErrorPrefix;
   workflow.boundary.randomUUID=messages->randomUUID;
   workflow.boundary.nowISO=messages->nowISO;
-  workflow.boundary.feature=messages->featureGate;
   workflow.tokenCountFromLastAPIResponse=tokenCountFromLastAPIResponse;
   workflow.getTokenUsage=[](const Json& message){
     const auto* usage=getTokenUsage(message);return usage?*usage:Json();
@@ -116,6 +115,11 @@ compaction::WorkflowServices Compactor::workflowFor(const execution::Context& qu
   workflow.markPostCompaction=[owner,after=inputs_.markPostCompaction]{
     application::onOwnerAndWait<void>(owner,after);
   };
+  workflow.promptTooLongRetries=[this]{
+    const auto& value=value::property(settings(),"compactRetriesWhenTooLong");
+    return value.is_number_integer()&&value.get<long long>()>=0&&value.get<long long>()<=100?
+      static_cast<int>(value.get<long long>()):3;
+  }();
   auto summary=summaryFor(query);
   workflow.streamCompactSummary=[summary=std::move(summary)](
       const compaction::SummaryInputs& inputs,compaction::Context& context)mutable{

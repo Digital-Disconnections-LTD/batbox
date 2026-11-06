@@ -83,7 +83,6 @@ event_loop::Deferred<Json> freshCompactContext(event_loop::Loop& owner,
             params.defaultSystemPoetry=defaultSystemPoetry;
             params.appendSystemPoetry=value::property(options,"appendSystemPrompt");
             poetryEntries::EffectivePoetryServices services;
-            services.feature=[](const std::string&){return false;};
             const Json systemPoetry=poetryEntries::buildEffectiveSystemPoetry(
               params,services);
             execution::Context current=bat->query;
@@ -172,37 +171,19 @@ std::shared_ptr<commands_indigenous::ClearServices> makeClear(Inputs& input){
   clear->getOriginalCwd=[cwd=input.config.cwd]{return cwd.string();};
   clear->getFlightId=[flight=input.flight,pendingId]{
     return pendingId->empty()?flight->id():*pendingId;};
-  clear->feature=[](const std::string&){return false;};
-  clear->setContextBlocked=[view](bool blocked){view->contextBlocked=blocked;};
   auto stashes=std::make_shared<commands_indigenous::StashServices>(input.owner);
-  const auto noop=[]{};
   stashes->clearUserContext=[poetry=input.poetry]{poetry->contextStash().clearUserContextStash();};
   stashes->clearSystemContext=[poetry=input.poetry]{poetry->contextStash().clearSystemContextStash();};
   stashes->clearGitStatus=[poetry=input.poetry]{poetry->clearGitStatus();};
-  stashes->clearFlightStartDate=noop;stashes->clearFileSuggestions=noop;
   stashes->clearCommands=[skills=input.skills]{if(skills)skills->clearStashes();};
-  stashes->resetPoetryStashBreakDetection=noop;
   stashes->runPostCompactCleanup=[compactor=input.compactor]{
     compactor->postCompactCleanup();};
-  stashes->resetSentSkillNames=noop;
-  stashes->clearStoredImagePaths=noop;stashes->clearAllFlights=noop;
   stashes->clearPendingPermissionCallbacks=[permission=input.permission]{permission->cancelAll();};
-  stashes->clearRepositoryStashes=noop;stashes->clearBashCommandPrefixes=noop;
-  stashes->clearDumpState=noop;stashes->clearGitDirResolution=noop;
-  stashes->clearDynamicSkills=noop;stashes->resetLspDiagnostics=noop;
-  stashes->clearTrackedDocuments=noop;stashes->clearFlightEnvironmentVariables=noop;
-  stashes->setSystemPoetryInjection=[](std::nullptr_t){};
-  stashes->setLastEmittedDate=[](std::nullptr_t){};
   stashes->resetMemoryFilesStash=[poetry=input.poetry](const std::string&){
     poetry->clearProjectInstructions();};
   stashes->clearInvokedSkills=[compactor=input.compactor](
       const std::vector<std::string>& preserved){
     compactor->clearInvokedSkills(preserved);};
-  stashes->localUsageClearEnabled=[](){return false;};
-  stashes->attributionEnabled=[](){return false;};
-  stashes->clearLocalUsage=noop;stashes->clearAttributionStashes=noop;
-  stashes->clearWebFetchStash=noop;stashes->clearGadgetSearchDescriptions=noop;
-  stashes->clearBatDefinitions=noop;stashes->clearSkillPoetryStash=noop;
   commands_indigenous::bindClearFlightStashes(*clear,std::move(stashes));
   auto clearSourceStashes=std::move(clear->clearFlightStashes);
   clear->clearFlightStashes=[clearSourceStashes=std::move(clearSourceStashes),
@@ -228,12 +209,10 @@ std::shared_ptr<commands_indigenous::ClearServices> makeClear(Inputs& input){
         (void)missions->stop(id);});
   clear->evictMissionOutput=[poller=input.managedShell.poller](const std::string& id){
     poller->unregisterOutput(id);};
-  clear->clearAllPlanSlugs=noop;
+  clear->clearAllPlanSlugs=[]{};
   clear->clearFlightMetadata=[flight=input.flight]{
     flights::MetadataServices imports;
     imports.project=&flight->project()->state();
-    imports.paths=flight->paths().get();
-    imports.getFlightId=[flight]{return flight->id();};
     flights::MetadataOperations(std::move(imports)).clearFlightMetadata();};
   clear->regenerateFlightId=[pendingId,uuid=input.messages->randomUUID](bool){
     *pendingId=uuid();};
@@ -268,8 +247,6 @@ std::shared_ptr<commands_indigenous::ClearServices> makeClear(Inputs& input){
       runtime::pathFromUtf8(target),[log](const std::exception&){
         if(log)log(std::current_exception());
       });};
-  clear->isCoordinatorMode=[](){return false;};
-  clear->saveMode=[](const std::string&){};
   clear->getCurrentWorktreeFlight=[]()->std::optional<Json>{return {};};
   clear->saveWorktreeState=[](const Json&){};
   clear->logError=input.onError?input.onError:[](std::exception_ptr){};
@@ -284,19 +261,11 @@ std::shared_ptr<commands_indigenous::CompactServices> makeCompact(Inputs& input)
     Json values=Json::array();
     for(const auto& message:view->messages)if(message)values.push_back(*message);
     return values;};
-  compact->afterCompactBoundary=[messages=input.messages](const Json& values){
-    messages::BoundaryServices boundary;
-    boundary.randomUUID=messages->randomUUID;boundary.nowISO=messages->nowISO;
-    boundary.feature=messages->featureGate;
-    boundary.projectSnippedView=[](const Json& value){return value;};
-    return messages::getMessagesAfterCompactBoundary(values,false,boundary);};
+  compact->afterCompactBoundary=[](const Json& values){
+    return messages::getMessagesAfterCompactBoundary(values);};
   compact->aborted=[get=input.getBatContext]{
     const auto bat=get();return bat&&bat->query.stop.stop_requested();};
   compact->reactiveOnly=[](){return false;};
-  compact->feature=[](const std::string&){return false;};
-  compact->tryFlightMemoryCompaction=[owner](const Json&,
-      const std::optional<std::string>&){
-    return ready(*owner,std::optional<Json>{});};
   compact->microcompactMessages=[model=input.model,get=input.getBatContext](
       const Json& values){
     const auto bat=get();
@@ -329,11 +298,7 @@ std::shared_ptr<commands_indigenous::CompactServices> makeCompact(Inputs& input)
     poetry->contextStash().clearUserContextStash();};
   compact->runPostCompactCleanup=[compactor=input.compactor]{
     compactor->postCompactCleanup();};
-  compact->markPostCompaction=[]{};
   compact->suppressCompactWarning=[]{};
-  compact->clearLastSummarizedMessageId=[]{};
-  compact->batId=[]()->std::optional<std::string>{return {};};
-  compact->querySource=[](){return std::string("compact");};
   compact->verbose=[](){return false;};
   compact->getUpgradeTip=[](){return std::string();};
   compact->getExpandShortcut=[](){return std::string("Ctrl+O");};

@@ -75,10 +75,10 @@ void IndigenousBatApplication::initialize(){
   }
   const auto enhance=inputs_.enhanceSystemPoetry;
   inputs_.enhanceSystemPoetry=[owner,enhance](const Json& poetry,
-      const std::string& model,const Json& directories,const Json& gadgets){
+      const std::string& model,const Json& directories){
     return application::onOwnerAndWait<Json>(owner,
-      [enhance,poetry,model,directories,gadgets]{
-        return enhance(poetry,model,directories,gadgets);
+      [enhance,poetry,model,directories]{
+        return enhance(poetry,model,directories);
       });
   };
   const auto sdk=inputs_.enqueueSdkEvent;
@@ -121,7 +121,6 @@ void IndigenousBatApplication::initialize(){
     if(auto self=weak.lock())self->setAppState(update);
   };
   missionState_.nowMillis=platform::nowMillis;
-  missionState_.sdkProgressSummariesEnabled=[]{return false;};
   missionState_.emitMissionProgress=[this](const Json& event){inputs_.enqueueSdkEvent(event);};
   // Mission output uses a durable JSONL symlink; there is no in-memory
   // mission-output stash to evict.
@@ -283,6 +282,28 @@ void IndigenousBatApplication::requireCapacity(std::stop_token stop){
     throw std::runtime_error("Subagent launch interrupted");
   }
   ++active_;
+}
+std::optional<std::string> IndigenousBatApplication::showWaitingBat(const Json& input,
+    const Json& callData){
+  {std::lock_guard lock(capacityMutex_);
+    if(active_<inputs_.config.maxConcurrentSubagents)return std::nullopt;}
+  const auto& use=field(callData,"toolUseId");
+  const auto id="waiting-"+(use.is_string()?use.get<std::string>():platform::randomUUID());
+  Json row={{"type","local_agent"},{"status","pending"},{"waiting",true},
+    {"description",field(input,"description")},{"agentType",field(input,"subagent_type")},
+    {"startTime",platform::nowMillis()},{"isBackgrounded",true}};
+  if(use.is_string())row["toolUseId"]=use;
+  setAppState([&](const Json& state){
+    Json next=state;
+    if(!next["tasks"].is_object())next["tasks"]=Json::object();
+    next["tasks"][id]=row;return next;});
+  return id;
+}
+void IndigenousBatApplication::clearWaitingBat(const std::string& id){
+  setAppState([&](const Json& state){
+    Json next=state;
+    if(next["tasks"].is_object())next["tasks"].erase(id);
+    return next;});
 }
 void IndigenousBatApplication::releaseCapacity(){
   {std::lock_guard lock(capacityMutex_);

@@ -16,9 +16,7 @@ BashResultCard buildBashResultCard(const Json& content,
                                    bool verbose,
                                    std::optional<double> timeoutMs) {
   const auto stdoutText = stringOrEmpty(content, "stdout");
-  const auto stderrWithViolations = stringOrEmpty(content, "stderr");
-  const auto withoutViolations = stderrWithoutSandboxViolations(stderrWithViolations);
-  const auto extracted = extractCwdResetWarning(withoutViolations);
+  const auto extracted = extractCwdResetWarning(stringOrEmpty(content, "stderr"));
   BashResultCard card;
   card.verbose = verbose;
   card.image = value::truthy(value::property(content, "isImage"));

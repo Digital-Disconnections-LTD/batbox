@@ -7,11 +7,16 @@ namespace {
 template<class T>std::future<T> ready(T value){
   std::promise<T> promise;promise.set_value(std::move(value));return promise.get_future();
 }
+// A Bat on a slow backend can run for an hour; a background shell may be a
+// server that never ends, so its default wait stays short.
+constexpr double maxWaitMs=3600000;
+constexpr double shellWaitMs=30000;
 bool blockValue(const Json& input){
   return !input.contains("block")||input["block"].get<bool>();
 }
-double timeoutValue(const Json& input){
-  return input.contains("timeout")?input["timeout"].get<double>():30000;
+double timeoutValue(const Json& input,const shell_missions::MissionRecord& mission){
+  if(input.contains("timeout"))return input["timeout"].get<double>();
+  return mission.type=="local_bash"?shellWaitMs:maxWaitMs;
 }
 }
 Json parseInput(const Json& input){
@@ -33,8 +38,8 @@ Json parseInput(const Json& input){
   if(result.contains("timeout")){
     if(!result["timeout"].is_number())throw std::invalid_argument("TaskOutput timeout must be a number");
     const auto timeout=result["timeout"].get<double>();
-    if(timeout<0||timeout>600000)throw std::invalid_argument("TaskOutput timeout out of range");
-  }else result["timeout"]=30000;
+    if(timeout<0||timeout>maxWaitMs)throw std::invalid_argument("TaskOutput timeout out of range");
+  }
   return result;
 }
 gadgets::Gadget makeMissionOutputGadget(Services services){
@@ -49,24 +54,25 @@ gadgets::Gadget makeMissionOutputGadget(Services services){
     {"required",Json::array({"task_id"})},
     {"properties",{{"task_id",{{"type","string"}}},
       {"block",{{"type","boolean"},{"default",true}}},
-      {"timeout",{{"type","number"},{"minimum",0},{"maximum",600000},{"default",30000}}}}}};
+      {"timeout",{{"type","number"},{"minimum",0},{"maximum",maxWaitMs},
+        {"description","Milliseconds to wait when block is true. Defaults to "
+          "3600000 (one hour) for an agent and 30000 for a background shell command."}}}}}};
   gadget.parseInput=parseInput;
   gadget.userFacingName=[](const Json&){return std::string("Task Output");};
   gadget.description=[](const Json&,const Json&){return ready(std::string(
-    "[Deprecated] — prefer Read on the task output file path"));};
+    "Wait for a background task's result"));};
   gadget.isReadOnly=[](const Json&){return true;};
   gadget.isConcurrencySafe=gadget.isReadOnly;
   gadget.isEnabled=[shared]{return shared->enabled;};
   gadget.toAutoClassifierInput=[](const Json& input)->Json{return input.value("task_id",std::string());};
   gadget.poetry=[](const gadgets::PoetryContext&){return ready(std::string(
-    "DEPRECATED: Prefer using the Read tool on the task's output file path instead. Background tasks return their output file path in the tool result, and you receive a <task-notification> with the same path when the task completes — Read that file directly.\n\n"
-    "- Retrieves output from a running or completed task (background shell, agent, or remote session)\n"
-    "- Takes a task_id parameter identifying the task\n"
-    "- Returns the task output along with status information\n"
-    "- Use block=true (default) to wait for task completion\n"
-    "- Use block=false for non-blocking check of current status\n"
-    "- Task IDs can be found using the /tasks command\n"
-    "- Works with all task types: background shells, async agents, and remote sessions"));};
+    "Waits for a background agent or background shell command and returns its result.\n\n"
+    "- Takes a task_id: an agent's agentId or a background command's ID\n"
+    "- block=true (default) waits until the task finishes, up to timeout. Use it when your next step depends on a background agent's result, instead of launching the agent again\n"
+    "- The default wait is one hour for an agent and 30 seconds for a background shell command, which may be a server that never exits\n"
+    "- If the wait ends first, the task is still running, not failed; call again to keep waiting\n"
+    "- block=false checks the current status without waiting\n"
+    "- Finished background tasks also arrive as a <task-notification>; you do not need to poll them"));};
   gadget.validateInput=[shared](const Json& input,const Json&){
     gadgets::ValidationResult validation;
     const auto id=input.value("task_id",std::string());
@@ -92,7 +98,7 @@ gadgets::Gadget makeMissionOutputGadget(Services services){
       }else{
         if(onProgress)onProgress({"task-output-waiting-"+std::to_string(shared->nowMs()),
           {{"type","waiting_for_task"},{"taskDescription",mission->description},{"taskType",mission->type}}});
-        const auto completed=shared->roster->wait(id,timeoutValue(input),context.stopToken);
+        const auto completed=shared->roster->wait(id,timeoutValue(input,*mission),context.stopToken);
         if(!completed)data={{"retrieval_status","timeout"},{"task",nullptr}};
         else if(completed->status=="running"||completed->status=="pending")
           data={{"retrieval_status","timeout"},{"task",getMissionOutputData(*completed,*shared->roster)}};

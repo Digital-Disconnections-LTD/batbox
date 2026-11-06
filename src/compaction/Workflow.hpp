@@ -28,9 +28,10 @@ struct SummaryInputs {
   std::shared_ptr<bats::StashSafeParams> indigenousStashSafeParams;
 };
 struct WorkflowServices {
+  // Shorter retries after "Prompt is too long", each dropping the oldest turns.
+  int promptTooLongRetries=3;
   HelperServices helpers;
   messages::BoundaryServices boundary;
-  PoetryServices poetry;
   std::function<double(const Json&)> tokenCountWithEstimation;
   std::function<Json(const Json&)> createUserMessage;
   std::function<Json(const Json&,std::stop_token)> executePreCompactHooks;
@@ -53,9 +54,6 @@ struct WorkflowServices {
   std::function<Json(const Json&)> getTokenUsage;
   std::function<void()> markPostCompaction;
   std::function<void()> reAppendFlightMetadata;
-  std::function<bool(const std::string&)> feature;
-  // Fire-and-forget binding retains local transcript work until completion.
-  std::function<void(const Json&)> writeFlightTranscriptSegment;
   std::function<Json(const Json&,std::stop_token)> executePostCompactHooks;
 };
 Json compactConversation(const Json& messages,Context& context,const Json& stashSafeParams,
@@ -63,6 +61,4 @@ Json compactConversation(const Json& messages,Context& context,const Json& stash
   const Json& recompactionInfo,WorkflowServices& services);
 void addErrorNotificationIfNeeded(const std::string& error,Context& context);
 Json createCompactCanUseGadget();
-Json partialCompactConversation(const Json& allMessages,double pivot,Context& context,const Json& stashSafeParams,
-  const std::optional<std::string>& userFeedback,const std::string& direction,WorkflowServices& services);
 }

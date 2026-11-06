@@ -102,44 +102,23 @@ RawResult runRaw(const std::vector<std::string>& args,const std::string& target,
   result.exitCode=WIFEXITED(status)?WEXITSTATUS(status):-1;
   return result;
 }
-std::vector<std::string> parseLines(const std::string& output,bool dropLast){
-  const auto trimmed=value::trim(output);
-  std::vector<std::string> lines;
-  std::size_t start=0;
-  while(start<=trimmed.size()){
-    const auto end=trimmed.find('\n',start);
-    std::string line=trimmed.substr(start,end==std::string::npos?std::string::npos:end-start);
-    if(!line.empty()&&line.back()=='\r')line.pop_back();
-    if(!line.empty())lines.push_back(std::move(line));
-    if(end==std::string::npos)break;
-    start=end+1;
-  }
-  if(dropLast&&!lines.empty())lines.pop_back();
-  return lines;
-}
 bool eagain(const std::string& error){return error.find("os error 11")!=std::string::npos||
   error.find("Resource temporarily unavailable")!=std::string::npos;}
 } // namespace
 
-std::vector<std::string> ripGrep(const std::vector<std::string>& args,
+RipgrepLines ripGrep(const std::vector<std::string>& args,
   const std::string& target,std::stop_token stopToken,const RipgrepConfig& config){
   auto raw=runRaw(args,target,stopToken,config,false);
-  if(raw.exitCode==0&&!raw.timedOut&&!raw.aborted&&!raw.overflow)return parseLines(raw.out,false);
+  if(raw.exitCode==0&&!raw.timedOut&&!raw.aborted&&!raw.overflow)return parseRipgrepLines(raw.out,false);
   if(raw.exitCode==1&&!raw.timedOut&&!raw.aborted&&!raw.overflow)return {};
   if(raw.execErrno==EAGAIN||eagain(raw.err))raw=runRaw(args,target,stopToken,config,true);
   if(raw.execErrno){
     if(raw.execErrno==ENOENT||raw.execErrno==EACCES||raw.execErrno==EPERM)
       throw std::system_error(raw.execErrno,std::generic_category(),"ripgrep");
   }
-  if(raw.exitCode==0&&!raw.timedOut&&!raw.aborted&&!raw.overflow)return parseLines(raw.out,false);
+  if(raw.exitCode==0&&!raw.timedOut&&!raw.aborted&&!raw.overflow)return parseRipgrepLines(raw.out,false);
   if(raw.exitCode==1&&!raw.timedOut&&!raw.aborted&&!raw.overflow)return {};
-  const bool timeout=raw.timedOut||raw.aborted;
-  auto lines=parseLines(raw.out,timeout||raw.overflow);
-  if(timeout&&lines.empty())
-    throw RipgrepTimeoutError("Ripgrep search timed out after "+
-      std::to_string(config.timeoutDisplaySeconds)+
-      " seconds. The search may have matched files but did not complete in time. Try searching a more specific path or pattern.",
-      lines);
-  return lines;
+  return finishRipgrep({std::move(raw.out),std::move(raw.err),raw.exitCode,
+    raw.timedOut,raw.aborted,raw.overflow},config);
 }
 } // namespace batbox::filesystem

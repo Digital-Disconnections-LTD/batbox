@@ -33,11 +33,8 @@ struct Fixture {
       ++serviceCalls;
       assert(call.getAppState().at("toolPermissionContext").at("mode")=="dontAsk");
       query::AsyncEngineServices services;
-      services.config.getFlightId=[](){return std::string("session");};
-      services.config.statsigFeatureGate=[](const std::string&){return false;};
       services.setup.queryCheckpoint=[](const std::string&){};
       services.setup.headlessProfilerCheckpoint=[](const std::string&){};
-      services.setup.sync.feature=[](const std::string&){return false;};
       services.setup.sync.uuid=[](){return std::string("chain");};
       services.setup.sync.getMessagesAfterCompactBoundary=[](const Json& value){return value;};
       services.setup.applyGadgetResultBudget=[this](const Json& messages,
@@ -49,7 +46,7 @@ struct Fixture {
         return ready(loop,Json{{"messages",messages}});};
       services.setup.sync.appendSystemContext=[](const Json& poetry,const Json&){return poetry;};
       services.setup.autocompact=[this](const Json&,const execution::Context&,
-        const Json&,const std::string&,const Json&,double){
+        const Json&,const std::string&,const Json&){
         return ready(loop,Json{{"compactionResult",nullptr}});};
       services.setup.sync.getAppState=[getter=call.getAppState](
         const execution::Context&){return getter();};
@@ -63,7 +60,6 @@ struct Fixture {
         std::cerr<<"model recovery: "<<error.what()<<'\n';};
       services.model.logInternalError=[](const std::exception& error){
         std::cerr<<"model internal: "<<error.what()<<'\n';};
-      services.model.sync.feature=[](const std::string&){return false;};
       services.model.sync.prependUserContext=[](const Json& messages,const Json&){
         return messages;};
       services.model.sync.getAppState=services.setup.sync.getAppState;
@@ -90,8 +86,7 @@ struct Fixture {
         const execution::Context&){};
       services.completeWithoutGadgets=[this](const query::Params&,const query::State&,
         std::shared_ptr<query::PreparedIteration>,
-        std::shared_ptr<query::ModelPassResult>,std::optional<double>&,
-        query::BudgetTracker*){
+        std::shared_ptr<query::ModelPassResult>){
         ++completed;
         return query::AsyncDecisionCursor{[this]{
           auto decision=std::make_shared<query::CompletionDecision>();

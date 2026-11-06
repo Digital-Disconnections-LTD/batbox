@@ -50,7 +50,6 @@ public:
   bool unregisterForeground(const std::string& missionId);
   std::vector<std::string> foregroundShellIds()const;
   std::vector<std::string> backgroundAllForeground();
-  void registerExternal(MissionRecord record);
   void upsertExternal(MissionRecord record);
   void eraseExternal(const std::string& missionId);
   void bindExternalServices(std::function<void(const MissionRecord&)> stop,

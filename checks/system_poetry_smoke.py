@@ -7,8 +7,11 @@ A custom system.md arrives as the head with {{section:NAME}} rendered in
 place, other sections appended, comments removed and an unknown placeholder
 left as text and logged once. `batbox poetry` and `batbox doctor` report the
 source; an empty file falls back to the built-in head; BATBOX_SIMPLE wins.
-In the terminal, /poetry shows the source, and an edit between two turns of
-one Flight reaches the second request without a restart.
+In the terminal, /poetry shows the source. With the default stable prompt
+prefix, edits to system.md and BATBOX.md between two turns leave the second
+request's system prompt and first message byte for byte the same, the
+BATBOX.md edit arrives at the end of the conversation, and /clear applies the
+system.md edit.
 """
 import json
 import os
@@ -48,6 +51,17 @@ def stream(model, text):
     return "".join(f"event: {r['type']}\ndata: {json.dumps(r)}\n\n" for r in rows).encode()
 
 
+def without_breakpoints(message):
+    """The message as the model reads it: cache_control marks only move."""
+    def strip(value):
+        if isinstance(value, dict):
+            return {key: strip(item) for key, item in value.items() if key != "cache_control"}
+        if isinstance(value, list):
+            return [strip(item) for item in value]
+        return value
+    return json.dumps(strip(message), sort_keys=True)
+
+
 def terminal(binary, project, env, system_file, requests):
     session = PtySession([str(binary), "--cwd", str(project)], env, rows=40, columns=120)
 
@@ -55,13 +69,15 @@ def terminal(binary, project, env, system_file, requests):
         return re.sub(rb"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07", b"",
                       bytes(session.output)).decode(errors="replace")
 
+    def request_for(text):
+        return next(r for r in reversed(requests) if text in json.dumps(r.get("messages", [])))
+
     def turn(text):
         session.send(text.encode() + b"\r")
         session.wait_for(lambda: any(text in json.dumps(r.get("messages", [])) for r in requests),
                          f"the request for {text!r}")
         session.drain(0.5)
-        body = next(r for r in reversed(requests) if text in json.dumps(r.get("messages", [])))
-        return "\n\n".join(block["text"] for block in body["system"])
+        return "\n\n".join(block["text"] for block in request_for(text)["system"])
 
     try:
         session.wait_for(lambda: b"\x1b[?2004h" in session.output, "terminal startup")
@@ -71,11 +87,25 @@ def terminal(binary, project, env, system_file, requests):
         session.wait_for(lambda: "System poetry (system prompt): ~/config/system.md" in plain() and
                          "SMOKE_HEAD custom system prompt." in plain(), "/poetry output")
         check(len(requests) == before, "/poetry contacted the model server")
-        check(turn("First terminal turn").startswith("SMOKE_HEAD custom system prompt."),
+        first_system = turn("First terminal turn")
+        check(first_system.startswith("SMOKE_HEAD custom system prompt."),
               "the terminal turn did not send system.md")
+        first_head = without_breakpoints(request_for("First terminal turn")["messages"][0])
+        check("As you answer the user's questions" in first_head and "currentDate" in first_head,
+              "the first message did not carry the head context")
         system_file.write_text("SMOKE_EDITED head for the second turn.\n")
-        check(turn("Second terminal turn").startswith("SMOKE_EDITED head for the second turn.\n\n"),
-              "an edit between turns did not reach the next request")
+        (project / "BATBOX.md").write_text("Smoke project rule added mid-Flight.\n")
+        check(turn("Second terminal turn") == first_system,
+              "an edit between turns changed the system prompt of the next request")
+        second = request_for("Second terminal turn")
+        check(without_breakpoints(second["messages"][0]) == first_head,
+              "an edit between turns changed the first message of the next request")
+        check("Smoke project rule added mid-Flight." in json.dumps(second["messages"][1:]),
+              "the BATBOX.md edit did not reach the end of the conversation")
+        session.send(b"/clear\r")
+        session.drain(1.0)
+        check(turn("Third terminal turn").startswith("SMOKE_EDITED head for the second turn.\n\n"),
+              "the system.md edit did not apply after /clear")
         session.send(b"/exit\r")
         check(session.wait_for_exit() == 0, "the terminal did not exit cleanly")
     finally:
@@ -202,7 +232,7 @@ def main(binary):
                   "SMOKE_HEAD" not in simple,
                   "BATBOX_SIMPLE did not keep precedence: " + simple[:200])
             print("system.md replaced the head on the wire; export, poetry, doctor, /poetry, a "
-                  "mid-Flight edit, empty file "
+                  "stable prefix across mid-Flight edits, /clear, empty file "
                   "and BATBOX_SIMPLE behaved")
     finally:
         server.shutdown()

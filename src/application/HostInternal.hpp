@@ -1,5 +1,9 @@
 #pragma once
 #include "application/Host.hpp"
+#include "application/HostCron.hpp"
+#include "application/HostShellSnapshot.hpp"
+#include "application/HostRetention.hpp"
+#include "diagnostics/DebugLog.hpp"
 #include "application_bats/IndigenousBatApplication.hpp"
 #include "application_connectors/Bootstrap.hpp"
 #include "application_engine/Compactor.hpp"
@@ -106,6 +110,11 @@ struct Host::Impl {
   std::shared_ptr<application_history::Bundle> history;
   std::shared_ptr<application_completion::Provider> completion;
   std::shared_ptr<application_cli::Adapter> cli;
+  std::shared_ptr<CronWiring> cron;
+  std::shared_ptr<ExitSteps> exitSteps;
+  event_loop::Loop::TimerHandle retentionTimer;
+  std::function<std::shared_future<std::optional<std::string>>(const std::string&)>
+    shellSnapshot;
   std::shared_ptr<Json> sdkThinkingConfig;
   std::shared_ptr<bool> sdkThinkingOverride;
   std::shared_ptr<bootstrap::FlightTransitions> flightTransitions;
@@ -140,6 +149,8 @@ struct Host::Impl {
   std::string statusText;
   std::optional<std::pair<std::string,std::string>> editorNotification;
   std::shared_ptr<std::ofstream> logFile;
+  // Present only when the command line asked for a debug log.
+  std::shared_ptr<diagnostics::DebugLog> debugLog;
   std::shared_ptr<std::mutex> logMutex;
   // Guarded by logMutex: a flush is already scheduled on the owner loop.
   std::shared_ptr<bool> logFlushPending;
@@ -181,5 +192,7 @@ struct Host::Impl {
   void report(std::exception_ptr error,std::string_view origin="the application");
   gadgets::Gadgets currentGadgets()const;
   Json appState()const;
+  // After the terminal is restored: how to come back to this Flight.
+  void printResumeHint();
 };
 }

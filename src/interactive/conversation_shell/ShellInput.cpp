@@ -114,6 +114,11 @@ void Shell::onParsedInput(const keyboard_input::ParsedInput& input){
           row<=*missionScreenRow_+static_cast<int>(footerMissionIds_.size())){
         const auto index=row-*missionScreenRow_-1;
         const auto id=index<0?std::string{}:footerMissionIds_[static_cast<std::size_t>(index)];
+        if(selectedMission_){
+          selectedMission_.reset();
+          if(index>=0&&id.empty()){returnToLeader();requestRedraw();return;}
+          requestRedraw();
+        }
         const auto bats=imports_.missionSnapshot&&imports_.observeBatMission?
           presentation_providers::footerBatIds(presentation_providers::
             backgroundFooterMissions(imports_.missionSnapshot(),activeBatId())):
@@ -174,11 +179,16 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
   }
   if(commands_->hasActionableUi()){onModalKey(key);return;}
   if(searchOpen_){onSearchKey(key);return;}
+  if(selectedMission_&&!transcript_&&onMissionListKey(key))return;
   if(named(key,"escape")&&!transcript_&&!batConversation_&&
-      imports_.interruptTurn&&imports_.interruptTurn())return;
+      imports_.interruptTurn&&imports_.interruptTurn()){
+    // Queued poetry comes back to the input rather than running unasked.
+    restoreQueued(false);
+    return;
+  }
   const bool historySearching=!batConversation_&&historyNavigator_&&
     historyNavigator_->searching();
-  if(!transcript_&&!cursor_&&!historySearching&&alt(key)){
+  if(!transcript_&&!historySearching&&alt(key)){
     if(named(key,"down")){stepBat(1);return;}
     if(named(key,"up")){stepBat(-1);return;}
     // With text in the input, Alt+Left keeps its word-left meaning.
@@ -187,7 +197,7 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
       returnToLeader();return;
     }
   }
-  if(batConversation_&&!cursor_&&!transcript_){
+  if(batConversation_&&!transcript_){
     if(named(key,"escape")&&presentation().input.text.empty()){
       backFromBat();return;
     }
@@ -259,6 +269,15 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
       requestRedraw();return;
     }
   }
+  if(!transcript_&&named(key,"up")&&plain(key)&&!key->shift&&
+      presentation().input.text.empty()&&restoreQueued(true))return;
+  // Down from an empty input, when it is not stepping back through earlier
+  // prompts, moves focus into the list under the input, onto its Flight row.
+  if(!transcript_&&named(key,"down")&&plain(key)&&!key->shift&&!key->option&&
+      presentation().input.text.empty()&&!missionsCollapsed_&&
+      !(historyNavigator_&&!batConversation_&&historyNavigator_->browsing())){
+    if(!missionListIds().empty()){selectedMission_=std::string{};requestRedraw();return;}
+  }
   if(transcript_&&driver_->mode()==terminal_ftxui::Mode::Fullscreen){
     if(key->sequence&&*key->sequence=="y"&&plain(key)){
       openNativeTranscriptCopy();return;
@@ -292,23 +311,8 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
       viewport_->scrollToBottom();navigation_->disarmSearch();return;
     }
   }
-  if(cursor_){
-    if(named(key,"escape")){actions_->dispatch("messageActions:escape");return;}
-    if(named(key,"c")&&key->ctrl){actions_->dispatch("messageActions:ctrlc");return;}
-    if(named(key,"up")){actions_->dispatch("messageActions:prev");return;}
-    if(named(key,"down")){actions_->dispatch("messageActions:next");return;}
-    if(named(key,"return")||named(key,"enter")){
-      actions_->dispatch("messageActions:enter");return;
-    }
-    if(named(key,"c")&&plain(key)){
-      actions_->dispatch("messageActions:c");return;
-    }
-    if(named(key,"p")&&plain(key)){
-      actions_->dispatch("messageActions:p");return;
-    }
-  }
   if(named(key,"o")&&key->ctrl){setTranscript(!transcript_);return;}
-  if(!transcript_&&!cursor_&&named(key,"g")&&key->ctrl){
+  if(!transcript_&&named(key,"g")&&key->ctrl){
     try{
       if(!application_editor::indigenous::externalEditor())return;
       application_editor::EditResult edited;
@@ -326,8 +330,6 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
         pendingImageSpace_=false;
         if(!batConversation_&&historyNavigator_)historyNavigator_->observeManualEdit();
         prunePastedImages(presentation().input);
-        if(!batConversation_&&runtime_)runtime_->observeInputActivity(
-          presentation().input.text,imports_.getSubmitCount());
         refreshCompletions();
         ++presentation().revision;requestRedraw();
       }
@@ -411,9 +413,6 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
     if(!batConversation_&&historyNavigator_)historyNavigator_->observeManualEdit();
     prunePastedImages(presentation().input);
   }
-  if(before!=presentation().input.text&&!batConversation_&&runtime_)
-    runtime_->observeInputActivity(presentation().input.text,
-      imports_.getSubmitCount());
   if(before!=presentation().input.text||
      caret!=presentation().input.caretUtf16)
     refreshCompletions();
@@ -458,8 +457,6 @@ void Shell::acceptCompletion(bool execute){
   prunePastedImages(input);
   suggestions_.clear();selectedSuggestion_=0;++completionGeneration_;
   ++presentation().revision;requestRedraw();
-  if(!batConversation_&&runtime_)runtime_->observeInputActivity(input.text,
-    imports_.getSubmitCount());
   if(execute&&selected.executeWithoutArgs)
     submitPoetry(input.text);
   else refreshCompletions();
@@ -498,7 +495,6 @@ void Shell::onClipboardImage(const Json& image){
   if(!batConversation_&&historyNavigator_)historyNavigator_->observeManualEdit();
   input.caretUtf16+=value::stringLength(inserted);
   if(imports_.onImagePasted)imports_.onImagePasted(content);
-  if(!batConversation_&&runtime_)runtime_->observeInputActivity(input.text,imports_.getSubmitCount());
   refreshCompletions();
   ++presentation().revision;requestRedraw();
 }
@@ -536,8 +532,6 @@ void Shell::onPastedText(const std::string& text){
   if(before!=presentation().input.text){
     if(!batConversation_&&historyNavigator_)historyNavigator_->observeManualEdit();
     prunePastedImages(presentation().input);
-    if(!batConversation_&&runtime_)runtime_->observeInputActivity(
-      presentation().input.text,imports_.getSubmitCount());
     refreshCompletions();
   }
   ++presentation().revision;requestRedraw();
@@ -607,9 +601,11 @@ void Shell::scroll(double rows){
     viewport_->scrollBy(rows);
     if(transcript_)navigation_->disarmSearch();
   }else{
-    const auto layout=terminal_ftxui::layoutPresentation(
+    // The cached heights; wrapping the whole transcript per wheel tick
+    // would grow with the Flight.
+    const auto layout=terminal_ftxui::layoutPresentationHeights(
       presentation(),presentation().viewport.columns,
-      presentation().viewport.rows);
+      presentation().viewport.rows,scrollbackCursor_.lines);
     scrollViewport(presentation(),static_cast<std::ptrdiff_t>(rows),
       layout.transcriptRowCount,layout.bodyHeight);
   }
@@ -620,11 +616,7 @@ void Shell::jumpToBottom(){
     viewport_->scrollToBottom();
   else presentation().viewport.follow=true;
   if(!batConversation_)imports_.onRepin();
-  actions_->setCursor({});
   newMessageCount_=0;requestRedraw();
-}
-void Shell::dispatchMessageAction(const std::string& action){
-  actions_->dispatch(action);requestRedraw();
 }
 void Shell::setTranscript(bool active){
   if(!active){copyScrollTimer_.cancel();copyScrollTimer_={};copyView_.reset();}

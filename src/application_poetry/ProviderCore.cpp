@@ -1,30 +1,22 @@
+#include "instructions/project/ProjectDiscovery.hpp"
 #include "application_poetry/Provider.hpp"
+#include "application_poetry/Stamp.hpp"
 #include "cwd/Override.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/Platform.hpp"
 #include <cstdlib>
 #include <algorithm>
-#include <chrono>
 #include <filesystem>
 #include <stdexcept>
 
 namespace batbox::application_poetry {
 namespace {
 std::string memoryStamp(const std::string& file){
-  std::error_code error;
-  const auto path=runtime::pathFromUtf8(file);
-  const auto time=std::filesystem::last_write_time(path,error);
-  if(error)return "missing";
-  const auto size=std::filesystem::file_size(path,error);
-  const auto ticks=time.time_since_epoch();
-  const auto seconds=std::chrono::duration_cast<std::chrono::seconds>(ticks);
-  return std::to_string(seconds.count())+":"+
-    std::to_string(static_cast<long long>((ticks-seconds).count()))+":"+
-    (error?std::string("unknown"):std::to_string(size));
+  return fileStamp(runtime::pathFromUtf8(file));
 }
 Json environmentSnapshot(){
   Json result=Json::object();
-  for(const char* key:{"SHELL","BATBOX_SIMPLE","BATBOX_REMOTE",
+  for(const char* key:{"SHELL","BATBOX_SIMPLE",
       "BATBOX_DISABLE_BATBOX_MDS","BATBOX_OVERRIDE_DATE",
       "BATBOX_DISABLE_GIT_INSTRUCTIONS","BATBOX_DISABLE_AUTO_MEMORY",
       "BATBOX_REMOTE_MEMORY_DIR","BATBOX_MEMORY_PATH_OVERRIDE"})
@@ -96,7 +88,13 @@ event_loop::Deferred<context::MemoryFiles> Provider::memoryFiles(){
             self->observedInstructionFiles_.end(),file.path)!=
             self->observedInstructionFiles_.end())continue;
         self->observedInstructionFiles_.push_back(file.path);
+        if(!instructions::project::getLargeMemoryFiles({file}).empty()&&
+            self->inputs_.logDiagnostic)
+          self->inputs_.logDiagnostic("instructions",file.path+" is "+
+            std::to_string(value::utf16CodeUnits(file.content).size())+
+            " characters; it is sent whole with every request",std::nullopt);
         self->memoryFileStamps_[file.path]=memoryStamp(file.path);
+        if(self->stablePromptPrefix())self->trackHeadFile(file.path);
       }
       output.resolve(*files);
     }catch(...){output.reject(std::current_exception());}
@@ -114,6 +112,10 @@ instructions::MemoryPathServices Provider::memoryPathServices(){
 }
 void Provider::refreshMemoryFilesIfChanged(){
   if(!owner_.isOwnerThread())throw std::logic_error("Memory refresh requires owner loop");
+  const bool stable=stablePromptPrefix();
+  // A stable head is tracked once per snapshot; later instruction files are
+  // tracked as memoryFiles() discovers them.
+  if(stable&&!headFiles_.empty())return;
   auto current=memoryPathServices();
   instructions::MemoryPathStash freshPaths;
   std::vector<std::string> files={instructions::getAutoMemEntrypoint(current,freshPaths),
@@ -121,6 +123,13 @@ void Provider::refreshMemoryFilesIfChanged(){
     runtime::pathToUtf8(inputs_.config.cwd/"BATBOX.md"),
     runtime::pathToUtf8(inputs_.config.cwd/"BATBOX.local.md")};
   files.insert(files.end(),observedInstructionFiles_.begin(),observedInstructionFiles_.end());
+  if(stable){
+    // Changes reach the model at the tail (takeHeadChangeAttachments); the
+    // head keeps the bytes it was built with.
+    memoryPaths_=std::move(current);
+    for(const auto& file:files)trackHeadFile(file);
+    return;
+  }
   std::map<std::string,std::string> stamps;
   for(const auto& file:files)stamps[file]=memoryStamp(file);
   if(stamps!=memoryFileStamps_){
@@ -132,6 +141,8 @@ void Provider::refreshMemoryFilesIfChanged(){
 }
 const poetryEntries::SystemPoetrySource& Provider::systemPoetrySource(){
   if(!owner_.isOwnerThread())throw std::logic_error("System prompt file requires owner loop");
+  if(systemHeadFrozen_&&stablePromptPrefix())return systemPoetryFile_.source();
+  systemHeadFrozen_=true;
   if(!systemPoetryFile_.refresh())return systemPoetryFile_.source();
   const auto& source=systemPoetryFile_.source();
   if(inputs_.logDiagnostic){
@@ -144,17 +155,20 @@ const poetryEntries::SystemPoetrySource& Provider::systemPoetrySource(){
   return source;
 }
 void Provider::clearPoetrySections(){
+  systemHeadFrozen_=false;
   poetrySections_.clearSystemPoetrySections([this]{
     if(inputs_.clearBetaHeaderLatches)inputs_.clearBetaHeaderLatches();
   });
 }
 void Provider::clearProjectInstructions(){
+  resetHeadSnapshot();
   projectRecoveryStash_.reset();
   discoveryStash_.clearMemoryFileStashes();
   memoryPathStash_.byProjectRoot.clear();
   contextStash_.clearUserContextStash();
 }
 void Provider::resetProjectInstructionsAfterCompact(){
+  resetHeadSnapshot();
   projectRecoveryStash_.reset();
   discoveryStash_.resetGetMemoryFilesStash("compact");
   contextStash_.clearUserContextStash();

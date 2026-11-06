@@ -1,6 +1,5 @@
 #pragma once
 #include "cli/structured/ProcessLine.hpp"
-#include "cli/structured/RequestProducer.hpp"
 #include <deque>
 #include <functional>
 #include <memory>
@@ -9,6 +8,10 @@
 #include <vector>
 
 namespace batbox::cli::structured {
+template<class T>struct StreamItem {
+  bool done=false;
+  std::optional<T> value;
+};
 struct InputReaderServices {
   std::function<event_loop::Deferred<std::optional<std::string>>()> nextChunk;
   std::function<void(const std::string&)> logParsedMessageType;
@@ -17,9 +20,7 @@ struct InputReaderServices {
 
 class InputReader:public std::enable_shared_from_this<InputReader> {
 public:
-  InputReader(event_loop::Loop& loop,std::shared_ptr<ControlResponses> control,
-              std::shared_ptr<RequestProducer> producer,
-              InputReaderServices services);
+  InputReader(event_loop::Loop& loop,InputReaderServices services);
   void prependUserMessage(const std::string& content);
   event_loop::Deferred<StreamItem<Json>> next();
 private:
@@ -29,8 +30,6 @@ private:
   void finish();
   void fail(std::exception_ptr error);
   event_loop::Loop& loop_;
-  std::shared_ptr<ControlResponses> control_;
-  std::shared_ptr<RequestProducer> producer_;
   InputReaderServices services_;
   std::deque<event_loop::Deferred<StreamItem<Json>>> waiting_;
   std::vector<std::string> prependedLines_;

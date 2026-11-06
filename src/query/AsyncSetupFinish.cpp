@@ -31,14 +31,8 @@ void Run::afterAutocompact(const Json& compact){
 }
 
 void Run::finishSetup(){
-  out.gadgetUseContext.data["messages"]=out.messagesForQuery;
+  execution::shareConversation(out.gadgetUseContext,out.messagesForQuery);
   services.queryCheckpoint("query_setup_start");
-  if(config.streamingGadgetExecution){
-    if(!services.sync.executionServices)
-      throw std::invalid_argument("Unbound async query import: executionServices");
-    out.streamingGadgetExecutor=std::make_unique<execution::StreamingGadgetExecutor>(
-      out.gadgetUseContext,*services.sync.executionServices);
-  }
   need(services.sync.getAppState,"getAppState");
   out.appState=execution::effectiveAppState(out.gadgetUseContext,
     services.sync.getAppState(out.gadgetUseContext));
@@ -56,28 +50,12 @@ void Run::finishSetup(){
     {"exceeds200kTokens",over200k}});
   services.queryCheckpoint("query_setup_end");
 
-  bool collapseOwnsIt=false;
-  if(services.sync.feature("CONTEXT_COLLAPSE") &&
-     services.sync.isContextCollapseEnabled &&
-     services.sync.isContextCollapseEnabled()){
-    need(services.sync.isAutoCompactEnabled,"isAutoCompactEnabled");
-    collapseOwnsIt=services.sync.isAutoCompactEnabled();
-  }
-  out.mediaRecoveryEnabled=services.sync.isReactiveCompactEnabled?
-    services.sync.isReactiveCompactEnabled():false;
-  const bool blockEligible=!out.compacted && params.querySource!="compact" &&
-    params.querySource!="session_memory";
-  bool reactiveOwnsIt=false;
-  if(blockEligible && services.sync.isReactiveCompactEnabled &&
-     services.sync.isReactiveCompactEnabled()){
-    need(services.sync.isAutoCompactEnabled,"isAutoCompactEnabled");
-    reactiveOwnsIt=services.sync.isAutoCompactEnabled();
-  }
-  if(blockEligible && !reactiveOwnsIt && !collapseOwnsIt){
+  if(!out.compacted && params.querySource!="compact" &&
+     params.querySource!="session_memory"){
     need(services.sync.tokenCountWithEstimation,"tokenCountWithEstimation");
     need(services.sync.calculateTokenWarningState,"calculateTokenWarningState");
     const Json warning=services.sync.calculateTokenWarningState(
-      services.sync.tokenCountWithEstimation(out.messagesForQuery)-out.snipTokensFreed,
+      services.sync.tokenCountWithEstimation(out.messagesForQuery),
       field(field(out.gadgetUseContext.data,"options"),"mainLoopModel"));
     if(value::truthy(field(warning,"isAtBlockingLimit"))){
       need(services.sync.createAssistantAPIErrorMessage,"createAssistantAPIErrorMessage");

@@ -25,6 +25,9 @@ struct Inputs {
   explicit Inputs(event_loop::Loop& loop):owner(loop){}
 };
 
+// memoryRecallSelector: "keywords", "model", or "auto" (default, also for
+// any other value): keywords for a local endpoint, a model request otherwise.
+bool recallByKeywords(const Json& settings,bool localEndpoint);
 // One owner per roost generation. All public calls require its owner loop.
 // Files remain the durable source of truth; no separate memory database.
 class Provider final:public std::enable_shared_from_this<Provider> {
@@ -42,7 +45,9 @@ public:
   void refresh();
   // Bind after successful file-gadget changes and FileChanged observations.
   // Bash/unknown-path writes call observeFileChange("") to inspect index stamps.
-  void observeFileChange(const std::string& path);
+  // ownWrite: a Write or Edit by the main Flight, whose content the
+  // conversation already holds.
+  void observeFileChange(const std::string& path,bool ownWrite=false);
   void executeAutoDream(const Json& stopContext);
   event_loop::Deferred<event_loop::Unit> consolidate(const Json& stopContext);
   event_loop::Deferred<event_loop::Unit> shutdown();

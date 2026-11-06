@@ -67,8 +67,7 @@ event_loop::Deferred<InputResult> processBashCommand(const std::string& input,
       messages::prepareUserContent(Json{{"inputString","<bash-input>"+input+
         "</bash-input>"},{"precedingInputBlocks",preceding}})}},services.messages);
     services.showProgress(input,std::nullopt);
-    auto pending=services.callShell(usePowerShell,Json{{"command",input},
-      {"dangerouslyDisableSandbox",true}},
+    auto pending=services.callShell(usePowerShell,Json{{"command",input}},
       [&services,input](const Json& progress){services.showProgress(input,progress);});
     pending.then([output,caveat,user,attachments,usePowerShell,&services]
       (const Json* response,const std::exception_ptr& error){

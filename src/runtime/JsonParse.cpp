@@ -20,29 +20,56 @@ struct Parser {
     if(c>='A'&&c<='F')return c-'A'+10;
     fail();
   }
+  // Writes UTF-16 code units as fromUtf16 would: a high surrogate waits for
+  // the next unit and pairs with a low one, otherwise it is written alone.
+  struct Units {
+    std::string out;
+    char16_t high=0;
+    void encode(std::uint32_t cp) {
+      if(cp<0x80)out+=static_cast<char>(cp);
+      else if(cp<0x800){out+=static_cast<char>(0xc0|(cp>>6));out+=static_cast<char>(0x80|(cp&63));}
+      else if(cp<0x10000){out+=static_cast<char>(0xe0|(cp>>12));out+=static_cast<char>(0x80|((cp>>6)&63));out+=static_cast<char>(0x80|(cp&63));}
+      else{out+=static_cast<char>(0xf0|(cp>>18));out+=static_cast<char>(0x80|((cp>>12)&63));out+=static_cast<char>(0x80|((cp>>6)&63));out+=static_cast<char>(0x80|(cp&63));}
+    }
+    void settle(){if(high){encode(high);high=0;}}
+    void unit(char16_t value) {
+      if(high&&value>=0xdc00&&value<=0xdfff){encode(0x10000+((high-0xd800)<<10)+(value-0xdc00));high=0;return;}
+      settle();
+      if(value>=0xd800&&value<=0xdbff)high=value;else encode(value);
+    }
+  };
   std::string string() {
     if(!take('"'))fail();
-    std::u16string units;
+    Units units;
     while(position<input.size()) {
+      const auto run=position;
+      while(position<input.size()) {
+        const auto b=static_cast<unsigned char>(input[position]);
+        if(b<0x20||b>=0x80||b=='"'||b=='\\')break;
+        ++position;
+      }
+      if(position>run){units.settle();units.out.append(input.data()+run,position-run);}
+      if(position==input.size())break;
       auto c=static_cast<unsigned char>(input[position++]);
-      if(c=='"')return fromUtf16(units);
+      if(c=='"'){units.settle();return std::move(units.out);}
       if(c<0x20)fail();
       if(c=='\\') {
         if(position==input.size())fail();
         const char escape=input[position++];
         switch(escape) {
-          case '"':case '\\':case '/':units+=static_cast<char16_t>(escape);break;
-          case 'b':units+='\b';break;case 'f':units+='\f';break;case 'n':units+='\n';break;
-          case 'r':units+='\r';break;case 't':units+='\t';break;
-          case 'u':{unsigned value=0;for(int i=0;i<4;++i)value=(value<<4)|hex();units+=static_cast<char16_t>(value);break;}
+          case '"':case '\\':case '/':units.unit(static_cast<char16_t>(escape));break;
+          case 'b':units.unit('\b');break;case 'f':units.unit('\f');break;case 'n':units.unit('\n');break;
+          case 'r':units.unit('\r');break;case 't':units.unit('\t');break;
+          case 'u':{unsigned value=0;for(int i=0;i<4;++i)value=(value<<4)|hex();units.unit(static_cast<char16_t>(value));break;}
           default:fail();
         }
-      } else if(c<0x80)units+=static_cast<char16_t>(c);
-      else {
+      } else {
         const auto start=position-1;
         const auto width=(c&0xe0)==0xc0?2:(c&0xf0)==0xe0?3:(c&0xf8)==0xf0?4:0;
         if(!width||start+width>input.size())fail();
-        try{units+=utf16CodeUnits(input.substr(start,width));}catch(const std::invalid_argument&){fail();}
+        std::u16string decoded;
+        try{decoded=utf16CodeUnits(input.substr(start,width));}catch(const std::invalid_argument&){fail();}
+        for(const auto unit:decoded)units.unit(unit);
         position=start+width;
       }
     }

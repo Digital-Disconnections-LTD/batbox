@@ -87,9 +87,13 @@ std::optional<ftxui::Element> projectAssistantText(
   if (card.kind == K::ApiError && card.truncated)
     child = ftxui::vbox({std::move(child), requiredShortcut(imports)});
   const bool oneRow = card.kind == K::ContextLimit ||
-      card.kind == K::CreditBalance || card.kind == K::ExternalInvalidKey ||
-      card.kind == K::TokenRevoked || card.kind == K::Timeout;
+      card.kind == K::CreditBalance || card.kind == K::Timeout;
   return response(std::move(child), imports.palette, oneRow);
+}
+
+ftxui::Element thinkingHeading(const ProjectionImports& imports) {
+  return ftxui::text("∴ Thinking…") | ftxui::color(imports.palette.subtle) |
+      ftxui::dim | ftxui::italic;
 }
 
 std::optional<ftxui::Element> projectThinking(
@@ -110,22 +114,12 @@ std::optional<ftxui::Element> projectThinking(
   if (!imports.renderMarkdown)
     throw std::logic_error("Markdown renderer required");
   auto child = ftxui::vbox({
-    ftxui::text("∴ Thinking…") | ftxui::color(imports.palette.subtle) |
-      ftxui::dim | ftxui::italic,
+    thinkingHeading(imports),
     ftxui::text(""),
     ftxui::hbox({ftxui::text("  "),
                 imports.renderMarkdown(card.thinking, true) | ftxui::xflex})
   });
   return withMargin(std::move(child), card.addMargin);
-}
-
-ftxui::Element projectRateLimitCard(const RateLimitCard& card,
-                                    const Palette& palette) {
-  std::vector<ftxui::Element> children;
-  children.push_back(wrappedLines(card.text, palette.error));
-  if (card.upsell)
-    children.push_back(wrappedLines(*card.upsell, palette.subtle));
-  return response(ftxui::vbox(std::move(children)), palette, false);
 }
 
 } // namespace batbox::interactive::cards_assistant

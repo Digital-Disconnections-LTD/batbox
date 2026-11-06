@@ -68,39 +68,10 @@ struct Run:std::enable_shared_from_this<Run> {
       messages=services.afterCompactBoundary(services.getMessages());
       if(!messages.is_array()||messages.empty())
         throw std::runtime_error("No messages to compact");
-      if(instructions.empty()){
-        required(bool(services.tryFlightMemoryCompaction),
-          "trySessionMemoryCompaction");
-        services.tryFlightMemoryCompaction(messages,
-          services.batId?services.batId():std::nullopt).then(
-          [self=shared_from_this()](const std::optional<Json>* result,
-              const std::exception_ptr& error){
-            if(error){self->fail(error);return;}
-            try{
-              if(result&&*result){self->flightMemorySuccess(**result);return;}
-              self->afterFlightMemory();
-            }catch(...){self->fail(std::current_exception());}
-          });
-      }else afterFlightMemory();
+      summarize();
     }catch(...){output.reject(std::current_exception());}
   }
-  void flightMemorySuccess(const Json& result){
-    required(bool(services.clearUserContextStash)&&
-      bool(services.runPostCompactCleanup)&&
-      bool(services.markPostCompaction)&&
-      bool(services.suppressCompactWarning),"Flight memory cleanup");
-    services.clearUserContextStash();
-    services.runPostCompactCleanup();
-    if(services.feature&&services.feature("PROMPT_CACHE_BREAK_DETECTION")){
-      required(bool(services.notifyCompaction),"notifyCompaction");
-      services.notifyCompaction(services.querySource?services.querySource():"compact",
-        services.batId?services.batId():std::nullopt);
-    }
-    services.markPostCompaction();
-    services.suppressCompactWarning();
-    output.resolve(success(result));
-  }
-  void afterFlightMemory(){
+  void summarize(){
     if(services.reactiveOnly&&services.reactiveOnly()){
       reactive();return;
     }
@@ -129,12 +100,10 @@ struct Run:std::enable_shared_from_this<Run> {
               if(failure){self->fail(failure);return;}
               try{
                 if(!result)throw std::invalid_argument("Compaction result missing");
-                required(bool(self->services.clearLastSummarizedMessageId)&&
-                  bool(self->services.suppressCompactWarning)&&
+                required(bool(self->services.suppressCompactWarning)&&
                   bool(self->services.clearUserContextStash)&&
                   bool(self->services.runPostCompactCleanup),
                   "traditional compaction cleanup");
-                self->services.clearLastSummarizedMessageId();
                 self->services.suppressCompactWarning();
                 self->services.clearUserContextStash();
                 self->services.runPostCompactCleanup();
@@ -192,11 +161,9 @@ struct Run:std::enable_shared_from_this<Run> {
       if(reason=="aborted")throw std::runtime_error("API Error: Request was aborted.");
       throw std::runtime_error(services.incompleteMessage);
     }
-    required(bool(services.clearLastSummarizedMessageId)&&
-      bool(services.runPostCompactCleanup)&&
+    required(bool(services.runPostCompactCleanup)&&
       bool(services.suppressCompactWarning)&&
       bool(services.clearUserContextStash),"reactive cleanup");
-    services.clearLastSummarizedMessageId();
     services.runPostCompactCleanup();
     services.suppressCompactWarning();
     services.clearUserContextStash();

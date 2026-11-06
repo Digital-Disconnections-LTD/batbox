@@ -36,7 +36,6 @@ int main(int argc,char** argv){
   auto messages=std::make_shared<messages::Services>();
   messages->randomUUID=platform::randomUUID;messages->nowISO=[]{return platform::isoTimestamp();};
   messages->strictGadgetResultPairing=[]{return true;};
-  messages->featureGate=[](const std::string&){return false;};
   messages->logError=[](const std::string& value){throw std::runtime_error(value);};
   application_model::Config modelConfig;modelConfig.mainModel=modelConfig.smallModel="fixture";
   modelConfig.client.baseUrl="http://127.0.0.1:1";
@@ -78,10 +77,12 @@ int main(int argc,char** argv){
   assert(found);
   auto context=await(loop,poetry->userContext());
   assert(context.dump().find("saved build preference")!=std::string::npos);
-  // Direct gadget/editor/Bash writes do not have to use Provider::write.
+  // The prompt head keeps the bytes it was built with; an outside edit reaches
+  // the model later as a tail attachment instead.
   {std::ofstream file(directory+"MEMORY.md");file<<"- Updated durable index after external write\n";}
   context=await(loop,poetry->userContext());
-  assert(context.dump().find("Updated durable index after external write")!=std::string::npos);
+  assert(context.dump().find("saved build preference")!=std::string::npos);
+  assert(context.dump().find("Updated durable index")==std::string::npos);
   memory=make(); // Recreate the application owner; all recall comes from disk.
   auto prefetch=memory->makePrefetchServices();int selections=0;
   prefetch->sideQuery=[&](const Json& request,std::stop_token){

@@ -39,14 +39,6 @@ Selection select(const std::shared_ptr<const Snapshot>& snapshot,
     if(seen.insert(gadget->name).second)result.gadgets.push_back(gadget);
   return result;
 }
-Selection selectFull(const std::shared_ptr<const Snapshot>& snapshot,
-    const Json& permissionContext,const CatalogSettings& settings,
-    const std::function<CatalogImports(const Snapshot&)>& imports){
-  require(snapshot,settings);
-  if(!imports)throw std::invalid_argument("Full tool-catalog binding required");
-  return Selection{snapshot,assembleGadgetPool(permissionContext,snapshot->mcp,
-    imports(*snapshot),settings)};
-}
 std::shared_ptr<const Snapshot> Roster::publish(std::shared_ptr<Snapshot> next){
   if(!next)throw std::invalid_argument("Tool snapshot required");
   std::lock_guard lock(mutex_);

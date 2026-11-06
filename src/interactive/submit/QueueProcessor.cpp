@@ -39,5 +39,4 @@ ProcessQueueResult processQueueIfReady(CommandQueue& queue,
   executeInput(commands);
   return {true};
 }
-bool hasQueuedCommands(const CommandQueue& queue){return !queue.empty();}
 } // namespace batbox::interactive::submit

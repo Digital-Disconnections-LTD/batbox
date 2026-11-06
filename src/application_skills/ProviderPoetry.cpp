@@ -39,12 +39,9 @@ skills::process::PoetryCommandServices Provider::poetryServices(
     const bats::BatContext& context){
   skills::process::PoetryCommandServices services;
   services.messageServices=*inputs_.messages;
-  services.findCommand=[this](const std::string& name,
-      const std::vector<Json>& commands){return findCommand(name,commands);};
   services.getPoetryForCommand=[this](const Json& command,
       const std::string& args,const bats::BatContext& bat){
     return poetryFor(command,args,bat);};
-  services.feature=[](const std::string&){return false;};
   services.isRestrictedToPluginOnly=[](const std::string&){return false;};
   const auto dispatcher=inputs_.owner.dispatcher();
   services.getFlightId=[dispatcher,flight=inputs_.flight]{

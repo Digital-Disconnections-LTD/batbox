@@ -11,6 +11,8 @@ std::optional<Newline> findNewlineIndex(std::string_view buffer, std::optional<s
 class LineDecoder {
   std::string buffer;
   std::optional<std::size_t> carriageReturnIndex;
+  // buffer[searchFrom..] has not been searched for a line end yet.
+  std::size_t searchFrom = 0;
 public:
   std::vector<std::string> decode(std::string_view chunk);
   std::vector<std::string> flush();
@@ -18,13 +20,11 @@ public:
 struct ServerSentEvent {
   std::optional<std::string> event;
   std::string data;
-  std::vector<std::string> raw;
 };
 class SSEDecoder {
   LineDecoder lines;
   std::optional<std::string> event;
   std::vector<std::string> data;
-  std::vector<std::string> chunks;
   std::vector<ServerSentEvent> consume(std::vector<std::string>&& input);
 public:
   std::vector<ServerSentEvent> decode(std::string_view chunk);

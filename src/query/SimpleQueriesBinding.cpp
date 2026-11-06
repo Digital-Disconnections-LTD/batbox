@@ -36,16 +36,4 @@ event_loop::Deferred<model::MessageRef> collectLastAssistantMessage(
   auto run=std::make_shared<Run>(loop,std::move(cursor),signal);
   run->next();return run->output;
 }
-std::function<event_loop::Deferred<model::MessageRef>(model::SimpleQueryRequest)>
-bindSimpleQueryModel(event_loop::Loop& loop,SimpleQueryFactory factory,
-  OwnerPreflightAwaits awaitedImports,OwnerRequestAwaits requestAwaits){
-  if(!factory)throw std::invalid_argument("Simple query native services factory required");
-  return [&loop,factory=std::move(factory),awaitedImports=std::move(awaitedImports),
-    requestAwaits=std::move(requestAwaits)](model::SimpleQueryRequest request){
-    auto services=factory(request);services.signal=request.signal;
-    auto cursor=makeOwnerSegmentQueryModelCursor(loop,std::move(request.input),
-      std::move(services),awaitedImports,{},requestAwaits);
-    return collectLastAssistantMessage(loop,std::move(cursor),request.signal);
-  };
-}
 }

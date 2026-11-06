@@ -4,10 +4,7 @@
 
 namespace batbox::bats {
 struct BatGadgetSchemaOptions {
-  bool kairos=false;
   bool backgroundMissionsDisabled=false;
-  bool forkSubagentEnabled=false;
-  bool transcriptClassifier=false;
 };
 // Input schema with Batbox model selectors. Optional and description metadata
 // is retained alongside the JSON Schema sent to the model.

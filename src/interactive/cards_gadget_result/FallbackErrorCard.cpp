@@ -27,7 +27,7 @@ FallbackErrorCard fallbackErrorCard(const Json& result, bool verbose,
   } else {
     const auto raw = result.get<std::string>();
     const auto extracted = extractTag(raw, "tool_use_error").value_or(raw);
-    auto cleaned = cards::removeSandboxViolationTags(extracted);
+    auto cleaned = extracted;
     removeAll(cleaned, "<error>");
     removeAll(cleaned, "</error>");
     const auto trimmed = value::trim(cleaned);

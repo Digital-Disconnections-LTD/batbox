@@ -37,14 +37,8 @@ public:
   Manager& operator=(const Manager&)=delete;
   event_loop::Deferred<Release> lock(const std::string& file,
     Options options={});
-  event_loop::Deferred<event_loop::Unit> unlock(const std::string& file,
-    Options options={});
-  event_loop::Deferred<bool> check(const std::string& file,
-    Options options={});
   std::function<void()> lockSync(const std::string& file,
     Options options={});
-  void unlockSync(const std::string& file,Options options={});
-  bool checkSync(const std::string& file,Options options={});
 private:
   std::shared_ptr<Core> core_;
 };

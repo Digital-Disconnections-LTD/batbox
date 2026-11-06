@@ -23,14 +23,14 @@ int main(){
     event_loop::Deferred<Json> result(loop);
     result.resolve(Json::object());
     return result;};
-  project::DiscoveryServices discovery;
-  hooks::bindInstructionsLoaded(loop,discovery,imports);
-  assert(discovery.hasInstructionsLoadedHook());
+  assert(hooks::hasInstructionsLoadedHook(imports));
   project::MemoryFileInfo info;
   info.path="/work/RULES.md";info.type="Project";
   info.globs=std::vector<std::string>{"src/**"};
   info.parent="/work/INSTRUCTIONS.md";
-  discovery.instructionsLoadedHook(info,"include");
+  hooks::InstructionsLoadedOptions options;
+  options.globs=info.globs;options.parentFilePath=info.parent;
+  (void)hooks::executeInstructionsLoadedHooks(loop,imports,info.path,info.type,"include",options);
   loop.runReady();
   assert(captured.size()==1);
   const auto& call=captured.at(0);

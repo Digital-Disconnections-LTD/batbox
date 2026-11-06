@@ -99,14 +99,6 @@ Services indigenousGitFsServices(event_loop::Loop& loop){
         std::filesystem::is_directory(status)};
     });
   };
-  services.readdir=[&loop](const std::string& path){
-    return onWorker<std::vector<std::string>>(loop,[path]{
-      std::vector<std::string> entries;
-      for(const auto& entry:std::filesystem::directory_iterator(runtime::pathFromUtf8(path)))
-        entries.push_back(value::decodeUtf8(runtime::pathToUtf8(entry.path().filename())));
-      return entries;
-    });
-  };
   auto roster=std::make_shared<Roster>();
   services.watchFile=[roster,dispatcher=loop.dispatcher()](const std::string& path,
     std::uint64_t interval,std::function<void()> callback){

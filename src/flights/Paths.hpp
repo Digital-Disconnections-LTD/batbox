@@ -20,10 +20,8 @@ class Paths {
   std::string batDirectory(const std::string& bat)const;
 public:
   explicit Paths(PathServices services):services(std::move(services)){}
-  std::string getProjectsDir()const;
   std::string getTranscriptPath()const;
   std::string getTranscriptPathForFlight(const std::string& flight)const;
-  std::string getFlightProjectTranscriptPath(const std::string& flight)const;
   void setBatTranscriptSubdir(const std::string& bat,const std::string& subdir);
   void clearBatTranscriptSubdir(const std::string& bat);
   std::string getBatTranscriptPath(const std::string& bat)const;

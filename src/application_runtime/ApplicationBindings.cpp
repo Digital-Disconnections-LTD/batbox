@@ -8,7 +8,6 @@ ApplicationRuntime::makeContextFactory(
     interactive::context::ContextBindings bindings){
   bindings.store=inputs_.store;
   bindings.readFileState=inputs_.readFileState;
-  bindings.feature=inputs_.feature;
   auto weak=weak_from_this();
   bindings.setMessages=[weak](const interactive::TurnMessageUpdate& update){
     if(auto self=weak.lock())self->messages_->setMessages(update);
@@ -52,8 +51,6 @@ void ApplicationRuntime::bindQuery(){
   turn_=std::make_shared<interactive::QueryTurnServices>(std::move(inputs_.turn));
   execution_=std::make_shared<interactive::QueryExecutionServices>(
     std::move(inputs_.execution));
-  turn_->feature=inputs_.feature;
-  execution_->feature=inputs_.feature;
   if(inputs_.createInterruptionMessage){
     const auto completed=turn_->mrOnTurnComplete;
     if(!completed)throw std::invalid_argument("Turn-complete callback required");
@@ -136,14 +133,6 @@ void ApplicationRuntime::bindQuery(){
       ++self->inputs_.presentation.revision;self->requestRedraw();
     }
     if(previousConversation)previousConversation(value);
-  };
-  auto previousBlocked=execution_->setContextBlocked;
-  execution_->setContextBlocked=[weak,previousBlocked](bool value){
-    if(auto self=weak.lock()){
-      self->inputs_.presentation.contextBlocked=value;
-      ++self->inputs_.presentation.revision;self->requestRedraw();
-    }
-    if(previousBlocked)previousBlocked(value);
   };
   interactive::bindQueryContextFactory(*execution_,context_);
   if(inputs_.onQueryContextCreated){

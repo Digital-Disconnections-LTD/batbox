@@ -9,9 +9,6 @@
 
 namespace batbox::interactive::text_input {
 
-bool isVimWordChar(const std::string& grapheme);
-bool isVimWhitespace(const std::string& grapheme);
-bool isVimPunctuation(const std::string& grapheme);
 
 struct CursorDeleteResult;
 struct GhostText {
@@ -51,22 +48,11 @@ public:
   Cursor up()const;
   Cursor down()const;
   Cursor startOfLine()const;
-  Cursor firstNonBlankInLine()const;
   Cursor endOfLine()const;
-  Cursor endOfLogicalLine()const;
-  Cursor startOfLogicalLine()const;
-  Cursor firstNonBlankInLogicalLine()const;
   Cursor upLogicalLine()const;
   Cursor downLogicalLine()const;
   Cursor nextWord()const;
-  Cursor endOfWord()const;
   Cursor prevWord()const;
-  Cursor nextVimWord()const;
-  Cursor endOfVimWord()const;
-  Cursor prevVimWord()const;
-  Cursor nextWORD()const;
-  Cursor endOfWORD()const;
-  Cursor prevWORD()const;
   Cursor modifyText(const Cursor& end,
                     const std::string& insertString="")const;
   Cursor insert(const std::string& text)const;
@@ -74,19 +60,12 @@ public:
   Cursor backspace()const;
   CursorDeleteResult deleteToLineStart()const;
   CursorDeleteResult deleteToLineEnd()const;
-  Cursor deleteToLogicalLineEnd()const;
   CursorDeleteResult deleteWordBefore()const;
   std::optional<Cursor> deleteTokenBefore()const;
   Cursor deleteWordAfter()const;
   bool equals(const Cursor& other)const;
   bool isAtStart()const{return offset_==0;}
   bool isAtEnd()const{return offset_>=measured_->length();}
-  Cursor startOfFirstLine()const;
-  Cursor startOfLastLine()const;
-  Cursor goToLine(long long lineNumber)const;
-  Cursor endOfFile()const;
-  std::optional<std::size_t> findCharacter(const std::string& ch,
-      char type,std::size_t count=1)const;
 private:
   std::size_t findLogicalLineStart(std::size_t fromOffset)const;
   std::size_t findLogicalLineEnd(std::size_t fromOffset)const;
@@ -94,8 +73,6 @@ private:
   Cursor createCursorWithColumn(std::size_t lineStart,std::size_t lineEnd,
                                  std::size_t targetColumn)const;
   std::size_t getOffset(Position position)const;
-  std::string graphemeAt(std::size_t position)const;
-  bool isOverWhitespace()const;
   std::shared_ptr<MeasuredText> measured_;
   std::size_t offset_,selection_;
 };

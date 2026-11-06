@@ -10,8 +10,6 @@
 namespace batbox::shell_provider {
 struct BuildOptions {
   std::string id;
-  std::optional<std::string> sandboxTmpDir;
-  bool useSandbox=false;
 };
 struct BuildResult {std::string commandString,cwdFilePath;};
 struct Services {
@@ -44,7 +42,7 @@ private:
   Services services_;
   std::shared_future<std::optional<std::string>> snapshotFuture_;
   mutable std::mutex mutex_;
-  std::optional<std::string> lastSnapshotPath_,currentSandboxTmpDir_;
+  std::optional<std::string> lastSnapshotPath_;
 };
 std::optional<std::string> getDisableExtglobCommand(const std::string& shellPath,
   bool shellPrefixConfigured);

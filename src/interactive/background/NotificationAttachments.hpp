@@ -1,5 +1,6 @@
 #pragma once
-#include "interactive/background/BackgroundQuery.hpp"
+#include "interactive/QueryExecution.hpp"
+#include "interactive/submit/CommandQueue.hpp"
 
 namespace batbox::interactive::background {
 struct AttachmentServices {

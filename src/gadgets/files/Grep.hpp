@@ -1,5 +1,6 @@
 #pragma once
 #include "filesystem/FileOps.hpp"
+#include "filesystem/RipgrepProcess.hpp"
 #include "gadgets/Gadget.hpp"
 #include <functional>
 #include <optional>
@@ -13,7 +14,7 @@ struct GrepServices {
   std::function<std::vector<std::string>(const Json&)> getFileReadIgnorePatterns;
   std::function<std::vector<std::string>(const std::vector<std::string>&,const std::string&)> normalizePatternsToPath;
   std::function<std::vector<std::string>(const std::string&)> getGlobExclusionsForPluginStash;
-  std::function<std::vector<std::string>(const std::vector<std::string>&,const std::string&,std::stop_token)> ripGrep;
+  std::function<filesystem::RipgrepLines(const std::vector<std::string>&,const std::string&,std::stop_token)> ripGrep;
   std::function<int(const std::string&,const std::string&)> localeCompare;
   bool testEnvironment=false;
   std::string fileNotFoundCwdNote="Note: your current working directory is";

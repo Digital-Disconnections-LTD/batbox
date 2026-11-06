@@ -1,4 +1,4 @@
-#include "client_factory/ClientFactory.hpp"
+#include "transport/Client.hpp"
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
@@ -126,14 +126,14 @@ int main(){
       close(accepted);
     }catch(...){serverError=std::current_exception();}
   });
-  client_factory::ClientPlan plan;
-  plan.proxyFetchOptions=Json{{"tls",Json{{"cert",identity.certPem},
-    {"key",identity.keyPem},{"ca",Json::array({identity.certPem})}}}};
-  client_factory::Services services;
-  services.directBaseUrl="https://localhost:"+std::to_string(port);
+  transport::ClientConfig config;
+  config.baseUrl="https://localhost:"+std::to_string(port);
+  config.tlsCertificatePem=identity.certPem;
+  config.tlsPrivateKeyPem=identity.keyPem;
+  config.tlsCaPem={identity.certPem};
   std::exception_ptr requestError;
   try{
-    auto client=client_factory::makeIndigenousDirectClient(plan,services);
+    auto client=std::make_shared<transport::Client>(std::move(config));
     const auto response=client->request(Json{{"model","qwen"},
       {"max_tokens",1},{"messages",Json::array()}},false);
     assert(response.body["id"]=="secure");

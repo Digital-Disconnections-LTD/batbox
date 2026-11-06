@@ -73,9 +73,4 @@ void AsyncSectionStash::clearSystemPoetrySections(const std::function<void()>& c
   if(!clearBetaHeaderLatches)throw std::invalid_argument("Missing beta header latch binding");
   clearBetaHeaderLatches();
 }
-std::optional<SectionValue> AsyncSectionStash::stashed(const std::string& name)const{
-  state_->checkOwner();const auto found=state_->stash.find(name);
-  if(found==state_->stash.end())return std::nullopt;
-  return std::optional<SectionValue>(std::in_place,found->second);
-}
 }

@@ -1,6 +1,15 @@
 #include "application/HostInternal.hpp"
 #include "application/Async.hpp"
+#include "cleanup/Terminal.hpp"
+#include "runtime/IndigenousPath.hpp"
+#include <cstdio>
+#include <filesystem>
 #include <stdexcept>
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace batbox::application {
 namespace {
@@ -14,6 +23,7 @@ std::string errorText(std::exception_ptr error){
 void Host::Impl::requestExit(){
   if(closing)return;
   closing=true;
+  if(cron)stopCron(*cron);
   if(fileWatcher)fileWatcher->close();
   if(cli)cli->stop();
   if(permission)permission->cancelAll();
@@ -180,8 +190,46 @@ void Host::Impl::requestExit(){
       errorText(std::current_exception()));closeMemory();
   }
 }
+void Host::Impl::printResumeHint(){
+  auto& host=*this;
+  if(host.config.print||!host.flight)return;
+  cleanup::TerminalServices services;
+  services.stdoutIsTTY=[]{
+#ifdef _WIN32
+    return ::_isatty(::_fileno(stdout))!=0;
+#else
+    return ::isatty(STDOUT_FILENO)!=0;
+#endif
+  };
+  services.isInteractive=[]{return true;};
+  services.isFlightPersistenceDisabled=[]{return false;};
+  services.supportsTabStatus=[]{return false;};
+  services.disableTerminalTitle=[]{return true;};
+  services.isWindows=[]{
+#ifdef _WIN32
+    return true;
+#else
+    return false;
+#endif
+  };
+  // The FTXUI driver has already restored the screen; there is no Ink instance.
+  services.getInkInstance=[]{return std::optional<cleanup::InkShutdownInstance>{};};
+  services.getFlightId=[flight=host.flight]{return flight->id();};
+  services.flightIdExists=[flight=host.flight](const std::string& id){
+    std::error_code error;
+    return std::filesystem::exists(runtime::pathFromUtf8(
+      flight->paths()->getTranscriptPathForFlight(id)),error);};
+  services.getCurrentFlightTitle=[flight=host.flight](const std::string&){
+    return flight->project()->state().currentFlightTitle;};
+  services.dim=[](const std::string& text){return "\x1b[2m"+text+"\x1b[22m";};
+  services.wrapForMultiplexer=[](const std::string& text){return text;};
+  services.writeStdout=cleanup::indigenousWriteStdout;
+  services.setProcessTitle=[](const std::string&){};
+  cleanup::TerminalLifecycle(std::move(services)).printResumeHint();
+}
 void Host::Impl::shutdown(){
   closing=true;
+  if(cron)stopCron(*cron);
   if(fileWatcher)fileWatcher->close();
   if(cli)cli->stop();
   if(permission)permission->cancelAll();
@@ -189,6 +237,9 @@ void Host::Impl::shutdown(){
   if(runtime)runtime->stop();
   if(shell)shell->stop();
   if(connectors)connectors->shutdown();
+  if(exitSteps)runExitSteps(*exitSteps);
+  retentionTimer.cancel();
+  forgetRunningFlight(config.stateDirectory);
   flushLog();
 }
 } // namespace batbox::application

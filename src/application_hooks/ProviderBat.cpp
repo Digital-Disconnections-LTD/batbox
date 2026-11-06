@@ -103,8 +103,6 @@ void Provider::bindBatHooks(){
       if(setMode)setMode(value);};
     callbacks.onStreamingGadgetUses=[](interactive::GadgetUsesUpdate){};
     interactive::StreamImports imports;
-    imports.connectorTextEnabled=[]{return false;};
-    imports.isConnectorTextBlock=[](const Json&){return false;};
     imports.nowMs=[]{return static_cast<double>(platform::nowMillis());};
     interactive::handleMessageFromStream(message,callbacks,imports);
   };

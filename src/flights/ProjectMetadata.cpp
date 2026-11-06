@@ -1,9 +1,5 @@
-#include "flights/Project.hpp"
 #include "flights/MetadataReappend.hpp"
 namespace batbox::flights {
-void Project::reAppendFlightMetadata(bool skipTitleRefresh) {
-  flights::reAppendFlightMetadata(*this,MetadataReappendServices{services.getFlightId,services.readTail,services.appendMetadata,services.nowIso},skipTitleRefresh);
-}
 void reAppendFlightMetadata(FlightState& state,const MetadataReappendServices& services,bool skipTitleRefresh) {
   if(!state.flightFile || state.flightFile->empty())return;
   const auto flight=services.getFlightId();if(flight.empty())return;

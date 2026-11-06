@@ -2,7 +2,7 @@
 
 namespace batbox::query::async_engine {
 void Run::startModel(){
-  model.emplace(makeAsyncModelPassIterator(loop,params,state,prepared,config,
+  model.emplace(makeAsyncModelPassIterator(loop,params,state,prepared,
     remaining,services.model));
   stage=Stage::ModelStart;
 }
@@ -29,47 +29,22 @@ void Run::pullModel(){
   });
 }
 void Run::afterModel(){
-  if(!modelResult->assistantMessages.empty()){
-    need(services.executePostSamplingHooks,"executePostSamplingHooks");
+  if(!modelResult->assistantMessages.empty()&&services.executePostSamplingHooks){
     services.executePostSamplingHooks(concatMessages(prepared->messagesForQuery,
       modelResult->assistantMessages),params,prepared->gadgetUseContext);
   }
-  // Check streaming abort before awaiting the prior-turn summary.
   stage=prepared->gadgetUseContext.stop.stop_requested()?
-    Stage::AbortStart:Stage::SummaryStart;
-}
-void Run::startSummary(){
-  if(!state.pendingGadgetUseSummaryAsync&&!state.pendingGadgetUseSummary){
-    stage=Stage::DecisionStart;return;
-  }
-  event_loop::Deferred<Json> pending=[&]{
-    if(state.pendingGadgetUseSummaryAsync)return *state.pendingGadgetUseSummaryAsync;
-    need(services.awaitPendingGadgetUseSummary,"awaitPendingToolUseSummary");
-    return services.awaitPendingGadgetUseSummary(state);
-  }();
-  if(!loop.dispatcher().sameLoop(pending.dispatcher()))
-    throw std::invalid_argument("Async tool summary belongs to another event loop");
-  stage=Stage::SummaryAwait;
-  auto self=shared_from_this();
-  pending.then([self](const Json* value,const std::exception_ptr& error){
-    if(self->stage==Stage::Done)return;
-    if(error){self->fail(error);return;}
-    try{
-      if(value::truthy(*value))self->emit(std::make_shared<Json>(*value),Stage::DecisionStart);
-      else{self->stage=Stage::DecisionStart;self->pump();}
-    }catch(...){self->fail(std::current_exception());}
-  });
+    Stage::AbortStart:Stage::DecisionStart;
 }
 void Run::startDecision(){
   if(!decision){
     if(modelResult->needsFollowUp){
       need(services.executeGadgetTurn,"executeToolTurn");
-      decision=services.executeGadgetTurn(params,state,prepared,modelResult,config,
+      decision=services.executeGadgetTurn(params,state,prepared,modelResult,
         &memoryPrefetch,consumedCommandUuids);
     }else{
       need(services.completeWithoutGadgets,"completeWithoutTools");
-      decision=services.completeWithoutGadgets(params,state,prepared,modelResult,
-        remaining,budgetTracker?&*budgetTracker:nullptr);
+      decision=services.completeWithoutGadgets(params,state,prepared,modelResult);
     }
   }
   need(decision->next,"async decision cursor.next");
@@ -92,10 +67,6 @@ void Run::pullDecision(){
         throw std::logic_error("Async decision returned no transition");
       self->state=std::move(*value->value->next);
       self->decision.reset();self->modelResult.reset();self->prepared.reset();
-      if(field(self->state.transition,"reason")=="reactive_compact_retry"&&
-          self->services.refreshUserContextAfterCompact){
-        self->refreshUserContext(true);return;
-      }
       self->startSetup();self->pump();
     }catch(...){self->fail(std::current_exception());}
   });

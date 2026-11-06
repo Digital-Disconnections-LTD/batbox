@@ -35,7 +35,7 @@ void settleFatal(const std::string& line,const std::string& reason,
 }
 }
 event_loop::Deferred<std::optional<Json>> processLine(
-    event_loop::Loop& loop,const std::string& line,ControlResponses& control,
+    event_loop::Loop& loop,const std::string& line,
     const ProcessLineServices& services){
   event_loop::Deferred<std::optional<Json>> output(loop);
   if(line.empty()){output.resolve({});return output;}
@@ -66,51 +66,8 @@ event_loop::Deferred<std::optional<Json>> processLine(
       const auto& envelope=propertyOf(message,"response");
       const auto& id=propertyOf(envelope,"request_id");
       if(!id.is_string())throw std::runtime_error("Invalid request ID");
-      const auto requestId=id.get<std::string>();
-      if(!control.hasPendingRequest(requestId)){
-        const auto& responsePayload=propertyOf(envelope,"subtype")=="success"
-          ?propertyOf(envelope,"response"):Json();
-        const auto& gadgetUseID=value::property(responsePayload,"toolUseID");
-        if(gadgetUseID.is_string()&&
-           control.hasResolvedGadgetUseId(gadgetUseID.get<std::string>())){
-          if(!services.logForDebugging)
-            throw std::invalid_argument("Debug callback required");
-          services.logForDebugging(
-            "Ignoring duplicate control_response for already-resolved toolUseID="+
-            gadgetUseID.get<std::string>()+" request_id="+requestId,nullptr);
-          output.resolve({});return output;
-        }
-        if(services.unexpectedResponseCallback){
-          services.unexpectedResponseCallback(message).then(
-            [output,line,services](const event_loop::Unit*,
-                                   const std::exception_ptr& error){
-              if(error){
-                try{std::rethrow_exception(error);}
-                catch(const std::exception& failure){
-                  settleFatal(line,failure.what(),services,output);
-                }catch(...){settleFatal(line,"unknown",services,output);}
-              }else output.resolve({});
-            });
-        }else output.resolve({});
-        return output;
-      }
-      auto pending=control.takePendingRequest(requestId);
-      if(!pending)throw std::runtime_error("Pending request disappeared");
-      if(value::property(value::property(pending->request,"request"),"subtype")==
-         "can_use_tool"&&services.onControlRequestResolved)
-        services.onControlRequestResolved(requestId);
-      if(propertyOf(envelope,"subtype")=="error"){
-        pending->reject(textValue(propertyOf(envelope,"error")));
-        output.resolve({});return output;
-      }
-      const auto& result=propertyOf(envelope,"response");
-      if(pending->parseResponse){
-        try{pending->resolve(pending->parseResponse(result));}
-        catch(const std::exception& error){pending->reject(error.what());}
-      }else pending->resolve(Json::object());
-      output.resolve(services.replayUserMessages?
-        std::optional<Json>(std::move(message)):std::optional<Json>{});
-      return output;
+      // No control requests are sent, so every response is unsolicited.
+      output.resolve({});return output;
     }
     if(type!="user"&&type!="control_request"&&type!="assistant"&&
        type!="system"){

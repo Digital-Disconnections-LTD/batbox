@@ -37,7 +37,6 @@ public:
     TimerHandle()=default;
     bool valid()const;
     void cancel()const;
-    void ref()const;
     void unref()const;
   private:
     friend class Loop;
@@ -54,7 +53,6 @@ public:
     KeepAlive& operator=(KeepAlive&& other)noexcept;
     ~KeepAlive();
     void release();
-    bool active()const;
   private:
     friend class Loop;
     KeepAlive(Dispatcher dispatcher,std::uint64_t id):dispatcher_(std::move(dispatcher)),id_(id){}

@@ -20,8 +20,6 @@ public:
   event_loop::Deferred<std::optional<std::string>> getGitStatus(const AsyncServices&);
   event_loop::Deferred<Json> getSystemContext(const AsyncServices&);
   event_loop::Deferred<Json> getUserContext(const AsyncServices&);
-  std::optional<std::string> getSystemPoetryInjection()const;
-  void setSystemPoetryInjection(std::optional<std::string>);
   void clearGitStatusStash();
   void clearSystemContextStash();
   void clearUserContextStash();

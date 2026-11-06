@@ -35,12 +35,7 @@ RenderItemsRef collapseReadSearchGroups(const RenderItemsRef& messages,
       if (!info) throw std::logic_error("Collapsible Gadget info missing");
       const auto count = countGadgetUses(item);
       if (info->classification.isMemoryWrite) {
-        if (feature(imports, "TEAMMEM")) {
-          need(imports.isTeamMemoryWriteOrEdit, "isTeamMemoryWriteOrEdit");
-          if (imports.isTeamMemoryWriteOrEdit(info->name, info->input))
-            current.teamMemoryWriteCount = current.teamMemoryWriteCount.value_or(0) + count;
-          else current.memoryWriteCount += count;
-        } else current.memoryWriteCount += count;
+        current.memoryWriteCount += count;
       } else if (info->classification.isAbsorbedSilently) {
         // The message stays in the group without contributing to a count.
       } else if (info->classification.mcpServerName &&
@@ -69,14 +64,7 @@ RenderItemsRef collapseReadSearchGroups(const RenderItemsRef& messages,
         }
       } else if (info->classification.isSearch) {
         current.searchCount += count;
-        bool teamMemory = false;
-        if (feature(imports, "TEAMMEM")) {
-          need(imports.isTeamMemorySearch, "isTeamMemorySearch");
-          teamMemory = imports.isTeamMemorySearch(info->input);
-        }
-        if (teamMemory)
-          current.teamMemorySearchCount = current.teamMemorySearchCount.value_or(0) + count;
-        else if (isMemorySearch(info->input, imports.classification))
+        if (isMemorySearch(info->input, imports.classification))
           current.memorySearchCount += count;
         else {
           const auto pattern = inputString(info->input, "pattern");
@@ -89,21 +77,13 @@ RenderItemsRef collapseReadSearchGroups(const RenderItemsRef& messages,
         const auto paths = getFilePathsFromReadMessage(item);
         for (const auto& path : paths) {
           current.readFilePaths.insert(path);
-          bool teamMemory = false;
-          if (feature(imports, "TEAMMEM")) {
-            need(imports.isTeamMemFile, "isTeamMemFile");
-            teamMemory = imports.isTeamMemFile(path);
-          }
-          if (teamMemory) current.teamMemoryReadFilePaths->insert(path);
+          need(imports.classification.isAutoManagedMemoryFile,
+               "isAutoManagedMemoryFile");
+          if (imports.classification.isAutoManagedMemoryFile(path))
+            current.memoryReadFilePaths.insert(path);
           else {
-            need(imports.classification.isAutoManagedMemoryFile,
-                 "isAutoManagedMemoryFile");
-            if (imports.classification.isAutoManagedMemoryFile(path))
-              current.memoryReadFilePaths.insert(path);
-            else {
-              need(imports.getDisplayPath, "getDisplayPath");
-              current.latestDisplayHint = imports.getDisplayPath(path);
-            }
+            need(imports.getDisplayPath, "getDisplayPath");
+            current.latestDisplayHint = imports.getDisplayPath(path);
           }
         }
         if (paths.empty()) {

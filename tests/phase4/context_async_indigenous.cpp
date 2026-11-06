@@ -64,11 +64,6 @@ int main(){
   assert(status.find("?? new-file.txt")!=std::string::npos);
   assert(status.find("seed commit")!=std::string::npos);
   assert(gitChecks==1&&gitCommands==3);
-  stash.setSystemPoetryInjection("new prefix");
-  const auto updated=await(loop,stash.getSystemContext(services));
-  assert(updated.at("gitStatus")==context.at("gitStatus"));
-  assert(updated.at("cacheBreaker")=="[CACHE_BREAKER: new prefix]");
-  assert(gitChecks==1&&gitCommands==3);
   services.environment["BATBOX_DISABLE_BATBOX_MDS"]="true";
   services.setStashedBatboxMdContent=[&](const std::optional<std::string>& value){assert(loop.isOwnerThread()&&!value);};
   services.localISODate=[]{return "2026-10-28";};

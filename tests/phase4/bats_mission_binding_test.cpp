@@ -47,7 +47,6 @@ int main(){
  lifecycle.result.extractTextContent=[](const Json& blocks,const std::string&){
   return field(blocks[0],"text").get<std::string>();};
  lifecycle.result.nowMillis=[](){return std::int64_t(1000);};
- lifecycle.feature=[](const std::string&){return false;};
  lifecycle.errorMessage=[](std::exception_ptr error){try{std::rethrow_exception(error);}
   catch(const std::exception& exception){return std::string(exception.what());}};
  lifecycle.clearInvokedSkillsForBat=[&](const std::string&){order.push_back("clearSkills");};

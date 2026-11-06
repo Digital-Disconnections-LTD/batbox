@@ -43,7 +43,6 @@ int main(){
     imports.markMissionNotified=[](const std::string&){
       throw std::runtime_error("unexpected notification repair");};
     imports.isAutoBackgroundAllowed=[](const std::string&){return true;};
-    imports.shouldUseSandbox=[](const AsyncRunInput&){return false;};
     const auto started=std::chrono::steady_clock::now();
     imports.nowMs=[started]{return std::chrono::duration<double,std::milli>(
       std::chrono::steady_clock::now()-started).count();};

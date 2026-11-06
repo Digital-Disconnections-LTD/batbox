@@ -13,9 +13,6 @@ void require(bool bound,const char* name){
 ValidationResult ask(const std::string& message,int code,const Json& meta=Json()){
   ValidationResult result{false,message,code};result.behavior="ask";result.meta=meta;return result;
 }
-bool containsUTF16(const std::string& file,const std::string& needle){
-  return value::utf16CodeUnits(file).find(value::utf16CodeUnits(needle))!=std::u16string::npos;
-}
 std::size_t countMatches(const std::string& file,const std::string& needle){
   const auto text=value::utf16CodeUnits(file),search=value::utf16CodeUnits(needle);
   if(search.empty())return text.size()+1;
@@ -31,10 +28,9 @@ ValidationResult validateEditInput(const Json& input,const FileEditServices& ser
   const auto newString=input.at("new_string").get<std::string>();
   const bool replaceAll=input.value("replace_all",false);
   const auto full=filesystem::expandPath(path,services.paths);
-  require(static_cast<bool>(services.checkTeamMemSecrets),"checkTeamMemSecrets");
-  if(const auto secret=services.checkTeamMemSecrets(full,newString))
-    return ValidationResult{false,*secret,0};
   if(oldString==newString)return ask("No changes to make: old_string and new_string are exactly the same.",1);
+  if(services.planModeActive&&services.planModeActive())
+    return ask(planModeFileChangeMessage,2);
   require(static_cast<bool>(services.matchingEditDenyRule),"matchingEditDenyRule");
   if(services.matchingEditDenyRule(full))
     return ask("File is in a directory that is denied by your permission settings.",2);

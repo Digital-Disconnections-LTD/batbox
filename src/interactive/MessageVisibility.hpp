@@ -10,7 +10,6 @@ namespace batbox::interactive {
 struct VisibilityImports {
   std::string noContentMessage;
   std::string interruptMessageForGadgetUse;
-  std::function<bool(const std::string&)> feature;
 };
 bool isNotEmptyMessage(const Json& message, const VisibilityImports& imports);
 bool shouldShowUserMessage(const Json& message, bool transcriptMode,

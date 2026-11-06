@@ -6,7 +6,6 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
-#include <sys/stat.h>
 #include <stop_token>
 #include <unistd.h>
 int main(){
@@ -18,19 +17,11 @@ int main(){
     config.generateMissionId=[](){return std::string("task1");};
     config.splitCommand=[](const std::string&){return std::vector<std::string>{"echo"};};
     batbox::shell::ManagedShell shell(config);
-    std::string built;std::vector<std::string> diagnostics;
-    batbox::shell::RunOptions options;options.command="echo sandbox";
-    options.timeoutMs=2000;options.useSandbox=true;
-    options.sandboxTmpDir=(root/"sandbox").string();
-    options.sandboxWrap=[&](const std::string& command){built=command;return command;};
-    options.logDebug=[&](const std::string& message){diagnostics.push_back(message);};
+    batbox::shell::RunOptions options;options.command="echo plain";
+    options.timeoutMs=2000;
     const auto result=shell.run(options);
-    if(result.code!=0||result.stdoutText.find("sandbox")==std::string::npos||
-      built.find("echo sandbox")==std::string::npos||!diagnostics.empty())
-      throw std::runtime_error("sandbox preparation order failed");
-    struct stat info{};
-    if(::stat(options.sandboxTmpDir->c_str(),&info)!=0||(info.st_mode&0777)!=0700)
-      throw std::runtime_error("sandbox temp directory mode wrong");
+    if(result.code!=0||result.stdoutText.find("plain")==std::string::npos)
+      throw std::runtime_error("plain command failed");
     const auto vanished=root/"vanished";std::filesystem::create_directory(vanished);
     shell.setCwd(vanished.string());std::filesystem::remove(vanished);
     const auto recovered=shell.run(batbox::shell::RunOptions{.command="pwd"});
@@ -55,14 +46,11 @@ int main(){
       std::move(providerServices));
     config.generateExecId=[](){return std::string("abcd");};
     batbox::shell::ManagedShell providerShell(config);
-    auto providerOptions=options;providerOptions.command="echo provider sandbox";
-    providerOptions.sandboxTmpDir=(root/"provider-sandbox").string();
-    providerOptions.sandboxWrap=[&](const std::string& command){
-      order.push_back("wrap");return command;};
+    auto providerOptions=options;providerOptions.command="echo provider";
     const auto providerResult=providerShell.run(providerOptions);
-    if(providerResult.code!=0||providerResult.stdoutText.find("provider sandbox")==std::string::npos||
-      order!=std::vector<std::string>{"build","wrap","env"})
-      throw std::runtime_error("provider/sandbox/environment ordering wrong");
+    if(providerResult.code!=0||providerResult.stdoutText.find("provider")==std::string::npos||
+      order!=std::vector<std::string>{"build","env"})
+      throw std::runtime_error("provider/environment ordering wrong");
     auto lifecycle=std::make_shared<batbox::shell::CwdCompletionServices>();
     std::weak_ptr<batbox::shell::ManagedShell> weak;
     int invalidations=0,hooks=0,unlinkCalls=0,failures=0;
@@ -95,7 +83,7 @@ int main(){
       throw std::runtime_error("background cwd cleanup happened after result or changed session cwd");
     backgroundShell->cleanup(*background.backgroundMissionId);
     std::filesystem::remove_all(root);
-    std::cout<<"PASS Shell.exec sandbox wrap after build and 0700 temp directory\n";return 0;
+    std::cout<<"PASS Shell.exec provider build before environment and cwd completion\n";return 0;
   }catch(const std::exception& error){std::cerr<<error.what()<<'\n';
     std::filesystem::remove_all(root);return 1;}
 }

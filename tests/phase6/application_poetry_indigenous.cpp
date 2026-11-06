@@ -32,6 +32,8 @@ int main(){
     inputs.config.cwd=root;
     inputs.config.stateDirectory=root/"native-state";
     inputs.config.model="local-model";
+    // Covers the rebuild-on-change path; the stable head has its own test.
+    inputs.initialSettings=[]{return Json{{"stablePromptPrefix",false}};};
     const auto config=inputs.config;
     int recoveryStarts=0,recoveryStops=0;
     inputs.recoveryActivity=[&](bool active){
@@ -96,12 +98,13 @@ int main(){
     if(compacted!=advanced||recoveryStarts!=3||recoveryStops!=3)
       throw std::logic_error("Compaction did not reload current project state");
     application_poetry::Inputs restartInputs;restartInputs.config=config;
+    restartInputs.initialSettings=[]{return Json{{"stablePromptPrefix",false}};};
     auto restarted=std::make_shared<application_poetry::Provider>(
       loop,std::move(restartInputs));
     if(await(loop,restarted->userContext())!=advanced)
       throw std::logic_error("Fresh provider failed to recover project state");
     const auto bat=provider->enhanceBatPoetry(Json::array({"Agent base"}),
-      "local-model",Json::array(),Json::array());
+      "local-model",Json::array());
     if(!bat.is_array()||bat.size()!=3||
         bat[0]!="Agent base"||
         bat[1].get<std::string>().find("Notes:")==std::string::npos||

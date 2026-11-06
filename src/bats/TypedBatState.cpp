@@ -20,13 +20,11 @@ std::function<app_state::AppStateRef()> createTypedBatGetAppState(
     std::function<app_state::AppStateRef()> parentGetAppState,
     Json batDefinition,bool isAsync,
     std::optional<bool> canShowPermissionPoetryEntries,
-    std::optional<Json> allowedGadgets,
-    std::function<bool(const std::string&)> feature){
+    std::optional<Json> allowedGadgets){
   if(!parentGetAppState)throw std::invalid_argument("Typed parent app state required");
   return [parentGetAppState=std::move(parentGetAppState),
       batDefinition=std::move(batDefinition),isAsync,
-      canShowPermissionPoetryEntries,allowedGadgets=std::move(allowedGadgets),
-      feature=std::move(feature)]{
+      canShowPermissionPoetryEntries,allowedGadgets=std::move(allowedGadgets)]{
     const auto state=parentGetAppState();
     if(!state||!state->permissionContext)
       throw std::logic_error("Typed permission context required");
@@ -41,10 +39,7 @@ std::function<app_state::AppStateRef()> createTypedBatGetAppState(
     };
     if(value::truthy(batMode)&&currentMode!="bypassPermissions"&&
        currentMode!="acceptEdits"){
-      if(!feature)throw std::invalid_argument("Transcript classifier feature required");
-      if(!(feature("TRANSCRIPT_CLASSIFIER")&&currentMode=="auto")){
-        updatePermission();permission->set("mode",batMode);
-      }
+      updatePermission();permission->set("mode",batMode);
     }
     const bool avoid=canShowPermissionPoetryEntries?!*canShowPermissionPoetryEntries:
       batMode=="bubble"?false:isAsync;

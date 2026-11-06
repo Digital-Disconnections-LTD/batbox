@@ -16,7 +16,7 @@ from loopback_http import LoopbackHTTPServer
 from pty_smoke import PtySession, STEP_SECONDS, child_environment
 
 PARENT, CHILD = "Audit the parser", "Check the lexer"
-HOME_HINT = "Alt+↓ Bats · Ctrl+T list"
+HOME_HINT = "↓ Bats · Ctrl+T list"
 CONTROL = re.compile(rb"\x1b(?:\[[0-9;?<>=]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[()][0-9A-Za-z]|[=>78])")
 
 
@@ -172,13 +172,13 @@ def main(binary):
                          lambda t: "Active Missions (2)" in t and "Ctrl+T collapse" not in
                          latest(t, "Active Missions (2)")[:60])
             press(b"\x14", "Ctrl+T expands the list again",
-                  lambda t: "Active Missions (2) · Ctrl+T collapse" in t)
+                  lambda t: "Active Missions (2) · ↓ select · Ctrl+T collapse" in t)
 
             # Stopping the parent stops the sub-Bat it launched.
             press(b"\x1b[1;3B", "Alt+Down to the parent before stopping it", in_parent)
             mark = len(output)
             terminal.send(b"\x03", settle=0.5)
-            wait_for(lambda: (PARENT + " · stopped") in screen(mark) and
+            wait_for(lambda: re.search(re.escape(PARENT) + r"[^\n]*stopped", screen(mark)) and
                      "Active Missions (0)" in screen(mark),
                      "the parent and its sub-Bat stopping")
             release.set()

@@ -40,6 +40,11 @@ Json mapGadgetResult(const Json& data,const std::string& gadgetUseID,
     }
     const auto error=stringField(mission,"error");
     if(!error.empty())parts.push_back("<error>"+error+"</error>");
+    const auto status=stringField(mission,"status");
+    if(stringField(data,"retrieval_status")=="timeout"&&(status=="running"||status=="pending"))
+      parts.push_back("The wait ended but the task is still running; it has not failed. "
+        "Call TaskOutput again with block: true to keep waiting, or continue with work "
+        "that does not need its result.");
   }
   std::string content;
   for(const auto& part:parts){if(!content.empty())content+="\n\n";content+=part;}

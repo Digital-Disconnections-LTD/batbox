@@ -4,21 +4,27 @@
 
 namespace batbox::normalization::internal {
 
-Json normalizeUserTextContent(const Json& content) {
-  return content.is_string() ? Json::array({textBlock(content.get<std::string>())}) : content;
+Json normalizeUserTextContent(Json content) {
+  return content.is_string() ? Json::array({textBlock(content.get<std::string>())}) : std::move(content);
 }
 
-Json hoistGadgetResults(const Json& content) {
+Json hoistGadgetResults(Json content) {
   Json gadgetResults=Json::array(), otherBlocks=Json::array();
-  for(const auto& block:content) {
-    if(typeIs(block,"tool_result")) gadgetResults.push_back(block);
-    else otherBlocks.push_back(block);
+  for(auto& block:content) {
+    if(typeIs(block,"tool_result")) gadgetResults.push_back(std::move(block));
+    else otherBlocks.push_back(std::move(block));
   }
-  for(const auto& block:otherBlocks) gadgetResults.push_back(block);
+  for(auto& block:otherBlocks) gadgetResults.push_back(std::move(block));
   return gadgetResults;
 }
 
-Json joinTextAtSeam(const Json& a,const Json& b) {
+Json joinTextAtSeam(Json a,const Json& b) {
+  if(a.is_array()) {
+    if(!a.empty() && !b.empty() && typeIs(a.back(),"text") && typeIs(b.front(),"text"))
+      a.back()["text"]=get(a.back(),"text").get<std::string>()+"\n";
+    for(const auto& block:b) a.push_back(block);
+    return a;
+  }
   Json result=Json::array();
   if(!a.empty() && !b.empty() && typeIs(a.back(),"text") && typeIs(b.front(),"text")) {
     for(std::size_t i=0;i+1<a.size();++i) result.push_back(a[i]);
@@ -72,32 +78,17 @@ Json smooshIntoGadgetResult(const Json& tr,const Json& incoming) {
   Json result=tr;result["content"]=std::move(merged);return result;
 }
 
-Json mergeUserContentBlocks(const Json& a,const Json& b,const Dependencies& deps) {
-  Json combined=a;
-  for(const auto& block:b) combined.push_back(block);
-  if(a.empty() || !typeIs(a.back(),"tool_result")) return combined;
-  need(static_cast<bool>(deps.featureGate),"featureGate");
-  if(!deps.featureGate("tengu_chair_sermon")) {
-    const Json& lastBlock=a.back();
-    bool allText=true;for(const auto& block:b) if(!typeIs(block,"text")) allText=false;
-    if(get(lastBlock,"content").is_string() && allText) {
-      combined=a;combined.back()=smooshIntoGadgetResult(lastBlock,b);return combined;
-    }
+Json mergeUserContentBlocks(Json a,const Json& b) {
+  const auto append=[&b](Json combined){
+    for(const auto& block:b) combined.push_back(block);
     return combined;
+  };
+  if(a.empty() || !typeIs(a.back(),"tool_result")) return append(std::move(a));
+  bool allText=true;for(const auto& block:b) if(!typeIs(block,"text")) allText=false;
+  if(get(a.back(),"content").is_string() && allText) {
+    a.back()=smooshIntoGadgetResult(a.back(),b);return a;
   }
-  Json toSmoosh=Json::array(),gadgetResults=Json::array();
-  for(const auto& block:b) {
-    if(typeIs(block,"tool_result")) gadgetResults.push_back(block);
-    else toSmoosh.push_back(block);
-  }
-  if(toSmoosh.empty()) return combined;
-  Json smooshed=smooshIntoGadgetResult(a.back(),toSmoosh);
-  if(smooshed.is_null()) return combined;
-  Json result=Json::array();
-  for(std::size_t i=0;i+1<a.size();++i) result.push_back(a[i]);
-  result.push_back(std::move(smooshed));
-  for(const auto& block:gadgetResults) result.push_back(block);
-  return result;
+  return append(std::move(a));
 }
 
 } // namespace batbox::normalization::internal
@@ -105,48 +96,55 @@ Json mergeUserContentBlocks(const Json& a,const Json& b,const Dependencies& deps
 namespace batbox::normalization {
 using namespace internal;
 
-Json mergeUserMessagesAndGadgetResults(const Json& a,const Json& b,const Dependencies& deps) {
-  const Json lastContent=normalizeUserTextContent(get(get(a,"message"),"content"));
+namespace {
+// get(get(message,"message"),"content") moved out of message; the key stays
+// where it was so a later assignment keeps the member order.
+Json takeContent(Json& message) {
+  if(!message.is_object()) return Json();
+  const auto inner=message.find("message");
+  if(inner==message.end() || !inner->is_object()) return Json();
+  const auto content=inner->find("content");
+  return content==inner->end() ? Json() : std::move(*content);
+}
+} // namespace
+
+Json mergeUserMessagesAndGadgetResults(Json a,const Json& b) {
+  Json lastContent=normalizeUserTextContent(takeContent(a));
   const Json currentContent=normalizeUserTextContent(get(get(b,"message"),"content"));
-  Json result=a;
-  result["message"]["content"]=hoistGadgetResults(mergeUserContentBlocks(lastContent,currentContent,deps));
-  return result;
+  a["message"]["content"]=hoistGadgetResults(mergeUserContentBlocks(std::move(lastContent),currentContent));
+  return a;
 }
 
-Json mergeAssistantMessages(const Json& a,const Json& b) {
-  Json result=a;
-  Json content=get(get(a,"message"),"content");
+Json mergeAssistantMessages(Json a,const Json& b) {
+  Json content=takeContent(a);
   for(const auto& block:get(get(b,"message"),"content")) content.push_back(block);
-  result["message"]["content"]=std::move(content);
-  return result;
+  a["message"]["content"]=std::move(content);
+  return a;
 }
 
-Json mergeUserMessages(const Json& a,const Json& b,const Dependencies& deps) {
-  const Json lastContent=normalizeUserTextContent(get(get(a,"message"),"content"));
+Json mergeUserMessages(Json a,const Json& b) {
+  Json lastContent=normalizeUserTextContent(takeContent(a));
   const Json currentContent=normalizeUserTextContent(get(get(b,"message"),"content"));
-  Json result=a;
-  if(deps.historySnipFeature && deps.historySnipRuntimeEnabled) {
-    if(value::truthy(get(a,"isMeta")) && value::truthy(get(b,"isMeta"))) result["isMeta"]=true;
-    else result.erase("isMeta");
-  }
-  if(value::truthy(get(a,"isMeta"))) {
+  const bool metaBefore=value::truthy(get(a,"isMeta"));
+  Json& result=a;
+  if(metaBefore) {
     if(has(b,"uuid")) result["uuid"]=b["uuid"];
     else result.erase("uuid");
   }
-  result["message"]["content"]=hoistGadgetResults(joinTextAtSeam(lastContent,currentContent));
-  return result;
+  result["message"]["content"]=hoistGadgetResults(joinTextAtSeam(std::move(lastContent),currentContent));
+  return a;
 }
 
 } // namespace batbox::normalization
 
 namespace batbox::normalization::internal {
 
-Json mergeAdjacentUserMessages(const Json& messages,const Dependencies& deps) {
+Json mergeAdjacentUserMessages(Json messages) {
   Json out=Json::array();
-  for(const auto& message:messages) {
+  for(auto& message:messages) {
     if(typeIs(message,"user") && !out.empty() && typeIs(out.back(),"user"))
-      out.back()=mergeUserMessages(out.back(),message,deps);
-    else out.push_back(message);
+      out.back()=mergeUserMessages(std::move(out.back()),message);
+    else out.push_back(std::move(message));
   }
   return out;
 }

@@ -4,11 +4,11 @@
 
 namespace batbox::model {
 
-OpenedStream openLiveStream(transport::WireClient& client, const Json& streamingParams,
+OpenedStream openLiveStream(transport::WireClient& client, Json streamingParams,
                             std::stop_token signal,
                             const std::optional<std::string>&) {
   // Retain server-provided request IDs without adding a correlation header.
-  auto stream = std::make_shared<LiveStream>(client, streamingParams, signal);
+  auto stream = std::make_shared<LiveStream>(client, std::move(streamingParams), signal);
   auto response = stream->open();
   OpenedStream opened;
   opened.response = response;

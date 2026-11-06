@@ -47,6 +47,16 @@ std::size_t positive(const std::string& value,const char* name){
     throw std::invalid_argument(std::string("Invalid ")+name);
   return static_cast<std::size_t>(parsed);
 }
+RequestLimits mergedLimits(RequestLimits base,const RequestLimits& over){
+  if(over.local)base.local=over.local;
+  if(over.nonStreamingFallback)base.nonStreamingFallback=over.nonStreamingFallback;
+  if(over.requestTimeoutMs)base.requestTimeoutMs=over.requestTimeoutMs;
+  if(over.streamIdleTimeoutMs)base.streamIdleTimeoutMs=over.streamIdleTimeoutMs;
+  if(over.connectTimeoutMs)base.connectTimeoutMs=over.connectTimeoutMs;
+  if(over.nonStreamingTimeoutMs)base.nonStreamingTimeoutMs=over.nonStreamingTimeoutMs;
+  if(over.maxRetries)base.maxRetries=over.maxRetries;
+  return base;
+}
 std::size_t nonNegative(const std::string& value,const char* name){
   std::size_t used=0;unsigned long long parsed=0;
   try{parsed=std::stoull(value,&used);}catch(...){throw std::invalid_argument(std::string("Invalid ")+name+": expected 0 or a positive whole number");}
@@ -55,6 +65,8 @@ std::size_t nonNegative(const std::string& value,const char* name){
   return static_cast<std::size_t>(parsed);
 }
 void applyConfig(Config& config,const Json& value){
+  config.requestLimits=mergedLimits(config.requestLimits,
+    parseRequestLimits(value,"configuration"));
   const auto text=[&](const char* name,std::string& output){if(value.contains(name))output=value.at(name).get<std::string>();};
   text("base_url",config.baseUrl);text("model",config.model);text("auth_token",config.authToken);
   text("profile",config.selectedProfile);
@@ -142,6 +154,12 @@ void applyConfig(Config& config,const Json& value){
       for(auto header=profile.headers.begin();header!=profile.headers.end();++header)
         if(!header.value().is_string())
           throw std::invalid_argument("Profile header values must be strings: "+it.key());
+      if(row.contains("betas")){
+        try{profile.betas=transport::parseBetas(row.at("betas"));}
+        catch(const std::invalid_argument& error){
+          throw std::invalid_argument("Profile "+it.key()+": "+error.what());
+        }
+      }
       if(row.contains("context_window"))profile.contextWindow=
         positive(value::stringify(row.at("context_window")),"context_window");
       if(row.contains("max_output_tokens"))profile.maxOutputTokens=
@@ -155,11 +173,50 @@ void applyConfig(Config& config,const Json& value){
       flag("structured_outputs",profile.structuredOutputs);
       flag("effort",profile.effort);
       flag("send_disabled_thinking",profile.sendDisabledThinking);
+      profile.limits=parseRequestLimits(row,"profile "+it.key());
       config.profiles.emplace(it.key(),std::move(profile));
     }
   }
   application_config::loadEndpoints(config,value);
 }
+}
+RequestLimits parseRequestLimits(const Json& row,const std::string& where){
+  RequestLimits limits;
+  if(!row.is_object())return limits;
+  const auto flag=[&](const char* name,std::optional<bool>& output){
+    if(!row.contains(name))return;
+    if(!row.at(name).is_boolean())
+      throw std::invalid_argument(where+": "+name+" must be true or false");
+    output=row.at(name).get<bool>();
+  };
+  const auto millis=[&](const char* name,std::optional<std::size_t>& output){
+    if(!row.contains(name))return;
+    const auto& item=row.at(name);
+    if(!item.is_number_unsigned()&&!(item.is_number_integer()&&item.get<long long>()>=0))
+      throw std::invalid_argument(where+": "+name+" must be 0 or a positive whole number");
+    output=item.get<std::size_t>();
+  };
+  flag("local",limits.local);
+  flag("nonstreaming_fallback",limits.nonStreamingFallback);
+  millis("request_timeout_ms",limits.requestTimeoutMs);
+  millis("stream_idle_timeout_ms",limits.streamIdleTimeoutMs);
+  millis("connect_timeout_ms",limits.connectTimeoutMs);
+  millis("nonstreaming_timeout_ms",limits.nonStreamingTimeoutMs);
+  millis("max_retries",limits.maxRetries);
+  if(limits.connectTimeoutMs&&*limits.connectTimeoutMs==0)
+    throw std::invalid_argument(where+": connect_timeout_ms must be positive");
+  return limits;
+}
+Json requestLimitsDocument(const RequestLimits& limits){
+  Json row=Json::object();
+  if(limits.local)row["local"]=*limits.local;
+  if(limits.nonStreamingFallback)row["nonstreaming_fallback"]=*limits.nonStreamingFallback;
+  if(limits.requestTimeoutMs)row["request_timeout_ms"]=*limits.requestTimeoutMs;
+  if(limits.streamIdleTimeoutMs)row["stream_idle_timeout_ms"]=*limits.streamIdleTimeoutMs;
+  if(limits.connectTimeoutMs)row["connect_timeout_ms"]=*limits.connectTimeoutMs;
+  if(limits.nonStreamingTimeoutMs)row["nonstreaming_timeout_ms"]=*limits.nonStreamingTimeoutMs;
+  if(limits.maxRetries)row["max_retries"]=*limits.maxRetries;
+  return row;
 }
 bool bypassPermissionsDisabled(const Config& config,const Json& effectiveSettings){
   app_state::provider::BypassPolicyServices policy;
@@ -253,6 +310,17 @@ Config loadConfig(const std::vector<std::string>& arguments){
       if(value::trim(*promptFlag).empty())throw std::invalid_argument("--prompt needs text");
     }
     else if(argument=="--verbose")config.verbose=true;
+    else if(argument=="--debug"||argument=="-d")config.debug.enabled=true;
+    else if(argument.starts_with("--debug=")){
+      config.debug.enabled=true;config.debug.filter=argument.substr(sizeof("--debug=")-1);}
+    else if(argument=="--debug-file"||argument.starts_with("--debug-file=")){
+      const auto path=argument=="--debug-file"?next("--debug-file"):
+        argument.substr(sizeof("--debug-file=")-1);
+      if(path.empty())throw std::invalid_argument("--debug-file requires a path");
+      config.debug.enabled=true;
+      config.debug.file=std::filesystem::absolute(runtime::pathFromUtf8(path));}
+    else if(argument=="--debug-to-stderr"){
+      config.debug.enabled=true;config.debug.toStderr=true;}
     else if(argument=="--replay-user-messages")
       config.replayUserMessages=true;
     else if(argument=="--input-format"||
@@ -423,6 +491,7 @@ InferenceProfile selectedInferenceProfile(const Config& config){
   profile.poetryStashing=true;
   profile.effort=true;
   profile.sendDisabledThinking=true;
+  profile.limits=config.requestLimits;
   return profile;
 }
 std::string resolveProfileAuthToken(const Config& config,const std::string& name){
@@ -437,10 +506,6 @@ std::string resolveProfileAuthToken(const Config& config,const std::string& name
     if(!value.empty())return value;
   }
   return runCredentialHelper(profile.apiKeyHelper);
-}
-Json modelOptions(const Config& config){
-  return {{"model",config.model},{"maxTokens",config.maxOutputTokens},
-    {"contextWindow",config.contextWindow},{"querySource","repl_main_thread"}};
 }
 std::string commandLineUsage(){
   return "Usage: batbox [options]                 Open Batbox in this directory\n"
@@ -457,6 +522,11 @@ std::string commandLineHelp(){
     "  --input-format FORMAT          text or stream-json (with --print)\n"
     "  --output-format FORMAT         text, json or stream-json (with --print)\n"
     "  --verbose                      Required for stream-json output\n"
+    "  -d, --debug[=FILTER]           Write a debug log for this run; FILTER keeps the\n"
+    "                                 listed line prefixes (hooks,checkpoint) or\n"
+    "                                 drops them (!checkpoint)\n"
+    "  --debug-file PATH              Write the debug log to PATH\n"
+    "  --debug-to-stderr              Write the debug log to stderr\n"
     "  --replay-user-messages         Echo stream-json input messages\n"
     "  --model MODEL                  Inference model\n"
     "  --profile NAME                 Named model profile (endpoint::model)\n"

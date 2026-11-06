@@ -63,23 +63,19 @@ RunBatPreflight prepareRunBat(const RunBatParams& params,
   else{need(services.getUserContext,"getUserContext");baseUser=services.getUserContext();}
   if(!systemOverride.is_null())baseSystem=systemOverride;
   else{need(services.getSystemContext,"getSystemContext");baseSystem=services.getSystemContext();}
-  bool omit=false;
-  if(value::truthy(field(params.batDefinition,"omitBatboxMd"))&&userOverride.is_null()){
-    need(services.getFeatureValue,"getFeatureValue");
-    omit=services.getFeatureValue("batbox_slim_subagent_memory",true);
-  }
+  const bool omit=value::truthy(field(params.batDefinition,"omitBatboxMd"))&&
+    userOverride.is_null();
   out.userContext=omit?without(baseUser,"batboxMd"):baseUser;
   const Json& batType=field(params.batDefinition,"agentType");
   out.systemContext=(batType=="Explore"||batType=="Plan")?
     without(baseSystem,"gitStatus"):baseSystem;
   out.batGetAppState=createBatGetAppState(effectiveGetAppState,
     params.batDefinition,params.isAsync,params.canShowPermissionPoetryEntries,
-    params.allowedGadgets,services.feature);
+    params.allowedGadgets);
   if(const auto typed=effectiveTypedBatGetAppState(params.gadgetUseContext))
     out.batGetTypedAppState=createTypedBatGetAppState(
       typed,params.batDefinition,
-      params.isAsync,params.canShowPermissionPoetryEntries,params.allowedGadgets,
-      services.feature);
+      params.isAsync,params.canShowPermissionPoetryEntries,params.allowedGadgets);
   return out;
 }
 } // namespace batbox::bats

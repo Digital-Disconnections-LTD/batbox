@@ -123,14 +123,4 @@ AdvisorCard classifyAdvisor(const Json& block,bool addMargin,
   return card;
 }
 
-PartnerHeaderCard classifyPartnerHeader(
-    const PartnerHeaderServices& services){
-  require(services.readViewedPartner,"viewed Partner Mission");
-  const auto viewed=services.readViewedPartner();
-  if(!viewed)return {};
-  require(services.exitShortcut,"Partner return shortcut");
-  const auto identity=viewed->value("identity",Json::object());
-  return {true,stringField(identity,"agentName"),stringField(identity,"color"),
-    stringField(*viewed,"prompt"),services.exitShortcut()};
-}
 }

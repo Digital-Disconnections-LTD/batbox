@@ -116,6 +116,16 @@ std::optional<MessageRef> Reducer::beginEvent(const Json& part){
   return nextEmission();
 }
 
+Reducer::EventEmissions Reducer::beginEventBatch(const Json& part){
+  EventEmissions out;
+  auto next=beginEvent(part);
+  if(next)out.ready.push_back(std::move(*next));
+  while(pendingEvent_&&pendingEvent_->phase==PendingEvent::Phase::Buffered)
+    if(auto buffered=nextEmission())out.ready.push_back(std::move(*buffered));
+  out.more=pendingEvent_.has_value();
+  return out;
+}
+
 std::optional<MessageRef> Reducer::nextEmission(){
   if(!pendingEvent_)return std::nullopt;
   while(true){
@@ -186,10 +196,7 @@ Emissions Reducer::consumeUnphased(const Json& part) {
     const Json& delta = field(part, "delta");
     const std::string& deltaType = stringField(delta, "type");
     const std::string& blockType = stringField(block, "type");
-    if (config_.connectorTextEnabled && deltaType == "connector_text_delta") {
-      if (blockType != "connector_text") throw StreamError(StreamErrorKind::TypeMismatch, "Content block is not a connector_text block");
-      appendString(block, "connector_text", field(delta, "connector_text"));
-    } else if (deltaType == "input_json_delta") {
+    if (deltaType == "input_json_delta") {
       if (blockType != "tool_use" && blockType != "server_tool_use")
         throw StreamError(StreamErrorKind::TypeMismatch, "Content block is not a input_json block");
       if (!field(block, "input").is_string()) throw StreamError(StreamErrorKind::TypeMismatch, "Content block input is not a string");
@@ -198,12 +205,8 @@ Emissions Reducer::consumeUnphased(const Json& part) {
       if (blockType != "text") throw StreamError(StreamErrorKind::TypeMismatch, "Content block is not a text block");
       appendString(block, "text", field(delta, "text"));
     } else if (deltaType == "signature_delta") {
-      if (config_.connectorTextEnabled && blockType == "connector_text") {
-        block["signature"] = field(delta, "signature");
-      } else {
-        if (blockType != "thinking") throw StreamError(StreamErrorKind::TypeMismatch, "Content block is not a thinking block");
-        block["signature"] = field(delta, "signature");
-      }
+      if (blockType != "thinking") throw StreamError(StreamErrorKind::TypeMismatch, "Content block is not a thinking block");
+      block["signature"] = field(delta, "signature");
     } else if (deltaType == "thinking_delta") {
       if (blockType != "thinking") throw StreamError(StreamErrorKind::TypeMismatch, "Content block is not a thinking block");
       appendString(block, "thinking", field(delta, "thinking"));
@@ -224,7 +227,6 @@ Emissions Reducer::consumeUnphased(const Json& part) {
     result["type"] = "assistant";
     result["uuid"] = config_.randomUUID();
     result["timestamp"] = config_.timestamp();
-    if (!config_.advisorModel.empty()) result["advisorModel"] = config_.advisorModel;
     auto ref = std::make_shared<Json>(std::move(result));
     newMessages_.push_back(ref);
     emitted.push_back(ref);

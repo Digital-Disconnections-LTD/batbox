@@ -6,6 +6,7 @@
 #include "runtime/Platform.hpp"
 #include "flights/ProjectDirectories.hpp"
 #include "shell/BashProvider.hpp"
+#include "shell/ShellBootstrap.hpp"
 #include "shell/WindowsPaths.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "interactive/background/NotificationAttachments.hpp"
@@ -16,6 +17,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <future>
 #include <iostream>
 #include <stdexcept>
 
@@ -29,10 +31,14 @@ std::string errorText(std::exception_ptr error){
   return {};
 }
 std::shared_ptr<shell_provider::BashProvider> makeShellProvider(
-    const std::string& shellPath){
+    const std::string& shellPath,
+    std::function<std::optional<std::string>()> flightEnvironmentScript,
+    std::function<std::shared_future<std::optional<std::string>>(const std::string&)>
+      createSnapshot){
   shell_provider::Services services;
-  services.skipSnapshot=true;
-  services.flightEnvironmentScript=[]()->std::optional<std::string>{return {};};
+  services.skipSnapshot=!createSnapshot;
+  services.createSnapshot=std::move(createSnapshot);
+  services.flightEnvironmentScript=std::move(flightEnvironmentScript);
   services.flightEnvVars=[](){return std::map<std::string,std::string>{};};
   services.tmuxGadgetUsed=[] {return false;};
   services.ensureTmuxSocket=[] {};
@@ -96,6 +102,7 @@ Host::~Host(){
   bats::saveStashSafeParams({});
 }
 void Host::Impl::log(std::string value)const{
+  if(debugLog)debugLog->write(value);
   if(!logFile||!*logFile)return;
   bool schedule=false;
   {
@@ -148,6 +155,10 @@ void Host::Impl::initialize(){
   logMutex=std::make_shared<std::mutex>();
   logFile=std::make_shared<std::ofstream>(
     config.stateDirectory/"native.log",std::ios::app);
+  if(config.debug.enabled)
+    debugLog=std::make_shared<diagnostics::DebugLog>(config.debug,
+      config.stateDirectory/"debug"/(flightId+".txt"),[]{return platform::isoTimestamp();},
+      [](const std::string& line){std::cerr<<line<<std::flush;});
   logFlushPending=std::make_shared<bool>(false);
   scheduleLogFlush=[dispatcher=owner.dispatcher(),loop=&owner,file=logFile,
       mutex=logMutex,pending=logFlushPending]{
@@ -161,7 +172,6 @@ void Host::Impl::initialize(){
   messages->randomUUID=platform::randomUUID;
   messages->nowISO=[] {return platform::isoTimestamp();};
   messages->strictGadgetResultPairing=[] {return true;};
-  messages->featureGate=[](const std::string&){return false;};
   messages->logError=[this](const std::string& value){log(value);};
   app_state::DefaultAppStateServices defaults;
   defaults.isPartner=[] {return false;};
@@ -200,7 +210,10 @@ void Host::Impl::initialize(){
   mcpElicitation=application_mcp_elicitation::Controller::create(std::move(elicitationInputs));
   fileStash=file_state_stash::createFileStateStashWithSizeLimit(
     file_state_stash::READ_FILE_STATE_STASH_SIZE);
-  replacements=gadget_results::provisionContentReplacementState(false);
+  // gadgetResultBudget: when a message's Gadget results together pass
+  // 200,000 characters, the largest go to files and the model gets a preview.
+  replacements=gadget_results::provisionContentReplacementState(
+    value::property(config.settings,"gadgetResultBudget")==true);
   loadedMemoryPaths=std::make_shared<runtime::OrderedStringSet>();
   discoveredSkills=std::make_shared<runtime::OrderedStringSet>();
   invokedSkills=std::make_shared<bootstrap::InvokedSkillsState>();
@@ -323,18 +336,52 @@ void Host::Impl::bindRoostProviders(){
   poetryInputs.logDiagnostic=[this](const std::string& scope,
       const std::string& value,const std::optional<Json>&){log(scope+": "+value);};
   poetry=std::make_shared<application_poetry::Provider>(owner,std::move(poetryInputs));
+  if(!exitSteps)exitSteps=std::make_shared<ExitSteps>();
+  if(!shellSnapshot&&value::property(config.settings,"shellSnapshot")==true)
+    shellSnapshot=makeShellSnapshot(config.stateDirectory,exitSteps,
+      [this](const std::string& value){log(value);});
   application_shell::Inputs shellInputs;
   shellInputs.owner=&owner;
 #ifdef _WIN32
   shellInputs.shellPath=shell::findGitBashPath();
 #else
-  const char* shellEnv=std::getenv("SHELL");
-  shellInputs.shellPath=shellEnv&&*shellEnv?shellEnv:"/bin/sh";
+  shell::DiscoveryServices discovery;
+  if(const char* value=std::getenv("BATBOX_SHELL");value&&*value)discovery.shellOverride=value;
+  if(const char* value=std::getenv("SHELL");value&&*value)discovery.preferredShell=value;
+  discovery.isExecutable=shell::indigenousIsExecutable;
+  const char* searchPath=std::getenv("PATH");
+  discovery.which=shell::indigenousWhich(searchPath?searchPath:"");
+  discovery.debug=[this](const std::string& value){log(value);};
+  shellInputs.shellPath=shell::findSuitableShell(discovery);
 #endif
   shellInputs.originalCwd=config.cwd.string();
   shellInputs.outputDir=(config.stateDirectory/"shell-output").string();
   std::filesystem::create_directories(shellInputs.outputDir);
-  shellInputs.provider=makeShellProvider(shellInputs.shellPath);
+  // Bash commands are built on worker threads; the hook environment lives on
+  // the owner loop and is read there.
+  auto hookSlot=std::make_shared<std::weak_ptr<application_hooks::Provider>>();
+  shellInputs.provider=makeShellProvider(shellInputs.shellPath,
+      [hookSlot,dispatcher=owner.dispatcher(),this]()->std::optional<std::string>{
+    const auto provider=hookSlot->lock();
+    if(!provider)return {};
+    if(dispatcher.isOwnerThread())throw std::logic_error(
+      "Bash commands must be built off the owner loop");
+    auto loaded=std::make_shared<std::promise<std::optional<std::string>>>();
+    auto script=loaded->get_future();
+    try{
+      dispatcher.postMission([provider,loaded]{
+        try{
+          provider->flightEnvironmentScript().then([loaded](
+              const std::optional<std::string>* value,const std::exception_ptr& error){
+            if(error)loaded->set_exception(error);else loaded->set_value(*value);});
+        }catch(...){loaded->set_exception(std::current_exception());}
+      });
+      return script.get();
+    }catch(const std::exception& error){
+      log(std::string("Flight environment from hooks unavailable: ")+error.what());
+      return {};
+    }
+  },shellSnapshot);
   shellInputs.generateMissionId=platform::randomUUID;
   shellInputs.generateExecId=platform::randomUUID;
   shellInputs.nowMs=nowMs;
@@ -416,6 +463,7 @@ void Host::Impl::bindRoostProviders(){
       randomUUID,nowISO);
   };
   hooks=std::make_shared<application_hooks::Provider>(owner,std::move(hookInputs));
+  *hookSlot=hooks;
   if(fileWatcher)fileWatcher->close();
   application_hooks::FileChangedInputs fileInputs(owner);
   fileInputs.cwd=runtime::pathToUtf8(config.cwd);
@@ -440,6 +488,27 @@ int Host::run(){
   host.initialize();
   host.runtime->start();
   host.shell->start();
+  recordRunningFlight(host.config.stateDirectory,host.flight->id());
+  // Old Flights, logs and caches go a little after startup, off the way of the
+  // first prompt; a run that ends sooner simply skips it.
+  host.retentionTimer=host.owner.setTimeout(2000,[&host]{
+    if(host.closing)return;
+    RetentionInputs retention;
+    retention.stateDirectory=host.config.stateDirectory;
+    retention.settings=host.config.settings;
+    retention.currentFlight=[flight=host.flight]{return flight->id();};
+    retention.oldPastes=[history=host.history,&owner=host.owner](double cutoff){
+      if(history)return history->cleanupOldPastes(cutoff);
+      event_loop::Deferred<event_loop::Unit> none(owner);none.resolve({});return none;};
+    retention.oldImageStashes=[media=host.media](double cutoff,std::set<std::string> held){
+      return media->cleanupOldImageStashes(cutoff,std::move(held));};
+    retention.log=[&host](const std::string& value){host.log(value);};
+    try{
+      runRetention(host.owner,std::move(retention)).then([&host](const event_loop::Unit*,
+          const std::exception_ptr& error){if(error&&!host.closing)host.log(
+            "Retention cleanup failed: "+errorText(error));});
+    }catch(...){host.log("Retention cleanup failed: "+errorText(std::current_exception()));}
+  },false);
   // Ask for the terminal background so the "auto" theme can follow it; the
   // answer arrives as an OSC 11 response.
   if(!host.config.print&&host.shell->driver().interactive())
@@ -450,8 +519,23 @@ int Host::run(){
         const std::exception_ptr& error){if(error&&!host.closing)host.report(error,"project recovery");});
     if(host.config.print){
       if(!host.cli)throw std::logic_error("Headless CLI adapter is unavailable");
-      host.cli->start();return;
+      host.cli->start();
+      if(host.cron)startHeadlessCron(host.owner,*host.cron,[&host](const Json& command){
+          const auto& value=value::property(command,"value");
+          if(host.cli&&value.is_string())host.cli->queueScheduled(value.get<std::string>());},
+        [&host]{if(host.cli)host.cli->runQueued();});
+      return;
     }
+    if(host.cron)startInteractiveCron(host.owner,*host.cron,
+      host.runtime->turnState()->guard,host.messages,
+      [&host](const Json& command){
+        if(host.runtime)host.runtime->queue().enqueuePendingNotification(command);},
+      [&host](const Json& message){
+        if(!host.runtime)return;
+        auto values=std::make_shared<interactive::TurnMessages>(
+          *host.runtime->messages().messages());
+        values->push_back(std::make_shared<Json>(message));
+        host.runtime->messages().setMessages(std::move(values));});
     if(!host.config.initialPoetry)return;
     if(!host.runtime->runtime()->handleIncomingPoetry(*host.config.initialPoetry)){
       host.report(std::make_exception_ptr(std::runtime_error(
@@ -547,6 +631,7 @@ int Host::run(){
   host.owner.run();
   applicationLifetime.release();
   host.shutdown();
+  host.printResumeHint();
   // stop() can leave settled promise observers queued. Release their provider
   // references before the event loop itself is destroyed.
   host.owner.runReady();

@@ -13,10 +13,8 @@ struct EmojiRegex {
   std::function<void()> reset;
   std::function<bool(const std::string&)> test;
 };
-using BunWidth=std::function<double(const Json&,const Json&)>;
 struct Services {
   std::function<std::shared_ptr<EmojiRegex>()> emojiRegex;
-  std::function<BunWidth()> resolveBunStringWidth;
   std::function<std::string(const std::string&)> stripAnsi;
   std::function<double(std::uint32_t)> eastAsianWidth;
   std::function<std::shared_ptr<intl::Segmenter>()> getGraphemeSegmenter;
@@ -39,8 +37,6 @@ private:
   std::shared_ptr<ShortWidths> shortWidths_;
   Services services_;
   std::shared_ptr<EmojiRegex> emoji_;
-  BunWidth bun_;
-  Json bunOptions_={{"ambiguousIsNarrow",true}};
 };
 Services indigenousServices(std::shared_ptr<intl::Stash> intl);
 }

@@ -9,8 +9,6 @@ namespace batbox::application_frontend {
 struct RewindModalInputs {
   interactive::UiRequest list;
   std::vector<interactive::TurnMessageRef> messages;
-  std::size_t preselectedIndex=0;
-  bool preselected=false;
   std::shared_ptr<application_file_history::History> history;
   std::function<void()> beforeRestore,close;
   std::function<void(interactive::TurnMessageRef)> restoreConversation;

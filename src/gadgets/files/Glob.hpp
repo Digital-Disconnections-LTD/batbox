@@ -1,5 +1,6 @@
 #pragma once
 #include "filesystem/FileOps.hpp"
+#include "filesystem/RipgrepProcess.hpp"
 #include "gadgets/Gadget.hpp"
 #include <functional>
 #include <string>
@@ -7,14 +8,14 @@
 
 namespace batbox::gadgets::files {
 struct GlobBase {std::string baseDir;std::string relativePattern;};
-struct GlobResult {std::vector<std::string> files;bool truncated=false;};
+struct GlobResult {std::vector<std::string> files;bool truncated=false;std::string incomplete;};
 struct GlobServices {
   filesystem::PathServices paths;
   std::function<std::optional<std::string>(const std::string&)> suggestPathUnderCwd;
   std::function<std::vector<std::string>(const Json&)> getFileReadIgnorePatterns;
   std::function<std::vector<std::string>(const std::vector<std::string>&,const std::string&)> normalizePatternsToPath;
   std::function<std::vector<std::string>(const std::string&)> getGlobExclusionsForPluginStash;
-  std::function<std::vector<std::string>(const std::vector<std::string>&,const std::string&,std::stop_token)> ripGrep;
+  std::function<filesystem::RipgrepLines(const std::vector<std::string>&,const std::string&,std::stop_token)> ripGrep;
   std::function<double()> nowMs;
   std::function<bool()> noIgnore;
   std::function<bool()> hidden;

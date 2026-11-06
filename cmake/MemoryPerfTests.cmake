@@ -18,11 +18,24 @@ batbox_indigenous(phase5-pump-schedule-indigenous
 if(UNIX)
   batbox_indigenous(phase5-ftxui-pump-backoff-pty
     tests/phase5/ftxui_pump_backoff_pty.cpp batbox_terminal_ftxui)
+  batbox_indigenous(phase5-ftxui-frame-cap-pty
+    tests/phase5/ftxui_frame_cap_pty.cpp batbox_terminal_ftxui)
   if(NOT APPLE)
     target_link_libraries(batbox-phase5-ftxui-pump-backoff-pty PRIVATE util)
+    target_link_libraries(batbox-phase5-ftxui-frame-cap-pty PRIVATE util)
   endif()
 endif()
 batbox_indigenous(phase4-memory-usage-indigenous
   tests/phase4/memory_usage_indigenous.cpp batbox_profiler)
 batbox_indigenous(phase6-string-width-short-cache-indigenous
   tests/phase6/string_width_short_cache_indigenous.cpp batbox_terminal_ftxui)
+batbox_indigenous(phase6-poetry-xml-tags-indigenous
+  tests/phase6/poetry_xml_tags_indigenous.cpp batbox_interactive)
+batbox_indigenous(phase6-message-tags-indigenous
+  tests/phase6/message_tags_indigenous.cpp batbox_interactive)
+batbox_indigenous(phase6-inline-growing-rows-indigenous
+  tests/phase6/inline_growing_rows_indigenous.cpp batbox_terminal_ftxui)
+batbox_indigenous(phase6-surface-scans-indigenous
+  tests/phase6/surface_scans_indigenous.cpp batbox_terminal_ftxui)
+batbox_indigenous(phase6-user-poetry-display-indigenous
+  tests/phase6/user_poetry_display_indigenous.cpp batbox_interactive)

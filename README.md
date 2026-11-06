@@ -5,7 +5,7 @@
   <p><strong>Your terminal. Your models. Our little corner of the night.</strong></p>
   <p>A C++20 coding companion with streaming conversations, curious Bats, useful Gadgets, and a place for everyone to contribute.</p>
 
-  <p><a href="docs/getting-started.md">Take your first Flight</a> · <a href="CONTRIBUTING.md">Join the Roost</a> · <a href="ROADMAP.md">What’s next</a> · <a href="docs/README.md">Guidebook</a></p>
+  <p><a href="docs/getting-started.md">Take your first Flight</a> · <a href="CONTRIBUTING.md">Join the Roost</a> · <a href="docs/README.md">Guidebook</a></p>
   <p><strong>LINUX · macOS · WINDOWS</strong> &nbsp; / &nbsp; <a href="LICENSE">MIT</a> &nbsp; / &nbsp; COMMUNITY PROJECT</p>
 </div>
 
@@ -153,7 +153,7 @@ Batbox connects to them. Give their communities some love, too.
 
 Pick your platform, install, then set Batbox up once. Packages live on the
 [latest release](https://github.com/Digital-Disconnections-LTD/batbox/releases/latest).
-The commands below fetch 0.1.1; replace 0.1.1 with the current version if the
+The commands below fetch 0.1.2; replace 0.1.2 with the current version if the
 release page shows a newer one.
 
 **macOS.** Let Homebrew carry the bat:
@@ -169,8 +169,8 @@ Prefer the package? It borrows Homebrew's libraries, so add those first. Use
 
 ```sh
 brew install cmark-gfm curl icu4c@79 libuv openssl@3 pcre2 ripgrep vips yaml-cpp
-curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.1/batbox-0.1.1-macos-arm64.tar.gz
-tar -xzf batbox-0.1.1-macos-arm64.tar.gz
+curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.2/batbox-0.1.2-macos-arm64.tar.gz
+tar -xzf batbox-0.1.2-macos-arm64.tar.gz
 cd batbox-macos-arm64-preview
 bash gadgets/install-macos.sh
 ```
@@ -180,8 +180,8 @@ libraries rather than bundling them, so install those too:
 
 ```sh
 sudo apt install git ripgrep libcmark-gfm-extensions0.29.0.gfm.6 libcurl4t64 libpcre2-16-0 libuv1t64 libvips42t64 libyaml-cpp0.8
-curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.1/batbox-0.1.1-linux-x86_64.tar.gz
-tar -xzf batbox-0.1.1-linux-x86_64.tar.gz
+curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.2/batbox-0.1.2-linux-x86_64.tar.gz
+tar -xzf batbox-0.1.2-linux-x86_64.tar.gz
 cd batbox-linux-x86_64-preview
 bash gadgets/install-linux.sh
 ```
@@ -195,7 +195,7 @@ Linux](docs/indigenous-linux.md) has more.
 ```powershell
 winget install Git.Git
 winget install BurntSushi.ripgrep.MSVC
-Invoke-WebRequest https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.1/batbox-0.1.1-windows-x86_64.zip -OutFile batbox.zip
+Invoke-WebRequest https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.2/batbox-0.1.2-windows-x86_64.zip -OutFile batbox.zip
 Expand-Archive batbox.zip -DestinationPath .
 cd batbox-windows-x86_64-preview
 powershell -ExecutionPolicy Bypass -File .\gadgets\install-windows.ps1
@@ -235,7 +235,7 @@ Building from source? The [developer build reference](docs/BUILDING.md) has
 the recipes.
 
 This is a **community project**. Packaging, desktop integration, and release
-acceptance are still being finished. See the [roadmap](ROADMAP.md) before relying
+acceptance are still being finished, so test it on your own setup before relying
 on it for unattended production work.
 
 ## Pull up a pumpkin 🎃
@@ -247,7 +247,6 @@ You do not need to understand the whole codebase to make a useful contribution.
 - [Start contributing](CONTRIBUTING.md) — find a small first Mission.
 - [Meet the vocabulary](docs/vocabulary.md) — Poetry, Partners, and the rest of the Roost.
 - [Read the guidebook](docs/README.md) — configuration and everyday use.
-- [See the roadmap](ROADMAP.md) — help shape the next Flight.
 - [Keep the Roost welcoming](CODE_OF_CONDUCT.md) — kindness is part of the project.
 
 Batbox is available under the [MIT license](LICENSE). Dependency licenses and

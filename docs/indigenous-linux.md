@@ -31,4 +31,3 @@ small project file. `/exit` returns you to your shell. The
 [everyday guide](everyday-use.md) has bats, memory, and flight tips.
 
 Source builds and package creation live in the [developer reference](BUILDING.md).
-[The roadmap](../ROADMAP.md) records tested behavior and remaining work.

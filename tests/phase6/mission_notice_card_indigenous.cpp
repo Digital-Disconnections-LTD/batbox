@@ -20,6 +20,13 @@ namespace mv=batbox::interactive::message_view;
 namespace gv=batbox::interactive::gadget_views;
 
 namespace {
+std::string missionNoticeText(const gv::MissionNotice& notice){
+  std::string text=notice.kind;
+  if(!notice.name.empty())text+=" "+notice.name;
+  text+=" "+notice.outcome;
+  if(!notice.detail.empty())text+=" · "+notice.detail;
+  return text;
+}
 void check(bool condition,const std::string& reason){
   if(!condition)throw std::runtime_error(reason);
 }
@@ -59,7 +66,6 @@ struct Fixture {
         []{return std::string("dark");},[]{}},name){
     state.viewport.columns=80;state.viewport.rows=40;
     messages.strictGadgetResultPairing=[]{return false;};
-    messages.featureGate=[](const std::string&){return false;};
     messages.logError=[](const std::string&){};
     ap::Inputs inputs;
     inputs.theme=&theme;inputs.messageServices=&messages;
@@ -96,31 +102,31 @@ void parser(){
     {"usage",{{"totalTokens",4200},{"toolUses",3},{"durationMs",12400}}}});
   auto notices=gv::parseMissionNotifications(finished);
   check(notices.size()==1,"One block yields one notice");
-  check(gv::missionNoticeText(notices[0])==
+  check(missionNoticeText(notices[0])==
     "Bat reviewer finished · 3 Gadgets · 12s · Found two parser bugs in the lexer.",
-    "Finished Bat text: "+gv::missionNoticeText(notices[0]));
+    "Finished Bat text: "+missionNoticeText(notices[0]));
 
   const auto failed=batNotification({{"taskId","f1"},{"description","fixer"},
     {"status","failed"},{"error","Model request failed: overloaded"}});
   notices=gv::parseMissionNotifications(failed);
-  check(notices.size()==1&&gv::missionNoticeText(notices[0])==
+  check(notices.size()==1&&missionNoticeText(notices[0])==
     "Bat fixer failed · Model request failed: overloaded",
-    "Failed Bat text: "+(notices.empty()?std::string{}:gv::missionNoticeText(notices[0])));
+    "Failed Bat text: "+(notices.empty()?std::string{}:missionNoticeText(notices[0])));
 
   const auto stopped=batNotification({{"taskId","s1"},{"description","scout \"north\""},
     {"status","killed"},{"finalMessage","Partial: read 3 files"}});
   notices=gv::parseMissionNotifications(stopped);
-  check(notices.size()==1&&gv::missionNoticeText(notices[0])==
+  check(notices.size()==1&&missionNoticeText(notices[0])==
     "Bat scout \"north\" stopped · Partial: read 3 files",
-    "Stopped Bat text: "+(notices.empty()?std::string{}:gv::missionNoticeText(notices[0])));
+    "Stopped Bat text: "+(notices.empty()?std::string{}:missionNoticeText(notices[0])));
 
   const auto shell=std::string("<task-notification>\n<task-id>b9</task-id>\n"
     "<output-file>/tmp/b9.output</output-file>\n<status>failed</status>\n"
     "<summary>Background command \"make &amp; test\" failed with exit code 2</summary>\n"
     "</task-notification>");
   notices=gv::parseMissionNotifications(shell+"\n"+finished);
-  check(notices.size()==2&&gv::missionNoticeText(notices[0])=="Shell make & test failed · exit 2",
-    "Shell text: "+(notices.empty()?std::string{}:gv::missionNoticeText(notices[0])));
+  check(notices.size()==2&&missionNoticeText(notices[0])=="Shell make & test failed · exit 2",
+    "Shell text: "+(notices.empty()?std::string{}:missionNoticeText(notices[0])));
   check(gv::parseMissionNotifications("plain poetry").empty(),"Plain text has no notices");
 
   // A Bat whose queued input could not be continued uses the same card.
@@ -129,15 +135,15 @@ void parser(){
   check(waiting.find("<task-id>a1b2c3</task-id>")!=std::string::npos&&
     waiting.find("Agent")==std::string::npos,"The queued-input block names the Bat: "+waiting);
   notices=gv::parseMissionNotifications(waiting);
-  check(notices.size()==1&&gv::missionNoticeText(notices[0])==
+  check(notices.size()==1&&missionNoticeText(notices[0])==
     "Bat reviewer waiting · queued input awaiting resume · Model request failed: overloaded",
-    "Queued-input text: "+(notices.empty()?std::string{}:gv::missionNoticeText(notices[0])));
+    "Queued-input text: "+(notices.empty()?std::string{}:missionNoticeText(notices[0])));
 
   // Runs of finished shells collapse into one summary block.
   notices=gv::parseMissionNotifications("<task-notification><status>completed</status>"
     "<summary>3 background commands completed</summary></task-notification>");
-  check(notices.size()==1&&gv::missionNoticeText(notices[0])=="3 background shells finished",
-    "Collapsed shells text: "+(notices.empty()?std::string{}:gv::missionNoticeText(notices[0])));
+  check(notices.size()==1&&missionNoticeText(notices[0])=="3 background shells finished",
+    "Collapsed shells text: "+(notices.empty()?std::string{}:missionNoticeText(notices[0])));
 }
 
 void transcript(const std::string& theme){

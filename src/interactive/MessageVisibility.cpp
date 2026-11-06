@@ -54,17 +54,9 @@ bool isNotEmptyMessage(const Json& message, const VisibilityImports& imports) {
 }
 
 bool shouldShowUserMessage(const Json& message, bool transcriptMode,
-                           const VisibilityImports& imports) {
+                           const VisibilityImports&) {
   if (value(message, "type") != "user") return true;
-  if (truth(message, "isMeta")) {
-    if (!imports.feature)
-      throw std::logic_error("Message feature import required");
-    if (imports.feature("KAIROS") || imports.feature("KAIROS_CHANNELS")) {
-      const auto* origin = member(message, "origin");
-      if (origin && value(*origin, "kind") == "channel") return true;
-    }
-    return false;
-  }
+  if (truth(message, "isMeta")) return false;
   if (truth(message, "isVisibleInTranscriptOnly") && !transcriptMode) return false;
   return true;
 }
@@ -81,7 +73,7 @@ bool isNullRenderingAttachment(const Json& message) {
     "plan_mode_reentry", "structured_output", "team_context",
     "todo_reminder", "context_efficiency", "deferred_tools_delta",
     "mcp_instructions_delta", "companion_intro", "token_usage",
-    "ultrathink_effort", "max_turns_reached", "task_reminder",
+    "max_turns_reached", "task_reminder",
     "auto_mode", "auto_mode_exit", "output_token_usage",
     "pen_mode_enter", "pen_mode_exit", "verify_plan_reminder",
     "current_session_memory", "compaction_reminder", "date_change"};

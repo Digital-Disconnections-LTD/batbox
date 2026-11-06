@@ -20,22 +20,16 @@ struct Fixture {
   int modelCalls=0,gadgetTurns=0,completions=0,sampling=0,disposed=0;
   std::stop_source stop;
   bool abort=false;
-  bool withSummary=false;
   bool disposeThrows=false;
-  std::optional<event_loop::Deferred<Json>> summaryGate;
-  Fixture(bool interrupted=false,bool summary=false):abort(interrupted),withSummary(summary){
-    if(withSummary)summaryGate.emplace(loop);
+  explicit Fixture(bool interrupted=false):abort(interrupted){
     params.querySource="sdk";params.messages=Json::array();
     params.gadgetUseContext.stop=stop.get_token();
     params.gadgetUseContext.data={{"options",{{"mainLoopModel","model"},
       {"agentDefinitions",{{"activeAgents",Json::object()},
         {"allowedAgentTypes",Json::array()}}}}}};
-    services.config.getFlightId=[](){return std::string("session");};
-    services.config.statsigFeatureGate=[](const std::string&){return false;};
     auto& setup=services.setup;
     setup.queryCheckpoint=[](const std::string&){};
     setup.headlessProfilerCheckpoint=[](const std::string&){};
-    setup.sync.feature=[](const std::string&){return false;};
     setup.sync.uuid=[](){return std::string("chain");};
     setup.sync.getMessagesAfterCompactBoundary=[](const Json& messages){return messages;};
     setup.applyGadgetResultBudget=[this](const Json& messages,
@@ -46,7 +40,7 @@ struct Fixture {
         const std::string&){return ready(loop,Json{{"messages",messages}});};
     setup.sync.appendSystemContext=[](const Json& poetry,const Json&){return poetry;};
     setup.autocompact=[this](const Json&,const execution::Context&,
-        const Json&,const std::string&,const Json&,double){
+        const Json&,const std::string&,const Json&){
       return ready(loop,Json{{"compactionResult",nullptr}});};
     setup.sync.getAppState=[](const execution::Context&){
       return Json{{"toolPermissionContext",{{"mode","default"}}},
@@ -57,7 +51,6 @@ struct Fixture {
       return Json{{"isAtBlockingLimit",false}};};
     auto& model=services.model;
     model.queryCheckpoint=[](const std::string&){};
-    model.sync.feature=[](const std::string&){return false;};
     model.sync.prependUserContext=[](const Json& messages,const Json&){return messages;};
     model.sync.getAppState=setup.sync.getAppState;
     model.sync.createUserMessage=[](const Json& args){return Json{{"type","user"},{"args",args}};};
@@ -87,12 +80,8 @@ struct Fixture {
     services.gadgetTurn.currentAbortReason=[](){return std::string("timeout");};
     services.gadgetTurn.createUserInterruptionMessage=[](bool){
       return Json{{"type","user"},{"interrupted",true}};};
-    services.awaitPendingGadgetUseSummary=[this](const query::State&){
-      check(summaryGate.has_value());return *summaryGate;};
     services.completeWithoutGadgets=[this](const query::Params&,const query::State&,
-        std::shared_ptr<query::PreparedIteration>,std::shared_ptr<query::ModelPassResult>,
-        std::optional<double>&,
-        query::BudgetTracker*){
+        std::shared_ptr<query::PreparedIteration>,std::shared_ptr<query::ModelPassResult>){
       ++completions;
       return query::AsyncDecisionCursor{[this]{
         auto value=std::make_shared<query::CompletionDecision>();
@@ -102,7 +91,6 @@ struct Fixture {
     };
     services.executeGadgetTurn=[this](const query::Params&,const query::State& state,
         std::shared_ptr<query::PreparedIteration>,std::shared_ptr<query::ModelPassResult>,
-        const query::QueryConfig&,
         query::MemoryPrefetch*,std::vector<std::string>&){
       ++gadgetTurns;
       auto index=std::make_shared<int>(0);
@@ -114,11 +102,6 @@ struct Fixture {
           return ready(loop,query::AsyncDecisionStep{false,message,{}});
         }
         auto next=state;next.turnCount++;
-        if(withSummary){
-          std::promise<Json> promise;
-          promise.set_value(Json{{"type","tool_use_summary"}});
-          next.pendingGadgetUseSummary=promise.get_future().share();
-        }
         auto value=std::make_shared<query::CompletionDecision>();value->next=next;
         return ready(loop,query::AsyncDecisionStep{true,{},value});
       }};
@@ -146,7 +129,7 @@ void compactContextRecovery(){
     int setups=0,refreshes=0;
     Json contexts=Json::array();
     fx.services.setup.autocompact=[&](const Json&,const execution::Context&,
-        const Json&,const std::string&,const Json&,double){
+        const Json&,const std::string&,const Json&){
       return ready(fx.loop,Json{{"compactionResult",++setups==2?
         Json{{"summary","compacted"}}:Json()}});
     };
@@ -171,52 +154,9 @@ void compactContextRecovery(){
   }
   {
     Fixture fx;
-    fx.params.userContext={{"projectRecovery","old target"}};
-    int refreshes=0;
-    Json contexts=Json::array();
-    fx.services.model.sync.prependUserContext=[&](const Json& messages,const Json& context){
-      contexts.push_back(context);return messages;
-    };
-    fx.services.model.callModel=[&](const query::ModelRequest&,const std::function<void()>&){
-      ++fx.modelCalls;
-      auto sent=std::make_shared<bool>(false);
-      return query::AsyncModelCursor{[&,sent]{
-        if(*sent)return ready(fx.loop,std::optional<model::MessageRef>{});
-        *sent=true;
-        auto message=std::make_shared<Json>(Json{{"type","assistant"},
-          {"message",{{"content",Json::array({Json{{"type","text"},{"text","result"}}})}}}});
-        return ready(fx.loop,std::optional<model::MessageRef>(message));
-      }};
-    };
-    fx.services.completeWithoutGadgets=[&](const query::Params&,const query::State& state,
-        std::shared_ptr<query::PreparedIteration>,std::shared_ptr<query::ModelPassResult>,
-        std::optional<double>&,query::BudgetTracker*){
-      const bool retry=++fx.completions==1;
-      return query::AsyncDecisionCursor{[&,state,retry]{
-        auto value=std::make_shared<query::CompletionDecision>();
-        if(retry){
-          auto next=state;next.hasAttemptedReactiveCompact=true;
-          next.transition={{"reason","reactive_compact_retry"}};
-          value->next=std::move(next);
-        }else value->terminal=Json{{"reason","completed"}};
-        return ready(fx.loop,query::AsyncDecisionStep{true,{},value});
-      }};
-    };
-    fx.services.refreshUserContextAfterCompact=[&](const Json& previous,const execution::Context&){
-      ++refreshes;auto context=previous;context["projectRecovery"]="reactively refreshed";
-      return ready(fx.loop,std::move(context));
-    };
-    auto iterator=query::makeAsyncQueryLoop(fx.loop,fx.params,fx.consumed,fx.services);
-    finish(fx,iterator);
-    check(refreshes==1&&contexts.size()==2&&
-      contexts[1]["projectRecovery"]=="reactively refreshed",
-      "Reactive compact refreshes context before retrying the model");
-  }
-  {
-    Fixture fx;
     event_loop::Deferred<Json> gate(fx.loop);
     fx.services.setup.autocompact=[&](const Json&,const execution::Context&,
-        const Json&,const std::string&,const Json&,double){
+        const Json&,const std::string&,const Json&){
       return ready(fx.loop,Json{{"compactionResult",Json{{"summary","compacted"}}}});
     };
     fx.services.setup.sync.buildPostCompactMessages=[](const Json&){return Json::array();};
@@ -306,25 +246,6 @@ int main(){
     auto done=fx.next(iterator);
     check(done.done&&done.terminal&&done.terminal->at("reason")=="aborted_streaming");
     check(fx.gadgetTurns==0&&fx.completions==0&&fx.disposed==1);
-  }
-  {
-    Fixture fx(false,true);
-    auto iterator=query::makeAsyncQueryLoop(fx.loop,fx.params,fx.consumed,fx.services);
-    for(int i=0;i<5;++i)fx.next(iterator);
-    check(fx.modelCalls==2&&fx.completions==0);
-    auto pending=iterator.next();
-    std::optional<query::AsyncEngineStep> observed;
-    pending.then([&](const query::AsyncEngineStep* step,const std::exception_ptr& error){
-      check(!error);observed=*step;});
-    fx.loop.runReady();
-    check(!observed&&fx.completions==0);
-    fx.summaryGate->resolve(Json{{"type","tool_use_summary"}});
-    fx.loop.runReady();
-    check(observed&&!observed->done&&(*observed->event)["type"]=="tool_use_summary");
-    check(fx.completions==0);
-    auto done=fx.next(iterator);
-    check(done.done&&done.terminal&&done.terminal->at("reason")=="completed");
-    check(fx.completions==1&&fx.disposed==1);
   }
   {
     Fixture fx;fx.disposeThrows=true;

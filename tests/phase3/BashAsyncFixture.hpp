@@ -64,9 +64,6 @@ private:
     services.preparePermissionMatcher=[](const Json&){
       return readyFuture(std::function<bool(const std::string&)>(
         [](const std::string&){return true;}));};
-    services.shouldUseSandbox=[](const Json&){return false;};
-    services.sandboxCommand=[](const std::string& command,const Json&,const Json&){return command;};
-    services.annotateSandboxFailures=[](const std::string&,const std::string& output){return output;};
     services.resetCwdIfOutsideProject=[](const Json&){return false;};
     services.recordHint=[](const Json&){};
     services.resizeImage=[](const std::string&,const shell::ExecResult&)->std::optional<std::string>{

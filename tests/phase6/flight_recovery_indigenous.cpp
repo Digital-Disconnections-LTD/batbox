@@ -49,10 +49,6 @@ int main(int argc,char** argv){
       "Subagent plan must retain the original slug");
     require(plans.path("fresh")!=plans.path("resumed"),"Fresh sessions must not inherit project plans");
     require(!plans.content("fresh"),"Fresh sessions must have no saved plan content");
-    require(plans.fork(log,"forked"),"Explicit fork must copy the saved plan");
-    require(plans.path("forked")!=plans.path("resumed"),"Fork must isolate plan identity");
-    write(plans.path("forked"),"fork progress");
-    require(plans.content("resumed")=="latest saved plan","Fork edits must not alter original plan");
     plans.clear();
     require(plans.resume(log,"resumed"),"Restart must restore persisted slug");
     require(plans.path("resumed").filename()=="original.md","Restart must locate original file");

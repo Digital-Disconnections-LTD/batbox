@@ -24,7 +24,6 @@ class LiveStream {
   transport::Response open();
   std::optional<Json> next();
   void abort() noexcept;
-  bool aborted() const;
  private:
   void produce();
   transport::WireClient& client_;

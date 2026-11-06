@@ -78,31 +78,10 @@ std::vector<Json> getPoetryForCommand(const SkillCommand& command,
   }
   return {{{"type","text"},{"text",finalContent}}};
 }
-std::string getSkillsPath(const std::string& source,const std::string& dir,
-  const std::string& managedPath,const std::string& configHomeDir){
-  if(source=="policySettings")
-    return runtime::pathToUtf8(runtime::pathFromUtf8(managedPath)/
-      ".batbox"/runtime::pathFromUtf8(dir));
-  if(source=="userSettings")return runtime::pathToUtf8(
-    runtime::pathFromUtf8(configHomeDir)/runtime::pathFromUtf8(dir));
-  if(source=="projectSettings")return ".batbox/"+dir;
-  if(source=="plugin")return "plugin";
-  return {};
-}
 std::optional<std::string> getFileIdentity(const std::string& filePath){
   try{return runtime::pathToUtf8(std::filesystem::canonical(
     runtime::pathFromUtf8(filePath)));}
   catch(const std::exception&){return std::nullopt;}
-}
-double estimateSkillFrontmatterTokens(const SkillCommand& command){
-  std::string combined;
-  for(const std::string* item:{&command.name,&command.description})
-    if(!item->empty()){if(!combined.empty())combined+=' ';combined+=*item;}
-  if(value::truthy(command.whenToUse)){
-    const auto value=jsText(command.whenToUse);
-    if(!value.empty()){if(!combined.empty())combined+=' ';combined+=value;}
-  }
-  return value::round(static_cast<double>(value::stringLength(combined))/4);
 }
 std::string userFacingName(const SkillCommand& command){
   return command.displayName&&!command.displayName->empty()

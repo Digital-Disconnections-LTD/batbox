@@ -173,12 +173,8 @@ ResumeResult resumeBatBackground(const ResumeParams& params,ResumeServices& serv
   need(services.runAsyncBatLifecycle,"runAsyncAgentLifecycle");
   services.runWithBatContext(asyncContext,[&]{
     const auto start=[&]{
-      need(services.isCoordinatorMode,"isCoordinatorMode");
-      launch.enableSummarization=services.isCoordinatorMode();
-      if(!launch.enableSummarization){
-        need(services.isForkSubagentEnabled,"isForkSubagentEnabled");
-        launch.enableSummarization=services.isForkSubagentEnabled();
-      }
+      need(services.isForkSubagentEnabled,"isForkSubagentEnabled");
+      launch.enableSummarization=services.isForkSubagentEnabled();
       if(!launch.enableSummarization){
         need(services.getSdkBatProgressSummariesEnabled,
           "getSdkAgentProgressSummariesEnabled");

@@ -30,20 +30,7 @@ gadgets::Gadgets filterGadgetsForBat(const gadgets::Gadgets& available,bool isBu
     }
     if(imports.allBatDisallowed.contains(name))continue;
     if(!isBuiltIn&&imports.customBatDisallowed.contains(name))continue;
-    if(isAsync&&!imports.asyncBatAllowed.contains(name)){
-      need(imports.isBatSwarmsEnabled,"isAgentSwarmsEnabled");
-      if(imports.isBatSwarmsEnabled()){
-        need(imports.isInProcessPartner,"isInProcessTeammate");
-        if(imports.isInProcessPartner()){
-          need(imports.gadgetMatchesName,"toolMatchesName");
-          if(imports.gadgetMatchesName(*gadget,imports.batGadgetName)||
-             imports.inProcessPartnerAllowed.contains(name)){
-            filtered.push_back(gadget);continue;
-          }
-        }
-      }
-      continue;
-    }
+    if(isAsync&&!imports.asyncBatAllowed.contains(name))continue;
     filtered.push_back(gadget);
   }
   return filtered;

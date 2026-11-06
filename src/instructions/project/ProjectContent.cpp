@@ -44,7 +44,7 @@ ParsedMemoryContent parseMemoryFileContent(const std::string& rawContent,
     ?extractIncludePathsFromTokens(tokens,*includeBasePath,services)
     :std::vector<std::string>{};
   auto finalContent=stripped;
-  if(type=="AutoMem"||type=="TeamMem")
+  if(type=="AutoMem")
     finalContent=instructions::truncateEntrypointContent(stripped).content;
   const bool differs=finalContent!=rawContent;
   MemoryFileInfo info;

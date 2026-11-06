@@ -28,8 +28,6 @@ Json getModelCosts(const std::string& model,const Json& usage,
 double tokensToUSDCost(const Json& modelCosts,const Json& usage);
 double calculateUSDCost(const std::string& resolvedModel,const Json& usage,
   AccountingState& state,const CostServices& services);
-double calculateCostFromTokens(const std::string& model,const Json& tokens,
-  AccountingState& state,const CostServices& services);
 Json getAdvisorUsage(const Json& usage);
 Json addToTotalModelUsage(double cost,const Json& usage,const std::string& model,
   AccountingState& state,const CostServices& services);

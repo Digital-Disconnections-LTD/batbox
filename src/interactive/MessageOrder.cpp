@@ -41,12 +41,6 @@ bool isGadgetUseRequestMessage(const Json& message) {
   return false;
 }
 
-bool isGadgetUseResultMessage(const Json& message) {
-  if (type(message) != "user") return false;
-  const auto* block = firstBlock(message);
-  return (block && type(*block) == "tool_result") ||
-      value::truthy(value::property(message, "toolUseResult"));
-}
 
 bool isHookAttachmentMessage(const Json& message) {
   if (type(message) != "attachment") return false;

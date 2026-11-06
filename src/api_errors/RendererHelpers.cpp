@@ -6,7 +6,6 @@ namespace {
 constexpr double PDF_TARGET_RAW_SIZE=20*1024*1024;
 constexpr int API_PDF_MAX_PAGES=100;
 }
-bool isCCRMode(Providers& p){return envTruthy(p,"BATBOX_REMOTE");}
 std::string getPdfTooLargeErrorMessage(Providers& p){
   const std::string limits="max "+std::to_string(API_PDF_MAX_PAGES)+" pages, "+formatting::formatFileSize(PDF_TARGET_RAW_SIZE);
   return nonInteractive(p)
@@ -33,16 +32,6 @@ std::string getRequestTooLargeErrorMessage(Providers& p){
   return nonInteractive(p)
     ? "Request too large ("+limits+"). Try with a smaller file."
     : "Request too large ("+limits+"). Double press esc to go back and try with a smaller file.";
-}
-std::string getTokenRevokedErrorMessage(Providers& p){
-  return nonInteractive(p)
-    ? "Your account does not have access to Batbox. Please login again or contact your administrator."
-    : TOKEN_REVOKED_ERROR_MESSAGE;
-}
-std::string getOauthOrgNotAllowedErrorMessage(Providers& p){
-  return nonInteractive(p)
-    ? "Your organization does not have access to Batbox. Please login again or contact your administrator."
-    : OAUTH_ORG_NOT_ALLOWED_ERROR_MESSAGE;
 }
 std::optional<std::string> get3PModelFallbackSuggestion(const std::string& model,Providers& p){
   require(p.apiProvider,"apiProvider");

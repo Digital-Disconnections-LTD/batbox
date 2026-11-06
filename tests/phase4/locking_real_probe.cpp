@@ -1,6 +1,5 @@
 #include "locking/ProperLock.hpp"
 #include "locking/FileOps.hpp"
-#include "locking/Bindings.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
@@ -9,6 +8,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+bool held(const std::string& lockDirectory){
+  struct stat info{};
+  return ::stat(lockDirectory.c_str(),&info)==0&&S_ISDIR(info.st_mode);
+}
 template<class T>T await(batbox::event_loop::Loop& loop,
     batbox::event_loop::Deferred<T> promise){
   std::optional<T> value;
@@ -28,10 +31,9 @@ int main(){
   assert(directory);
   event_loop::Loop loop;
   locking::Manager locks(loop);
+  const auto lockPath=std::string(directory)+".lock";
   auto release=await(loop,locks.lock(directory));
-  assert(locking::file_ops::check(directory,
-    locking::file_ops::normalize({})));
-  assert(await(loop,locks.check(directory)));
+  assert(held(lockPath));
   try{(void)await(loop,locks.lock(directory));assert(false);}
   catch(const locking::Error& error){assert(error.code=="ELOCKED");}
   const auto child=::fork();
@@ -49,10 +51,9 @@ int main(){
   int status=0;assert(::waitpid(child,&status,0)==child);
   assert(WIFEXITED(status)&&WEXITSTATUS(status)==0);
   (void)await(loop,release());
-  assert(!await(loop,locks.check(directory)));
+  assert(!held(lockPath));
   try{(void)await(loop,release());assert(false);}
   catch(const locking::Error& error){assert(error.code=="ERELEASED");}
-  const auto lockPath=std::string(directory)+".lock";
   assert(::mkdir(lockPath.c_str(),0700)==0);
   locking::file_ops::setMtime(lockPath,
     locking::file_ops::nowMs()-100000);
@@ -83,16 +84,9 @@ int main(){
   custom.realpath=false;
   custom.lockfilePath=std::string(directory)+"/custom.lock";
   auto syncRelease=locks.lockSync(std::string(directory)+"/missing",custom);
-  assert(locks.checkSync(std::string(directory)+"/missing",custom));
+  assert(held(*custom.lockfilePath));
   syncRelease();
-  assert(!locks.checkSync(std::string(directory)+"/missing",custom));
-  auto cleanup=locking::makeCleanupCallbacks(loop,locks);
-  const auto marker=std::string(directory)+"/marker";
-  (void)await(loop,cleanup.lock(marker));
-  locking::Options markerOptions;markerOptions.realpath=false;
-  assert(await(loop,locks.check(marker,markerOptions)));
-  (void)await(loop,cleanup.unlock(marker));
-  assert(!await(loop,locks.check(marker,markerOptions)));
+  assert(!held(*custom.lockfilePath));
   assert(::rmdir(directory)==0);
   std::cout<<"Native directory lock fixture passed\n";
 }

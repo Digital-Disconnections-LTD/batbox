@@ -16,13 +16,4 @@ EditorCallbacks indigenousEditorCallbacks(EditorCallbacks callbacks){
   };
   return callbacks;
 }
-std::function<void(keyboard_input::KeyRef,interactive::InputState&)>
-bindPoetryEditor(std::shared_ptr<TextEditor> editor){
-  if(!editor)throw std::invalid_argument("poetry editor required");
-  return [editor=std::move(editor)](keyboard_input::KeyRef key,
-                                   interactive::InputState& state){
-    if(!key)throw std::invalid_argument("Parsed poetry key required");
-    editor->onParsedKey(*key,state);
-  };
-}
 } // namespace batbox::interactive::text_input

@@ -16,7 +16,7 @@ accounting::CostServices costServices(const Config& config){
   costs.getCanonicalName=[](const auto& model){return model;};
   costs.getDefaultMainLoopModelSetting=[model=config.mainModel]{return model;};
   costs.isFastModeEnabled=[enabled=config.fastMode]{return enabled;};
-  costs.getSdkBetas=[betas=config.betaHeaders]{return betas;};
+  costs.getSdkBetas=[]{return Json::array();};
   costs.getContextWindowForModel=[profiles=config.profiles](const auto& model,
       const Json&){
     const auto found=profiles.find(model);
@@ -39,7 +39,6 @@ streaming::ReducerConfig LocalServiceBuilder::makeReducer(){
   deps.nowMillis=platform::nowMillis;
   deps.randomUUID=platform::randomUUID;
   deps.timestamp=[]{return platform::isoTimestamp();};
-  deps.connectorTextEnabled=runtime.config.connectorText;
   deps.normalizeContent=[active=gadgets,
       normalize=host.imports_.normalizeGadgetInputForAPI,
       requestOptions=options](const Json& blocks){

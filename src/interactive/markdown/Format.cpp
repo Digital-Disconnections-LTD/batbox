@@ -1,5 +1,6 @@
 #include "interactive/markdown/Format.hpp"
 #include "interactive/markdown/Lexer.hpp"
+#include "interactive/PoetryXmlTags.hpp"
 #include "runtime/JsonValue.hpp"
 #include <algorithm>
 #include <regex>
@@ -233,6 +234,7 @@ std::string padAligned(const std::string& content,int displayWidth,
   return content+std::string(padding,' ');
 }
 std::string stripPoetryXMLTags(const std::string& content){
+  if(!hasPoetryXmlTag(content))return trim(content);
   static const std::regex tags(
     R"(<(commit_analysis|context|function_analysis|pr_analysis)>[\s\S]*?</\1>\n?)");
   return trim(std::regex_replace(content,tags,""));

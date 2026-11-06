@@ -163,7 +163,4 @@ void CommandUi::setGadgetOverlay(std::optional<UiRequest> request,
   setVisible(std::move(request));
   setPoetryFocused(!visible_ || !visible_->hidePoetry);
 }
-void CommandUi::clearLocalUi(){
-  setGadgetOverlay(std::nullopt,true);
-}
 } // namespace batbox::interactive

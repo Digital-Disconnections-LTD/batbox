@@ -14,30 +14,24 @@ struct AsyncDecisionCursor {
   std::function<event_loop::Deferred<event_loop::Unit>()> close;
 };
 struct AsyncEngineServices {
-  ConfigDependencies config;
   AsyncSetupServices setup;
   AsyncModelServices model;
   CompletionServices completion;
   GadgetTurnServices gadgetTurn;
   std::function<MemoryPrefetch(const Json&,const execution::Context&)>
     startRelevantMemoryPrefetch;
-  // Launch post-sampling hooks without awaiting them.
+  // Launch post-sampling hooks without awaiting them. Unset means none are
+  // configured.
   std::function<void(const Json&,const Params&,const execution::Context&)>
     executePostSamplingHooks;
-  std::function<AsyncModelCursor(const std::shared_ptr<PreparedIteration>&)>
-    abortRemainingResults;
-  std::function<event_loop::Deferred<event_loop::Unit>(const execution::Context&)>
-    cleanupComputerUseAfterTurn;
-  std::function<event_loop::Deferred<Json>(const State&)> awaitPendingGadgetUseSummary;
   // Bind the indigenous demand-driven regions with bindAsyncCompletion and
   // bindAsyncGadgetTurn; synchronous callback wrappers are not required here.
   std::function<AsyncDecisionCursor(const Params&,const State&,
-    std::shared_ptr<PreparedIteration>,std::shared_ptr<ModelPassResult>,
-    std::optional<double>&,BudgetTracker*)> completeWithoutGadgets;
+    std::shared_ptr<PreparedIteration>,std::shared_ptr<ModelPassResult>)>
+    completeWithoutGadgets;
   std::function<AsyncDecisionCursor(const Params&,const State&,
     std::shared_ptr<PreparedIteration>,std::shared_ptr<ModelPassResult>,
-    const QueryConfig&,MemoryPrefetch*,
-    std::vector<std::string>&)> executeGadgetTurn;
+    MemoryPrefetch*,std::vector<std::string>&)> executeGadgetTurn;
   // Indigenous recovery extension: refresh the existing context after a successful
   // compact, before the next request, without appending another copy to history.
   std::function<event_loop::Deferred<Json>(const Json&,const execution::Context&)>

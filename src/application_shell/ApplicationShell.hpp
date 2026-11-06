@@ -37,7 +37,7 @@ event_loop::Deferred<event_loop::Unit> stopAndWait(event_loop::Loop& owner,
   const Host& host);
 
 // Completes the Bash gadget's real mission lifecycle and persistence callbacks.
-// Permission, sandbox, command classification, image and FTXUI imports remain
+// Permission, command classification, image and FTXUI imports remain
 // on Services and must be supplied by their owning application modules.
 void bindBashMissionServices(bash_gadget::Services& services,const Host& host,
   const gadget_results::StorageImports& storage,

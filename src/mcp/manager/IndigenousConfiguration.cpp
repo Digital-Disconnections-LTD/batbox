@@ -80,9 +80,4 @@ void IndigenousRuntime::writeDisabled(){
 #endif
   if(error)throw std::system_error(error,"Save MCP connection settings");
 }
-event_loop::Deferred<event_loop::Unit> IndigenousRuntime::reload(std::filesystem::path projectRoot){
-  if(!inputs_.owner.isOwnerThread())throw std::logic_error("MCP reload requires owner");
-  inputs_.projectRoot=std::move(projectRoot);loadConfiguration();
-  return manager_->configure(configurations_);
-}
 } // namespace batbox::mcp::manager

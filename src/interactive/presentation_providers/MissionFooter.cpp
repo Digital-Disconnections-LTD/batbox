@@ -145,10 +145,19 @@ Json backgroundFooterMissions(const Json& missions,const std::optional<std::stri
   for(auto& row:others)result.push_back(std::move(row));
   return result;
 }
+std::unordered_set<std::string> runningBatGadgetUses(const Json& rows){
+  std::unordered_set<std::string> uses;
+  if(rows.is_array())for(const auto& row:rows){
+    const auto use=text(row,"toolUseId");
+    if(batMission(row)&&active(text(row,"status"))&&!use.empty())uses.insert(use);
+  }
+  return uses;
+}
 std::vector<std::string> footerBatIds(const Json& rows){
   std::vector<std::string> ids;
+  // A Bat waiting for a slot has no conversation to open yet.
   if(rows.is_array())for(const auto& row:rows)
-    if(batMission(row))ids.push_back(rowId(row));
+    if(batMission(row)&&value::property(row,"waiting")!=true)ids.push_back(rowId(row));
   return ids;
 }
 std::vector<std::string> batTrail(const Json& rows,const std::string& id){
@@ -165,10 +174,10 @@ std::vector<std::string> batTrail(const Json& rows,const std::string& id){
   return trail;
 }
 FooterWindow footerWindow(const Json& rows,int terminalRows,bool collapsed,
-    const std::optional<std::string>& current){
+    const std::optional<std::string>& current,int extraRows){
   FooterWindow window;
   const auto count=rows.is_array()?rows.size():std::size_t{0};
-  const auto capacity=static_cast<std::size_t>(std::clamp(terminalRows/4-1,0,5));
+  const auto capacity=static_cast<std::size_t>(std::clamp(terminalRows/4-1-extraRows,0,5));
   window.collapsed=collapsed||capacity<2;
   if(window.collapsed||count==0)return window;
   std::size_t selected=0;
@@ -176,6 +185,46 @@ FooterWindow footerWindow(const Json& rows,int terminalRows,bool collapsed,
   window.begin=selected>=capacity?selected-capacity+1:0;
   window.end=std::min(count,window.begin+capacity);
   return window;
+}
+namespace {
+std::string padded(const std::string& value,std::size_t width){
+  const auto length=value::stringLength(value);
+  return length>=width?value:value+std::string(width-length,' ');
+}
+std::string leftPadded(const std::string& value,std::size_t width){
+  const auto length=value::stringLength(value);
+  return length>=width?value:std::string(width-length,' ')+value;
+}
+// One Active Missions row split into its columns.
+struct FooterRow {
+  std::string marker,indent,status,title,activity,state,elapsed,gadgets,tokens;
+  bool here=false,selected=false,waiting=false;
+};
+FooterRow footerRow(const Json& mission,const FooterOptions& options){
+  const auto glance=batGlance(mission,options.nowMs);
+  FooterRow row;
+  const auto id=rowId(mission);
+  row.here=options.current&&id==*options.current;
+  row.selected=options.selected&&id==*options.selected;
+  row.waiting=value::property(mission,"waiting")==true||glance.status=="pending";
+  row.marker=options.selected?(row.selected?"❯ ":"  "):row.here?"▸ ":"  ";
+  const auto depth=static_cast<int>(std::clamp(number(mission,"depth"),0LL,8LL));
+  row.indent=depth>0?std::string(static_cast<std::size_t>(2*(depth-1)),' ')+"└ ":"";
+  row.status=row.waiting?"○ ":"● ";
+  row.title=glance.label;
+  const auto newline=row.title.find_first_of("\r\n");
+  if(newline!=std::string::npos)row.title.resize(newline);
+  row.activity=row.waiting?std::string():glance.gadget;
+  const auto activityEnd=row.activity.find_first_of("\r\n");
+  if(activityEnd!=std::string::npos)row.activity.resize(activityEnd);
+  row.state=row.waiting?"waiting":glance.foreground?"foreground":
+    glance.status=="killed"?"stopped":glance.status;
+  if(!row.waiting)row.elapsed=glance.elapsed;
+  if(!row.waiting&&(text(mission,"type")=="local_agent"||glance.gadgetUses>0))
+    row.gadgets=std::to_string(glance.gadgetUses)+(glance.gadgetUses==1?" Gadget":" Gadgets");
+  if(!row.waiting&&text(mission,"type")=="local_agent")row.tokens=compactTokens(glance.tokens);
+  return row;
+}
 }
 ftxui::Element missionFooterAt(const Json& missions,const FooterOptions& options){
   ftxui::Elements lines;
@@ -189,8 +238,9 @@ ftxui::Element missionFooterAt(const Json& missions,const FooterOptions& options
     if(options.current&&rowId(mission)==*options.current)
       currentLabel=batGlance(mission,options.nowMs).label;
   }
+  const bool focused=options.selected.has_value();
   const auto window=footerWindow(missions,options.terminalRows,options.collapsed,
-    options.current);
+    focused&&!options.selected->empty()?options.selected:options.current,focused?1:0);
   const auto title="Active Missions ("+std::to_string(running)+")";
   if(window.collapsed){
     ftxui::Elements parts{ftxui::text(title)|ftxui::color(color)|ftxui::dim};
@@ -201,29 +251,94 @@ ftxui::Element missionFooterAt(const Json& missions,const FooterOptions& options
     }
     return ftxui::hbox(std::move(parts));
   }
-  lines.push_back(ftxui::text(clipped(title+" · Ctrl+T collapse · /missions",columns))|
-    ftxui::color(color)|ftxui::dim);
-  for(std::size_t i=window.begin;i<window.end;++i){
-    const auto& mission=missions[i];
-    const auto glance=batGlance(mission,options.nowMs);
-    const bool here=options.current&&rowId(mission)==*options.current;
-    std::string detail=glance.foreground?"foreground":
-      glance.status=="killed"?"stopped":glance.status;
-    if(!glance.elapsed.empty())detail+=" · "+glance.elapsed;
-    if(text(mission,"type")=="local_agent"||glance.gadgetUses>0)
-      detail+=" · "+std::to_string(glance.gadgetUses)+
-        (glance.gadgetUses==1?" Gadget":" Gadgets");
-    // A Gadget description can be a long path; keep room for the Bat's words.
-    if(!glance.gadget.empty())detail+=" · "+clipped(glance.gadget,36);
-    if(!glance.lastText.empty())detail+=" · “"+glance.lastText+"”";
-    const auto depth=static_cast<int>(std::clamp(number(mission,"depth"),0LL,8LL));
-    const std::string indent=depth>0?std::string(static_cast<std::size_t>(2*(depth-1)),' ')+"└ ":"";
-    const int used=4+static_cast<int>(value::stringLength(indent));
-    auto marker=ftxui::text(here?"▸ ":"  ")|ftxui::color(color);
-    auto row=ftxui::text(clipped(glance.label+" · "+detail,std::max(3,columns-used)));
-    if(here){marker=marker|ftxui::bold;row=row|ftxui::bold;}
-    lines.push_back(ftxui::hbox({std::move(marker),ftxui::text(indent)|ftxui::dim,
-      ftxui::text("● ")|ftxui::color(color),std::move(row)}));
+  const auto hint=focused?" · Enter view · x stop · Esc back":
+    footerBatIds(missions).empty()?" · Ctrl+T collapse · /missions":
+    " · ↓ select · Ctrl+T collapse · /missions";
+  lines.push_back(ftxui::text(clipped(title+hint,columns))|ftxui::color(color)|ftxui::dim);
+  std::vector<FooterRow> rows;
+  if(focused){
+    // The main conversation leads the list while it has focus.
+    FooterRow flight;
+    flight.selected=options.selected->empty();
+    flight.here=!options.current;
+    flight.marker=flight.selected?"❯ ":"  ";
+    flight.status=flight.here?"● ":"○ ";
+    flight.title="Flight";
+    rows.push_back(std::move(flight));
+  }
+  for(std::size_t i=window.begin;i<window.end;++i)rows.push_back(footerRow(missions[i],options));
+  // Columns line up across the visible rows. The figures on the right keep
+  // their width; when the row does not fit, the activity goes first, then
+  // the Gadget count, then the elapsed time. Title, status and tokens stay.
+  std::size_t lead=0,titleWidth=0,activityWidth=0,stateWidth=0,elapsedWidth=0,
+    gadgetWidth=0,tokenWidth=0;
+  for(const auto& row:rows){
+    lead=std::max(lead,2+value::stringLength(row.indent)+2);
+    titleWidth=std::max(titleWidth,value::stringLength(row.title));
+    activityWidth=std::max(activityWidth,value::stringLength(row.activity));
+    stateWidth=std::max(stateWidth,value::stringLength(row.state));
+    elapsedWidth=std::max(elapsedWidth,value::stringLength(row.elapsed));
+    gadgetWidth=std::max(gadgetWidth,value::stringLength(row.gadgets));
+    tokenWidth=std::max(tokenWidth,value::stringLength(row.tokens));
+  }
+  titleWidth=std::min<std::size_t>(titleWidth,40);
+  activityWidth=std::min<std::size_t>(activityWidth,36);
+  bool showActivity=activityWidth>0,showGadgets=gadgetWidth>0,showElapsed=elapsedWidth>0;
+  const auto right=[&]{
+    std::size_t width=2+stateWidth;
+    if(showElapsed)width+=2+elapsedWidth;
+    if(showGadgets)width+=2+gadgetWidth;
+    if(tokenWidth)width+=2+tokenWidth;
+    return width;
+  };
+  const std::size_t minimumTitle=12;
+  const auto available=static_cast<std::size_t>(columns);
+  const auto fits=[&](std::size_t titleColumns){
+    return lead+titleColumns+(showActivity?2+activityWidth:0)+right()<=available;
+  };
+  const auto least=std::min(titleWidth,minimumTitle);
+  if(showActivity&&!fits(least))showActivity=false;
+  if(showGadgets&&!fits(least))showGadgets=false;
+  if(showElapsed&&!fits(least))showElapsed=false;
+  const auto used=lead+(showActivity?2+activityWidth:0)+right();
+  const auto room=available>used?available-used:std::size_t{3};
+  const auto shownTitle=std::max<std::size_t>(std::min(titleWidth,room),3);
+  // Whatever room is left goes to the activity, up to its own width.
+  std::size_t shownActivity=0;
+  if(showActivity){
+    const auto spare=available>lead+shownTitle+2+right()?
+      available-lead-shownTitle-2-right():std::size_t{0};
+    shownActivity=std::min(spare,activityWidth);
+  }
+  for(const auto& row:rows){
+    const auto cut=[](const std::string& value,std::size_t width){
+      return clipped(value,static_cast<int>(width));};
+    std::string figures=leftPadded(row.state,stateWidth);
+    if(showElapsed)figures+="  "+leftPadded(row.elapsed,elapsedWidth);
+    if(showGadgets)figures+="  "+leftPadded(row.gadgets,gadgetWidth);
+    if(tokenWidth)figures+="  "+leftPadded(row.tokens,tokenWidth);
+    const auto head=row.marker+row.indent;
+    ftxui::Elements parts;
+    parts.push_back(ftxui::text(row.marker)|ftxui::color(color)|
+      (row.here?ftxui::bold:ftxui::nothing));
+    parts.push_back(ftxui::text(row.indent)|ftxui::dim);
+    parts.push_back(ftxui::text(row.status)|ftxui::color(color)|
+      (row.waiting?ftxui::dim:ftxui::nothing));
+    // A deeper row's title starts further right; its column ends where the
+    // others do, so the columns after it line up.
+    const auto titleColumns=shownTitle+(lead-value::stringLength(head)-2);
+    auto name=ftxui::text(padded(cut(row.title,titleColumns),titleColumns));
+    if(row.here)name=name|ftxui::bold;
+    parts.push_back(std::move(name));
+    if(showActivity&&shownActivity>0)
+      parts.push_back(ftxui::text("  "+padded(cut(row.activity,shownActivity),shownActivity))|
+        ftxui::dim);
+    parts.push_back(ftxui::filler());
+    parts.push_back(ftxui::text("  "+figures)|(row.waiting?ftxui::dim:ftxui::nothing));
+    auto line=ftxui::hbox(std::move(parts));
+    // With the list focused only the focused row is bright.
+    if(focused)line=row.selected?line|ftxui::bold:line|ftxui::dim;
+    lines.push_back(std::move(line));
   }
   return ftxui::vbox(std::move(lines));
 }

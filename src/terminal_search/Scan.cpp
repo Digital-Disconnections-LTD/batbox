@@ -15,10 +15,10 @@ std::u16string lowercase(const std::u16string& text){
   if(U_FAILURE(error))throw std::runtime_error("Unicode lowercasing failed");
   result.resize(static_cast<std::size_t>(produced));return result;
 }
-std::vector<terminal_render::MatchPosition> scanRows(double width,double height,
+std::vector<terminal_search::MatchPosition> scanRows(double width,double height,
     const std::u16string& query,const std::function<Cell(double,double)>& readCell){
   if(query.empty())return {};
-  std::vector<terminal_render::MatchPosition> positions;
+  std::vector<terminal_search::MatchPosition> positions;
   for(double row=0;row<height;++row){
     std::u16string text;std::vector<double> columns;
     std::vector<std::size_t> unitToCell;

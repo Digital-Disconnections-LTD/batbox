@@ -64,40 +64,24 @@ void Engine::initialize(){
   };
   if(!inputs_.microcompact)inputs_.microcompact=[model](const Json& messages,
       const execution::Context& context,const std::string& source){
-    return model->microcompactMessages(messages,context,source);
+    return model->microcompactForQuery(messages,context,source);
   };
   require(inputs_.checkpoint,"local checkpoint");
   require(inputs_.logError,"local error log");
-  if(inputs_.flightId.empty())throw std::invalid_argument("Application session ID required");
   services_=std::make_shared<query::AsyncEngineServices>();
-  const auto flight=inputs_.flightId;
-  services_->config.getFlightId=inputs_.flightIdProvider?
-    inputs_.flightIdProvider:std::function<std::string()>([flight]{return flight;});
-  const auto features=inputs_.features;
-  services_->config.statsigFeatureGate=[features](const std::string& name){
-    return features.contains(name);
-  };
   bindSetup();bindModel();bindCompletion();bindGadgets();
   require(inputs_.startMemoryPrefetch,"memory prefetch provider");
-  require(inputs_.postSamplingHooks,"post-sampling hook provider");
   services_->startRelevantMemoryPrefetch=inputs_.startMemoryPrefetch;
   services_->executePostSamplingHooks=inputs_.postSamplingHooks;
   services_->refreshUserContextAfterCompact=inputs_.refreshUserContextAfterCompact;
-  query::bindIndigenousAbortRemaining(inputs_.owner,*services_);
 }
 void Engine::bindSetup(){
   auto& async=services_->setup;auto& sync=async.sync;
   async.queryCheckpoint=inputs_.checkpoint;
   async.headlessProfilerCheckpoint=inputs_.checkpoint;
-  const auto features=inputs_.features;
-  sync.feature=[features](const std::string& name){return features.contains(name);};
   sync.uuid=inputs_.messages->randomUUID;
-  messages::BoundaryServices boundary;
-  boundary.randomUUID=inputs_.messages->randomUUID;
-  boundary.nowISO=inputs_.messages->nowISO;
-  boundary.feature=sync.feature;
-  sync.getMessagesAfterCompactBoundary=[boundary](const Json& messages)mutable{
-    return messages::getMessagesAfterCompactBoundary(messages,false,boundary);
+  sync.getMessagesAfterCompactBoundary=[](Json messages){
+    return messages::getMessagesAfterCompactBoundary(std::move(messages));
   };
   require(inputs_.recordContentReplacement,"content replacement transcript writer");
   sync.recordContentReplacement=inputs_.recordContentReplacement;
@@ -106,13 +90,15 @@ void Engine::bindSetup(){
     event_loop::Deferred<Json> result(*owner);
     // Without replacement state the budget returns its input unchanged; skip
     // copying the conversation into message references and back.
-    if(!state){result.resolve(messages);return result;}
-    auto pending=gadget_results::applyGadgetResultBudget(*owner,budget,
-      gadget_results::makeMessageArray(messages),state,persist,
+    if(!state){result.resolve(query::unchangedMessages());return result;}
+    auto input=gadget_results::makeMessageArray(messages);
+    auto pending=gadget_results::applyGadgetResultBudget(*owner,budget,input,state,persist,
       std::unordered_set<std::string>(unlimited.begin(),unlimited.end()));
-    pending.then([result](const gadget_results::MessageArray* value,
+    // The budget hands back the array it was given when it replaced nothing.
+    pending.then([result,input](const gadget_results::MessageArray* value,
         const std::exception_ptr& error){
       if(error)result.reject(error);
+      else if(*value==input)result.resolve(query::unchangedMessages());
       else result.resolve(gadget_results::snapshotMessages(*value));
     });return result;
   };
@@ -124,6 +110,7 @@ void Engine::bindSetup(){
   sync.appendSystemContext=inputs_.appendSystemContext;
   async.autocompact=inputs_.autocompact;
   async.autocompactIndigenous=inputs_.autocompactIndigenous;
+  async.autocompactWouldRun=inputs_.autocompactWouldRun;
   sync.makeIndigenousStashSafeParams=bats::makeStashSafeSnapshot;
   sync.buildPostCompactMessages=compaction::buildPostCompactMessages;
   sync.getAppState=inputs_.getAppState;
@@ -140,11 +127,6 @@ void Engine::bindSetup(){
     return autoCompactDependencies(config,enabled?enabled():true,
       name,model.get(),settings?settings():Json::object());
   };
-  sync.isAutoCompactEnabled=[policy,fallback=inputs_.config.model]{
-    return batbox::isAutoCompactEnabled(policy(fallback));
-  };
-  sync.isReactiveCompactEnabled=[]{return false;};
-  sync.isContextCollapseEnabled=[]{return false;};
   require(inputs_.tokenCount,"token estimator");
   require(inputs_.finalContextTokens,"final context token accounting");
   sync.tokenCountWithEstimation=inputs_.tokenCount;
@@ -161,11 +143,9 @@ void Engine::bindSetup(){
 }
 void Engine::bindModel(){
   auto& async=services_->model;auto& sync=async.sync;
-  sync.feature=services_->setup.sync.feature;
   sync.getAppState=inputs_.getAppState;
   require(inputs_.prependUserContext,"user context");
   sync.prependUserContext=inputs_.prependUserContext;
-  sync.normalizeMessagesForAPI=inputs_.normalize;
   sync.createUserMessage=[messages=inputs_.messages](const Json& args){
     return messages::createUserMessage(args,*messages);
   };
@@ -174,20 +154,14 @@ void Engine::bindModel(){
   // Actual API and decoder errors remain in the model/retry pipeline. Media
   // resize recovery is enabled only when its application provider is bound.
   sync.isImageSizeOrResizeError=[](const std::exception&){return false;};
-  async.callModel=[model=inputs_.model](const query::ModelRequest& request,
-      const std::function<void()>& fallback){return model->makeCursor(request,fallback);};
+  async.callModel=[model=inputs_.model](query::ModelRequest request,
+      const std::function<void()>& fallback){return model->makeCursor(std::move(request),fallback);};
   async.queryCheckpoint=inputs_.checkpoint;
   async.logError=inputs_.logError;async.logInternalError=inputs_.logError;
 }
 void Engine::bindCompletion(){
   auto completion=inputs_.completion;
-  completion.sync.feature=services_->setup.sync.feature;
   completion.sync.createUserMessage=services_->model.sync.createUserMessage;
-  completion.sync.finalContextTokensFromLastResponse=inputs_.finalContextTokens;
-  completion.sync.buildPostCompactMessages=compaction::buildPostCompactMessages;
-  completion.sync.makeIndigenousStashSafeParams=bats::makeStashSafeSnapshot;
-  completion.reactiveCompactAvailable=[]{return false;};
-  completion.contextCollapseAvailable=[]{return false;};
   completion.handleStopHooks=[owner=&inputs_.owner,hooks=inputs_.stopHooks](
       const Json& messages,const Json& assistants,const query::Params& params,
       const execution::Context& context,std::optional<bool> active){
@@ -198,7 +172,6 @@ void Engine::bindCompletion(){
 void Engine::bindGadgets(){
   auto gadgets=inputs_.gadgetTurn;
   gadgets.queryCheckpoint=inputs_.checkpoint;
-  gadgets.sync.feature=services_->setup.sync.feature;
   gadgets.sync.executionServices=inputs_.execution.get();
   gadgets.sync.normalizeMessagesForAPI=inputs_.normalize;
   require(gadgets.sync.getCommandsByMaxPriority,"queued command selection");

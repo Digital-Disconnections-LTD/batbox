@@ -28,7 +28,6 @@ Services indigenousServices(std::shared_ptr<intl::Stash> stash){
     result->test=[regex](const std::string& text){return regex->search(value::utf16CodeUnits(text),0);};
     return result;
   };
-  services.resolveBunStringWidth=[](){return BunWidth{};};
   const auto ansi=std::make_shared<glob::Regex16>(pcrePattern(data::ansiPattern()));
   services.stripAnsi=[ansi](const std::string& text){
     return value::fromUtf16(ansi->replace(value::utf16CodeUnits(text),

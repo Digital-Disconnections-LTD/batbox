@@ -1,0 +1,15 @@
+--- a/src/ftxui/component/app.cpp
++++ b/src/ftxui/component/app.cpp
+@@ -698,6 +698,12 @@ void App::Internal::Install() {
+     enable({static_cast<DECMode>(2004)});
+   }
+ 
++  // Focus in and out reports (ESC [ I, ESC [ O) for the same raw-input owner,
++  // on the same mode stack so suspend, editors and shutdown turn them off.
++  if (raw_input_callback_) {
++    enable({static_cast<DECMode>(1004)});
++  }
++
+   // After installing the new configuration, flush it to the terminal to
+   // ensure it is fully applied:
+   TerminalFlush();

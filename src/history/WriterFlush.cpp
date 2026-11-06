@@ -126,10 +126,4 @@ event_loop::Deferred<event_loop::Unit> flushPoetry(
   }catch(...){after(std::current_exception());}
   return result;
 }
-event_loop::Deferred<event_loop::Unit> HistoryWriter::immediateFlushHistory(){
-  return immediateFlush(core_);
-}
-event_loop::Deferred<event_loop::Unit> HistoryWriter::flushPoetryHistory(int retries){
-  return flushPoetry(core_,retries);
-}
 }

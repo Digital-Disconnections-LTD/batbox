@@ -22,7 +22,6 @@ std::optional<URLParts> parseURL(const std::string& url){
   return URLParts{scheme,host,field(CURLUPART_PORT),
     field(CURLUPART_PATH),field(CURLUPART_USER),field(CURLUPART_PASSWORD)};
 }
-std::string stripWww(const std::string& host){return host.rfind("www.",0)==0?host.substr(4):host;}
 } // namespace
 
 bool validateURL(const std::string& url){
@@ -37,14 +36,6 @@ std::optional<std::string> hostnameFromURL(const std::string& url){
   const auto parsed=parseURL(url);
   if(!parsed||parsed->host.empty())return std::nullopt;
   return parsed->host;
-}
-
-bool isPermittedRedirect(const std::string& originalUrl,const std::string& redirectUrl){
-  const auto original=parseURL(originalUrl),redirect=parseURL(redirectUrl);
-  if(!original||!redirect)return false;
-  if(original->scheme!=redirect->scheme||original->port!=redirect->port)return false;
-  if(!redirect->username.empty()||!redirect->password.empty())return false;
-  return stripWww(original->host)==stripWww(redirect->host);
 }
 
 bool isPreapprovedHost(const std::string& hostname,const std::string& pathname,

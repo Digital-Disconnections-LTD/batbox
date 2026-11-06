@@ -8,7 +8,8 @@ namespace batbox::interactive::cards_system {
 
 APIErrorCard APIErrorState::render(const APIErrorInput& input) const {
   APIErrorCard card;
-  card.visible = !(input.retryAttempt < 4);
+  // Local and OpenAI-style endpoints retry at most twice, so every retry shows.
+  card.visible = input.retryAttempt >= 1;
   if (!card.visible) return card;
   const auto units = value::utf16CodeUnits(input.formattedError);
   card.truncated = !input.verbose && units.size() > 1000;

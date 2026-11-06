@@ -1,6 +1,7 @@
 #include "terminal_ftxui/PresentationView.hpp"
 #include "interactive/TranscriptRows.hpp"
 #include "interactive/gadget_views/GadgetViewModel.hpp"
+#include "interactive/cards/UserTextProjection.hpp"
 #include "runtime/Encoding.hpp"
 #include "runtime/JsonValue.hpp"
 #include "terminal_ftxui/StyleProjection.hpp"
@@ -24,6 +25,7 @@ std::string prefix(Kind kind) {
     case Kind::Progress: return "· ";
     case Kind::System: return "· ";
     case Kind::Error: return "✗ ";
+    case Kind::Queued: return "";
   }
   return "  ";
 }
@@ -69,14 +71,12 @@ void appendChunk(std::vector<VisualLine>& lines, std::string_view chunk,
   }
 }
 
-std::vector<VisualLine> wrap(std::string_view text, std::string_view firstPrefix,
-                             std::size_t width, Kind kind, bool selected = false) {
-  std::vector<VisualLine> lines;
-  nextLine(lines, kind, selected);
+// Continues `lines` with `text`. Wrapping A and then B gives the lines of
+// A + B whenever no grapheme spans the join (see safeJoin).
+void process(std::vector<VisualLine>& lines, std::string_view text,
+             std::size_t width, Kind kind, bool selected = false) {
   // Newlines form visible rows; tabs use the terminal's eight-column
   // stops. FTXUI's glyph conversion handles combining and fullwidth cells.
-  const std::string combined = std::string(firstPrefix) + std::string(text);
-  text = combined;
   std::size_t start = 0;
   while (start <= text.size()) {
     const auto next = text.find_first_of("\n\t", start);
@@ -93,7 +93,26 @@ std::vector<VisualLine> wrap(std::string_view text, std::string_view firstPrefix
     }
     start = next + 1;
   }
+}
+
+std::vector<VisualLine> wrap(std::string_view text, std::string_view firstPrefix,
+                             std::size_t width, Kind kind, bool selected = false) {
+  std::vector<VisualLine> lines;
+  nextLine(lines, kind, selected);
+  process(lines, std::string(firstPrefix) + std::string(text), width, kind, selected);
   return lines;
+}
+
+// No grapheme spans the join after `index` bytes: it follows a newline, or
+// sits between two ASCII bytes other than CR LF. The end of the text is a
+// join only after a newline, since more text may follow.
+bool safeJoin(std::string_view text, std::size_t index) {
+  if (index == 0) return true;
+  const auto before = static_cast<unsigned char>(text[index - 1]);
+  if (before == '\n') return true;
+  if (index >= text.size()) return false;
+  const auto after = static_cast<unsigned char>(text[index]);
+  return before < 0x80 && after < 0x80 && !(before == '\r' && after == '\n');
 }
 
 // Gadget output can be a whole file; the inline view keeps the first rows.
@@ -168,19 +187,94 @@ std::vector<VisualLine> wrapTranscriptRow(const interactive::TranscriptRow& row,
 
 const std::vector<VisualLine>& TranscriptLineCache::lines(
     const interactive::TranscriptRow& row, std::size_t width) {
+  auto& entry = refresh(row, width);
+  if (entry.lines.empty() && entry.count) entry.lines = wrapTranscriptRow(row, width);
+  return entry.lines;
+}
+
+std::size_t TranscriptLineCache::lineCount(const interactive::TranscriptRow& row,
+                                           std::size_t width) {
+  return refresh(row, width).count;
+}
+
+TranscriptLineCache::Entry& TranscriptLineCache::refresh(
+    const interactive::TranscriptRow& row, std::size_t width) {
   auto& entry = entries_[row.scrollbackId];
   if (!entry.valid || entry.used != generation_) ++touched_;
+  const bool same = row.revision ? entry.revision == row.revision :
+      entry.revision == 0 && entry.text == row.text;
   if (!entry.valid || entry.kind != row.kind || entry.transient != row.transient ||
-      entry.width != width || entry.text != row.text) {
-    entry.text = row.text;
+      entry.width != width || !same) {
+    entry.revision = row.revision;
+    // A revision identifies the text; keep a copy only when there is none.
+    if (row.revision) entry.text.clear();
+    else entry.text = row.text;
     entry.kind = row.kind;
     entry.transient = row.transient;
     entry.width = width;
     entry.lines = wrapTranscriptRow(row, width);
+    entry.count = entry.lines.size();
     entry.valid = true;
+    entry.committed = false;
   }
   entry.used = generation_;
-  return entry.lines;
+  return entry;
+}
+
+bool TranscriptLineCache::committed(const interactive::TranscriptRow& row) const {
+  const auto found = entries_.find(row.scrollbackId);
+  return found != entries_.end() && found->second.valid && found->second.committed;
+}
+
+void TranscriptLineCache::markCommitted(const interactive::TranscriptRow& row) {
+  const auto found = entries_.find(row.scrollbackId);
+  if (found == entries_.end() || !found->second.valid) return;
+  found->second.committed = true;
+  std::vector<VisualLine>().swap(found->second.lines);
+}
+
+TranscriptLineCache::Growing TranscriptLineCache::growing(
+    const std::string& key, Kind kind, std::string_view lead, std::string_view text,
+    std::size_t width) {
+  auto& entry = growing_[key];
+  entry.used = generation_;
+  const bool extends = !entry.lines.empty() && entry.kind == kind &&
+      entry.width == width && entry.lead == lead && text.size() >= entry.wrapped &&
+      text.compare(0, entry.wrapped, entry.source) == 0;
+  if (!extends) {
+    entry.lead = lead;
+    entry.source.clear();
+    entry.wrapped = 0;
+    entry.kind = kind;
+    entry.width = width;
+    entry.lines.clear();
+    nextLine(entry.lines, kind);
+  }
+  // The row prefix and the lead are wrapped with the first text so that a
+  // grapheme starting the text joins them as it would in the whole row.
+  const auto rowPrefix = prefix(kind) + std::string(lead);
+  const auto wrapInto = [&](std::vector<VisualLine>& lines, std::size_t from,
+                            std::size_t to) {
+    const auto first = lines.size() - 1;
+    const auto piece = text.substr(from, to - from);
+    if (from == 0) process(lines, value::encodeUtf8(rowPrefix + std::string(piece)), width, kind);
+    else process(lines, value::encodeUtf8(piece), width, kind);
+    for (auto i = first; i < lines.size(); ++i) lines[i].transient = true;
+  };
+  auto join = text.size();
+  while (join > entry.wrapped && !safeJoin(text, join)) --join;
+  if (join > entry.wrapped) {
+    wrapInto(entry.lines, entry.wrapped, join);
+    entry.source.append(text.substr(entry.wrapped, join - entry.wrapped));
+    entry.wrapped = join;
+  }
+  // The rest may still join the next fragment; wrap it on a copy of the
+  // last line so the kept lines stay as they are.
+  if (entry.wrapped == text.size() && entry.wrapped > 0)
+    return {&entry.lines, entry.lines.size(), nullptr};
+  entry.tail.assign(1, entry.lines.back());
+  wrapInto(entry.tail, entry.wrapped, text.size());
+  return {&entry.lines, entry.lines.size() - 1, &entry.tail};
 }
 
 void TranscriptLineCache::sweep() {
@@ -190,20 +284,9 @@ void TranscriptLineCache::sweep() {
       else ++it;
     }
   }
+  std::erase_if(growing_, [&](const auto& item) {return item.second.used != generation_;});
   ++generation_;
   touched_ = 0;
-}
-
-std::vector<VisualLine> projectTranscriptLines(
-    const interactive::PresentationState& state, int columns) {
-  if (columns <= 0) throw ProjectionError("Positive FTXUI viewport required");
-  std::vector<VisualLine> body;
-  for (const auto& row : state.transcriptRows) {
-    auto lines = wrapTranscriptRow(row, static_cast<std::size_t>(columns));
-    body.insert(body.end(), std::make_move_iterator(lines.begin()),
-                std::make_move_iterator(lines.end()));
-  }
-  return body;
 }
 
 std::vector<VisualLine> projectCopyLines(
@@ -220,46 +303,90 @@ std::vector<VisualLine> projectCopyLines(
   return body;
 }
 
-PresentationLayout layoutPresentation(const interactive::PresentationState& state,
-                                      int columns, int rows,
-                                      const std::unordered_set<std::string>* excluded) {
-  return layoutPresentation(state, columns, rows, excluded, nullptr);
-}
+namespace {
+// Lines of the body, as runs of consecutive lines in the cache or in rows
+// wrapped for this call; nothing is copied until the visible slice is known.
+struct Span {
+  const VisualLine* first = nullptr;
+  std::size_t count = 0;
+};
 
-PresentationLayout layoutPresentation(const interactive::PresentationState& state,
-                                      int columns, int rows,
-                                      const std::unordered_set<std::string>* excluded,
-                                      TranscriptLineCache* cache) {
+PresentationLayout layoutBody(const interactive::PresentationState& state,
+                              int columns, int rows,
+                              const std::unordered_set<std::string>* excluded,
+                              TranscriptLineCache* cache, bool withLines) {
   if (columns <= 0 || rows <= 0)
     throw ProjectionError("Positive FTXUI viewport required");
   const auto width = static_cast<std::size_t>(columns);
   const auto height = static_cast<std::size_t>(rows);
-  // Only the visible slice is copied; the rest of the body is referenced in
-  // place, in the cache or in the rows wrapped for this call.
   std::deque<std::vector<VisualLine>> owned;
-  std::vector<const VisualLine*> body;
-  const auto take = [&](const std::vector<VisualLine>& lines) {
-    for (const auto& line : lines)
-      if (!excluded || line.id.empty() || !excluded->contains(line.id))
-        body.push_back(&line);
+  std::vector<Span> body;
+  std::size_t bodyLines = 0;
+  const auto add = [&](const VisualLine* first, std::size_t count) {
+    if (!count) return;
+    if (!body.empty() && body.back().first + body.back().count == first)
+      body.back().count += count;
+    else body.push_back({first, count});
+    bodyLines += count;
+  };
+  const auto take = [&](const std::vector<VisualLine>& lines, std::size_t count) {
+    if (!excluded) {add(lines.data(), count); return;}
+    for (std::size_t i = 0; i < count; ++i)
+      if (lines[i].id.empty() || !excluded->contains(lines[i].id)) add(&lines[i], 1);
+  };
+  const auto takeAll = [&](const std::vector<VisualLine>& lines) {take(lines, lines.size());};
+  const auto takeGrowing = [&](const TranscriptLineCache::Growing& lines) {
+    take(*lines.head, lines.headCount);
+    if (lines.tail) takeAll(*lines.tail);
   };
   for (const auto& row : state.transcriptRows) {
-    if (cache && !row.scrollbackId.empty()) take(cache->lines(row, width));
-    else take(owned.emplace_back(wrapTranscriptRow(row, width)));
+    if (cache && !row.scrollbackId.empty()) {
+      // The excluded set is the committed set kept beside the cache.
+      if (cache->committed(row) && (excluded || !withLines)) {
+        const auto count = cache->lineCount(row, width);
+        if (!excluded) bodyLines += count;
+        continue;
+      }
+      takeAll(cache->lines(row, width));
+    } else takeAll(owned.emplace_back(wrapTranscriptRow(row, width)));
   }
   if (cache) cache->sweep();
-  if (const auto preview = interactive::visibleStreamingText(state))
-    take(owned.emplace_back(wrapTranscriptRow(
-        {Kind::Assistant, "", *preview, true, {}}, width)));
+  if (const auto preview = interactive::visibleStreamingTextView(state)) {
+    if (cache) takeGrowing(cache->growing("preview", Kind::Assistant, {}, *preview, width));
+    else takeAll(owned.emplace_back(wrapTranscriptRow(
+        {Kind::Assistant, "", std::string(*preview), true, {}}, width)));
+  }
   for (const auto& gadget : state.streamingGadgetUses) {
     std::string text = gadget.contentBlock.is_object() &&
         gadget.contentBlock.contains("name") &&
         gadget.contentBlock["name"].is_string() ?
         gadget.contentBlock["name"].get<std::string>() : "Gadget";
-    if (!gadget.unparsedGadgetInput.empty())
+    if (!gadget.unparsedGadgetInput.empty()) {
+      // The partial input only grows; wrap the name and the new fragments.
+      if (cache) {
+        text += " ";
+        takeGrowing(cache->growing("gadget:" + gadget.index.dump(), Kind::Gadget,
+            text, gadget.unparsedGadgetInput, width));
+        continue;
+      }
       text += " " + gadget.unparsedGadgetInput;
-    take(owned.emplace_back(wrapTranscriptRow(
+    }
+    takeAll(owned.emplace_back(wrapTranscriptRow(
         {Kind::Gadget, "", std::move(text), true, {}}, width)));
+  }
+  // Poetry sent during the turn sits under the live rows, just above the
+  // status line. It has no scrollback id, so it is never committed while
+  // queued; its message row is committed once delivered.
+  for (const auto& queued : state.queuedInputs) {
+    if (queued.delivering) {
+      takeAll(owned.emplace_back(wrapTranscriptRow(
+          {Kind::User, "", queued.text, true, {}}, width)));
+      continue;
+    }
+    takeAll(owned.emplace_back(wrapTranscriptRow(
+        {Kind::Queued, "", interactive::queuedInputMarker(queued) + " " +
+         interactive::cards::queuedPoetryText(queued.text) + "  (" +
+         interactive::queuedInputLabels(queued).front() + ")", true, {}}, width)));
   }
 
   const bool showInput = !state.modal || !state.modal->hidePoetry;
@@ -275,16 +402,23 @@ PresentationLayout layoutPresentation(const interactive::PresentationState& stat
       std::min(fullModal.size(), std::min<std::size_t>(height / 2 + 1,
           height - statusHeight - inputHeight)) : 0;
   const std::size_t bodyHeight = height - statusHeight - inputHeight - modalHeight;
-  const std::size_t maxTop = body.size() > bodyHeight ? body.size() - bodyHeight : 0;
+  const std::size_t maxTop = bodyLines > bodyHeight ? bodyLines - bodyHeight : 0;
   const std::size_t top = state.viewport.follow ? maxTop :
       std::min(state.viewport.topRow, maxTop);
 
   PresentationLayout layout;
-  layout.transcriptRowCount = body.size();
+  layout.transcriptRowCount = bodyLines;
   layout.bodyHeight = bodyHeight;
   layout.topRow = top;
-  for (std::size_t i = top; i < std::min(body.size(), top + bodyHeight); ++i)
-    layout.visibleLines.push_back(*body[i]);
+  if (!withLines) return layout;
+  std::size_t index = 0;
+  const auto end = std::min(bodyLines, top + bodyHeight);
+  for (const auto& span : body) {
+    if (index >= end) break;
+    if (index + span.count <= top) {index += span.count; continue;}
+    for (std::size_t i = 0; i < span.count && index < end; ++i, ++index)
+      if (index >= top) layout.visibleLines.push_back(span.first[i]);
+  }
   while (layout.visibleLines.size() < bodyHeight)
     layout.visibleLines.push_back({Kind::System, {}, false, {}, false});
   if (!statusText.empty() && statusHeight) {
@@ -321,5 +455,30 @@ PresentationLayout layoutPresentation(const interactive::PresentationState& stat
     }
   }
   return layout;
+}
+} // namespace
+
+PresentationLayout layoutPresentation(const interactive::PresentationState& state,
+                                      int columns, int rows,
+                                      const std::unordered_set<std::string>* excluded) {
+  return layoutBody(state, columns, rows, excluded, nullptr, true);
+}
+
+PresentationLayout layoutPresentation(const interactive::PresentationState& state,
+                                      int columns, int rows,
+                                      const std::unordered_set<std::string>* excluded,
+                                      TranscriptLineCache* cache) {
+  return layoutBody(state, columns, rows, excluded, cache, true);
+}
+
+std::size_t layoutTopRow(const interactive::PresentationState& state,
+                         int columns, int rows, TranscriptLineCache& cache) {
+  return layoutBody(state, columns, rows, nullptr, &cache, false).topRow;
+}
+
+PresentationLayout layoutPresentationHeights(const interactive::PresentationState& state,
+                                             int columns, int rows,
+                                             TranscriptLineCache& cache) {
+  return layoutBody(state, columns, rows, nullptr, &cache, false);
 }
 } // namespace batbox::terminal_ftxui

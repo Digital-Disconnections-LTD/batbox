@@ -212,11 +212,16 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
     // Notices and errors come first and stay until they clear.
     if(!status.empty())right.push_back({status,statusTone(status,roles)});
     if(view.presentation.loading){
-      right.push_back({spinnerGlyph(view.activityFrame)+" "+workingVerb(view.streamMode),
+      right.push_back({spinnerGlyph(view.activityFrame)+" "+(view.stopHookStatus.empty()?
+        workingVerb(view.streamMode):view.stopHookStatus),
         roles.spinner,true});
       right.push_back({elapsed(view.workingMs),roles.muted,false,true});
       right.push_back({shortcut(imports,"chat:cancel","Chat","esc")+" to interrupt",
         roles.muted,false,true});
+      const auto& queued=view.presentation.queuedInputs;
+      if(std::any_of(queued.begin(),queued.end(),[](const QueuedInput& input){
+          return !input.delivering;}))
+        right.push_back({"↑ edit queued",roles.muted,false,true});
     }else if(status.empty()){
       if(imports.contextUsage)if(const auto usage=imports.contextUsage()){
         const auto percent=static_cast<int>(std::round(std::clamp(*usage,0.0,1.0)*100));
@@ -227,7 +232,7 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
       if(const auto bats=runningBats(view.backgroundMissions)){
         right.push_back({std::to_string(bats)+(bats==1?" Bat running":" Bats running"),
           roles.brand});
-        right.push_back({"Alt+↓ Bats · Ctrl+T list",roles.muted,false,true});
+        right.push_back({"↓ Bats · Ctrl+T list",roles.muted,false,true});
       }
       right.push_back({shortcut(imports,"app:toggleTranscript","Global","ctrl+o")+
         " transcript",roles.muted,false,true});
@@ -833,6 +838,7 @@ conversation_shell::ChromeProviders makeChromeProviders(ChromeServices imports){
     options.columns=view.columns;options.terminalRows=view.rows;
     options.color=themeColor(imports.theme.currentTheme(),"suggestion");
     options.current=view.batId;options.collapsed=view.missionsCollapsed;
+    options.selected=view.selectedMission;
     if(!imports.nowMillis)return missionFooter(view.backgroundMissions,std::move(options));
     options.nowMs=imports.nowMillis();
     return missionFooterAt(view.backgroundMissions,options);

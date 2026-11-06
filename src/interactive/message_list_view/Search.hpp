@@ -16,7 +16,6 @@ public:
   std::string renderable(const MessageRef& message);
   std::string extract(const MessageRef& message,const MessageLookups& lookups,
     const gadgets::Gadgets& gadgets);
-  void clear();
 private:
   using Stash=std::map<std::weak_ptr<Json>,std::string,
     std::owner_less<std::weak_ptr<Json>>>;

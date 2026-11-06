@@ -6,7 +6,6 @@ namespace {
 template<class T>void need(const T& callback,const char* name){
   if(!callback)throw std::invalid_argument(std::string("Unbound query import: ")+name);
 }
-const Json& field(const Json& object,const char* name){return value::property(object,name);}
 Json concatMessages(const Json& first,const Json& second){
   Json result=first.is_array()?first:Json::array();
   if(second.is_array())for(const Json& message:second)result.push_back(message);
@@ -20,23 +19,19 @@ QuerySuppressedError::QuerySuppressedError(std::exception_ptr disposal,std::exce
 
 Json queryLoop(const Params& params,std::vector<std::string>& consumedCommandUuids,
                EngineServices& services,const Yield& yield){
-  need(yield,"yield");need(services.setup.feature,"feature");
+  need(yield,"yield");
   State state;
   state.messages=params.messages;
   state.gadgetUseContext=params.gadgetUseContext;
   state.maxOutputTokensOverride=params.maxOutputTokensOverride;
-  std::optional<BudgetTracker> budgetTracker;
-  if(services.setup.feature("TOKEN_BUDGET"))
-    budgetTracker=createBudgetTracker(services.completion.budgetDependencies);
   std::optional<double> missionBudgetRemaining;
-  const QueryConfig config=buildQueryConfig(services.config);
   need(services.startRelevantMemoryPrefetch,"startRelevantMemoryPrefetch");
   MemoryPrefetch memoryPrefetch=services.startRelevantMemoryPrefetch(state.messages,state.gadgetUseContext);
   auto body=[&]()->Json{
   while(true){
-    auto prepared=prepareIteration(params,state,config,services.setup,missionBudgetRemaining,yield);
+    auto prepared=prepareIteration(params,state,services.setup,missionBudgetRemaining,yield);
     if(prepared.terminal)return *prepared.terminal;
-    auto modelResult=runModelPass(params,state,prepared,config,missionBudgetRemaining,services.model,yield);
+    auto modelResult=runModelPass(params,state,prepared,missionBudgetRemaining,services.model,yield);
     if(modelResult.terminal)return *modelResult.terminal;
     if(!modelResult.assistantMessages.empty()){
       need(services.executePostSamplingHooks,"executePostSamplingHooks");
@@ -44,20 +39,9 @@ Json queryLoop(const Params& params,std::vector<std::string>& consumedCommandUui
         modelResult.assistantMessages),params,prepared.gadgetUseContext);
     }
     if(prepared.gadgetUseContext.stop.stop_requested()){
-      if(prepared.streamingGadgetExecutor){
-        prepared.streamingGadgetExecutor->getRemainingResults([&](const execution::Update& update){
-          if(update.message)yield(*update.message);
-        });
-      }else{
-        need(services.model.createUserMessage,"createUserMessage");
-        yieldMissingGadgetResultBlocks(modelResult.assistantMessages,"Interrupted by user",
-          services.model.createUserMessage,yield);
-      }
-      if(services.setup.feature("CHICAGO_MCP") &&
-         !value::truthy(field(prepared.gadgetUseContext.data,"agentId")))
-        if(services.gadgetTurn.cleanupComputerUseAfterTurn)try{
-          services.gadgetTurn.cleanupComputerUseAfterTurn(prepared.gadgetUseContext);
-        }catch(...){}
+      need(services.model.createUserMessage,"createUserMessage");
+      yieldMissingGadgetResultBlocks(modelResult.assistantMessages,"Interrupted by user",
+        services.model.createUserMessage,yield);
       need(services.gadgetTurn.currentAbortReason,"currentAbortReason");
       if(services.gadgetTurn.currentAbortReason()!="interrupt"){
         need(services.gadgetTurn.createUserInterruptionMessage,"createUserInterruptionMessage");
@@ -65,16 +49,11 @@ Json queryLoop(const Params& params,std::vector<std::string>& consumedCommandUui
       }
       return Json{{"reason","aborted_streaming"}};
     }
-    if(state.pendingGadgetUseSummary){
-      const Json summary=state.pendingGadgetUseSummary->get();
-      if(value::truthy(summary))yield(summary);
-    }
     CompletionDecision decision;
     if(!modelResult.needsFollowUp)
       decision=completeWithoutGadgets(params,state,prepared,modelResult,
-        missionBudgetRemaining,budgetTracker?&*budgetTracker:nullptr,
         services.completion,yield);
-    else decision=executeGadgetTurn(params,state,prepared,modelResult,config,
+    else decision=executeGadgetTurn(params,state,prepared,modelResult,
       &memoryPrefetch,consumedCommandUuids,services.gadgetTurn,yield);
     if(decision.terminal)return *decision.terminal;
     if(!decision.next)throw std::logic_error("Query iteration returned no transition");

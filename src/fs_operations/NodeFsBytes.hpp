@@ -20,19 +20,8 @@ struct AsyncByteHandle {
 };
 struct NodeFsBytesImports {
   event_loop::Loop* loop=nullptr;
-  std::function<event_loop::Deferred<ByteBuffer>(const std::string&)> readFile;
   std::function<event_loop::Deferred<std::shared_ptr<AsyncByteHandle>>(
     const std::string&,const std::string&)> open;
   std::function<double(const Json&)> toNumber;
-  std::function<std::shared_ptr<ByteBuffer>(double)> allocUnsafe;
-};
-// Read file bytes with an optional byte limit using the filesystem services.
-class NodeFsBytes {
-public:
-  explicit NodeFsBytes(NodeFsBytesImports imports);
-  event_loop::Deferred<ByteBuffer> readFileBytes(
-    const std::string& path,std::optional<Json> maxBytes={})const;
-private:
-  NodeFsBytesImports imports_;
 };
 }

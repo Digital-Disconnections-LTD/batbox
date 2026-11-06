@@ -1,3 +1,4 @@
+#include "process/StandardDescriptors.hpp"
 #include "application_editor/IndigenousProcess.hpp"
 #include "runtime/IndigenousUnicode.hpp"
 #include <algorithm>
@@ -102,24 +103,25 @@ ProcessResult spawn(const std::vector<std::string>& args,bool detached){
   for(const auto& arg:args)argv.push_back(const_cast<char*>(arg.c_str()));
   argv.push_back(nullptr);
   posix_spawn_file_actions_t actions;
-  posix_spawn_file_actions_t* fileActions=nullptr;
   posix_spawnattr_t attributes;
-  posix_spawnattr_t* spawnAttributes=nullptr;
+  if(posix_spawn_file_actions_init(&actions)!=0)
+    return {0,"Could not prepare editor"};
+  if(posix_spawnattr_init(&attributes)!=0){
+    posix_spawn_file_actions_destroy(&actions);
+    return {0,"Could not prepare editor group"};
+  }
+  short flags=0;
   if(detached){
-    if(posix_spawn_file_actions_init(&actions)!=0)
-      return {0,"Could not prepare detached editor"};
-    if(posix_spawnattr_init(&attributes)!=0){
-      posix_spawn_file_actions_destroy(&actions);
-      return {0,"Could not prepare detached editor group"};
-    }
-    posix_spawnattr_setflags(&attributes,POSIX_SPAWN_SETPGROUP);
+    flags|=POSIX_SPAWN_SETPGROUP;
     posix_spawnattr_setpgroup(&attributes,0);
     posix_spawn_file_actions_addopen(&actions,0,"/dev/null",O_RDONLY,0);
     posix_spawn_file_actions_addopen(&actions,1,"/dev/null",O_WRONLY,0);
     posix_spawn_file_actions_addopen(&actions,2,"/dev/null",O_WRONLY,0);
-    fileActions=&actions;
-    spawnAttributes=&attributes;
   }
+  flags|=process::keepOnlyStandardDescriptors(&actions);
+  posix_spawnattr_setflags(&attributes,flags);
+  posix_spawn_file_actions_t* fileActions=&actions;
+  posix_spawnattr_t* spawnAttributes=&attributes;
   pid_t pid=-1;
   const int code=posix_spawnp(&pid,args.front().c_str(),fileActions,spawnAttributes,
     argv.data(),environ);

@@ -102,6 +102,5 @@ std::vector<Token> Tokenizer::flush(){
   auto result=tokenize(tail,state_,buffer_,true,x10Mouse_);
   state_=result.state;buffer_=std::move(result.buffer);return std::move(result.tokens);
 }
-void Tokenizer::reset(){state_=InputState::ground;buffer_.clear();pendingUtf8_.clear();}
 std::string Tokenizer::buffer()const{return value::fromUtf16(buffer_);}
 }

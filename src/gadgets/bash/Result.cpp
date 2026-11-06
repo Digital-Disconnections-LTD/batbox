@@ -31,13 +31,28 @@ std::pair<std::string,bool> preview(const std::string& value,std::size_t maxByte
   const auto cut=newline!=std::u16string::npos&&newline>maxBytes*0.5?newline:maxBytes;
   return {value::fromUtf16(std::u16string_view(units.data(),cut)),true};
 }
-std::string largeMessage(const std::string& path,double originalSize,const std::string& text){
-  const auto [sample,more]=preview(text,2000);
-  return "<persisted-output>\nOutput too large ("+formatting::formatFileSize(originalSize)+
-    "). Full output saved to: "+path+"\n\nPreview (first "+
-    formatting::formatFileSize(2000)+"):\n"+sample+(more?"\n...\n":"\n")+
-    "</persisted-output>";
+// Start the end preview on a line boundary when one falls in its first half.
+std::string_view tailFromLine(std::string_view value){
+  const auto newline=value.find('\n');
+  return newline!=std::string_view::npos&&newline<value.size()/2?value.substr(newline+1):value;
 }
+std::string largeMessage(const std::string& path,double originalSize,const std::string& text,
+  std::string_view tail){
+  const auto [sample,more]=preview(text,2000);
+  std::string message="<persisted-output>\nOutput too large ("+
+    formatting::formatFileSize(originalSize)+"). "+(path.empty()?
+      std::string("The full output could not be saved."):"Full output saved to: "+path)+
+    "\n\nPreview (first "+formatting::formatFileSize(2000)+"):\n"+sample;
+  const auto end=trimEnd(std::string(tailFromLine(tail)));
+  if(value::trim(end).empty())return message+(more?"\n...\n":"\n")+"</persisted-output>";
+  return message+"\n...\n\nEnd of output (last "+
+    formatting::formatFileSize(static_cast<double>(end.size()))+"):\n"+end+
+    "\n</persisted-output>";
+}
+}
+std::string persistedOutputMessage(const std::string& path,double originalSize,
+  const std::string& head,const std::string& tail){
+  return largeMessage(path,originalSize,processStdout(head),tail);
 }
 Json mapGadgetResult(const Json& output,const std::string& gadgetUseID,
   const std::function<std::string(const std::string&)>& getMissionOutputPath,
@@ -51,10 +66,11 @@ Json mapGadgetResult(const Json& output,const std::string& gadgetUseID,
   }
   std::string processed=stdoutText.empty()?stdoutText:processStdout(stdoutText);
   const auto persistedPath=field(output,"persistedOutputPath");
-  if(!persistedPath.empty()){
+  const auto tail=field(output,"persistedOutputTail");
+  if(!persistedPath.empty()||!tail.empty()){
     const double size=output.contains("persistedOutputSize")&&output["persistedOutputSize"].is_number()?
       output["persistedOutputSize"].get<double>():0;
-    processed=largeMessage(persistedPath,size,processed);
+    processed=largeMessage(persistedPath,size,processed,tail);
   }
   const auto stderrText=field(output,"stderr");std::string error=value::trim(stderrText);
   const bool interrupted=flag(output,"interrupted");

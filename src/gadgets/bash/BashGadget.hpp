@@ -28,12 +28,8 @@ struct Services {
   std::function<std::future<Json>(const Json&,const Json&)> checkPermissions;
   std::function<bool(const Json&,bool)> readOnlyAllowed;
   std::function<bool(const std::string&)> commandHasAnyCd;
-  std::function<std::future<std::function<bool(const std::string&)>>(const Json&)> preparePermissionMatcher;
-  std::function<bool(const Json&)> shouldUseSandbox;
-  std::function<std::string(const std::string&,const Json&,const Json&)> sandboxCommand;
-  std::function<std::string()> getSandboxTmpDir;
   std::function<void(const std::string&)> logDebug;
-  std::function<std::string(const std::string&,const std::string&)> annotateSandboxFailures;
+  std::function<std::future<std::function<bool(const std::string&)>>(const Json&)> preparePermissionMatcher;
   std::function<bool(const Json&)> resetCwdIfOutsideProject;
   std::function<Json(const std::string&,const std::string&)> extractHints;
   std::function<void(const Json&)> recordHint;
@@ -57,12 +53,15 @@ struct Services {
   std::function<Json(const Json&,const Json&)> renderError;
   bool monitorGadgetEnabled=false;
   bool backgroundMissionsDisabled=false;
-  bool sandboxIndicatorEnabled=false;
   bool assistantAutoBackgroundEnabled=false;
   std::size_t gadgetSummaryMaxLength=50;
   double assistantBlockingBudgetMs=15000;
   std::string originalCwd;
 };
+// The model-facing text for an output too large to send whole: where it was
+// saved, a preview of its start and, when read, its end.
+std::string persistedOutputMessage(const std::string& path,double originalSize,
+  const std::string& head,const std::string& tail);
 Json mapGadgetResult(const Json& output,const std::string& gadgetUseID,
   const std::function<std::string(const std::string&)>& getMissionOutputPath,
   double assistantBlockingBudgetMs);

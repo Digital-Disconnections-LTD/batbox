@@ -21,12 +21,11 @@ void Run::startAttachments(){
     }else if(field(command,"mode")=="task-notification"&&
              field(command,"agentId")==batId)queuedCommands.push_back(command);
   }
-  Json history=appendMessages(prepared->messagesForQuery,
-    modelResult->assistantMessages);
-  history=appendMessages(history,modelResult->gadgetResults);
+  attachmentHistory=historyThroughGadgetResults(false);
+  attachmentHistoryResults=modelResult->gadgetResults.size();
   need(services.getAttachmentMessages,"getAttachmentMessages");
   attachmentCursor=services.getAttachmentMessages(queuedCommands,updatedContext,
-    history,params.querySource);
+    *attachmentHistory,params.querySource);
   need(attachmentCursor.next,"getAttachmentMessages cursor.next");
   pullAttachment();
 }
@@ -54,7 +53,7 @@ void Run::afterAttachmentYield(){
 void Run::startMemory(){
   if(!memoryPrefetch||memoryPrefetch->consumedOnIteration!=-1||
      !memoryPrefetch->isSettled||!memoryPrefetch->isSettled()){
-    stage=Stage::SkillStart;return;
+    stage=Stage::Commands;return;
   }
   need(services.readMemoryPrefetch,"readMemoryPrefetch");
   auto pending=services.readMemoryPrefetch(*memoryPrefetch);
@@ -89,46 +88,11 @@ void Run::yieldMemory(){
     emit(currentAttachment,Stage::AfterMemoryYield);
   }else{
     memoryPrefetch->consumedOnIteration=state.turnCount-1;
-    stage=Stage::SkillStart;
+    stage=Stage::Commands;
   }
 }
 void Run::afterMemoryYield(){
   modelResult->gadgetResults.push_back(*currentAttachment);
   currentAttachment.reset();stage=Stage::MemoryYield;
-}
-void Run::startSkills(){
-  need(services.sync.feature,"feature");
-  if(!services.sync.feature("EXPERIMENTAL_SKILL_SEARCH")||
-     !value::truthy(prepared->pendingSkillPrefetch)){
-    stage=Stage::Commands;return;
-  }
-  need(services.collectSkillDiscoveryPrefetch,"collectSkillDiscoveryPrefetch");
-  auto pending=services.collectSkillDiscoveryPrefetch(prepared->pendingSkillPrefetch);
-  if(!loop.dispatcher().sameLoop(pending.dispatcher()))
-    throw std::invalid_argument("Async skill prefetch belongs to another event loop");
-  stage=Stage::SkillAwait;
-  auto self=shared_from_this();
-  pending.then([self](const Json* value,const std::exception_ptr& error){
-    if(self->stage==Stage::Done)return;
-    if(error){self->fail(error);return;}
-    try{
-      self->skillAttachments=*value;
-      if(!self->skillAttachments.is_array())
-        throw std::invalid_argument("Skill attachments must be an array");
-      self->attachmentIndex=0;self->stage=Stage::SkillYield;self->pump();
-    }catch(...){self->fail(std::current_exception());}
-  });
-}
-void Run::yieldSkills(){
-  if(attachmentIndex<skillAttachments.size()){
-    need(services.sync.createAttachmentMessage,"createAttachmentMessage");
-    currentAttachment=std::make_shared<Json>(services.sync.createAttachmentMessage(
-      skillAttachments[attachmentIndex++]));
-    emit(currentAttachment,Stage::AfterSkillYield);
-  }else stage=Stage::Commands;
-}
-void Run::afterSkillYield(){
-  modelResult->gadgetResults.push_back(*currentAttachment);
-  currentAttachment.reset();stage=Stage::SkillYield;
 }
 } // namespace batbox::query::async_gadget_turn

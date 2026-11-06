@@ -53,8 +53,6 @@ gadgets::GadgetResult executeRemoteSkill(const std::string& slug,
   }
   const auto& skillPath=loaded.skillPath;
   const auto& content=loaded.content;
-  need(services.recordSkillUsage,"recordSkillUsage");
-  services.recordSkillUsage(commandName);
   if(services.logDebug){
     const auto stash=loaded.stashHit?"true":"false";
     services.logDebug("SkillTool loaded remote skill "+slug+

@@ -14,5 +14,4 @@ struct Services {
 Json readNotebook(const std::string& notebookPath,const Services& services,
                   const std::optional<std::string>& cellId=std::nullopt);
 Json mapNotebookCellsToGadgetResult(const Json& cells,const std::string& gadgetUseID);
-std::optional<double> parseCellId(const std::string& cellId);
 } // namespace batbox::gadgets::files::notebook

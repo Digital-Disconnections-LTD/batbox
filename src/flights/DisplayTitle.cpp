@@ -10,7 +10,7 @@ std::string getLogDisplayTitle(const Json& log,
     display::stripDisplayTagsAllowEmpty(firstPoetry.get<std::string>()):std::string();
   const bool useFirstPoetry=!stripped.empty()&&!autonomous;
   std::string title;
-  for(const auto* key:{"agentName","customTitle","aiTitle","summary"}){
+  for(const auto* key:{"agentName","customTitle","aiTitle"}){
     const auto& value=value::property(log,key);
     if(value::truthy(value)){title=value.get<std::string>();break;}
   }

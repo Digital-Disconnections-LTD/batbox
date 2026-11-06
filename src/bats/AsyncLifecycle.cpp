@@ -90,20 +90,8 @@ void runAsyncBatLifecycle(const AsyncLifecycleParams& params,
       need(imports.completeAsyncBat,"completeAsyncAgent");
       imports.completeAsyncBat(batResult,messageRefs,params.rootSetAppState);
       need(imports.result.extractTextContent,"extractTextContent");
-      std::string finalMessage=imports.result.extractTextContent(
+      const std::string finalMessage=imports.result.extractTextContent(
         field(batResult,"content"),"\n");
-      need(imports.feature,"feature");
-      if(imports.feature("TRANSCRIPT_CLASSIFIER")){
-        need(imports.classifyHandoffIfNeeded,"classifyHandoffIfNeeded");
-        need(params.gadgetUseContext.getAppState,"toolUseContext.getAppState");
-        const auto warning=imports.classifyHandoffIfNeeded(batMessages,
-          params.gadgetUseContext.query.gadgets,
-          field(effectiveBatGetAppState(params.gadgetUseContext)(),"toolPermissionContext"),
-          params.abortOwner?params.abortOwner->get_token():std::stop_token{},
-          params.metadata.batType,
-          field(batResult,"totalToolUseCount").get<int>());
-        if(warning&&!warning->empty())finalMessage=*warning+"\n\n"+finalMessage;
-      }
       need(params.getWorktreeResult,"getWorktreeResult");
       Json worktree=params.getWorktreeResult();
       need(imports.getTokenCountFromTracker,"getTokenCountFromTracker");

@@ -70,10 +70,6 @@ event_loop::Deferred<Json> IndigenousRuntime::requestElicitation(
   canceled.resolve(Json{{"action","cancel"}});return canceled;
 }
 event_loop::Deferred<event_loop::Unit> IndigenousRuntime::start(){return manager_->start();}
-void IndigenousRuntime::setGadgetServices(Services services){
-  if(!inputs_.owner.isOwnerThread())throw std::logic_error("MCP tool services require owner");
-  inputs_.gadgetServices=std::move(services);
-}
 event_loop::Deferred<event_loop::Unit> IndigenousRuntime::shutdown(){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("MCP shutdown requires owner");
   if(stopped_)return *stopped_;

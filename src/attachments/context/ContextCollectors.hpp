@@ -11,10 +11,7 @@
 namespace batbox::attachments::context {
 struct ClientInstruction {std::string serverName,block;};
 struct DeferralConfig {
-  std::string searchGadgetName="ToolSearch",batGadgetName="Agent";
-  std::optional<std::string> briefGadgetName,sendUserFileGadgetName;
-  std::function<bool(const std::string&)> feature;
-  std::function<bool()> forkSubagentEnabled,replBridgeActive;
+  std::string searchGadgetName="ToolSearch";
 };
 bool isDeferredGadget(const gadgets::Gadget& gadget,const DeferralConfig& config);
 bool isGadgetSearchGadgetAvailable(const gadgets::Gadgets& gadgets,
@@ -37,7 +34,6 @@ struct Services {
   std::function<app_state::AppStateRef()> getAppState;
   std::function<Json(const Json&,const Json&,const std::string&)>
     filterDeniedBats;
-  std::function<std::string()> subscriptionType;
   std::function<double(const std::string&)> effectiveContextWindow;
   std::string batGadgetName="Agent",searchGadgetName="ToolSearch";
 };

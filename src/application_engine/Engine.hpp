@@ -7,7 +7,6 @@
 #include "query/AsyncGadgetTurn.hpp"
 #include "query/StopHooks.hpp"
 #include "gadget_results/Budget.hpp"
-#include <set>
 
 namespace batbox::application_engine {
 // The executable binds the imported application features here. The query,
@@ -15,13 +14,10 @@ namespace batbox::application_engine {
 struct Inputs {
   event_loop::Loop& owner;
   application::Config config;
-  std::string flightId;
-  std::function<std::string()> flightIdProvider;
   std::shared_ptr<application_model::LocalModelService> model;
   std::shared_ptr<messages::Services> messages;
   std::shared_ptr<execution::Services> execution;
   gadget_results::BudgetImports budget;
-  std::set<std::string> features;
   std::function<Json(const execution::Context&)> getAppState;
   std::function<bool()> autoCompactEnabled;
   std::function<Json()> compactionSettings;
@@ -37,10 +33,12 @@ struct Inputs {
     const execution::Context&,const std::string&)> microcompact;
   std::function<event_loop::Deferred<Json>(const Json&,
     const execution::Context&,const Json&,const std::string&,
-    const Json&,double)> autocompact;
+    const Json&)> autocompact;
   std::function<event_loop::Deferred<Json>(const Json&,
     const execution::Context&,const std::shared_ptr<bats::StashSafeParams>&,
-    const std::string&,const Json&,double)> autocompactIndigenous;
+    const std::string&,const Json&)> autocompactIndigenous;
+  std::function<bool(const Json&,const execution::Context&,const std::string&,
+    const Json&)> autocompactWouldRun;
   std::function<void(const Json&,const Json&)> recordContentReplacement;
   std::function<double(const Json&)> tokenCount,finalContextTokens;
   std::function<void(const std::string&)> checkpoint;
