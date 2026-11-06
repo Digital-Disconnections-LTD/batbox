@@ -37,7 +37,9 @@ MemoryUsage indigenousMemoryUsage(){
   }
 #endif
 #if defined(__GLIBC__)
-  usage.heapUsed=static_cast<double>(mallinfo2().uordblks);
+  // Blocks of 128 KiB or more are mmapped by glibc and counted in hblkhd.
+  const auto info=mallinfo2();
+  usage.heapUsed=static_cast<double>(info.uordblks+info.hblkhd);
 #elif defined(__APPLE__)
   malloc_statistics_t heap{};
   ::malloc_zone_statistics(nullptr,&heap);
