@@ -58,8 +58,8 @@ struct ModelProfile {
   // Request limits resolved by providers::requestSettings; transport timeouts
   // live in client. nonStreamingTimeoutMs 0 means no limit.
   bool local=false;
-  bool nonStreamingFallback=true;
-  double nonStreamingTimeoutMs=300000;
+  bool nonStreamingFallback=false;
+  double nonStreamingTimeoutMs=0;
   std::optional<std::size_t> maxRetries;
   // anthropic-beta names from the endpoint's "betas" field.
   std::vector<std::string> betas;

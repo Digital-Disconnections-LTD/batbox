@@ -8,7 +8,7 @@ double getNonstreamingFallbackTimeoutMs(const Json& environment) {
   const double override = value::parseInt10(value.is_string() ? value.get<std::string>() : "");
   // 0 means no limit.
   if (std::isfinite(override) && override >= 0) return override;
-  return 300000;
+  return 0;
 }
 
 std::optional<std::string> getPreviousRequestIdFromMessages(const Json& messages) {

@@ -10,8 +10,8 @@ namespace batbox::model {
 
 struct WatchdogSettings {
   bool enabled = false;
-  double timeoutMs = 90000;
-  double warningMs = 45000;
+  double timeoutMs = 0;
+  double warningMs = 0;
 };
 WatchdogSettings watchdogSettings(const Json& environment);
 

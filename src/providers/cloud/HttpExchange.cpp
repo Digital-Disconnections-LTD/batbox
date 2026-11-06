@@ -167,7 +167,14 @@ HttpResult HttpExchange::perform(const HttpRequest& request, std::stop_token sto
   if (state.callbackError) std::rethrow_exception(state.callbackError);
   if (stop.stop_requested()) throw transport::APIUserAbortError();
   if (state.idleTimeout) throw transport::APIConnectionTimeoutError("Stream idle timeout - no chunks received");
-  if (code == CURLE_OPERATION_TIMEDOUT) throw transport::APIConnectionTimeoutError();
+  if (code == CURLE_OPERATION_TIMEDOUT) {
+    // Not connected within connect_timeout_ms: nothing reached the server,
+    // so this one may be retried; a timeout after that is not.
+    curl_off_t sent = 0;
+    curl_easy_getinfo(curl,CURLINFO_PRETRANSFER_TIME_T,&sent);
+    if (sent == 0) throw transport::APIConnectionError("Connection timed out before the request was sent","ETIMEDOUT");
+    throw transport::APIConnectionTimeoutError();
+  }
   if (code != CURLE_OK) throw transport::APIConnectionError(curl_easy_strerror(code),connectionCode(curl));
   return std::move(state.result);
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Endpoint request limits over loopback HTTP: no whole-prompt resend for a
-local endpoint, the fallback where it is allowed, inactivity limits and 0."""
+local endpoint, the fallback where it is allowed, inactivity limits and 0,
+and no resend of a request that timed out."""
 import argparse,json,subprocess,threading,time
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 
@@ -26,6 +27,9 @@ class Handler(BaseHTTPRequestHandler):
         body=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         with self.server.lock:
             self.server.requests.append({'path':self.path,'stream':body.get('stream')})
+        if self.path.startswith('/slow-headers'):
+            time.sleep(1.2)
+            self.close_connection=True;return
         if not body.get('stream'):
             reply=json.dumps({'type':'message','id':'msg-plain','model':'limits-model',
                 'role':'assistant','content':[{'type':'text','text':'plain reply'}],
@@ -68,6 +72,8 @@ def main():
         assert result['brokenRemote']=='plain reply',result
         assert sent('/slow-idle')==[True],('max_retries 0 still retried',sent('/slow-idle'))
         assert result['slowIdle']=='error',result
+        assert sent('/slow-headers')==[True],('a timed-out request was resent',sent('/slow-headers'))
+        assert result['slowHeaders']=='error',result
         assert sent('/slow-unlimited')==[True],sent('/slow-unlimited')
         assert result['slowUnlimited']=='hello',result
         print('local endpoints keep the stream, fallback where allowed, inactivity and 0 limits held')

@@ -10,8 +10,8 @@ WatchdogSettings watchdogSettings(const Json& environment) {
   settings.enabled = isEnvTruthy(value::property(environment, "BATBOX_ENABLE_STREAM_WATCHDOG"));
   const Json& value = value::property(environment, "BATBOX_STREAM_IDLE_TIMEOUT_MS");
   const double parsed = value::parseInt10(value.is_string() ? value.get<std::string>() : "");
-  settings.timeoutMs = std::isfinite(parsed) && parsed >= 0 ? parsed : 90000;
-  // 0 means disabled, like the transport's stream idle limit.
+  // Runs only when enabled with an explicit duration; there is no default.
+  settings.timeoutMs = std::isfinite(parsed) && parsed > 0 ? parsed : 0;
   if (settings.timeoutMs == 0) settings.enabled = false;
   settings.warningMs = settings.timeoutMs / 2;
   return settings;

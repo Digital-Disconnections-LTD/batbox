@@ -86,6 +86,7 @@ bool shouldRetry(const ErrorRecord& error, Dependencies& deps) {
     if (error.status==401 && deps.clearApiKeyHelperStash) deps.clearApiKeyHelperStash();
     return false;
   }
+  if (error.timedOut) return false;
   if (internal::contains(error.message,"\"type\":\"overloaded_error\"")) return true;
   if (parseMaxTokensContextOverflowError(error,deps)) return true;
   const auto retryHeader=internal::headerGet(error.headers,deps.wire.shouldRetry);

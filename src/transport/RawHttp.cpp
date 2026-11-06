@@ -199,7 +199,14 @@ RawResponse HttpSession::perform(const RawRequest& request,
   if (state.callbackError) std::rethrow_exception(state.callbackError);
   if (stop.stop_requested()) throw APIUserAbortError();
   if (state.idleTimeout) throw APIConnectionTimeoutError("Stream idle timeout - no chunks received");
-  if (result == CURLE_OPERATION_TIMEDOUT) throw APIConnectionTimeoutError();
+  if (result == CURLE_OPERATION_TIMEDOUT) {
+    // Not connected within connect_timeout_ms: nothing reached the server,
+    // so this one may be retried; a timeout after that is not.
+    curl_off_t sent = 0;
+    curl_easy_getinfo(http,CURLINFO_PRETRANSFER_TIME_T,&sent);
+    if (sent == 0) throw APIConnectionError("Connection timed out before the request was sent","ETIMEDOUT");
+    throw APIConnectionTimeoutError();
+  }
   if (result != CURLE_OK) throw APIConnectionError(curl_easy_strerror(result),connectionCode(http));
   if (state.response.status >= 300 && state.response.status < 400) {
     const auto base = joinUrl(config_.baseUrl,"");

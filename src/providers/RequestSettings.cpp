@@ -78,15 +78,13 @@ RequestSettings requestSettings(const application::InferenceProfile& profile){
   const auto pick=[](const std::optional<std::size_t>& value,milliseconds fallback){
     return value?milliseconds(static_cast<milliseconds::rep>(*value)):fallback;
   };
-  // Local streams are bounded by inactivity alone: a long prompt and a slow
-  // generation can legitimately run for hours.
-  settings.requestTimeout=pick(limits.requestTimeoutMs,
-    settings.local?milliseconds(0):std::chrono::hours(4));
-  settings.streamIdleTimeout=pick(limits.streamIdleTimeoutMs,std::chrono::hours(2));
-  settings.connectTimeout=pick(limits.connectTimeoutMs,std::chrono::seconds(10));
-  settings.nonStreamingFallback=limits.nonStreamingFallback.value_or(!settings.local);
-  settings.nonStreamingTimeout=pick(limits.nonStreamingTimeoutMs,
-    settings.local?milliseconds(0):std::chrono::minutes(5));
+  // The same for every endpoint, local or not: a long prompt on a slow model
+  // can take hours to read and summarize, so only hours of silence end it.
+  settings.requestTimeout=pick(limits.requestTimeoutMs,kDefaultRequestTimeout);
+  settings.streamIdleTimeout=pick(limits.streamIdleTimeoutMs,kDefaultStreamIdleTimeout);
+  settings.connectTimeout=pick(limits.connectTimeoutMs,kDefaultConnectTimeout);
+  settings.nonStreamingFallback=limits.nonStreamingFallback.value_or(false);
+  settings.nonStreamingTimeout=pick(limits.nonStreamingTimeoutMs,kDefaultNonStreamingTimeout);
   settings.maxRetries=limits.maxRetries;
   return settings;
 }

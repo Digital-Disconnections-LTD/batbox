@@ -17,6 +17,9 @@ struct ErrorRecord {
   std::string message;
   std::string code;
   std::string name = "Error";
+  // The request reached the server and then ran out of time (stream idle or
+  // total limit). Resending it would only repeat that wait.
+  bool timedOut = false;
   std::shared_ptr<ErrorRecord> cause;
   bool isAPIError() const { return kind == Kind::Api || kind == Kind::Connection || kind == Kind::Abort; }
   bool isConnectionError() const { return kind == Kind::Connection; }

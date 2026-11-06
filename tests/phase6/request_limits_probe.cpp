@@ -1,6 +1,7 @@
 #include "application_config/EndpointStore.hpp"
 #include "application_model/LocalModelService.hpp"
 #include "messages/Messages.hpp"
+#include "model/Lifecycle.hpp"
 #include "providers/ModelRequestSettings.hpp"
 #include "query/SimpleQueriesBinding.hpp"
 #include "runtime/Platform.hpp"
@@ -31,19 +32,24 @@ void checkResolution(){
   application::InferenceProfile remote;
   remote.baseUrl="https://api.example.com";
   auto settings=providers::requestSettings(remote);
-  require(!settings.local&&settings.nonStreamingFallback&&
-    settings.requestTimeout==std::chrono::hours(4)&&
-    settings.streamIdleTimeout==std::chrono::hours(2)&&
-    settings.connectTimeout==std::chrono::seconds(10)&&
-    settings.nonStreamingTimeout==std::chrono::minutes(5)&&!settings.maxRetries,
-    "Remote endpoint defaults changed");
   application::InferenceProfile local;
   local.baseUrl="http://192.168.1.20:8000";
-  settings=providers::requestSettings(local);
-  require(settings.local&&!settings.nonStreamingFallback&&
-    settings.requestTimeout==milliseconds(0)&&
-    settings.streamIdleTimeout==std::chrono::hours(2)&&
-    settings.nonStreamingTimeout==milliseconds(0),"Local endpoint defaults changed");
+  const auto localSettings=providers::requestSettings(local);
+  require(!settings.local&&localSettings.local,"Local detection changed");
+  // docs/request-limits.md: the same time limits for every endpoint.
+  for(const auto& defaults:{settings,localSettings})
+    require(!defaults.nonStreamingFallback&&
+      defaults.requestTimeout==milliseconds(0)&&
+      defaults.streamIdleTimeout==std::chrono::hours(6)&&
+      defaults.connectTimeout==std::chrono::minutes(2)&&
+      defaults.nonStreamingTimeout==milliseconds(0)&&!defaults.maxRetries,
+      "Endpoint defaults differ from docs/request-limits.md");
+  transport::ClientConfig unset;
+  require(unset.requestTimeout==settings.requestTimeout&&
+    unset.streamIdleTimeout==settings.streamIdleTimeout&&
+    unset.connectTimeout==settings.connectTimeout,"Client defaults differ from endpoint defaults");
+  require(model::watchdogSettings(Json{{"BATBOX_ENABLE_STREAM_WATCHDOG","1"}}).enabled==false,
+    "The model-layer stream watchdog ran without a configured duration");
   application::InferenceProfile preset;
   preset.baseUrl="https://gpu.example.com";preset.preset="vllm";
   require(providers::requestSettings(preset).local,"A local catalog preset was not local");
@@ -114,9 +120,12 @@ int main(int argc,char** argv){
   config.client.baseUrl=base;config.client.messagesPath="/unused";
   const std::vector<std::pair<std::string,application_model::ModelProfile>> profiles{
     {"brokenLocal",limitedProfile("broken-local",base,"/broken-local",Json::object())},
-    {"brokenRemote",limitedProfile("broken-remote",base,"/broken-remote",{{"local",false}})},
+    {"brokenRemote",limitedProfile("broken-remote",base,"/broken-remote",
+      {{"local",false},{"nonstreaming_fallback",true}})},
     {"slowIdle",limitedProfile("slow-idle",base,"/slow-idle",
       {{"stream_idle_timeout_ms",400},{"max_retries",0}})},
+    {"slowHeaders",limitedProfile("slow-headers",base,"/slow-headers",
+      {{"stream_idle_timeout_ms",400}})},
     {"slowUnlimited",limitedProfile("slow-unlimited",base,"/slow-unlimited",
       {{"stream_idle_timeout_ms",0},{"request_timeout_ms",0}})}};
   for(const auto& [name,profile]:profiles)config.profiles.emplace(profile.id,profile);
@@ -141,7 +150,7 @@ int main(int argc,char** argv){
   require(services.disableFallbackFeature&&
     services.environment.at("API_TIMEOUT_MS")=="0","Local fallback settings did not reach the model");
   const auto remote=service->makeQueryServices({},Json{{"model","broken-remote"}});
-  require(!remote.disableFallbackFeature&&remote.environment.at("API_TIMEOUT_MS")=="300000",
+  require(!remote.disableFallbackFeature&&remote.environment.at("API_TIMEOUT_MS")=="0",
     "Remote fallback settings did not reach the model");
   const auto idle=service->makeQueryServices({},Json{{"model","slow-idle"}});
   require(idle.retry.env.at("BATBOX_MAX_RETRIES")=="0","max_retries did not reach the retry policy");

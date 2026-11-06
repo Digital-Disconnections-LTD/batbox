@@ -17,9 +17,10 @@ struct ClientConfig {
   std::string authToken;
   Json headers = Json::object();
   MessagesProtocol protocol;
-  std::chrono::milliseconds requestTimeout = std::chrono::hours(4);
-  std::chrono::milliseconds streamIdleTimeout = std::chrono::hours(2);
-  std::chrono::milliseconds connectTimeout = std::chrono::seconds(10);
+  // The endpoint defaults in providers/RequestSettings.hpp; 0 means no limit.
+  std::chrono::milliseconds requestTimeout{0};
+  std::chrono::milliseconds streamIdleTimeout = std::chrono::hours(6);
+  std::chrono::milliseconds connectTimeout = std::chrono::minutes(2);
   // Per-client transport overrides.
   std::string proxyUrl;
   std::string unixSocketPath;

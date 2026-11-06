@@ -14,6 +14,9 @@ retry::ErrorRecord errorRecordFromException(std::exception_ptr failure) {
   try { if(failure)std::rethrow_exception(failure); }
   catch(const retry::RetryFailure& e){return e.error;}
   catch(const APIUserAbortError& e){return fromAPI(e,retry::ErrorRecord::Kind::Abort);}
+  catch(const APIConnectionTimeoutError& e){
+    auto record=fromAPI(e,retry::ErrorRecord::Kind::Connection);
+    record.timedOut=true;return record;}
   catch(const APIConnectionError& e){return fromAPI(e,retry::ErrorRecord::Kind::Connection);}
   catch(const APIError& e){return fromAPI(e,retry::ErrorRecord::Kind::Api);}
   catch(const std::exception& e){retry::ErrorRecord record;record.message=e.what();return record;}
