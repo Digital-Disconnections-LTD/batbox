@@ -1,8 +1,8 @@
 class Batbox < Formula
   desc "Terminal coding agent for local and cloud model servers"
   homepage "https://github.com/Digital-Disconnections-LTD/batbox"
-  url "https://github.com/Digital-Disconnections-LTD/batbox/archive/refs/tags/v0.1.2.tar.gz"
-  sha256 "e8d277fe6e8c1c1337bde8b0c29b0641d94fc1fc317d3b360593cd02fdb29842"
+  url "https://github.com/Digital-Disconnections-LTD/batbox/archive/refs/tags/v0.1.3.tar.gz"
+  sha256 "fed81e63d3827df15f4ce0cada5357a54a024991d3a5a56e358e0c815554333d"
   license "MIT"
   head "https://github.com/Digital-Disconnections-LTD/batbox.git", branch: "main"
 
