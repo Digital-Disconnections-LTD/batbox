@@ -162,7 +162,19 @@ release page shows a newer one.
 brew install digital-disconnections-ltd/batbox/batbox
 ```
 
-There are no bottles yet, so Homebrew compiles Batbox; give it a few minutes.
+Use the full name, as above. Homebrew 6.0 and later only load formulae from
+someone else's tap once you trust them, and installing by full name trusts this
+one formula and nothing else in the tap. If Homebrew answers with "Refusing to
+load formula … from untrusted tap" (because you tapped first, or because you
+installed before trust arrived and `brew upgrade` now passes Batbox by), trust
+the formula and run your command again:
+
+```sh
+brew trust --formula digital-disconnections-ltd/batbox/batbox
+```
+
+Apple silicon Macs get a prebuilt bottle. On Intel, Homebrew compiles Batbox;
+give it a few minutes.
 
 Prefer the package? It borrows Homebrew's libraries, so add those first. Use
 `macos-arm64` on Apple silicon and `macos-x86_64` on Intel:

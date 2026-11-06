@@ -56,6 +56,12 @@ project tap instead:
 brew install digital-disconnections-ltd/batbox/batbox
 ```
 
+Use the full name. Homebrew 6.0 and later only load formulae from someone else's
+tap once you trust them, and installing by full name trusts just this formula.
+If you tapped first, or installed before trust arrived and now see "Refusing to
+load formula … from untrusted tap", run
+`brew trust --formula digital-disconnections-ltd/batbox/batbox` and try again.
+
 Homebrew lowercases the tap owner's name. Add `--HEAD` to build the latest `main`
 branch. `brew upgrade batbox` picks up new releases, and `batbox --version` shows
 which one you have. If you also used the package installer, remove
