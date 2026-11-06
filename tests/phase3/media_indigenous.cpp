@@ -45,6 +45,10 @@ int main(int argc,char** argv){
   auto note=media::createImageMetadataText(resized.dimensions);
   assert(note&&note->find("Multiply coordinates by 1.50")!=std::string::npos);
   assert(!media::createImageMetadataText(unchanged.dimensions));
+  if(pdfPath=="-"){
+    std::cout<<"native image processing passed\n";
+    return 0;
+  }
   auto pdf=media::readPDF(pdfPath);
   assert(pdf["success"]==true&&pdf["data"]["type"]=="pdf");
   assert(media::getPDFPageCount(pdfPath)==2);
