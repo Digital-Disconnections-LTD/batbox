@@ -7,11 +7,13 @@
 #include "messages/RuntimeMessages.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/Platform.hpp"
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 
 using namespace batbox;
 namespace {
@@ -32,7 +34,13 @@ template<class T>T await(event_loop::Loop& loop,event_loop::Deferred<T> pending)
     if(result)value=*result;
     failure=error;
   });
-  for(int i=0;i<60&&!value&&!failure;++i)loop.runReady();
+  // Settling can wait on a timer (setTimeout(0) is a 1 ms libuv timer), so
+  // run ready work until it settles or a deadline passes.
+  const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+  while(!value&&!failure&&std::chrono::steady_clock::now()<deadline){
+    loop.runReady();
+    if(!value&&!failure)std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
   if(failure)std::rethrow_exception(failure);
   if(!value)throw std::runtime_error("Deferred did not settle");
   return *value;
