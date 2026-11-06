@@ -10,14 +10,14 @@ OpenCode Zen and OpenRouter to a llama.cpp server on your own machine.
 On macOS, [Homebrew](#homebrew-on-macos) is the easy road. Otherwise, download
 the package for your platform from the
 [latest release](https://github.com/Digital-Disconnections-LTD/batbox/releases/latest)
-(replace 0.1.2 with the current version):
+(replace 0.1.3 with the current version):
 
 | Platform | Package |
 | --- | --- |
-| macOS, Apple silicon | `batbox-0.1.2-macos-arm64.tar.gz` |
-| macOS, Intel | `batbox-0.1.2-macos-x86_64.tar.gz` |
-| Linux x86_64 | `batbox-0.1.2-linux-x86_64.tar.gz` |
-| Windows x86_64 | `batbox-0.1.2-windows-x86_64.zip` |
+| macOS, Apple silicon | `batbox-0.1.3-macos-arm64.tar.gz` |
+| macOS, Intel | `batbox-0.1.3-macos-x86_64.tar.gz` |
+| Linux x86_64 | `batbox-0.1.3-linux-x86_64.tar.gz` |
+| Windows x86_64 | `batbox-0.1.3-windows-x86_64.zip` |
 
 `SHA256SUMS` on the same page lets you check the download. The macOS packages
 use Homebrew's libraries and the Linux package uses your system's; the

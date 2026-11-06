@@ -153,7 +153,7 @@ Batbox connects to them. Give their communities some love, too.
 
 Pick your platform, install, then set Batbox up once. Packages live on the
 [latest release](https://github.com/Digital-Disconnections-LTD/batbox/releases/latest).
-The commands below fetch 0.1.2; replace 0.1.2 with the current version if the
+The commands below fetch 0.1.3; replace 0.1.3 with the current version if the
 release page shows a newer one.
 
 **macOS.** Let Homebrew carry the bat:
@@ -181,8 +181,8 @@ Prefer the package? It borrows Homebrew's libraries, so add those first. Use
 
 ```sh
 brew install cmark-gfm curl icu4c@79 libuv openssl@3 pcre2 ripgrep vips yaml-cpp
-curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.2/batbox-0.1.2-macos-arm64.tar.gz
-tar -xzf batbox-0.1.2-macos-arm64.tar.gz
+curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.3/batbox-0.1.3-macos-arm64.tar.gz
+tar -xzf batbox-0.1.3-macos-arm64.tar.gz
 cd batbox-macos-arm64-preview
 bash gadgets/install-macos.sh
 ```
@@ -192,8 +192,8 @@ libraries rather than bundling them, so install those too:
 
 ```sh
 sudo apt install git ripgrep libcmark-gfm-extensions0.29.0.gfm.6 libcurl4t64 libpcre2-16-0 libuv1t64 libvips42t64 libyaml-cpp0.8
-curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.2/batbox-0.1.2-linux-x86_64.tar.gz
-tar -xzf batbox-0.1.2-linux-x86_64.tar.gz
+curl -LO https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.3/batbox-0.1.3-linux-x86_64.tar.gz
+tar -xzf batbox-0.1.3-linux-x86_64.tar.gz
 cd batbox-linux-x86_64-preview
 bash gadgets/install-linux.sh
 ```
@@ -207,7 +207,7 @@ Linux](docs/indigenous-linux.md) has more.
 ```powershell
 winget install Git.Git
 winget install BurntSushi.ripgrep.MSVC
-Invoke-WebRequest https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.2/batbox-0.1.2-windows-x86_64.zip -OutFile batbox.zip
+Invoke-WebRequest https://github.com/Digital-Disconnections-LTD/batbox/releases/download/v0.1.3/batbox-0.1.3-windows-x86_64.zip -OutFile batbox.zip
 Expand-Archive batbox.zip -DestinationPath .
 cd batbox-windows-x86_64-preview
 powershell -ExecutionPolicy Bypass -File .\gadgets\install-windows.ps1
