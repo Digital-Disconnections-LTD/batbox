@@ -184,6 +184,7 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
       imports_.interruptTurn&&imports_.interruptTurn()){
     // Queued poetry comes back to the input rather than running unasked.
     restoreQueued(false);
+    requestRedraw();
     return;
   }
   const bool historySearching=!batConversation_&&historyNavigator_&&

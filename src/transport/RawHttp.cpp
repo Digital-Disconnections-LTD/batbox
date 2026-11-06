@@ -1,5 +1,6 @@
 #include "transport/RawHttp.hpp"
 #include "transport/Messages.hpp"
+#include "transport/Perform.hpp"
 #include <curl/curl.h>
 #include <algorithm>
 #include <cerrno>
@@ -192,7 +193,7 @@ RawResponse HttpSession::perform(const RawRequest& request,
   curl_easy_setopt(http,CURLOPT_NOPROGRESS,0L);
   curl_easy_setopt(http,CURLOPT_XFERINFOFUNCTION,onProgress);
   curl_easy_setopt(http,CURLOPT_XFERINFODATA,&state);
-  const auto result = curl_easy_perform(http);
+  const auto result = performStoppable(http,stop);
   if (state.callbackError) std::rethrow_exception(state.callbackError);
   if (stop.stop_requested()) throw APIUserAbortError();
   if (state.idleTimeout) throw APIConnectionTimeoutError("Stream idle timeout - no chunks received");

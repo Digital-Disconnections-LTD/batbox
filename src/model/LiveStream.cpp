@@ -1,5 +1,6 @@
 #include "runtime/AsyncLaunch.hpp"
 #include "model/LiveStream.hpp"
+#include "transport/Errors.hpp"
 #include <utility>
 
 namespace batbox::model {
@@ -53,14 +54,16 @@ void LiveStream::produce() {
 
 transport::Response LiveStream::open() {
   std::unique_lock lock(mutex_);
-  ready_.wait(lock, [this] { return headersReady_ || done_; });
+  ready_.wait(lock, [this] { return headersReady_ || done_ || aborted_; });
   if (!headersReady_ && failure_) std::rethrow_exception(failure_);
+  if (!headersReady_ && aborted_) throw transport::APIUserAbortError();
   return response_;
 }
 
 std::optional<Json> LiveStream::next() {
   std::unique_lock lock(mutex_);
-  queueChanged_.wait(lock, [this] { return !events_.empty() || done_; });
+  queueChanged_.wait(lock, [this] { return !events_.empty() || done_ || aborted_; });
+  if (aborted_ && !done_) throw transport::APIUserAbortError();
   if (!events_.empty()) {
     Json event = std::move(events_.front());
     events_.pop_front();

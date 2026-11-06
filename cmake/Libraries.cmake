@@ -56,7 +56,7 @@ add_library(batbox_transport
   src/transport/Errors.cpp
   src/transport/SSE.cpp src/transport/Client.cpp)
 target_sources(batbox_transport PRIVATE src/transport/RetryAdapter.cpp
-  src/transport/RawHttp.cpp src/transport/WireClient.cpp
+  src/transport/RawHttp.cpp src/transport/Perform.cpp src/transport/WireClient.cpp
   src/transport/openai_chat/Translate.cpp src/transport/openai_chat/StreamDecoder.cpp
   src/transport/openai_chat/OpenAIChatClient.cpp)
 target_include_directories(batbox_transport PUBLIC src)

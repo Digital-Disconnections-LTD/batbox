@@ -93,6 +93,8 @@ ftxui::Element footer(const ChromeServices& imports,const ViewState& view){
       if(view.batTrail.empty())trail+=" › "+truncateColumns(view.batLabel,28);
       parts.push_back(colored(std::string(parts.empty()?"":" · ")+trail,
         themeColor(theme,"suggestion"))|ftxui::bold);
+      // Esc with an empty input climbs one level; it never interrupts here.
+      if(view.presentation.input.text.empty())parts.push_back(colored(" · Esc back",subtle));
       parts.push_back(colored(" · Alt+↑↓ move · Alt+← home · Ctrl+T list",subtle));
       if(view.batStatus=="completed"||view.batStatus=="killed"||view.batStatus=="failed")
         parts.push_back(colored(" · sending resumes this Bat",subtle));
@@ -212,12 +214,16 @@ ftxui::Element statusRow(const ChromeServices& imports,const ViewState& view){
     // Notices and errors come first and stay until they clear.
     if(!status.empty())right.push_back({status,statusTone(status,roles)});
     if(view.presentation.loading){
-      right.push_back({spinnerGlyph(view.activityFrame)+" "+(view.stopHookStatus.empty()?
+      right.push_back({spinnerGlyph(view.activityFrame)+" "+(view.interrupting?
+        std::string("Interrupting…"):view.stopHookStatus.empty()?
         workingVerb(view.streamMode):view.stopHookStatus),
         roles.spinner,true});
       right.push_back({elapsed(view.workingMs),roles.muted,false,true});
-      right.push_back({shortcut(imports,"chat:cancel","Chat","esc")+" to interrupt",
-        roles.muted,false,true});
+      // The hint names what Esc does in this view; only the input interrupts.
+      const auto esc=shortcut(imports,"chat:cancel","Chat","esc");
+      if(!view.interrupting&&!view.presentation.modal)right.push_back({esc+(
+        view.transcript?" to close transcript":
+        view.selectedMission?" back to input":" to interrupt"),roles.muted,false,true});
       const auto& queued=view.presentation.queuedInputs;
       if(std::any_of(queued.begin(),queued.end(),[](const QueuedInput& input){
           return !input.delivering;}))

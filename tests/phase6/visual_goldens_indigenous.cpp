@@ -666,6 +666,31 @@ int main(int argc,char** argv){
         "Bat status row must separate the notice from its breadcrumb");
     }
     {
+      // The working row names what Esc does where the user is, and once Esc is
+      // taken it shows the interrupt instead of offering it again.
+      Fixture esc("batbox-dark");
+      esc.state.loading=true;
+      const auto row=[&](const conversation_shell::ViewState& view){
+        return golden::render(esc.shell.chrome.renderStatus(view),120,1);};
+      auto view=esc.view(120,24);view.streamMode="requesting";
+      check(contains(row(view),"Connecting…")&&contains(row(view),"to interrupt"),
+        "working row must offer Esc to interrupt from the input");
+      view.transcript=true;
+      check(contains(row(view),"to close transcript")&&
+        row(view).text.find("to interrupt")==std::string::npos,
+        "transcript view must say Esc closes it, not that it interrupts");
+      view.transcript=false;view.selectedMission=std::string{};
+      check(contains(row(view),"back to input")&&
+        row(view).text.find("to interrupt")==std::string::npos,
+        "Bats list focus must say Esc returns to the input");
+      view.selectedMission.reset();view.interrupting=true;
+      check(contains(row(view),"Interrupting…")&&
+        row(view).text.find("Connecting…")==std::string::npos&&
+        row(view).text.find("to interrupt")==std::string::npos,
+        "an accepted Esc must show Interrupting… at once");
+      esc.state.loading=false;
+    }
+    {
       // Missing web helpers add one line to the welcome card; /connectors
       // lists each helper with its state and fix.
       Fixture web("batbox-dark","/home/bat/roost","night-owl-7b",

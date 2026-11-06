@@ -12,10 +12,17 @@ void ApplicationRuntime::bindShellImports(
   auto weak=weak_from_this();
   imports.interruptTurn=[weak]{
     auto self=weak.lock();
-    if(!self||!self->activeAbort_||self->activeAbort_->aborted())return false;
+    if(!self||!self->activeAbort_)return false;
+    // A repeat Esc while the turn unwinds is still taken; the row keeps
+    // showing the interrupt instead of falling through to the input.
+    if(self->activeAbort_->aborted())return true;
     self->interruptedTurn_=self->activeAbort_;
     self->activeAbort_->abort("interrupt");
     return true;
+  };
+  imports.turnInterrupting=[weak]{
+    auto self=weak.lock();
+    return self&&self->activeAbort_&&self->activeAbort_->aborted();
   };
   imports.takeQueued=[weak](bool newestOnly,const std::string& input,std::size_t caret)
       ->std::optional<interactive::submit::PopEditableResult>{

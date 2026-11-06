@@ -1,5 +1,6 @@
 #include "providers/cloud/HttpExchange.hpp"
 #include "transport/Errors.hpp"
+#include "transport/Perform.hpp"
 #include <curl/curl.h>
 #include <algorithm>
 #include <cerrno>
@@ -160,7 +161,7 @@ HttpResult HttpExchange::perform(const HttpRequest& request, std::stop_token sto
   curl_easy_setopt(curl,CURLOPT_NOPROGRESS,0L);
   curl_easy_setopt(curl,CURLOPT_XFERINFOFUNCTION,onProgress);
   curl_easy_setopt(curl,CURLOPT_XFERINFODATA,&state);
-  const auto code = curl_easy_perform(curl);
+  const auto code = transport::performStoppable(curl,stop);
   if (state.callbackError) std::rethrow_exception(state.callbackError);
   if (stop.stop_requested()) throw transport::APIUserAbortError();
   if (state.idleTimeout) throw transport::APIConnectionTimeoutError("Stream idle timeout - no chunks received");

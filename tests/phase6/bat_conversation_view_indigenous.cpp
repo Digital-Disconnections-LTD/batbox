@@ -290,7 +290,7 @@ int main(){
   check(at()=="bat-2"&&shell->presentation().messages.size()==1,
     "Alt+Down reaches the sub-Bat under its parent, found "+at());
   check(shell->viewState().batTrail==std::vector<std::string>{"Review parser","Check lexer"}&&
-    status().find("Flight › Review parser › Check lexer · Alt+↑↓ move · Alt+← home · Ctrl+T list")!=
+    status().find("Flight › Review parser › Check lexer · Esc back · Alt+↑↓ move · Alt+← home · Ctrl+T list")!=
       std::string::npos,"Breadcrumb names the way down:\n"+status());
   press("\x1b[1;3B");press("\x1b[1;3B");
   check(at()=="bat-3","Alt+Down stops at the last Bat, found "+at());

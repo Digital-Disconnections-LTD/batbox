@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""Escape cancels an active streamed turn and permits the next prompt."""
+"""Escape cancels an active turn at once and permits the next prompt.
+
+A streamed answer stops on Escape. A request the server accepted but never
+answered is dropped as soon as Escape arrives, not at the transport's next
+progress tick, and the status row says what Escape does in each view: the
+transcript view closes first, then the next Escape interrupts.
+"""
 import http.server
 import json
 from pathlib import Path
 import sys
 import tempfile
 import threading
+import time
 
 from loopback_http import LoopbackHTTPServer
 from pty_smoke import PtySession, STEP_SECONDS, child_environment
@@ -14,6 +21,7 @@ from pty_smoke import PtySession, STEP_SECONDS, child_environment
 def main(binary):
     slow_release = threading.Event()
     requests = []
+    held_closed = []
     interruption = "[Interrupted the Batbox. What should the model do differently?]"
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -23,6 +31,19 @@ def main(binary):
         def do_POST(self):
             body = self.rfile.read(int(self.headers["Content-Length"]))
             requests.append(body)
+            if len(requests) == 3:
+                # Accept the request and send nothing until the client hangs up.
+                self.connection.settimeout(0.01)
+                while not slow_release.is_set():
+                    try:
+                        if self.connection.recv(1) == b"":
+                            break
+                    except TimeoutError:
+                        continue
+                    except OSError:
+                        break
+                held_closed.append(time.monotonic())
+                return
             slow = len(requests) == 1
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
@@ -95,6 +116,32 @@ def main(binary):
             wait_for(lambda: b"FAST COMPLETE" in output, "next response after Escape")
             if b"SLOW END" in output:
                 raise RuntimeError("Slow response completed despite Escape")
+            send(b"Hold the line\r")
+            wait_for(lambda: len(requests) == 3 and "Connecting…".encode() in output[-3000:],
+                     "held request")
+            mark = len(output)
+            send(b"\x0f")
+            wait_for(lambda: b"to close transcript" in output[mark:],
+                     "transcript hint naming what Escape does there")
+            mark = len(output)
+            terminal.drain(1.2)
+            if b"to interrupt" in output[mark:]:
+                raise RuntimeError("The transcript view offered Escape to interrupt")
+            mark = len(output)
+            send(b"\x1b", settle=0.5)
+            wait_for(lambda: b"to interrupt" in output[mark:], "transcript closed by Escape")
+            if held_closed:
+                raise RuntimeError("Escape in the transcript view interrupted the turn")
+            mark = len(output)
+            pressed = time.monotonic()
+            terminal.write(b"\x1b")
+            wait_for(lambda: held_closed, "held request dropped")
+            latency = held_closed[0] - pressed
+            wait_for(lambda: interruption.encode() in output[mark:],
+                     "interruption of the held request")
+            # A lone Escape waits 50 ms to be told apart from Alt+key.
+            if latency > 0.4:
+                raise RuntimeError(f"Escape took {latency * 1000:.0f} ms to drop a held request")
             slow_release.set()
             send(b"/exit\r")
             if terminal.wait_for_exit() != 0:
@@ -106,11 +153,12 @@ def main(binary):
                     if record.get("type") == "system" and \
                             record.get("content") == interruption:
                         notices[record["uuid"]] = record
-            if len(notices) != 1:
-                raise RuntimeError(f"Expected one persisted interruption, got {len(notices)}")
-            if interruption.encode() in requests[-1]:
+            if len(notices) != 2:
+                raise RuntimeError(f"Expected two persisted interruptions, got {len(notices)}")
+            if any(interruption.encode() in request for request in requests):
                 raise RuntimeError("Local interruption notice was sent as model conversation")
-            print("Escape stopped the turn, displayed one saved interruption, "
+            print("Escape stopped a streamed turn and dropped a held request in "
+                  f"{latency * 1000:.0f} ms, saved each interruption once, "
                   "and allowed a new prompt")
         finally:
             slow_release.set()

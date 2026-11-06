@@ -80,6 +80,8 @@ const ViewState Shell::viewState()const{
   if(workingSince_&&imports_.nowMs)
     result.workingMs=std::max(0.0,imports_.nowMs()-*workingSince_);
   result.streamMode=presentation().streamMode.value_or("");
+  result.interrupting=!batConversation_&&imports_.turnInterrupting&&
+    imports_.turnInterrupting();
   if(presentation().loading){
     const auto messages=std::make_shared<TurnMessages>(presentation().messages.begin(),
       presentation().messages.end());

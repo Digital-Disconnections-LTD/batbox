@@ -1,5 +1,6 @@
 #include "transport/Client.hpp"
 #include "transport/Errors.hpp"
+#include "transport/Perform.hpp"
 #include "transport/SSE.hpp"
 #include <curl/curl.h>
 #include <algorithm>
@@ -190,7 +191,7 @@ Response Client::request(const Json& body, bool stream, const std::function<void
   curl_easy_setopt(http,CURLOPT_NOPROGRESS,0L);
   curl_easy_setopt(http,CURLOPT_XFERINFOFUNCTION,progress);
   curl_easy_setopt(http,CURLOPT_XFERINFODATA,&state);
-  const auto result = curl_easy_perform(http);
+  const auto result = performStoppable(http,stop);
   if (state.callbackError) std::rethrow_exception(state.callbackError);
   if (stop.stop_requested()) throw APIUserAbortError();
   if (state.idleTimeout) throw APIConnectionTimeoutError("Stream idle timeout - no chunks received");

@@ -66,6 +66,8 @@ struct ViewState {
   // What the Stop hooks report while they run ("Checking the build… 1/2").
   std::string stopHookStatus;
   bool historySearch=false;
+  // Esc was accepted and the turn is unwinding.
+  bool interrupting=false;
 };
 // How chrome dresses the poetry input. Framed inputs are inset by
 // poetryFrameInset columns: a rounded border plus one column of padding.
@@ -117,7 +119,7 @@ struct Imports {
   std::function<event_loop::Deferred<event_loop::Unit>(
     const std::string&,const std::string&)> submitBatMessage;
   std::function<void(const std::string&)> releaseBatMission,stopBatMission;
-  std::function<bool()> interruptTurn;
+  std::function<bool()> interruptTurn,turnInterrupting;
   // Takes poetry queued during a turn back into the input: the newest
   // message alone, or all of them joined by newlines ahead of the input.
   std::function<std::optional<submit::PopEditableResult>(bool newestOnly,

@@ -209,12 +209,20 @@ Ask the model to do something later or on a schedule ("every weekday at 9",
 Batbox is idle. See the `cron` settings in
 [Make your Roost comfortable](indigenous-configuration.md#settings-added-for-scheduling-cleanup-and-the-shell).
 
-Press Esc while a response is running to stop that turn. Batbox adds
+Press Esc while a response is running to stop that turn. The status row turns
+to `Interrupting…` at once, a request still waiting on the server is dropped
+right away, and Batbox adds
 “Interrupted the Batbox. What should the model do differently?” to the
-transcript, and any messages still queued come back into the input, oldest
+transcript. Any messages still queued come back into the input, oldest
 first and ahead of anything you had typed, so nothing runs that you did not
 confirm and nothing is lost. Edit them or press Enter to continue. At the idle
 prompt, Esc retains its input editing behavior.
+
+Esc steps out of the view you are in before it interrupts, and the status row
+says which it will do: in the transcript view it closes the transcript, with
+the Bats list focused it returns to the input, and in a Bat's view it goes
+back one level (`Esc back`). Press Esc again from the main input to stop the
+turn. Background Bats keep running either way.
 
 To copy a range longer than the visible screen, press Ctrl+O for the transcript,
 then `c` for its copy view. Drag to select; hold the drag at the top or bottom

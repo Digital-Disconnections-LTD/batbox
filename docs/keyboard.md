@@ -29,7 +29,7 @@ through earlier poetry with ↑. Clicking a row also opens it.
 | Alt+↓ | Open the next Bat in the list. From home it opens the top Bat; on the last Bat it stays put. |
 | Alt+↑ | Open the previous Bat. From the top Bat it goes home. |
 | Alt+← | Go home from any Bat, including a sub-Bat. Only with an empty input; with text, Alt+← and Alt+→ move by word. |
-| Esc | In a Bat with an empty input, go back one level (to the parent Bat, or home). In the main Flight, stop a running response; queued messages come back into the input. |
+| Esc | In a Bat with an empty input, go back one level (to the parent Bat, or home); it never stops the main Flight's turn from there. In the main Flight, stop a running response; queued messages come back into the input. |
 | Ctrl+T | Fold the Active Missions list to one line, or unfold it. |
 
 The Bat you are in is marked with `▸` and shown in bold. While you are in a Bat
