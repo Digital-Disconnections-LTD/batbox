@@ -1,4 +1,5 @@
 #include "instructions/hooks/runtime/HookPerHook.hpp"
+#include <algorithm>
 #include <deque>
 #include <stdexcept>
 
@@ -107,7 +108,8 @@ struct State:std::enable_shared_from_this<State>{
     try{
       const auto& timeout=field(hook,"timeout");
       combined=CombinedAbort::create(loop,input.signal,std::nullopt,
-        value::truthy(timeout)?timeout.get<double>()*1000:input.timeoutMs);
+        value::truthy(timeout)?timeout.get<double>()*1000:
+          std::max(input.timeoutMs,kModelHookTimeoutMs));
       require(static_cast<bool>(services.randomUUID),"Hook UUID import required");
       hookId=services.randomUUID();
       require(static_cast<bool>(services.nowMillis),"Hook clock import required");

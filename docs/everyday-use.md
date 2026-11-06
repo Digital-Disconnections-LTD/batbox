@@ -107,8 +107,9 @@ A background Bat's launch result tells the model that the Bat's result will
 arrive as a notification. When the model's next step needs that result, it waits
 with TaskOutput (`block: true`) instead of launching the Bat again; work that does
 not depend on the result comes first. A TaskOutput wait on a Bat lasts up to one
-hour by default (30 seconds for a background shell command), and a wait that ends
-first reports the Bat as still running, not failed. A message you type during the
+hour by default (30 seconds for a background shell command; the model can ask
+for up to 24 hours), and a wait that ends first reports the Bat as still running,
+not failed. A message you type during the
 wait ends it at once: the model reads your message in the same round, told that
 the Bat is still running and that it can wait for it again later.
 

@@ -8,15 +8,17 @@ template<class T>std::future<T> ready(T value){
   std::promise<T> promise;promise.set_value(std::move(value));return promise.get_future();
 }
 // A Bat on a slow backend can run for an hour; a background shell may be a
-// server that never ends, so its default wait stays short.
-constexpr double maxWaitMs=3600000;
+// server that never ends, so its default wait stays short. A wait that runs
+// out reports the task as still running, never as failed.
+constexpr double batWaitMs=3600000;
+constexpr double maxWaitMs=86400000;
 constexpr double shellWaitMs=30000;
 bool blockValue(const Json& input){
   return !input.contains("block")||input["block"].get<bool>();
 }
 double timeoutValue(const Json& input,const shell_missions::MissionRecord& mission){
   if(input.contains("timeout"))return input["timeout"].get<double>();
-  return mission.type=="local_bash"?shellWaitMs:maxWaitMs;
+  return mission.type=="local_bash"?shellWaitMs:batWaitMs;
 }
 }
 Json parseInput(const Json& input){
@@ -56,7 +58,8 @@ gadgets::Gadget makeMissionOutputGadget(Services services){
       {"block",{{"type","boolean"},{"default",true}}},
       {"timeout",{{"type","number"},{"minimum",0},{"maximum",maxWaitMs},
         {"description","Milliseconds to wait when block is true. Defaults to "
-          "3600000 (one hour) for an agent and 30000 for a background shell command."}}}}}};
+          "3600000 (one hour) for an agent and 30000 for a background shell command; "
+          "at most 86400000 (24 hours)."}}}}}};
   gadget.parseInput=parseInput;
   gadget.userFacingName=[](const Json&){return std::string("Task Output");};
   gadget.description=[](const Json&,const Json&){return ready(std::string(
@@ -69,7 +72,7 @@ gadgets::Gadget makeMissionOutputGadget(Services services){
     "Waits for a background agent or background shell command and returns its result.\n\n"
     "- Takes a task_id: an agent's agentId or a background command's ID\n"
     "- block=true (default) waits until the task finishes, up to timeout. Use it when your next step depends on a background agent's result, instead of launching the agent again\n"
-    "- The default wait is one hour for an agent and 30 seconds for a background shell command, which may be a server that never exits\n"
+    "- The default wait is one hour for an agent and 30 seconds for a background shell command, which may be a server that never exits; timeout can be up to 24 hours\n"
     "- If the wait ends first, the task is still running, not failed; call again to keep waiting\n"
     "- A new message from the user also ends the wait early so you can read it; the task keeps running\n"
     "- block=false checks the current status without waiting\n"

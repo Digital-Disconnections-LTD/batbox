@@ -239,7 +239,7 @@ struct BatHookHost::Run:std::enable_shared_from_this<Run>{
       debug("Hooks: Starting agent query with 1 messages");
       const auto& timeout=field(call.hook->fields,"timeout");
       parentTimeout=CombinedAbort::create(loop,call.signal,std::nullopt,
-        value::truthy(timeout)?timeout.get<double>()*1000:60000);
+        value::truthy(timeout)?timeout.get<double>()*1000:kModelHookTimeoutMs);
       if(!parentTimeout->aborted()){
         parentListener=
           std::make_unique<std::stop_callback<std::function<void()>>>(

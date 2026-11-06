@@ -173,7 +173,7 @@ struct PoetryHookHost::Run:std::enable_shared_from_this<Run>{
         " messages");
       const auto& timeout=field(call.hook->fields,"timeout");
       combined=CombinedAbort::create(loop,call.signal,std::nullopt,
-        value::truthy(timeout)?timeout.get<double>()*1000:30000);
+        value::truthy(timeout)?timeout.get<double>()*1000:kModelHookTimeoutMs);
       PoetryQueryRequest request;
       request.messages=std::move(messages);
       request.systemPoetry=Json::array({kPoetrySystemText});

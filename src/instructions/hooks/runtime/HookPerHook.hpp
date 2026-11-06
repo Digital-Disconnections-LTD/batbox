@@ -5,6 +5,9 @@
 #include "instructions/hooks/runtime/HookOutputParser.hpp"
 
 namespace batbox::instructions::hooks::runtime {
+// Default for prompt and agent hooks, which wait on a model call: one hour,
+// so a slow model is not cut off. A hook's own "timeout" still wins.
+inline constexpr double kModelHookTimeoutMs=3600000;
 // One async generator per matching hook in executeHooks. Its body starts on
 // the first next() call.
 struct HookPerHookInput {
