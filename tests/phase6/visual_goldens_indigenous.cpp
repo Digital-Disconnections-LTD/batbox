@@ -113,6 +113,7 @@ struct Fixture {
     inputs.nowMs=[]{return 1234.0;};
     inputs.colors=name!="monochrome";
     if(!notice.empty())inputs.notice=[notice]{return notice;};
+    inputs.reminder=ip::updateReminder("/opt/homebrew/Cellar/batbox/0.1.2/bin/batbox");
     bundle=ap::Bundle::bind(shell,std::move(inputs));
   }
   conversation_shell::ViewState view(int columns,int rows){
@@ -395,6 +396,13 @@ MissionScenes missionScenes(Fixture& fixture){
   scenes.home=bottom(home,6);
   return scenes;
 }
+// With no Bats listed, the reminder line sits directly above the status row.
+golden::Frame reminderScene(Fixture& fixture){
+  const auto& chrome=fixture.shell.chrome;
+  auto view=fixture.view(100,24);
+  return golden::render(ftxui::vbox({chrome.renderMissions(view),
+    chrome.renderReminder(view),chrome.renderStatus(view)}),view.columns,2);
+}
 // Shell output wider than the terminal is cut by column: wide characters and
 // color escapes stay whole on both sides of the cut.
 golden::Frame shellOutputScene(Fixture& fixture){
@@ -592,6 +600,9 @@ int main(int argc,char** argv){
         missions.home.text.find("▸")==std::string::npos&&
         missions.home.text.find("Flight ›")==std::string::npos,
         theme+": home marks no row and names the way into the Bats");
+      const auto reminder=reminderScene(fixture);
+      check(reminder.text.starts_with(" Batbox gets updated frequently · brew upgrade batbox"),
+        theme+": the idle footer must open with the reminder line:\n"+reminder.text);
       const auto queued=queuedScene(fixture);
       check(contains(queued,"❯ Also run the lexer tests before you finish")&&
         contains(queued,"queued · delivered at the next Gadget round"),
@@ -641,9 +652,14 @@ int main(int argc,char** argv){
           {"providers-key",providers.key},{"providers-models",providers.models},
           {"providers-saved",providers.saved},{"missions-expanded",missions.expanded},
           {"missions-collapsed",missions.collapsed},{"missions-breadcrumb",missions.breadcrumb},
-          {"shell-output",shellOutput}})
+          {"shell-output",shellOutput},{"footer-reminder",reminder}})
         passed=golden::compare(directory,scene+"-"+theme,frame)&&passed;
     }
+    check(ip::updateReminder("/home/bat/.local/share/batbox/releases/release.Ab12/bin/batbox")==
+        "Batbox gets updated frequently · re-run the installer"&&
+      ip::updateReminder("/home/bat/src/batbox/build/indigenous/batbox")==
+        "Batbox gets updated frequently",
+      "the reminder must name the installer, or nothing for an unknown install");
     {
       // A long Roost outside home keeps its last two directories whole.
       Fixture deep("batbox-dark","/Volumes/Night/projects/2026/BATBOX/batbox",

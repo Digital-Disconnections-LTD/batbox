@@ -188,6 +188,14 @@ On Windows, the same configuration root lives under `%USERPROFILE%\.batbox`.
 Fullscreen is the default; `--inline` selects the inline layout. Scrolling above
 live output holds your place. **Go to the action** returns to the latest output.
 `NO_COLOR=1` selects neutral colors.
+
+Just above the status row, under any Bats, a dim line says Batbox gets updated
+frequently. When Batbox can tell from where it is installed how you got it, the
+line ends with the way to update: `brew upgrade batbox` for Homebrew, or re-run
+the installer for a release package. The line is fixed text. Batbox never
+checks for updates or contacts anyone to show it. It is the first row to go on
+a short terminal, and inline mode does not show it. Set
+`"update_reminder": false` in `native-client.json` to hide it.
 You can keep typing while Batbox works. Press Enter and the message appears at
 once at the bottom of the conversation, in the band your sent messages use but
 quieter, marked `queued · delivered at the next Gadget round`. The turn keeps

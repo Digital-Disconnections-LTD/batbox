@@ -191,6 +191,10 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   }
   suggestions=ftxui::vbox(std::move(suggestionLines));
   }
+  const bool showReminder=static_cast<bool>(imports_.chrome.renderReminder)&&
+    !presentation().modal&&!transcript_&&!searchOpen_;
+  auto reminder=showReminder?imports_.chrome.renderReminder(view):
+    ftxui::vbox(ftxui::Elements{});
   const bool showHistorySearch=view.historySearch;
   auto historySearch=showHistorySearch?ftxui::text(oneLine(
       std::string("reverse-i-search: ")+historyNavigator_->searchQuery()+
@@ -207,17 +211,22 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   footerRows=std::min(footerRows,rows/2);
   missionRows=std::min(missionRows,std::max(0,rows/4));
   poetryRows=std::min(poetryRows,std::max(framed?3:0,rows/2-footerRows));
+  const int stickyRows=showSticky?1:0;
+  // The reminder goes first when the terminal is short: it needs three rows
+  // of conversation left over after everything else.
+  const int reminderRows=showReminder&&rows-footerRows-poetryRows-historySearchRows-
+    stickyRows-pillRows-missionRows-1>=3?1:0;
   suggestionRows=std::min(suggestionRows,
-    std::max(0,rows-footerRows-poetryRows-historySearchRows-pillRows-missionRows-2));
+    std::max(0,rows-footerRows-poetryRows-historySearchRows-pillRows-missionRows-
+      reminderRows-2));
   headerRows=std::min(headerRows,
     std::max(0,rows-footerRows-poetryRows-suggestionRows-
-      historySearchRows-pillRows-missionRows-1));
-  const int stickyRows=showSticky?1:0;
+      historySearchRows-pillRows-missionRows-reminderRows-1));
   const int bodyRows=std::max(1,rows-headerRows-footerRows-poetryRows-
-    suggestionRows-historySearchRows-stickyRows-pillRows-missionRows);
+    suggestionRows-historySearchRows-stickyRows-pillRows-missionRows-reminderRows);
   stickyScreenRow_=showSticky?std::optional<int>(headerRows):std::nullopt;
-  // The Missions list sits between the input and the status row.
-  const int belowPoetry=missionRows+(statusBelow?footerRows:0);
+  // The Missions list and the reminder sit between the input and the status row.
+  const int belowPoetry=missionRows+reminderRows+(statusBelow?footerRows:0);
   pillScreenRow_=pillRows?std::optional<int>(rows-poetryRows-1-belowPoetry):std::nullopt;
   missionScreenRow_=missionRows?std::optional<int>(rows-belowPoetry):std::nullopt;
   footerMissionIds_.clear();
@@ -264,6 +273,7 @@ ftxui::Element Shell::renderFullscreen(const message_list_view::SurfacePlan& pla
   if(pillRows)stack.push_back(fixed(std::move(pill),pillRows));
   if(poetryRows)stack.push_back(fixed(std::move(poetry),poetryRows));
   if(missionRows)stack.push_back(fixed(std::move(missions),missionRows));
+  if(reminderRows)stack.push_back(fixed(std::move(reminder),reminderRows));
   if(footerRows&&statusBelow)stack.push_back(fixed(std::move(footer),footerRows));
   auto base=ftxui::vbox(std::move(stack));
   if(presentation().modal){

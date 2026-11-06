@@ -1,0 +1,14 @@
+ Batbox gets updated frequently · brew upgrade batbox
+ ◆ plan · night-owl-7b · ~/roost · ⎇ night-shift                    42% context · ctrl+o transcript
+# styles
+0:0-99 fg=38;2;108;100;128 bg=- d
+1:1-6 fg=38;2;10;130;108 bg=- b
+1:7-9 fg=38;2;172;165;190 bg=-
+1:10-21 fg=38;2;58;40;84 bg=-
+1:22-24 fg=38;2;172;165;190 bg=-
+1:25-31 fg=38;2;108;100;128 bg=-
+1:32-34 fg=38;2;172;165;190 bg=-
+1:35-47 fg=38;2;108;100;128 bg=-
+1:68-78 fg=38;2;108;100;128 bg=-
+1:79-81 fg=38;2;172;165;190 bg=-
+1:82-98 fg=38;2;108;100;128 bg=-

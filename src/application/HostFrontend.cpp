@@ -27,9 +27,32 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 
 namespace batbox::application {
 namespace {
+// The canonical path of the running executable, or empty where it is not read.
+std::string runningExecutable(){
+  std::filesystem::path path;
+#if defined(__APPLE__)
+  std::uint32_t size=0;
+  (void)_NSGetExecutablePath(nullptr,&size);
+  std::string buffer(size,'\0');
+  if(size==0||_NSGetExecutablePath(buffer.data(),&size)!=0)return {};
+  buffer.resize(std::char_traits<char>::length(buffer.c_str()));
+  path=buffer;
+#elif defined(__linux__)
+  std::error_code unreadable;
+  path=std::filesystem::read_symlink("/proc/self/exe",unreadable);
+  if(unreadable)return {};
+#endif
+  if(path.empty())return {};
+  std::error_code error;
+  const auto canonical=std::filesystem::canonical(path,error);
+  return error?path.generic_string():canonical.generic_string();
+}
 std::string indigenousEnvironment(const char* name){
 #ifdef _WIN32
   return runtime::environmentUtf8(name);
@@ -1033,6 +1056,9 @@ void Host::Impl::bindFrontend(){
         }
       });
   }
+  if(config.updateReminder)
+    presentInputs.reminder=interactive::presentation_providers::updateReminder(
+      runningExecutable());
   presentInputs.notice=[this,providerNotice,web=application_connectors::webNotice(
       application_connectors::webAvailability(config))]{
     // Once an endpoint profile is in use the provider hint has done its job.

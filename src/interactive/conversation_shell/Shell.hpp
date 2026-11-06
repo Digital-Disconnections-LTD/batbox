@@ -90,6 +90,9 @@ struct ChromeProviders {
   // Optional status row under the poetry input. When present it replaces the
   // footer above the input.
   std::function<ftxui::Element(const ViewState&)> renderStatus;
+  // Optional one-row reminder between the Bats list and the status row; it is
+  // the first row dropped when the terminal is short.
+  std::function<ftxui::Element(const ViewState&)> renderReminder;
   std::function<PoetryDecor(const ViewState&)> poetryDecor;
   // Optional suggestion rows; the shell draws plain rows without it.
   std::function<ftxui::Element(const std::vector<application_completion::Suggestion>&,

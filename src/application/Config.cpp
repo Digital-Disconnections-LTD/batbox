@@ -84,6 +84,8 @@ void applyConfig(Config& config,const Json& value){
   if(value.contains("fullscreen"))config.fullscreen=value.at("fullscreen").get<bool>();
   if(value.contains("thinking"))config.thinking=value.at("thinking").get<bool>();
   if(value.contains("auto_title"))config.autoTitle=value.at("auto_title").get<bool>();
+  if(value.contains("update_reminder"))
+    config.updateReminder=value.at("update_reminder").get<bool>();
   if(value.contains("fileCheckpointingEnabled"))
     config.fileCheckpointingEnabled=value.at("fileCheckpointingEnabled").get<bool>();
   if(value.contains("builtinExplorePlanAgents"))

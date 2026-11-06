@@ -27,7 +27,14 @@ struct ChromeServices {
   std::function<std::string()> notice;
   // Clock for Mission elapsed times; the system clock when empty.
   std::function<long long()> nowMillis;
+  // The dim line under the Bats list, such as updateReminder's; none when empty.
+  std::string reminder;
 };
+
+// "Batbox gets updated frequently", followed by how this copy updates when its
+// canonical executable path shows how it was installed (Homebrew or the
+// release installer). Reads nothing but the path it is given.
+std::string updateReminder(const std::string& executablePath);
 
 conversation_shell::ChromeProviders makeChromeProviders(ChromeServices services);
 

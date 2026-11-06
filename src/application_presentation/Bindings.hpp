@@ -28,6 +28,8 @@ struct Inputs {
   std::function<std::string()> gitBranch,homeDirectory;
   // Optional one-line welcome-card notice, such as missing web helpers.
   std::function<std::string()> notice;
+  // The line under the Bats list; none when empty.
+  std::string reminder;
   std::function<std::optional<double>()> contextUsage;
   // Paint clock in milliseconds for spinners; a steady clock by default.
   std::function<double()> nowMs;

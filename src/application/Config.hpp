@@ -94,6 +94,9 @@ struct Config {
   // Generate a short title for each new Flight from its first prompt
   // ("auto_title" in native-client.json).
   bool autoTitle=true;
+  // The dim "Batbox gets updated frequently" line under the Bats list
+  // ("update_reminder" in native-client.json).
+  bool updateReminder=true;
   // Whether this launch chose a model or permission mode itself. A resumed
   // Flight restores the ones it recorded only when the launch did not.
   bool modelRequested=false,permissionModeRequested=false;

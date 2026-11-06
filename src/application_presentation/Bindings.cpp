@@ -276,7 +276,7 @@ std::shared_ptr<Bundle> Bundle::bind(interactive::conversation_shell::Imports& s
     self->inputs_.workingDirectory,
     self->inputs_.permissionMode,self->inputs_.statusText,
     self->inputs_.gitBranch,self->inputs_.contextUsage,self->inputs_.homeDirectory,
-    self->inputs_.notice,std::move(missionClock)});
+    self->inputs_.notice,std::move(missionClock),self->inputs_.reminder});
   shell.editorMetrics=interactive::text_input::indigenousMetricsServices(self->intl_,self->width_,self->wrap_);
   shell.editorOptions.columns=self->state_->viewport.columns;
   return self;

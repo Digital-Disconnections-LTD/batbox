@@ -855,11 +855,24 @@ conversation_shell::ChromeProviders makeChromeProviders(ChromeServices imports){
     return divider(imports,request);
   };
   result.renderStatus=[imports](const auto& view){return statusRow(imports,view);};
+  if(!imports.reminder.empty())result.renderReminder=[imports](const auto& view){
+    const auto& roles=styleRoles(imports.theme.currentTheme());
+    return tone(ftxui::text(truncateColumns(" "+imports.reminder,std::max(1,view.columns))),
+      roles.muted,roles)|ftxui::dim;
+  };
   result.poetryDecor=[imports](const auto& view){return poetryDecor(imports,view);};
   result.renderSuggestions=[imports](const auto& items,std::size_t selected,
       const auto& view){return suggestionRows(items,selected,view,imports);};
   result.searchHighlight=[imports]{
     return styleRoles(imports.theme.currentTheme()).lantern;};
   return result;
+}
+std::string updateReminder(const std::string& executablePath){
+  std::string line="Batbox gets updated frequently";
+  if(executablePath.find("/Cellar/batbox/")!=std::string::npos)
+    line+=" · brew upgrade batbox";
+  else if(executablePath.find("/.local/share/batbox/releases/")!=std::string::npos)
+    line+=" · re-run the installer";
+  return line;
 }
 } // namespace batbox::interactive::presentation_providers
