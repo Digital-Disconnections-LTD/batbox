@@ -1,4 +1,5 @@
 #include "providers/aws/BedrockClient.hpp"
+#include "runtime/Version.hpp"
 #include "providers/aws/SigV4.hpp"
 #include "providers/cloud/Crypto.hpp"
 #include "providers/cloud/ErrorShape.hpp"
@@ -24,7 +25,7 @@ Json withRequestId(Json headers) {
 }
 std::string userAgent(const Json& headers) {
   const auto& agent = value::property(headers,"user-agent");
-  return agent.is_string() ? agent.get<std::string>() : "batbox/0.0.1";
+  return agent.is_string() ? agent.get<std::string>() : runtime::userAgent();
 }
 } // namespace
 Json bedrockBody(const Json& anthropicBody) {

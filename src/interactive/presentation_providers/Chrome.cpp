@@ -1,4 +1,5 @@
 #include "interactive/presentation_providers/Chrome.hpp"
+#include "runtime/Version.hpp"
 #include "interactive/presentation_providers/MissionFooter.hpp"
 #include "interactive/presentation_providers/CardPalettes.hpp"
 #include "interactive/presentation_providers/StyleRoles.hpp"
@@ -13,9 +14,6 @@
 #include <stdexcept>
 #include <utility>
 
-#ifndef BATBOX_VERSION
-#define BATBOX_VERSION ""
-#endif
 
 namespace batbox::interactive::presentation_providers {
 namespace {
@@ -675,7 +673,7 @@ std::vector<ftxui::Element> welcomeCard(const ChromeServices& imports,
         roles.muted,roles,true)|ftxui::hcenter);
   if(!tips)return rows;
   rows.push_back(ftxui::text(""));
-  const std::string version=BATBOX_VERSION;
+  const std::string version=runtime::batboxVersion();
   std::vector<std::pair<std::string,std::string>> items={
     {"/help","commands"},{"@","mention a file"},{"!","run a shell command"},
     {"esc","interrupt"}};

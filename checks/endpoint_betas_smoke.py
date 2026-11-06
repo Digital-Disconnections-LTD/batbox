@@ -130,9 +130,12 @@ def main():
         with tempfile.TemporaryDirectory(prefix='batbox-betas-smoke-') as temporary:
             root = Path(temporary)
 
+            version = subprocess.run([str(binary), 'version'], capture_output=True, text=True,
+                                     timeout=30).stdout.split('\n')[0].split(' ')[1]
             done = run(binary, root, base, 'plain', {})
             assert done.returncode == 0 and 'betas ok' in done.stdout, (done.returncode, done.stdout, done.stderr)
             for call in single(server, 'plain'):
+                assert call['headers'].get('user-agent') == f'batbox/{version}', call['headers']
                 assert 'anthropic-beta' not in call['headers'], call['headers']
                 assert 'batbox-beta' not in call['headers'], call['headers']
                 assert 'betas' not in call['body'], sorted(call['body'])

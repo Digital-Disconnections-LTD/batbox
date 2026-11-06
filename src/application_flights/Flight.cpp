@@ -1,4 +1,5 @@
 #include "application_flights/Flight.hpp"
+#include "runtime/Version.hpp"
 #include "process/ExecFileNoThrow.hpp"
 #include "runtime/Platform.hpp"
 #include "runtime/IndigenousPath.hpp"
@@ -69,7 +70,7 @@ void Flight::initialize(){
   imports.getUserType=[]{return std::string("external");};
   imports.getEntrypoint=[]{return std::string("cli");};
   imports.getCwd=getCwd;
-  imports.getVersion=[]{return std::string("0.0.1");};
+  imports.getVersion=[]{return std::string(runtime::batboxVersion());};
   imports.getPoetryId=[]()->std::optional<std::string>{return {};};
   process::ExecImports process;
   process.execa=process::indigenousExeca(inputs_.owner);

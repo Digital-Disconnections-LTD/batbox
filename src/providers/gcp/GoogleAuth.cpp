@@ -1,4 +1,5 @@
 #include "providers/gcp/GoogleAuth.hpp"
+#include "runtime/Version.hpp"
 #include "providers/cloud/Crypto.hpp"
 #include "providers/cloud/HttpExchange.hpp"
 #include <cstdlib>
@@ -56,7 +57,7 @@ AccessToken GoogleTokenSource::exchange(const std::string& tokenUri, const std::
   request.url = tokenUri;
   request.body = form;
   request.timeout = std::chrono::seconds(30);
-  request.headers = {{"content-type","application/x-www-form-urlencoded"},{"accept","application/json"},{"user-agent","batbox/0.0.1"}};
+  request.headers = {{"content-type","application/x-www-form-urlencoded"},{"accept","application/json"},{"user-agent",runtime::userAgent()}};
   const auto result = http.perform(request);
   const auto json = value::parse(result.body,false);
   if (result.status != 200) {

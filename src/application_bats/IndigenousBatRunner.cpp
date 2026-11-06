@@ -1,4 +1,5 @@
 #include "application_bats/IndigenousBatApplication.hpp"
+#include "runtime/Version.hpp"
 #include "application_bats/GeneralPurpose.hpp"
 #include "application_bats/Memory.hpp"
 #include "application_bats/BatMcp.hpp"
@@ -290,7 +291,7 @@ void IndigenousBatApplication::recordBatMessages(const Json& messages,
     entry["cwd"]=inputs_.config.cwd.string();
     entry["entrypoint"]="cli";
     entry["userType"]="external";
-    entry["version"]="0.0.1";
+    entry["version"]=runtime::batboxVersion();
     std::shared_future<void> written;
     {
       std::lock_guard lock(conversationMutex_);

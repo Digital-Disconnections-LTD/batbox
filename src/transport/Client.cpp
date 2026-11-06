@@ -1,4 +1,5 @@
 #include "transport/Client.hpp"
+#include "runtime/Version.hpp"
 #include "transport/Errors.hpp"
 #include "transport/Perform.hpp"
 #include "transport/SSE.hpp"
@@ -124,7 +125,7 @@ Response Client::request(const Json& body, bool stream, const std::function<void
   Json custom = std::move(prepared.headers);
   if (!custom.contains("content-type")) custom["content-type"]="application/json";
   if (!custom.contains("accept")) custom["accept"]=stream ? "text/event-stream" : "application/json";
-  if (!custom.contains("user-agent")) custom["user-agent"]="batbox/0.0.1";
+  if (!custom.contains("user-agent")) custom["user-agent"]=runtime::userAgent();
   if (!config.authToken.empty()) custom["authorization"] = "Bearer " + config.authToken;
   for (auto it = custom.begin(); it != custom.end(); ++it) {
     if (it.value().is_null()) headers.add(it.key()+":");

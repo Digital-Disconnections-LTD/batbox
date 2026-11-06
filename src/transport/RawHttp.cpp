@@ -1,4 +1,5 @@
 #include "transport/RawHttp.hpp"
+#include "runtime/Version.hpp"
 #include "transport/Messages.hpp"
 #include "transport/Perform.hpp"
 #include "runtime/Loopback.hpp"
@@ -212,7 +213,7 @@ Json requestHeaders(const ClientConfig& config, bool stream) {
   Json headers = messageHeaders(Json::object(),config.headers);
   if (!headers.contains("content-type")) headers["content-type"] = "application/json";
   if (!headers.contains("accept")) headers["accept"] = stream ? "text/event-stream" : "application/json";
-  if (!headers.contains("user-agent")) headers["user-agent"] = "batbox/0.0.1";
+  if (!headers.contains("user-agent")) headers["user-agent"] = runtime::userAgent();
   if (!config.authToken.empty()) headers["authorization"] = "Bearer " + config.authToken;
   return headers;
 }

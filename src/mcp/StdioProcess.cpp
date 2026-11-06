@@ -1,4 +1,5 @@
 #include "process/StandardDescriptors.hpp"
+#include "runtime/Version.hpp"
 #include "runtime/AsyncLaunch.hpp"
 #include "mcp/StdioClient.hpp"
 #include "process/IndigenousJsonlProcess.hpp"
@@ -191,7 +192,7 @@ StdioClient::StdioClient(const std::vector<std::string>& command,const std::stri
         {"url",Json::object()}};
     const auto initialized=request("initialize",{{"protocolVersion","2025-11-25"},
       {"capabilities",std::move(clientCapabilities)},
-      {"clientInfo",{{"name","batbox"},{"title","Batbox"},{"version","0.0.1"}}}},initializeSignal);
+      {"clientInfo",{{"name","batbox"},{"title","Batbox"},{"version",runtime::batboxVersion()}}}},initializeSignal);
     if(!initialized.contains("protocolVersion"))
       throw std::runtime_error("MCP initialization returned no protocol version");
     gadgetsCapability_=value::truthy(value::property(value::property(initialized,"capabilities"),"tools"));

@@ -1,4 +1,5 @@
 #include "mcp/remote/RemoteClient.hpp"
+#include "runtime/Version.hpp"
 #include "mcp/remote/EventStream.hpp"
 #include "mcp/StdioClient.hpp"
 #include "connectors/Abort.hpp"
@@ -13,7 +14,7 @@ RemoteClient::RemoteClient(RemoteConfig config):config_(std::move(config)),endpo
 }
 RemoteClient::~RemoteClient(){shutdown();}
 Json RemoteClient::headers(const std::string& accept){
-  Json result={{"User-Agent","Batbox/0.0.1"},{"Accept",accept}};
+  Json result={{"User-Agent",runtime::userAgent()},{"Accept",accept}};
   if(config_.auth){
     const auto tokens=config_.auth->tokens();const auto& token=value::property(tokens,"access_token");
     if(token.is_string()&&!token.get<std::string>().empty())
@@ -55,7 +56,7 @@ void RemoteClient::initialize(std::stop_token signal){
         {"url",Json::object()}};
     auto result=request("initialize",{{"protocolVersion","2025-11-25"},
       {"capabilities",std::move(clientCapabilities)},
-      {"clientInfo",{{"name","batbox"},{"title","Batbox"},{"version","0.0.1"}}}},
+      {"clientInfo",{{"name","batbox"},{"title","Batbox"},{"version",runtime::batboxVersion()}}}},
       signal,{},config_.connectTimeout);
     if(!result.is_object()||!value::property(result,"protocolVersion").is_string())
       throw std::runtime_error("MCP initialization returned no protocol version");

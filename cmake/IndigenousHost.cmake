@@ -63,7 +63,7 @@ else()
   set(BATBOX_BUILD_COMMIT "${BATBOX_GIT_COMMIT}")
 endif()
 string(TIMESTAMP BATBOX_BUILD_DATE "%Y-%m-%d" UTC)
-target_compile_definitions(batbox PRIVATE BATBOX_VERSION="${PROJECT_VERSION}"
+target_compile_definitions(batbox PRIVATE
   BATBOX_COMMIT="${BATBOX_BUILD_COMMIT}" BATBOX_BUILD_DATE="${BATBOX_BUILD_DATE}")
 if(MINGW)
   target_link_options(batbox PRIVATE -municode)

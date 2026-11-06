@@ -21,8 +21,6 @@ add_library(batbox_conversation_shell
 target_link_libraries(batbox_conversation_shell PUBLIC batbox_terminal_ftxui
   batbox_interactive_lifecycle batbox_terminal_ftxui batbox_text_editor)
 target_compile_options(batbox_conversation_shell PRIVATE -Wall -Wextra -Wpedantic)
-target_compile_definitions(batbox_conversation_shell PRIVATE
-  BATBOX_VERSION="${PROJECT_VERSION}")
 
 target_sources(batbox_core_commands PRIVATE
   src/commands_indigenous/Rename.cpp src/commands_indigenous/FlightSimple.cpp)

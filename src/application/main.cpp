@@ -1,4 +1,5 @@
 #include "application/Config.hpp"
+#include "runtime/Version.hpp"
 #include "application/Host.hpp"
 #include "application/Subcommands.hpp"
 #ifdef _WIN32
@@ -8,9 +9,6 @@
 #include <iostream>
 #include <vector>
 
-#ifndef BATBOX_VERSION
-#define BATBOX_VERSION "unknown"
-#endif
 #ifndef BATBOX_COMMIT
 #define BATBOX_COMMIT "unknown"
 #endif
@@ -23,7 +21,7 @@ int run(std::vector<std::string> arguments){
   // Answer before reading any configuration, so packagers can probe the binary.
   if(batbox::application::requestsVersion(arguments)){
     // The first line stays "batbox X.Y.Z" for scripts and the Homebrew test.
-    std::cout<<"batbox "<<BATBOX_VERSION<<"\ncommit "<<BATBOX_COMMIT<<
+    std::cout<<"batbox "<<batbox::runtime::batboxVersion()<<"\ncommit "<<BATBOX_COMMIT<<
       "\nbuilt "<<BATBOX_BUILD_DATE<<'\n';return 0;
   }
   try{

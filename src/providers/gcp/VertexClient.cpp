@@ -1,4 +1,5 @@
 #include "providers/gcp/VertexClient.hpp"
+#include "runtime/Version.hpp"
 #include "providers/cloud/ErrorShape.hpp"
 #include "transport/Errors.hpp"
 #include "transport/Messages.hpp"
@@ -85,7 +86,7 @@ cloud::HttpRequest prepareVertexRequest(const VertexConfig& config, const std::s
   request.body = value::stringify(vertexBody(anthropicBody,stream));
   if (!headers.contains("content-type")) headers["content-type"] = "application/json";
   if (!headers.contains("accept")) headers["accept"] = stream ? "text/event-stream" : "application/json";
-  if (!headers.contains("user-agent")) headers["user-agent"] = "batbox/0.0.1";
+  if (!headers.contains("user-agent")) headers["user-agent"] = runtime::userAgent();
   headers["authorization"] = "Bearer "+accessToken;
   for (auto it = headers.begin(); it != headers.end(); ++it)
     if (!it.value().is_null()) request.headers.emplace_back(it.key(),it.value().get<std::string>());

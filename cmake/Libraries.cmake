@@ -1,5 +1,6 @@
 find_package(ICU REQUIRED COMPONENTS uc)
 add_library(batbox_core
+  src/runtime/Version.cpp
   src/retry/Machine.cpp src/retry/MachineDirect.cpp
   src/runtime/ArrayJoin.cpp
   src/terminal_search/Scan.cpp
@@ -41,6 +42,9 @@ add_library(batbox_core
   src/api_errors/RendererHelpers.cpp
   src/api_errors/Renderer.cpp
 )
+# The one place the project version enters the sources.
+set_source_files_properties(src/runtime/Version.cpp PROPERTIES
+  COMPILE_DEFINITIONS "BATBOX_VERSION=\"${PROJECT_VERSION}\"")
 target_include_directories(batbox_core PUBLIC src)
 target_link_libraries(batbox_core PUBLIC nlohmann_json::nlohmann_json Threads::Threads ICU::uc)
 target_compile_options(batbox_core PRIVATE -Wall -Wextra -Wpedantic)
