@@ -4,6 +4,9 @@
 #include "application_media/AttachmentAggregate.hpp"
 #include "application_flights/Flight.hpp"
 #include "bats/ForkedBat.hpp"
+#include "bats/RunBat.hpp"
+#include "skills/process/PoetryCommand.hpp"
+#include "user_input/CommandMessages.hpp"
 #include "runtime/Platform.hpp"
 #include <stdexcept>
 
@@ -102,6 +105,32 @@ Json Provider::processPoetry(const std::string& name,const std::string& args,
   return skills::process::getMessagesForPoetrySlashCommand(command,args,
     context,services,preceding,images,uuid);
 }
+void Provider::prepareForkedRun(const Json& descriptor,const std::string& args,
+    const bats::BatContext& context,
+    const std::function<std::future<Json>(const Json&)>& canUseGadget,
+    bats::RunBatParams& params){
+  bats::CommandServices services;
+  services.getPoetryForCommand=[this](const Json& command,const std::string& text,
+      const execution::Context& query){
+    bats::BatContext bat;bat.query=query;
+    return poetryFor(command,text,bat);};
+  services.parseGadgetListFromCLI=skills::process::parseGadgetListFromCLI;
+  services.createUserMessage=[messages=inputs_.messages](const Json& value){
+    return messages::createUserMessage(value,*messages);};
+  const auto prepared=bats::prepareForkedCommandContext(descriptor,args,context.query,
+    context.getAppState,services);
+  params.batDefinition=prepared.baseBat;
+  if(descriptor.is_object()&&descriptor.contains("effort"))
+    params.batDefinition["effort"]=descriptor["effort"];
+  params.poetryMessages=prepared.poetryMessages;
+  params.gadgetUseContext=context;
+  params.gadgetUseContext.getAppState=prepared.modifiedGetAppState;
+  params.canUseGadget=canUseGadget;
+  params.querySource="agent:custom";
+  const auto& model=value::property(descriptor,"model");
+  if(model.is_string())params.model=model.get<std::string>();
+  params.availableGadgets=context.query.gadgets;
+}
 std::vector<user_input::CommandEntry> Provider::slashCommands(){
   if(!inputs_.owner.isOwnerThread())
     throw std::logic_error("Skill slash catalog requires owner loop");
@@ -139,6 +168,41 @@ std::vector<user_input::CommandEntry> Provider::slashCommands(){
           return output;
         });
     };
+    if(value::property(item,"context")=="fork")
+      entry.runForked=[weak,item,display=skills::userFacingName(command)](
+          const std::string& args,const Json& preceding){
+        auto self=weak.lock();
+        if(!self)throw std::runtime_error("Skill catalog has closed");
+        if(!self->launchSkillBat_)throw std::runtime_error("Skill Bats are unavailable");
+        const auto title="/"+display;
+        auto started=self->launchSkillBat_(title,[weak,item,args](
+            const bats::BatContext& context,
+            const std::function<std::future<Json>(const Json&)>& canUseGadget,
+            bats::RunBatParams& params){
+          auto self=weak.lock();
+          if(!self)throw std::runtime_error("Skill catalog has closed");
+          self->prepareForkedRun(item,args,context,canUseGadget,params);
+        });
+        event_loop::Deferred<user_input::InputResult> output(self->inputs_.owner);
+        started.then([output,messages=self->inputs_.messages,display,title,args,preceding](
+            const event_loop::Unit*,const std::exception_ptr& error){
+          if(error){output.reject(error);return;}
+          try{
+            user_input::InputResult result;
+            const auto text="Started "+title+" as a Bat. Its result comes back "
+              "to this conversation when it finishes.";
+            result.messages.push_back(messages::createUserMessage(Json{{"content",
+              messages::prepareUserContent(Json{{"inputString",
+                user_input::formatCommandInputTags(display,args)},
+                {"precedingInputBlocks",preceding}})}},*messages));
+            result.messages.push_back(user_input::createCommandInputMessage(
+              "<local-command-stdout>"+text+"</local-command-stdout>",*messages));
+            result.resultText=text;
+            output.resolve(std::move(result));
+          }catch(...){output.reject(std::current_exception());}
+        });
+        return output;
+      };
     result.push_back(std::move(entry));
   }
   return result;

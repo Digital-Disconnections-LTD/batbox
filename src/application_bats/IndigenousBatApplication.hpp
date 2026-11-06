@@ -101,6 +101,16 @@ public:
   std::unordered_map<std::string,BatNode> batLineage()const;
   void restoreBatLineage(const std::unordered_map<std::string,BatNode>&);
   void runForSkill(const bats::RunBatParams& params,const query::Yield& yield);
+  // Fills in the run of a Bat for a Skill typed as /name, on a worker, from a
+  // fresh Flight context and permission check.
+  using SkillBatPrepare=std::function<void(const bats::BatContext&,
+    const IndigenousQueryBridge::CanUseGadget&,bats::RunBatParams&)>;
+  // Starts a Skill with `context: fork`, typed as /name, as a background Bat:
+  // a Mission that takes a concurrency slot (waiting for one when none is
+  // free) and reports its result like any background Bat. Owner thread.
+  // Settles once the Bat is under way, or with the error that stopped it.
+  event_loop::Deferred<event_loop::Unit> launchSkillBat(std::string description,
+    SkillBatPrepare prepare);
   bats::BatGadgetCallServices makeServices();
   Json batDefinitions()const;
   void reloadDefinitions();
@@ -128,6 +138,12 @@ private:
   bats::RunBatSetupServices makeRunSetup();
   bats::RunBatLoopServices makeRunLoop();
   void launchLifecycle(bats::AsyncLifecycleParams params);
+  // The owner half of launchSkillBat: takes a slot now or shows a waiting row
+  // and waits for one off the owner.
+  void startSkillBat(const std::string& description,bats::RunBatParams params);
+  // Registers the Skill Bat's Mission and runs it; its slot is already taken
+  // and is given back when the Bat cannot start.
+  void runSkillBat(const std::string& description,bats::RunBatParams params);
   void launchContinuation(bats::BatGadgetBackgroundContinuation state);
   void recordBatMessages(const Json& messages,const std::string& batId,
     const std::optional<std::string>& parent,bool awaitWrites=false);

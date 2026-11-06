@@ -50,6 +50,14 @@ public:
     const query::Yield&)> run);
   void bindMcpPoetryRunner(std::function<Json(const Json&,
     const std::string&,const bats::BatContext&)> run);
+  // Fills in a Skill Bat's run from a fresh Flight context and permission check.
+  using ForkedRun=std::function<void(const bats::BatContext&,
+    const std::function<std::future<Json>(const Json&)>&,bats::RunBatParams&)>;
+  // Starts a `context: fork` Skill typed as /name as a background Bat, under
+  // the given title; settles once it is under way.
+  using SkillBatLauncher=std::function<event_loop::Deferred<event_loop::Unit>(
+    std::string title,ForkedRun prepare)>;
+  void bindSkillBatLauncher(SkillBatLauncher launch);
   Json modelCommands();
   std::vector<user_input::CommandEntry> slashCommands();
   gadgets::Gadget makeGadget();
@@ -70,6 +78,12 @@ private:
   Json descriptor(const skills::SkillCommand& command)const;
   Json poetryFor(const Json& descriptor,const std::string& args,
     const bats::BatContext& context);
+  // The run the Skill Gadget gives a forked Skill, for the same Skill typed
+  // as /name. Worker thread.
+  void prepareForkedRun(const Json& descriptor,const std::string& args,
+    const bats::BatContext& context,
+    const std::function<std::future<Json>(const Json&)>& canUseGadget,
+    bats::RunBatParams& params);
   std::string executePoetryShell(const std::string& text,
     const std::string& slashCommandName,const std::optional<std::string>& shell,
     const std::vector<std::string>& allowedGadgets,
@@ -84,6 +98,7 @@ private:
   std::shared_ptr<application_media::AggregateProvider> attachments_;
   std::shared_ptr<application_hooks::Provider> hooks_;
   std::function<void(const bats::RunBatParams&,const query::Yield&)> runBat_;
+  SkillBatLauncher launchSkillBat_;
   std::function<Json(const Json&,const std::string&,
     const bats::BatContext&)> mcpPoetry_;
 };

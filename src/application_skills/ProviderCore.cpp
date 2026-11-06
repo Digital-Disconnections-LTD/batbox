@@ -115,6 +115,11 @@ void Provider::bindBatRunner(std::function<void(const bats::RunBatParams&,
   if(!run)throw std::invalid_argument("Skill Agent runner is required");
   runBat_=std::move(run);
 }
+void Provider::bindSkillBatLauncher(SkillBatLauncher launch){
+  owner(inputs_.owner);
+  if(!launch)throw std::invalid_argument("Skill Bat launcher is required");
+  launchSkillBat_=std::move(launch);
+}
 void Provider::bindMcpPoetryRunner(std::function<Json(const Json&,
     const std::string&,const bats::BatContext&)> run){
   owner(inputs_.owner);

@@ -407,6 +407,12 @@ void Host::Impl::bindBackend(){
     if(!bat)throw std::runtime_error("Agent runtime has retired");
     bat->runForSkill(params,yield);
   });
+  skills->bindSkillBatLauncher([weak=std::weak_ptr(bats)](std::string title,
+      application_skills::Provider::ForkedRun prepare){
+    const auto bat=weak.lock();
+    if(!bat)throw std::runtime_error("Agent runtime has retired");
+    return bat->launchSkillBat(std::move(title),std::move(prepare));
+  });
   replaceJsonState(store,[definitions=bats->batDefinitions()](const Json& current){
     Json next=current;next["agentDefinitions"]=definitions;return next;});
   roster->publish(gadgets::live_roster::makeSnapshot(
