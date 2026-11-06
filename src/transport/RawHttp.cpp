@@ -182,8 +182,7 @@ RawResponse HttpSession::perform(const RawRequest& request,
     curl_easy_setopt(http,CURLOPT_PROXY_CAINFO_BLOB,&ca);
   }
   curl_easy_setopt(http,CURLOPT_ACCEPT_ENCODING,"");
-  curl_easy_setopt(http,CURLOPT_FOLLOWLOCATION,1L);
-  curl_easy_setopt(http,CURLOPT_MAXREDIRS,20L);
+  curl_easy_setopt(http,CURLOPT_FOLLOWLOCATION,0L);
   curl_easy_setopt(http,CURLOPT_CONNECTTIMEOUT_MS,static_cast<long>(config_.connectTimeout.count()));
   curl_easy_setopt(http,CURLOPT_TIMEOUT_MS,static_cast<long>(timeout.value_or(config_.requestTimeout).count()));
   curl_easy_setopt(http,CURLOPT_HEADERFUNCTION,onHeader);
@@ -199,6 +198,11 @@ RawResponse HttpSession::perform(const RawRequest& request,
   if (state.idleTimeout) throw APIConnectionTimeoutError("Stream idle timeout - no chunks received");
   if (result == CURLE_OPERATION_TIMEDOUT) throw APIConnectionTimeoutError();
   if (result != CURLE_OK) throw APIConnectionError(curl_easy_strerror(result),connectionCode(http));
+  if (state.response.status >= 300 && state.response.status < 400) {
+    const auto base = joinUrl(config_.baseUrl,"");
+    throw redirectError(state.response.status,state.response.headers,
+      request.url.starts_with(base) ? request.url.substr(base.size()) : std::string());
+  }
   return std::move(state.response);
 }
 

@@ -5,3 +5,7 @@ foreach(section IN ITEMS stdio factory)
     ${CMAKE_SOURCE_DIR}/tests/phase4/mcp_stdio_server.py)
 endforeach()
 batbox_indigenous(phase4-mcp-auth-indigenous tests/phase4/mcp_auth_indigenous.cpp batbox_mcp)
+if(UNIX)
+  batbox_indigenous(phase4-mcp-http-redirect-indigenous
+    tests/phase4/mcp_http_redirect_indigenous.cpp batbox_mcp_runtime)
+endif()

@@ -27,4 +27,9 @@ struct APIUserAbortError : APIError {
   APIUserAbortError();
   const char* kind() const override { return "APIUserAbortError"; }
 };
+// Model requests never follow redirects: libcurl would carry custom headers
+// such as x-api-key to the new address. This is the error for a 3xx answer;
+// it names the status and the Location, and the base URL to set instead when
+// the Location ends with the path Batbox appended to the base URL.
+APIError redirectError(long status, const Json& headers, const std::string& path);
 } // namespace batbox::transport

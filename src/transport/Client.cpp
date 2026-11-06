@@ -180,8 +180,7 @@ Response Client::request(const Json& body, bool stream, const std::function<void
     curl_easy_setopt(http,CURLOPT_PROXY_CAINFO_BLOB,&ca);
   }
   curl_easy_setopt(http,CURLOPT_ACCEPT_ENCODING,"");
-  curl_easy_setopt(http,CURLOPT_FOLLOWLOCATION,1L);
-  curl_easy_setopt(http,CURLOPT_MAXREDIRS,20L);
+  curl_easy_setopt(http,CURLOPT_FOLLOWLOCATION,0L);
   curl_easy_setopt(http,CURLOPT_CONNECTTIMEOUT_MS,static_cast<long>(config.connectTimeout.count()));
   curl_easy_setopt(http,CURLOPT_TIMEOUT_MS,static_cast<long>(timeout.value_or(config.requestTimeout).count()));
   curl_easy_setopt(http,CURLOPT_HEADERFUNCTION,header);
@@ -197,6 +196,8 @@ Response Client::request(const Json& body, bool stream, const std::function<void
   if (state.idleTimeout) throw APIConnectionTimeoutError("Stream idle timeout - no chunks received");
   if (result == CURLE_OPERATION_TIMEDOUT) throw APIConnectionTimeoutError();
   if (result != CURLE_OK) throw APIConnectionError(curl_easy_strerror(result),connectionCode(http));
+  if (state.response.status >= 300 && state.response.status < 400)
+    throw redirectError(state.response.status,state.response.headers,config.messagesPath);
   if (state.response.status < 200 || state.response.status >= 300) {
     auto parsed = value::parse(state.rawBody,false);
     if (parsed.is_discarded()) parsed = nullptr;

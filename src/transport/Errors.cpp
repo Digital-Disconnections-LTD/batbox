@@ -21,4 +21,20 @@ APIConnectionError::APIConnectionError(std::string message, std::string errorCod
 APIConnectionTimeoutError::APIConnectionTimeoutError(std::string message)
   : APIConnectionError(std::move(message),"ETIMEDOUT") {}
 APIUserAbortError::APIUserAbortError() : APIError({},nullptr,Json::object(),"Request was aborted.") {}
+APIError redirectError(long status, const Json& headers, const std::string& path) {
+  const auto& location = value::property(headers,"location");
+  if (!location.is_string() || location.get<std::string>().empty())
+    return APIError(status,nullptr,headers,
+      "redirect with no Location; Batbox does not follow redirects on model requests. "
+      "Check this endpoint's base URL");
+  const auto target = location.get<std::string>();
+  std::string message = "redirect to " + target + "; Batbox does not follow redirects on "
+    "model requests, so your key is only sent to the address you configured. ";
+  auto base = target.substr(0,target.find_first_of("?#"));
+  if (target.find("://") != std::string::npos && !path.empty() && base.ends_with(path)) {
+    base.resize(base.size()-path.size());
+    message += "Set this endpoint's base URL to " + base;
+  } else message += "Set this endpoint's base URL to the address it points to";
+  return APIError(status,nullptr,headers,message);
+}
 } // namespace batbox::transport
