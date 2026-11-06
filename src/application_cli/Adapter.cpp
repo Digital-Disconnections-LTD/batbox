@@ -33,6 +33,25 @@ bool inputIsTerminal(){
   return ::isatty(STDIN_FILENO)!=0;
 #endif
 }
+// True when a read from stdin would return at once, with data or at its end.
+bool inputReady(){
+#if defined(_WIN32)
+  const HANDLE handle=GetStdHandle(STD_INPUT_HANDLE);
+  if(handle==INVALID_HANDLE_VALUE||handle==nullptr)return true;
+  const DWORD type=GetFileType(handle);
+  if(type==FILE_TYPE_PIPE){
+    DWORD available=0;
+    if(!PeekNamedPipe(handle,nullptr,0,nullptr,&available,nullptr))return true;
+    return available>0;
+  }
+  if(type==FILE_TYPE_CHAR)return WaitForSingleObject(handle,0)==WAIT_OBJECT_0;
+  return true;
+#else
+  pollfd input{STDIN_FILENO,POLLIN,0};
+  if(::poll(&input,1,0)<0)return true;
+  return (input.revents&(POLLIN|POLLHUP|POLLERR|POLLNVAL))!=0;
+#endif
+}
 bool successfulResult(const Json& last,const Json& stopReason){
   const auto& type=value::property(last,"type");
   if(type=="assistant"){
@@ -238,6 +257,13 @@ void Adapter::beginText(){
   if(inputIsTerminal()){
     closeInput();
     if(inputs_.poetry&&!inputs_.poetry->empty())poetryEntries_.push_back(*inputs_.poetry);
+    submitNext();return;
+  }
+  // With a prompt argument, stdin is only an extra: read it when it already
+  // has something to give, never wait for it.
+  if(inputs_.poetry&&!inputs_.poetry->empty()&&!inputReady()){
+    closeInput();
+    poetryEntries_.push_back(*inputs_.poetry);
     submitNext();return;
   }
   stdin_=std::make_shared<StdinPump>(inputs_.owner);
