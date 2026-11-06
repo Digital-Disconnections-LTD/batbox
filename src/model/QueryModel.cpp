@@ -257,6 +257,7 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
       services.reducer.resolvedModel = preflight.resolvedModel;
       services.reducer.requestId = result.streamRequestId.value_or("");
       services.reducer.maxOutputTokens = static_cast<int>(attemptState.maxOutputTokens);
+      services.reducer.outputCapFromContext = preflight.capture.outputCapFromContext;
       services.reducer.startMillis = attemptState.start;
       services.reducer.stashedMicrocompact = preflight.stashedMCEnabled;
       streaming::Reducer reducer(services.reducer);

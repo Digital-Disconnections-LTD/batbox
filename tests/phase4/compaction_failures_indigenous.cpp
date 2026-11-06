@@ -1,5 +1,6 @@
 #include "compaction/Poetry.hpp"
 #include "compaction/Summary.hpp"
+#include "streaming/Reducer.hpp"
 #include <iostream>
 #include <stdexcept>
 
@@ -124,7 +125,10 @@ int main(){
   }
   {
     // A summary that reaches the output cap keeps the text produced so far.
-    auto capped=assistant("API Error: Batbox's response exceeded the 50000 output token maximum.",true);
+    auto capped=assistant(streaming::maxOutputTokensMessage(50000,false),true);
+    for(const auto* part:{"50000-token output cap","max_output_tokens","/config","BATBOX_MAX_OUTPUT_TOKENS"})
+      require(streaming::maxOutputTokensMessage(50000,false).find(part)!=std::string::npos,
+        std::string("The output cap error does not mention ")+part);
     capped["apiError"]="max_output_tokens";
     Run run;run.forkMessages=Json::array({assistant("<summary>Part one, "),
       assistant("part two"),capped});

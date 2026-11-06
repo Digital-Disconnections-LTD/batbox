@@ -116,6 +116,17 @@ std::optional<MessageRef> Reducer::beginEvent(const Json& part){
   return nextEmission();
 }
 
+std::string maxOutputTokensMessage(int cap,bool fromContext){
+  const auto tokens=std::to_string(cap);
+  if(fromContext)
+    return "API Error: The response stopped at "+tokens+" output tokens, all the room this "
+      "endpoint's context window had left after the conversation. /compact makes room; a higher "
+      "max_output_tokens does not.";
+  return "API Error: The response stopped at the "+tokens+"-token output cap. Raise this "
+    "endpoint's max_output_tokens in /config (or in native-client.json), or set the "
+    "BATBOX_MAX_OUTPUT_TOKENS environment variable.";
+}
+
 Reducer::EventEmissions Reducer::beginEventBatch(const Json& part){
   EventEmissions out;
   auto next=beginEvent(part);
@@ -138,10 +149,7 @@ std::optional<MessageRef> Reducer::nextEmission(){
         pendingEvent_->phase=PendingEvent::Phase::AfterMaxTokens;
         if(stopReason_=="max_tokens")
           return std::make_shared<Json>(config_.createAssistantAPIErrorMessage(
-            "API Error: Batbox's response exceeded the "+
-            std::to_string(config_.maxOutputTokens)+
-            " output token maximum. To configure this behavior, set the "
-            "BATBOX_MAX_OUTPUT_TOKENS environment variable.",
+            maxOutputTokensMessage(config_.maxOutputTokens,config_.outputCapFromContext),
             "max_output_tokens","max_output_tokens"));
         continue;
       case PendingEvent::Phase::AfterMaxTokens:

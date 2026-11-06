@@ -27,11 +27,17 @@ class StreamError : public std::runtime_error {
 using MessageRef = std::shared_ptr<Json>;
 using Emissions = std::vector<MessageRef>;
 
+// The error shown when a reply stops at its output cap and nothing continues
+// it; fromContext: the cap was lowered to fit the context window.
+std::string maxOutputTokensMessage(int cap,bool fromContext);
+
 struct ReducerConfig {
   std::string model;
   std::string resolvedModel;
   std::string requestId;
   int maxOutputTokens = 0;
+  // maxOutputTokens was lowered to what the context window had left.
+  bool outputCapFromContext = false;
   std::int64_t startMillis = 0;
   bool stashedMicrocompact = false;
   std::function<std::int64_t()> nowMillis;
