@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <mutex>
 #include <set>
+#include <stop_token>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -165,12 +166,23 @@ private:
   // Waits for a slot off the turn, then launches the Bat in the background.
   void launchWhenSlotFrees(Json input,gadgets::GadgetCallContext callContext,
     std::function<std::future<Json>(const Json&)> canUseGadget,Json assistantMessage,
-    std::optional<std::string> waiting);
+    std::optional<std::string> waiting,std::shared_ptr<std::stop_source> cancel);
   // While a Bat waits for a concurrent slot it shows in Active Missions as a
   // "waiting" row (status pending, waiting true), removed once it starts or
   // gives up. Returns the row id, or nothing when a slot is free now.
   std::optional<std::string> showWaitingBat(const Json& input,const Json& callData);
   void clearWaitingBat(const std::string& id);
+  // A waiting row can be cancelled until its launch takes a slot. The launch
+  // waits on the returned source; cancelWaitingBat (owner) forgets the row and
+  // requests it, and returns false when `id` is not waiting. forgetWaitingBat
+  // is the launch's side: it forgets the row and returns whether the user
+  // cancelled it first.
+  std::shared_ptr<std::stop_source> watchWaitingBat(const std::string& id);
+  bool cancelWaitingBat(const std::string& id);
+  bool forgetWaitingBat(const std::string& id);
+  // Tells the model a launch that returned queued_for_slot never started.
+  void reportCancelledBeforeStart(const std::string& id,const Json& input,
+    const Json& callData);
   void releaseCapacity();
   void rollbackCapacity();
   // A Bat launching a Bat never waits for a slot, since it holds one itself:
@@ -221,6 +233,8 @@ private:
   std::size_t outstanding_=0,active_=0;
   // Bats whose concurrent slot a sub-Bat currently borrows.
   std::unordered_set<std::string> lentSlots_;
+  // Waiting rows that can still be cancelled, by row id. Requires capacityMutex_.
+  std::unordered_map<std::string,std::shared_ptr<std::stop_source>> waitingStops_;
   mutable std::mutex nodesMutex_;
   std::unordered_map<std::string,BatNode> batNodes_;
   std::atomic_bool closing_=false;

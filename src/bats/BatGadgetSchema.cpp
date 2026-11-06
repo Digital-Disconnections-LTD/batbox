@@ -162,6 +162,8 @@ Json batGadgetOutputShape(){
     {"canWaitForResult",described(optional(node("boolean")),
       "Whether the calling agent has TaskOutput to wait for the result")}});
   Json queued=object(Json{{"status",literal("queued_for_slot")},
+    {"taskId",described(optional(string),
+      "The waiting task's ID, for TaskStop until the agent starts")},
     {"description",described(string,"The description of the task")},
     {"prompt",described(string,"The prompt for the agent")}});
   return Json{{"kind","union"},{"options",Json::array({sync,async,queued})}};

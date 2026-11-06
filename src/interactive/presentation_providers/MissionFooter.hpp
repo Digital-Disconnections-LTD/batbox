@@ -23,8 +23,11 @@ std::string compactTokens(long long tokens);
 // The open Bat and its parents stay listed after they settle.
 Json backgroundFooterMissions(const Json& missions,
   const std::optional<std::string>& current=std::nullopt);
-// The Bat rows of backgroundFooterMissions, top to bottom.
+// The Bat rows of backgroundFooterMissions that can be opened, top to bottom.
 std::vector<std::string> footerBatIds(const Json& rows);
+// Every Bat row, including those waiting for a slot: the rows the list
+// selects, top to bottom.
+std::vector<std::string> footerListIds(const Json& rows);
 // Gadget uses that launched the running Bats among these rows.
 std::unordered_set<std::string> runningBatGadgetUses(const Json& rows);
 // The Bat that launched `id`, when it is still known.

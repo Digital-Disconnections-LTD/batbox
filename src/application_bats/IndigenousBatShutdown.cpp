@@ -15,6 +15,7 @@ bool IndigenousBatApplication::backgroundForegroundMission(const std::string& mi
 }
 void IndigenousBatApplication::stopMission(const std::string& missionId){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("Agent stop action requires owner");
+  if(cancelWaitingBat(missionId))return;
   bats::killAsyncBat(missionId,missionState_);
   stopChildBats(missionId);
 }

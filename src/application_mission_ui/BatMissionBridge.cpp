@@ -46,6 +46,7 @@ shell_missions::MissionRecord recordFrom(const std::string& id,const Json& missi
   if(field(mission,"endTime").is_number())record.endTimeMs=integer(field(mission,"endTime"));
   record.notified=field(mission,"notified")==true;
   record.isBackgrounded=field(mission,"isBackgrounded")!=false;
+  record.waiting=field(mission,"waiting")==true;
   return record;
 }
 std::string readOutputFile(const shell_missions::MissionRecord& mission){

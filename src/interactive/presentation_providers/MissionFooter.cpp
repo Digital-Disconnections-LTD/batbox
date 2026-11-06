@@ -160,6 +160,11 @@ std::vector<std::string> footerBatIds(const Json& rows){
     if(batMission(row)&&value::property(row,"waiting")!=true)ids.push_back(rowId(row));
   return ids;
 }
+std::vector<std::string> footerListIds(const Json& rows){
+  std::vector<std::string> ids;
+  if(rows.is_array())for(const auto& row:rows)if(batMission(row))ids.push_back(rowId(row));
+  return ids;
+}
 std::vector<std::string> batTrail(const Json& rows,const std::string& id){
   std::map<std::string,const Json*> byId;
   if(rows.is_array())for(const auto& row:rows)if(batMission(row))byId.emplace(rowId(row),&row);
@@ -252,7 +257,7 @@ ftxui::Element missionFooterAt(const Json& missions,const FooterOptions& options
     return ftxui::hbox(std::move(parts));
   }
   const auto hint=focused?" · Enter view · x stop · Esc back":
-    footerBatIds(missions).empty()?" · Ctrl+T collapse · /missions":
+    footerListIds(missions).empty()?" · Ctrl+T collapse · /missions":
     " · ↓ select · Ctrl+T collapse · /missions";
   lines.push_back(ftxui::text(clipped(title+hint,columns))|ftxui::color(color)|ftxui::dim);
   std::vector<FooterRow> rows;

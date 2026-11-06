@@ -84,4 +84,17 @@ std::string batQueuedInputNotification(const std::string& missionId,
       "\" has queued input awaiting resume: "+reason)+
     "\n</task-notification>";
 }
+std::string batCancelledBeforeStart(const std::string& description){
+  return "Agent \""+description+"\" was cancelled before it started: the user "
+    "stopped it while it waited for a free slot, so it never ran and has no result";
+}
+std::string batCancelledBeforeStartNotification(const std::string& missionId,
+    const std::string& gadgetUseId,const std::string& description){
+  if(missionId.empty())throw std::invalid_argument("Missing notification taskId");
+  return "<task-notification>\n"+tag("task-id",missionId)+
+    (gadgetUseId.empty()?"":"\n"+tag("tool-use-id",gadgetUseId))+"\n"+
+    tag("status","killed")+"\n"+
+    tag("summary",batCancelledBeforeStart(description))+
+    "\n</task-notification>";
+}
 } // namespace batbox::bats

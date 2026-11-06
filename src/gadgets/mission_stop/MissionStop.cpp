@@ -47,7 +47,7 @@ gadgets::Gadget makeMissionStopGadget(Services services){
     const auto mission=shared->roster->get(*id);
     if(!mission){result.result=false;result.message="No task found with ID: "+*id;
       result.errorCode=1;return ready(result);}
-    if(mission->status!="running"){
+    if(mission->status!="running"&&!mission->waiting){
       result.result=false;result.message="Task "+*id+" is not running (status: "+mission->status+")";
       result.errorCode=3;return ready(result);
     }

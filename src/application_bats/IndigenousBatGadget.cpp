@@ -5,6 +5,7 @@
 #include "bats/BatGadgetBinding.hpp"
 #include "bats/BatGadgetDescriptor.hpp"
 #include "bats/BatGadgetSchema.hpp"
+#include "bats/BatMissionNotification.hpp"
 #include "bats/BatGadgetPresentation.hpp"
 #include "bats/BatResultBindings.hpp"
 #include "bats/TypedBatState.hpp"
@@ -171,20 +172,55 @@ std::future<gadgets::GadgetResult> IndigenousBatApplication::callGadget(const Js
     if(launcher)borrowed=self->requireNestedCapacity(*launcher);
     else if(!slotTaken){
       auto waiting=self->showWaitingBat(input,callContext.data);
+      std::shared_ptr<std::stop_source> cancel;
+      if(waiting)cancel=self->watchWaitingBat(*waiting);
+      const auto cancelled=[&]{
+        return std::runtime_error(bats::batCancelledBeforeStart(string(field(input,"description"))));
+      };
       bool taken=false;
-      try{taken=self->requireCapacityOrDefer(callContext.stopToken,
-        self->inputs_.userMessageQueued);}
-      catch(...){if(waiting)self->clearWaitingBat(*waiting);throw;}
+      try{
+        // The wait ends for Esc on the turn or x on the waiting row.
+        std::optional<std::stop_callback<std::function<void()>>> forward;
+        if(cancel)forward.emplace(callContext.stopToken,
+          std::function<void()>([cancel]{cancel->request_stop();}));
+        taken=self->requireCapacityOrDefer(cancel?cancel->get_token():callContext.stopToken,
+          self->inputs_.userMessageQueued);
+      }catch(...){
+        const bool byUser=waiting&&self->forgetWaitingBat(*waiting);
+        if(waiting)self->clearWaitingBat(*waiting);
+        if(byUser)throw cancelled();
+        throw;
+      }
+      if(!taken&&cancel&&cancel->stop_requested()){
+        // Esc or x landed as the wait gave way to the user's message.
+        const bool byUser=self->forgetWaitingBat(*waiting);
+        {std::lock_guard lock(self->capacityMutex_);
+          if(self->outstanding_)--self->outstanding_;}
+        self->notifyShutdownProgress();
+        self->clearWaitingBat(*waiting);
+        if(byUser)throw cancelled();
+        throw std::runtime_error("Subagent launch interrupted");
+      }
       if(!taken){
         // The user sent a message while no slot was free: the turn goes on to
         // deliver it, and the Bat keeps its place and starts in the background.
-        if(!waiting)waiting=self->showWaitingBat(input,callContext.data);
-        self->launchWhenSlotFrees(input,callContext,canUseGadget,assistantMessage,waiting);
+        if(!waiting){
+          waiting=self->showWaitingBat(input,callContext.data);
+          if(waiting)cancel=self->watchWaitingBat(*waiting);
+        }
+        self->launchWhenSlotFrees(input,callContext,canUseGadget,assistantMessage,waiting,cancel);
         gadgets::GadgetResult result;
         result.data={{"status","queued_for_slot"},
           {"description",field(input,"description")},{"prompt",field(input,"prompt")}};
+        if(waiting)result.data["taskId"]=*waiting;
         promise.set_value(std::move(result));
         return future;
+      }
+      if(waiting&&self->forgetWaitingBat(*waiting)){
+        // Cancelled just as the slot came free: give the slot back.
+        self->releaseCapacity();
+        self->clearWaitingBat(*waiting);
+        throw cancelled();
       }
       if(waiting)self->clearWaitingBat(*waiting);
     }
@@ -274,21 +310,38 @@ std::future<gadgets::GadgetResult> IndigenousBatApplication::callGadget(const Js
 void IndigenousBatApplication::launchWhenSlotFrees(Json input,
     gadgets::GadgetCallContext callContext,
     std::function<std::future<Json>(const Json&)> canUseGadget,Json assistantMessage,
-    std::optional<std::string> waiting){
+    std::optional<std::string> waiting,std::shared_ptr<std::stop_source> cancel){
   auto self=shared_from_this();
-  auto keepAlive=beginBackgroundJob();
+  std::shared_ptr<event_loop::Loop::KeepAlive> keepAlive;
+  try{keepAlive=beginBackgroundJob();}catch(...){
+    if(waiting){(void)forgetWaitingBat(*waiting);try{clearWaitingBat(*waiting);}catch(...){}}
+    {std::lock_guard lock(capacityMutex_);if(outstanding_)--outstanding_;}
+    notifyShutdownProgress();
+    throw;
+  }
   input["run_in_background"]=true;
-  // The turn that launched it has moved on; only shutdown ends this wait.
+  // The turn that launched it has moved on; only x on its row or shutdown
+  // ends this wait.
   callContext.stopToken={};
+  const auto stop=cancel?cancel->get_token():std::stop_token{};
   try{runtime::contextThread([self,keepAlive,input=std::move(input),
       callContext=std::move(callContext),canUseGadget=std::move(canUseGadget),
-      assistantMessage=std::move(assistantMessage),waiting]()mutable{
-    bool taken=false;
+      assistantMessage=std::move(assistantMessage),waiting,stop]()mutable{
+    bool taken=false,cancelled=false;
     try{
-      self->awaitCapacity({});
-      taken=true;
+      try{self->awaitCapacity(stop);taken=true;}
+      catch(...){
+        cancelled=waiting&&self->forgetWaitingBat(*waiting);
+        if(!cancelled)throw;
+      }
+      if(taken&&waiting&&self->forgetWaitingBat(*waiting)){
+        // Cancelled just as the slot came free: give the slot back.
+        self->releaseCapacity();
+        taken=false;cancelled=true;
+      }
       if(waiting)self->clearWaitingBat(*waiting);
-      (void)self->callGadget(input,callContext,canUseGadget,assistantMessage,{},true).get();
+      if(cancelled)self->reportCancelledBeforeStart(*waiting,input,callContext.data);
+      else (void)self->callGadget(input,callContext,canUseGadget,assistantMessage,{},true).get();
     }catch(const std::exception& error){
       if(!taken&&waiting)try{self->clearWaitingBat(*waiting);}catch(...){}
       if(self->inputs_.logError)try{self->inputs_.logError(error);}catch(...){}
@@ -296,7 +349,7 @@ void IndigenousBatApplication::launchWhenSlotFrees(Json input,
     self->finishBackgroundJob(keepAlive);
   }).detach();}catch(...){
     finishBackgroundJob(keepAlive);
-    if(waiting)try{clearWaitingBat(*waiting);}catch(...){}
+    if(waiting){(void)forgetWaitingBat(*waiting);try{clearWaitingBat(*waiting);}catch(...){}}
     {std::lock_guard lock(capacityMutex_);if(outstanding_)--outstanding_;}
     notifyShutdownProgress();
     throw;

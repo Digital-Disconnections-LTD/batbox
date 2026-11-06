@@ -62,7 +62,10 @@ Json mapBatGadgetResult(const Json& data,const std::string& gadgetUseId) {
       "without waiting. The agent is queued: it starts in the background as soon as a "
       "slot frees, and its result will come back to you as a notification when it "
       "finishes. It has no agentId until it starts. Do not launch another agent for "
-      "the same work; read the user's message first.")}));
+      "the same work; read the user's message first."+
+      (value::truthy(value::property(data,"taskId"))?
+        " To cancel it before it starts, call TaskStop with task_id: \""+
+        interpolated(data,"taskId")+"\".":std::string()))}));
   }
   if (hasStatus(data,"completed")) {
     const bool hasWorktree=data.contains("worktreePath") &&

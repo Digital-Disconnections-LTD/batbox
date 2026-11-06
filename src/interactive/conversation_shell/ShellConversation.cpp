@@ -116,7 +116,7 @@ void Shell::stepBat(int direction){
 std::vector<std::string> Shell::missionListIds()const{
   if(!imports_.missionSnapshot)return {};
   const auto current=batConversation_?std::optional(batConversation_->id):std::nullopt;
-  return presentation_providers::footerBatIds(
+  return presentation_providers::footerListIds(
     presentation_providers::backgroundFooterMissions(imports_.missionSnapshot(),current));
 }
 bool Shell::onMissionListKey(const keyboard_input::KeyRef& key){
@@ -137,6 +137,13 @@ bool Shell::onMissionListKey(const keyboard_input::KeyRef& key){
   }
   if(named("return")||named("enter")){
     const auto id=*selectedMission_;
+    // A Bat waiting for a slot has no conversation yet; it keeps the focus.
+    if(!id.empty()&&imports_.missionSnapshot){
+      const auto bats=presentation_providers::footerBatIds(
+        presentation_providers::backgroundFooterMissions(imports_.missionSnapshot(),
+          batConversation_?std::optional(batConversation_->id):std::nullopt));
+      if(std::find(bats.begin(),bats.end(),id)==bats.end()){requestRedraw();return true;}
+    }
     selectedMission_.reset();
     if(id.empty())returnToLeader();
     else if(imports_.observeBatMission&&activeBatId()!=id)openBatConversation(id);
@@ -147,6 +154,10 @@ bool Shell::onMissionListKey(const keyboard_input::KeyRef& key){
     if(!selectedMission_->empty()&&imports_.stopBatMission){
       try{imports_.stopBatMission(*selectedMission_);}
       catch(...){reportDetached(std::current_exception());}
+      // A cancelled waiting Bat leaves the list; focus goes back to the Flight row.
+      const auto left=missionListIds();
+      if(std::find(left.begin(),left.end(),*selectedMission_)==left.end())
+        selectedMission_=std::string{};
     }
     requestRedraw();return true;
   }

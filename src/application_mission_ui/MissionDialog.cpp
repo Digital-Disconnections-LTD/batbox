@@ -59,6 +59,9 @@ struct Item {
   long long started=0;
   std::optional<int> exitCode;
   bool running()const{return status=="running";}
+  // A Bat waiting for a slot is stopped like a running one.
+  bool stoppable()const{
+    return running()||(type=="local_agent"&&field(bat,"waiting")==true);}
   bool active()const{return status=="running"||status=="pending";}
 };
 std::vector<Item> items(const Inputs& input,const std::vector<Json>& board){
@@ -348,9 +351,9 @@ private:
       [this](const Item& item){return item.id==selectedId_;});
     if(current==available.end()){showList();return;}
     if(action.kind==interactive::UiAction::Kind::TextChange){
-      if(action.text=="x"&&current->running())stop(*current);
+      if(action.text=="x"&&current->stoppable())stop(*current);
       else if(action.text=="d"&&current->type=="local_agent"&&
-          !current->running()&&input_.dismissBatMission){
+          !current->stoppable()&&input_.dismissBatMission){
         input_.dismissBatMission(current->id);showList();
       }else if(detailKey(action.text)){
         detailId_=current->id;tail_.clear();tailTruncated_=false;
@@ -410,7 +413,7 @@ private:
     const auto resumeError=stringField(item.bat,"inputResumeError");
     if(!resumeError.empty())request.body+="\nResume error: "+shorten(resumeError,400);
     request.body+=std::string("\n← or Esc back · Enter open conversation")+
-      (item.running()?" · x stop":"");
+      (item.stoppable()?" · x stop":"");
   }
   void showDetail(const Item& item){
     if(!active_)return;
@@ -477,7 +480,7 @@ private:
       if(!item.poetry.empty())request.body+="\n"+shorten(item.poetry,1200);
     }
     request.body+="\n← back · Enter/Esc close"+
-      std::string(item.running()?" · x stop":"")+
+      std::string(item.stoppable()?" · x stop":"")+
       (item.type=="configuration"&&!stringField(item.bat,"filePath").empty()?" · e edit":"");
     auto self=shared_from_this();
     ready_(std::move(request),[self](const interactive::UiAction& action){
@@ -506,7 +509,7 @@ private:
     if(action.kind!=interactive::UiAction::Kind::TextChange)return;
     if(action.text==" "){finish("Details dismissed");return;}
     if(found==available.end())return;
-    if(action.text=="x"&&found->running())stop(*found);
+    if(action.text=="x"&&found->stoppable())stop(*found);
     else if(action.text=="e"&&found->type=="configuration")editConfiguration(*found);
   }
   void editConfiguration(const Item& item){

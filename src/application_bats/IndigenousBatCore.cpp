@@ -5,6 +5,7 @@
 #include "runtime/Platform.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "bats/IndigenousMissionOutput.hpp"
+#include "bats/BatMissionNotification.hpp"
 #include "flights/ProjectDirectories.hpp"
 #include <algorithm>
 #include <chrono>
@@ -324,6 +325,40 @@ void IndigenousBatApplication::clearWaitingBat(const std::string& id){
     Json next=state;
     if(next["tasks"].is_object())next["tasks"].erase(id);
     return next;});
+}
+std::shared_ptr<std::stop_source> IndigenousBatApplication::watchWaitingBat(
+    const std::string& id){
+  auto cancel=std::make_shared<std::stop_source>();
+  std::lock_guard lock(capacityMutex_);
+  waitingStops_.insert_or_assign(id,cancel);
+  return cancel;
+}
+bool IndigenousBatApplication::cancelWaitingBat(const std::string& id){
+  std::shared_ptr<std::stop_source> cancel;
+  {std::lock_guard lock(capacityMutex_);
+    const auto at=waitingStops_.find(id);
+    if(at==waitingStops_.end())return false;
+    cancel=std::move(at->second);waitingStops_.erase(at);}
+  cancel->request_stop();
+  clearWaitingBat(id);
+  return true;
+}
+bool IndigenousBatApplication::forgetWaitingBat(const std::string& id){
+  std::lock_guard lock(capacityMutex_);
+  return waitingStops_.erase(id)==0;
+}
+void IndigenousBatApplication::reportCancelledBeforeStart(const std::string& id,
+    const Json& input,const Json& callData){
+  const auto& use=field(callData,"toolUseId");
+  const auto& description=field(input,"description");
+  auto message=bats::batCancelledBeforeStartNotification(id,
+    use.is_string()?use.get<std::string>():std::string(),
+    description.is_string()?description.get<std::string>():std::string());
+  inputs_.owner.postMission([self=shared_from_this(),message=std::move(message)]{
+    if(self->inputs_.enqueuePendingNotification)
+      self->inputs_.enqueuePendingNotification(Json{{"value",message},
+        {"mode","task-notification"}});
+  });
 }
 void IndigenousBatApplication::releaseCapacity(){
   {std::lock_guard lock(capacityMutex_);

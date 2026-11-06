@@ -17,7 +17,7 @@ header reads `Active Missions (3) · Enter view · x stop · Esc back`.
 | --- | --- |
 | ↓ / ↑ | Move the `❯` marker. ↑ on the `Flight` row returns to the input. |
 | Enter | Open the marked conversation: a Bat, or the main Flight from the `Flight` row. |
-| x | Stop the marked Bat, as `/bats` does. |
+| x | Stop the marked Bat, as `/bats` does. On a `waiting` Bat it cancels the launch before it starts. |
 | Esc | Return to the input without changing what is open. |
 | Any other key | Return to the input and type it there. |
 
@@ -45,7 +45,9 @@ then its status (`running`, `foreground`, `waiting` for a free slot, `stopped`),
 elapsed time, Gadget count and tokens on the right. Tokens are the Bat's latest
 context size plus every token it has generated. A Bat that waits for one of the
 `max_concurrent_subagents` slots is listed and counted as `waiting` until it
-starts. On a narrow terminal the activity goes first, then the Gadget count,
+starts. You can mark it and press `x` (or `x` in `/bats`) to cancel it; the
+model is told it never started. Esc does not cancel a Bat already waiting in
+the background, only a launch the current turn is still waiting on. On a narrow terminal the activity goes first, then the Gadget count,
 then the elapsed time; the title, status and tokens always stay.
 
 The unfolded list shows up to five rows and scrolls to keep the marked row in

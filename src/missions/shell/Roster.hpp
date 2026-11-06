@@ -17,6 +17,8 @@ struct MissionRecord {
   std::optional<std::string> gadgetUseId,batId,kind,poetry,result,error;
   std::optional<int> exitCode;
   bool interrupted=false,notified=false,isBackgrounded=true;
+  // A Bat waiting for a slot: not running yet, but it can be stopped.
+  bool waiting=false;
   long long startTimeMs=0;
   std::optional<long long> endTimeMs;
   std::optional<std::string> outputFilePath;

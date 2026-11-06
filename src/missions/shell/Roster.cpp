@@ -205,7 +205,7 @@ StopResult Roster::stop(const std::string& id){
     std::lock_guard lock(mutex_);
     auto it=missions_.find(id);
     if(it==missions_.end())throw StopMissionError("No task found with ID: "+id,"not_found");
-    if(it->second.status!="running")throw StopMissionError(
+    if(it->second.status!="running"&&!it->second.waiting)throw StopMissionError(
       "Task "+id+" is not running (status: "+it->second.status+")","not_running");
     mission=it->second;local=mission.type=="local_bash";
     if(!local&&!services_.stopExternalMission)

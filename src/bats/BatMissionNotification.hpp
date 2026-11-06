@@ -14,4 +14,10 @@ void enqueueBatNotification(const Json& args,
 // learns which Bat holds undelivered input and why.
 std::string batQueuedInputNotification(const std::string& missionId,
   const std::string& label,const std::string& reason);
+// What the model is told about a Bat the user cancelled while it waited for a
+// slot: the error of a launch still in its turn, and the notification for one
+// that had already returned queued_for_slot.
+std::string batCancelledBeforeStart(const std::string& description);
+std::string batCancelledBeforeStartNotification(const std::string& missionId,
+  const std::string& gadgetUseId,const std::string& description);
 } // namespace batbox::bats
