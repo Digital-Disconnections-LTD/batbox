@@ -211,7 +211,7 @@ int addProvider(const std::vector<std::string>& arguments){
     const auto result=providers::testConnection(providers::buildEndpoint(*provider,probe,
       catalog.defaultContext,catalog.defaultOutput));
     std::cout<<(result.ok?"Connection: ":"Connection check: ")<<result.message<<"\n";
-    if(result.ok)setup.liveModels=result.models;
+    if(result.ok){setup.liveModels=result.models;setup.liveContexts=result.contexts;}
   }
   if(setup.model.empty()){
     if(!setup.liveModels.empty())setup.model=setup.liveModels.front();

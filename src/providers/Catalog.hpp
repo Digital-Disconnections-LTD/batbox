@@ -30,7 +30,7 @@ struct CatalogProvider {
 };
 struct Catalog {
   std::vector<CatalogProvider> providers;
-  std::size_t defaultContext=131072,defaultOutput=16384;
+  std::size_t defaultContext=131072,defaultOutput=32768;
   const CatalogProvider* find(const std::string& idOrAlias)const;
 };
 // The bundled catalog, parsed once on first use.

@@ -22,7 +22,7 @@ file instead. Durations are milliseconds; `0` means no limit.
       "provider": "openai-chat",
       "models": ["qwen3-coder"],
       "context_window": 131072,
-      "max_output_tokens": 16384,
+      "max_output_tokens": 32768,
       "stream_idle_timeout_ms": 3600000,
       "max_retries": 1
     }

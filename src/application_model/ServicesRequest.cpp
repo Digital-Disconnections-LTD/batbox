@@ -55,6 +55,9 @@ requests::BuilderDependencies LocalServiceBuilder::makeBuilder(){
   deps.getMaxOutputTokensForModel=[profiles](const auto& model){
     return Json(findProfile(*profiles,model).maxOutputTokens);
   };
+  deps.getContextWindowForModel=[profiles](const auto& model){
+    return static_cast<double>(findProfile(*profiles,model).contextTokens);
+  };
   deps.modelSupportsThinking=[profiles](const auto& model){
     return findProfile(*profiles,model).thinking;
   };

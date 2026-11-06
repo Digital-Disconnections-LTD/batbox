@@ -188,7 +188,7 @@ The same keys work in a `profiles` entry, which also takes `model` and
 | `headers` | Extra request headers, single-line text values. |
 | `betas` | Anthropic beta names to send, such as `["context-1m-2025-08-07"]`. Empty by default. See [Beta features](#beta-features). |
 | `models` | Model ids offered by this endpoint. Each becomes a profile named `<endpoint>::<model>`. |
-| `context_window`, `max_output_tokens` | Required token limits. Output must not exceed context. |
+| `context_window`, `max_output_tokens` | Required token limits. Output must not exceed context. `batbox providers add`, `/providers` and model discovery in `/config` take `context_window` from the server's model list when it reports one (vLLM `max_model_len`, LM Studio `max_context_length`, `context_length` or `context_window`, and llama.cpp's `n_ctx` when `/providers` finds the server on this machine); otherwise a model the catalog does not know gets 131072 and 32768. A reply that stops at `max_output_tokens` is continued up to three times before the error is shown. |
 | `thinking`, `prompt_caching`, `adaptive_thinking`, `structured_outputs`, `effort`, `send_disabled_thinking` | Capability flags. They control which request fields Batbox builds. On `openai-chat`, thinking only reaches the server through the `reasoning` quirk below. |
 | `quirks` | `openai-chat` only. See [Quirks](#quirks-for-openai-chat). |
 
@@ -310,14 +310,17 @@ Replies:
   `toolu_` ids.
 - A broken stream (unparsable chunk, end before a finish reason, a tool call
   with no name) makes Batbox repeat the turn without streaming, unless the
-  endpoint sets `"nonstreaming_fallback": false` (the default for local
-  endpoints; see [Request limits](request-limits.md)).
+  endpoint sets `"nonstreaming_fallback": false` (the default for every
+  endpoint; see [Request limits](request-limits.md)).
 
 Errors keep their HTTP status and are reported as Anthropic error types:
 401 and 403 as `authentication_error`, 429 as `rate_limit_error`, 503 as
 `overloaded_error`, other 5xx as `api_error` and other 4xx as
-`invalid_request_error`. When vLLM or OpenAI reports that input plus
-`max_tokens` exceeds the context length, Batbox lowers `max_tokens` and tries
+`invalid_request_error`. Batbox lowers the `max_tokens` it sends so that the
+prompt plus `max_tokens` fits `context_window` with about 1000 tokens to spare
+(never below 3000); the `max_output_tokens` setting itself stays as it is. When
+vLLM or OpenAI still reports that input plus `max_tokens` exceeds the context
+length, Batbox lowers `max_tokens` to the room the server names and tries
 again. A prompt that alone exceeds the context (including llama.cpp's
 `exceed_context_size_error`) is reported as "prompt is too long".
 

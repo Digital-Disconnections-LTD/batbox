@@ -231,7 +231,8 @@ def main():
         assert direct["status"] == 401 and direct["body"]["error"]["type"] == "authentication_error"
 
         models = run(args.probe, base, "models", "models")
-        assert models == {"data": [{"id": "fake-model"}, {"id": "other-model"}]}
+        assert models == {"data": [{"id": "fake-model", "context_window": 32768},
+                                   {"id": "other-model"}]}
         listing_request = sent("models")[0]
         assert listing_request["method"] == "GET" and listing_request["path"] == "/models/v1/models"
         assert listing_request["headers"]["authorization"] == "Bearer test-key"

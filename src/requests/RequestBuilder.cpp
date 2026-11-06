@@ -22,6 +22,28 @@ Json numberValue(double value) {
     return static_cast<std::int64_t>(value);
   return value;
 }
+// Kept free between prompt and max_tokens, since the prompt is estimated.
+constexpr double CONTEXT_MARGIN_TOKENS = 1024;
+// max_tokens is never fitted below this; a prompt that leaves less room is
+// for the server to refuse and compaction to shrink.
+constexpr double MIN_FITTED_OUTPUT_TOKENS = 3000;
+// About four bytes of text per token; an image or document counts as 2000
+// tokens whatever the size of its base64 data.
+double roughTokens(const Json& value) {
+  if (value.is_string()) return static_cast<double>(value.get_ref<const std::string&>().size()) / 4;
+  double total = 0;
+  if (value.is_array()) for (const Json& item : value) total += roughTokens(item);
+  else if (value.is_object()) {
+    if (field(value, "type") == "base64") return 2000;
+    for (auto it = value.begin(); it != value.end(); ++it)
+      total += static_cast<double>(it.key().size()) / 4 + roughTokens(it.value());
+  } else total = 1;
+  return total;
+}
+double promptTokens(const RequestCapture& capture) {
+  return std::max(capture.knownPromptTokens, roughTokens(capture.messagesForAPI) +
+    roughTokens(capture.system) + roughTokens(capture.allGadgets));
+}
 std::optional<std::string> querySource(const Json& options) {
   const Json& value = field(options, "querySource");
   return value.is_string() ? std::make_optional(value.get<std::string>()) : std::nullopt;
@@ -80,6 +102,21 @@ Json buildParamsFromContext(const Json& retryContext, RequestCapture& capture,
   else {
     require(deps.getMaxOutputTokensForModel, "getMaxOutputTokensForModel");
     maxOutputTokens = deps.getMaxOutputTokensForModel(model);
+  }
+  // Prompt plus max_tokens must fit the context window, or servers such as
+  // vLLM refuse the request. Only the value sent changes, not the setting.
+  capture.outputCapFromContext = false;
+  if (deps.getContextWindowForModel && maxOutputTokens.is_number()) {
+    const double window = deps.getContextWindowForModel(model);
+    const double requested = maxOutputTokens.get<double>();
+    if (window > 0) {
+      const double fitted = std::max(std::floor(window - promptTokens(capture) - CONTEXT_MARGIN_TOKENS),
+        std::min(requested, MIN_FITTED_OUTPUT_TOKENS));
+      if (fitted < requested) {
+        maxOutputTokens = numberValue(fitted);
+        capture.outputCapFromContext = true;
+      }
+    }
   }
 
   const bool hasThinking = field(capture.thinkingConfig, "type") != "disabled" && !capture.disableThinking;

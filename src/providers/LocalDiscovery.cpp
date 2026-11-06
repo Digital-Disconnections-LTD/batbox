@@ -1,4 +1,5 @@
 #include "providers/LocalDiscovery.hpp"
+#include "transport/RawHttp.hpp"
 #include <algorithm>
 #include <cctype>
 #include <optional>
@@ -46,11 +47,7 @@ void addModel(LocalServer& server,std::set<std::string>& seen,const Json& item,
     const auto id=found->get<std::string>();
     if(id.empty()||id.find_first_of("\r\n")!=std::string::npos)return;
     if(seen.insert(id).second)server.models.push_back(id);
-    for(const char* limit:{"max_context_length","max_model_len","context_length"}){
-      const auto value=item.find(limit);
-      if(value!=item.end()&&value->is_number_unsigned())
-        server.contexts[id]=value->get<std::size_t>();
-    }
+    if(const auto context=transport::reportedContextWindow(item))server.contexts[id]=context;
     return;
   }
 }

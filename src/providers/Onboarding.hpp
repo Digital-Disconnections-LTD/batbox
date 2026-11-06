@@ -37,7 +37,7 @@ std::vector<std::string> presentKeyEnv(const CatalogProvider& provider,
 bool takesKey(const CatalogProvider& provider);
 
 application::EndpointRecord buildEndpoint(const CatalogProvider& provider,const Setup& setup,
-  std::size_t defaultContext=131072,std::size_t defaultOutput=16384);
+  std::size_t defaultContext=131072,std::size_t defaultOutput=32768);
 // "openrouter", or "openrouter-2" when taken.
 std::string uniqueEndpointId(const std::map<std::string,application::EndpointRecord>& endpoints,
   const std::string& base);
@@ -46,6 +46,8 @@ struct ConnectionResult {
   bool reached=false,ok=false;
   int status=0;
   std::vector<std::string> models;
+  // Context length per model when the model list reports one.
+  std::map<std::string,std::size_t> contexts;
   std::string message;
 };
 // Lists models through the endpoint's own wire client (WireClient::listModels)

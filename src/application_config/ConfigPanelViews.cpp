@@ -189,13 +189,23 @@ void Panel::refresh(){
           self->showCurrent();return;
         }
         auto next=self->endpoints_;
-        auto& list=next.at(self->endpointId_).models;
+        auto& endpoint=next.at(self->endpointId_);
+        auto& list=endpoint.models;
         std::set<std::string> known(list.begin(),list.end());
         std::size_t added=0;
         for(const auto& id:result->models)
           if(known.insert(id).second){list.push_back(id);++added;}
         self->notice_="Discovered "+std::to_string(result->models.size())+
           " models ("+std::to_string(added)+" new).";
+        // The server knows its own context length better than a default.
+        if(!list.empty())
+          if(const auto reported=result->contexts.find(list.front());
+              reported!=result->contexts.end()&&reported->second!=endpoint.contextWindow){
+            endpoint.contextWindow=reported->second;
+            endpoint.maxOutputTokens=std::min(endpoint.maxOutputTokens,endpoint.contextWindow);
+            self->notice_+=" Context window set to "+std::to_string(endpoint.contextWindow)+
+              " tokens, as "+list.front()+" reports.";
+          }
         self->persist(std::move(next),self->selectedProfile());
       });
   }

@@ -42,7 +42,8 @@ def main(binary):
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            body = json.dumps({"data": [{"id": "cli-coder"}, {"id": "cli-tiny"}]}).encode()
+            body = json.dumps({"data": [{"id": "cli-coder"},
+                                        {"id": "cli-tiny", "max_model_len": 200000}]}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
@@ -80,7 +81,7 @@ def main(binary):
                   row["auth_header"] == "none" and "provider" not in row and
                   row["preset"] == "llama.cpp" and row["models"] == ["cli-coder", "cli-tiny"],
                   "llama.cpp row " + json.dumps(row))
-            check(row["context_window"] == 131072 and row["max_output_tokens"] == 16384,
+            check(row["context_window"] == 131072 and row["max_output_tokens"] == 32768,
                   "default limits for an unknown local model")
             check((config / "native-client.json").stat().st_mode & 0o777 == 0o600, "mode 0600")
 
@@ -88,6 +89,8 @@ def main(binary):
             check(again.returncode == 0 and "Added llama.cpp-2 · cli-tiny" in again.stdout,
                   "second endpoint id: " + again.stdout + again.stderr)
             check(document()["profile"] == "llama.cpp-2::cli-tiny", "second selection")
+            check(document()["endpoints"]["llama.cpp-2"]["context_window"] == 200000,
+                  "the context length the server reported was not used")
 
             keyed = run("add", "anthropic", "--key", "-", "--model", "claude-sonnet-5-5",
                         "--no-test", stdin="sk-cli-secret\n")

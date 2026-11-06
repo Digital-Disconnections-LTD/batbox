@@ -29,6 +29,12 @@ struct RequestCapture {
   std::string stashEditingBetaHeader;
   std::optional<std::string> extraBodyStr;
   Json lastRequestBetas = Json::array();
+  // Tokens the conversation is known to hold from the last response's usage;
+  // 0 when no response reported any.
+  double knownPromptTokens = 0;
+  // Set by each build: max_tokens was lowered so the request fits the
+  // context window.
+  bool outputCapFromContext = false;
 };
 
 struct BuilderDependencies {
@@ -38,6 +44,8 @@ struct BuilderDependencies {
   std::function<bool(const std::string&)> modelSupportsEffort;
   std::function<bool(const std::string&)> modelSupportsStructuredOutputs;
   std::function<Json(const std::string&)> getMaxOutputTokensForModel;
+  // The endpoint's context window; unbound or 0: max_tokens is not fitted.
+  std::function<double(const std::string&)> getContextWindowForModel;
   std::function<bool(const std::string&)> modelSupportsThinking;
   std::function<bool(const std::string&)> modelSupportsAdaptiveThinking;
   std::function<Json(const std::string&)> getMaxThinkingTokensForModel;

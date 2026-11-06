@@ -95,7 +95,7 @@ int main(){
     local.liveModels={"qwen3-coder:30b","gemma4:31b"};local.liveContexts["qwen3-coder:30b"]=32768;
     local.baseUrl="http://127.0.0.1:11434";
     const auto ollama=bp::buildEndpoint(*catalog.find("ollama"),local);
-    check(ollama.authHeader=="none"&&ollama.contextWindow==32768&&ollama.maxOutputTokens==16384&&
+    check(ollama.authHeader=="none"&&ollama.contextWindow==32768&&ollama.maxOutputTokens==32768&&
       ollama.models==std::vector<std::string>({"qwen3-coder:30b","gemma4:31b"}),"Ollama endpoint");
     bp::Setup keyed;keyed.model="claude-sonnet-5-5";keyed.key="sk-test";
     const auto anthropic=bp::buildEndpoint(*catalog.find("anthropic"),keyed);

@@ -53,6 +53,10 @@ bool isLoopbackUrl(const std::string& url);
 // GET the model list and return {"data":[{"id":...}]}, following Anthropic
 // style has_more/last_id pages. Non-2xx statuses throw APIError.
 Json fetchModelList(HttpSession& session, const std::string& url);
+// The context length a model list entry reports (vLLM max_model_len, LM
+// Studio max_context_length, OpenRouter context_length, Groq context_window);
+// 0 when it reports none. fetchModelList keeps it as "context_window".
+std::size_t reportedContextWindow(const Json& item);
 // Rewrites a 401/403 so the message names the server and the setting to fix,
 // e.g. "401 from http://127.0.0.1:9931: check auth_token · invalid key".
 // Status, body and headers are kept.

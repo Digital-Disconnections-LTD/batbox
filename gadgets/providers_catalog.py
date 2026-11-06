@@ -24,7 +24,7 @@ from pathlib import Path
 MODEL_LIMIT = 40
 CHUNK = 8000
 DEFAULT_CONTEXT = 131072
-DEFAULT_OUTPUT = 16384
+DEFAULT_OUTPUT = 32768
 
 # Providers whose whole service answers Anthropic Messages. base_url is the
 # origin plus any shared prefix; messages_path and models_path hang off it.

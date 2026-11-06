@@ -257,6 +257,15 @@ APIError readableAuthError(const APIError& error, const std::string& baseUrl) {
   return readable;
 }
 
+std::size_t reportedContextWindow(const Json& item) {
+  if (!item.is_object()) return 0;
+  for (const char* key : {"max_model_len","max_context_length","context_length","context_window"}) {
+    const auto found = item.find(key);
+    if (found != item.end() && found->is_number_integer() && found->get<long long>() > 0)
+      return static_cast<std::size_t>(found->get<long long>());
+  }
+  return 0;
+}
 Json fetchModelList(HttpSession& session, const std::string& url) {
   Json ids = Json::array();
   std::set<std::string> seen;
@@ -278,7 +287,9 @@ Json fetchModelList(HttpSession& session, const std::string& url) {
       const auto& id = value::property(row,"id");
       if (!id.is_string() || id.get<std::string>().empty()) continue;
       if (!seen.insert(id.get<std::string>()).second) continue;
-      ids.push_back(Json{{"id",id}});
+      Json item{{"id",id}};
+      if (const auto context = reportedContextWindow(row)) item["context_window"] = context;
+      ids.push_back(std::move(item));
       if (ids.size() >= 10000) return Json{{"data",ids}};
     }
     next.clear();

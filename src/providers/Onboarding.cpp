@@ -1,6 +1,7 @@
 #include "providers/Onboarding.hpp"
 #include "application_config/EndpointStore.hpp"
 #include "transport/Errors.hpp"
+#include "transport/RawHttp.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
 #endif
@@ -213,6 +214,7 @@ ConnectionResult testConnection(const application::EndpointRecord& endpoint,
     const auto id=item.at("id").get<std::string>();
     if(id.empty()||id.find_first_of("\r\n")!=std::string::npos)continue;
     if(seen.insert(id).second)result.models.push_back(id);
+    if(const auto context=transport::reportedContextWindow(item))result.contexts[id]=context;
     if(result.models.size()>=10000)break;
   }
   result.ok=true;

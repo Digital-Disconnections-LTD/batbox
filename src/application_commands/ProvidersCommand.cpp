@@ -456,6 +456,7 @@ private:
         self->liveResult_=*result;
         if(result->ok){
           self->setup_.liveModels=result->models;
+          self->setup_.liveContexts=result->contexts;
           self->showModels();
         }else self->showTestFailed();
       });

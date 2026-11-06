@@ -8,6 +8,7 @@
 #include "transport/Errors.hpp"
 #include "transport/RetryAdapter.hpp"
 #include "utils/envUtils.hpp"
+#include "utils/tokens.hpp"
 #include <stdexcept>
 #include <utility>
 
@@ -85,6 +86,9 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
     ?services.nowMillis():std::int64_t{};
   const std::string model = stringField(input.options, "model");
   const std::string querySource = stringField(input.options, "querySource");
+  // The last response's usage, so max_tokens is fitted to a measured prompt.
+  try { preflight.capture.knownPromptTokens = tokenCountFromLastAPIResponse(input.messages); }
+  catch (const std::exception&) { preflight.capture.knownPromptTokens = 0; }
   auto buildParams = [&](const Json& retryContext) {
     return services.buildParamsSegment
       ? services.buildParamsSegment(retryContext, preflight.capture,
