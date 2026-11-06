@@ -49,7 +49,8 @@ Json compactConversation(const Json& messages,Context& context,const Json& stash
     if(context.setStreamMode)context.setStreamMode("requesting");
     if(context.setResponseLength)context.setResponseLength([](double){return 0;});
     progress(context,{{"type","compact_start"}});
-    const auto request=services.createUserMessage({{"content",getCompactPoetry(custom)}});
+    const double outputTokens=services.summaryOutputTokens ? services.summaryOutputTokens() : 0;
+    const auto request=services.createUserMessage({{"content",getCompactPoetry(custom,outputTokens)}});
     Json summarize=messages,retryStash=stash,response;
     auto retryIndigenous=context.indigenousStashSafeParams;
     std::optional<std::string> summary;
@@ -108,8 +109,9 @@ Json compactConversation(const Json& messages,Context& context,const Json& stash
       std::sort(names.begin(),names.end(),[](const auto& a,const auto& b){return value::utf16CodeUnits(a)<value::utf16CodeUnits(b);});
       boundary["compactMetadata"]["preCompactDiscoveredTools"]=std::move(names);
     }
+    const bool cut=value::truthy(value::property(response,"compactSummaryCut"));
     auto summaries=Json::array({services.createUserMessage({{"content",getCompactUserSummaryMessage(*summary,suppress,
-      services.getTranscriptPath())},{"isCompactSummary",true},{"isVisibleInTranscriptOnly",true}})});
+      services.getTranscriptPath(),cut ? std::max(outputTokens,1.0) : 0)},{"isCompactSummary",true},{"isVisibleInTranscriptOnly",true}})});
     const auto callTokens=services.tokenCountFromLastAPIResponse(Json::array({response}));
     Json after=Json::array({boundary});append(after,summaries);append(after,attachments);append(after,hookMessages);
     const auto postTokens=services.roughTokenCountEstimationForMessages(after);

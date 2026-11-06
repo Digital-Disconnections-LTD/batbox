@@ -80,8 +80,12 @@ connection failure.
 Compaction first asks for a summary over the conversation the server already
 has cached. If that fails for a reason other than a timeout, Batbox asks once
 more with the conversation alone; a timeout or a cancelled compaction is not
-resent. A failed automatic compaction shows its reason in the status line and
-in `native.log`. These keys go in `settings.json`:
+resent. Both requests ask for the summary with the endpoint's
+`max_output_tokens` cap, and the prompt tells the model how long its reply may
+be. A summary that still reaches the cap is kept as far as it got: the summary
+message says it was cut short and gives the path of the full transcript, and
+only a reply with no text counts as a failure. A failed automatic compaction
+shows its reason in the status line and in `native.log`. These keys go in `settings.json`:
 
 | Key | Default | What it limits |
 | --- | --- | --- |

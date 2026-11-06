@@ -121,6 +121,12 @@ compaction::WorkflowServices Compactor::workflowFor(const execution::Context& qu
       static_cast<int>(value.get<long long>()):3;
   }();
   auto summary=summaryFor(query);
+  workflow.summaryOutputTokens=[cap=summary.getMaxOutputTokensForModel,
+      model=value::property(value::property(query.data,"options"),"mainLoopModel")]{
+    if(!model.is_string())return 0.0;
+    try{return cap(model.get<std::string>());}
+    catch(const std::out_of_range&){return 0.0;}
+  };
   workflow.streamCompactSummary=[summary=std::move(summary)](
       const compaction::SummaryInputs& inputs,compaction::Context& context)mutable{
     return compaction::streamCompactSummary(inputs,context,summary);

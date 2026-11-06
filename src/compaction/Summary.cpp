@@ -9,6 +9,38 @@ std::string describe(const std::exception_ptr& error) {
   catch(const std::exception& failure) { return failure.what(); }
   catch(...) { return "unknown error"; }
 }
+bool stoppedAtCap(const Json& message) {
+  return value::truthy(value::property(message,"isApiErrorMessage")) &&
+    value::property(message,"apiError")=="max_output_tokens";
+}
+// The summary in a response's assistant messages. A reply continued after
+// the output cap arrives in pieces, so their text is joined as it came. When
+// the last message says the reply stopped at the cap, the text so far is the
+// summary, marked compactSummaryCut. No text: nullopt.
+std::optional<Json> joinedSummary(const Json& messages) {
+  std::string text;
+  Json last;
+  bool cut=false;
+  for(const auto& message:messages) {
+    if(value::property(message,"type")!="assistant")continue;
+    if(value::truthy(value::property(message,"isApiErrorMessage"))) {cut=stoppedAtCap(message);continue;}
+    cut=false;
+    const auto& content=value::property(value::property(message,"message"),"content");
+    if(!content.is_array())continue;
+    for(const auto& block:content)
+      if(value::property(block,"type")=="text" && block.at("text").is_string())text+=block.at("text").get<std::string>();
+    last=message;
+  }
+  if(last.is_null() || value::trim(text).empty())return std::nullopt;
+  last["message"]["content"]=Json::array({{{"type","text"},{"text",value::trim(text)}}});
+  if(cut)last["compactSummaryCut"]=true;
+  return last;
+}
+Json kept(Json summary,const SummaryServices& services) {
+  if(value::truthy(value::property(summary,"compactSummaryCut")) && services.log)
+    services.log("Compaction summary reached the output limit; keeping the text it produced");
+  return summary;
+}
 }
 Json streamCompactSummary(const SummaryInputs& input,Context& context,SummaryServices& services) {
   const bool sharing=services.poetryStashSharingEnabled();
@@ -21,6 +53,8 @@ Json streamCompactSummary(const SummaryInputs& input,Context& context,SummarySer
       const auto assistant=messages::getLastAssistantMessage(result.at("messages"));
       const auto text=assistant.is_null() ? std::nullopt : messages::getAssistantMessageText(assistant);
       const bool apiError=value::truthy(value::property(assistant,"isApiErrorMessage"));
+      if(!assistant.is_null() && (!apiError || stoppedAtCap(assistant)))
+        if(auto summary=joinedSummary(result.at("messages")))return kept(*summary,services);
       if(!assistant.is_null() && text && !text->empty() && !apiError)
         return assistant;
       // The fallback sends the same conversation again in one request: no
@@ -50,6 +84,7 @@ Json streamCompactSummary(const SummaryInputs& input,Context& context,SummarySer
   for(int attempt=1;attempt<=attempts;++attempt) {
     bool started=false;
     model::MessageRef response;
+    Json assistants=Json::array();
     if(context.setResponseLength)context.setResponseLength([](double){return 0;});
     const auto getPermission=[&]{return input.appState.at("toolPermissionContext");};
     const bool gadgetSearch=services.isGadgetSearchEnabled(model,mainGadgets,getPermission,bats,"compact");
@@ -74,7 +109,7 @@ Json streamCompactSummary(const SummaryInputs& input,Context& context,SummarySer
     request.getGadgetPermissionContext=[&context]{return context.getAppState().at("toolPermissionContext");};
     request.options={{"model",model},{"isNonInteractiveSession",options.at("isNonInteractiveSession")},
       {"hasAppendSystemPrompt",value::truthy(value::property(options,"appendSystemPrompt"))},
-      {"maxOutputTokensOverride",std::min(20000.0,services.getMaxOutputTokensForModel(model.get<std::string>()))},
+      {"maxOutputTokensOverride",services.getMaxOutputTokensForModel(model.get<std::string>())},
       {"querySource","compact"},{"agents",bats},{"mcpTools",Json::array()}};
     if(input.appState.contains("effortValue"))request.options["effortValue"]=input.appState["effortValue"];
     auto next=services.queryModelWithStreaming(request);
@@ -92,8 +127,10 @@ Json streamCompactSummary(const SummaryInputs& input,Context& context,SummarySer
           if(context.setResponseLength)context.setResponseLength([length](double before){return before+length;});
         }
       }
-      if(value::property(value,"type")=="assistant")response=*event;
+      if(value::property(value,"type")=="assistant"){response=*event;assistants.push_back(value);}
     }
+    if(response && (!value::truthy(value::property(*response,"isApiErrorMessage")) || stoppedAtCap(*response)))
+      if(auto summary=joinedSummary(assistants))return kept(*summary,services);
     if(response)return *response;
     if(attempt<attempts) {
       services.sleep(services.getRetryDelay(attempt),context.signal);

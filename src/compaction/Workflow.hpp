@@ -36,6 +36,9 @@ struct WorkflowServices {
   std::function<Json(const Json&)> createUserMessage;
   std::function<Json(const Json&,std::stop_token)> executePreCompactHooks;
   std::function<Json(const SummaryInputs&,Context&)> streamCompactSummary;
+  // The output cap the summary request is sent with; unbound or 0: unknown,
+  // and the prompt names no length.
+  std::function<double()> summaryOutputTokens;
   std::function<bool(const std::string&)> startsWithApiErrorPrefix;
   std::function<std::future<Json>(const Json&,Context&,double,const Json&)> createPostCompactFileAttachments;
   std::function<std::future<Json>(Context&)> createAsyncBatAttachmentsIfNeeded;

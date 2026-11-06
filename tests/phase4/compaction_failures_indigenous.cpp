@@ -1,3 +1,4 @@
+#include "compaction/Poetry.hpp"
 #include "compaction/Summary.hpp"
 #include <iostream>
 #include <stdexcept>
@@ -23,6 +24,7 @@ struct Run {
   bool forkThrows=false;
   std::string forkError="fork failed";
   Json fallbackReply=assistant("Fallback summary.");
+  Json fallbackOptions;
   std::stop_source stop;
   Run(){
     context.data={{"options",{{"tools",Json::array()},{"mainLoopModel","local-model"},
@@ -42,11 +44,12 @@ struct Run {
     services.fileReadGadget={{"name","Read"}};
     services.normalizeMessagesForAPI=[](const Json& messages,const Json&){return messages;};
     services.getMaxOutputTokensForModel=[](const std::string&){return 50000.0;};
-    services.queryModelWithStreaming=[this](const SummaryModelRequest&)->model::NextMessage{
-      ++requests;
-      auto reply=std::make_shared<model::MessageRef>(std::make_shared<Json>(fallbackReply));
-      return [reply,done=false]()mutable->std::optional<model::MessageRef>{
-        if(done)return std::nullopt;done=true;return *reply;};
+    services.queryModelWithStreaming=[this](const SummaryModelRequest& request)->model::NextMessage{
+      ++requests;fallbackOptions=request.options;
+      auto replies=std::make_shared<Json>(fallbackReply.is_array()?fallbackReply:Json::array({fallbackReply}));
+      return [replies,index=std::size_t{0}]()mutable->std::optional<model::MessageRef>{
+        if(index>=replies->size())return std::nullopt;
+        return std::make_shared<Json>((*replies)[index++]);};
     };
     services.getRetryDelay=[](double){return 1.0;};
     services.sleep=[this](double,std::stop_token){++sleeps;};
@@ -118,6 +121,28 @@ int main(){
       "One summary attempt sent more than one request");
     require(run.logged.size()==1&&run.logged[0].find("400 bad request shape")!=std::string::npos,
       "The fork failure was not logged with its reason");
+  }
+  {
+    // A summary that reaches the output cap keeps the text produced so far.
+    auto capped=assistant("API Error: Batbox's response exceeded the 50000 output token maximum.",true);
+    capped["apiError"]="max_output_tokens";
+    Run run;run.forkMessages=Json::array({assistant("<summary>Part one, "),
+      assistant("part two"),capped});
+    auto result=run.summarize();
+    require(messages::getAssistantMessageText(result)==std::string("<summary>Part one, part two")&&
+      result.value("compactSummaryCut",false)&&run.requests==0,"A fork summary cut at the cap was not kept");
+    Run fallback;fallback.services.poetryStashSharingEnabled=[]{return false;};
+    fallback.fallbackReply=Json::array({assistant("<summary>Cut here"),capped});
+    result=fallback.summarize();
+    require(result.value("compactSummaryCut",false)&&
+      fallback.fallbackOptions.at("maxOutputTokensOverride")==50000,
+      "The fallback summary was not kept or asked for a different cap than the fork");
+    const auto note=getCompactUserSummaryMessage("<summary>Cut here",false,"/tmp/t.jsonl",50000);
+    require(note.find("Summary:\nCut here")!=std::string::npos&&
+      note.find("50000-token output limit")!=std::string::npos&&note.find("/tmp/t.jsonl")!=std::string::npos,
+      "The summary message did not say it was cut and where the transcript is");
+    require(getCompactPoetry(std::nullopt,16384).find("under about 12200 tokens")!=std::string::npos,
+      "The summary prompt did not state a length inside its cap");
   }
   {
     Run run;run.forkThrows=true;
