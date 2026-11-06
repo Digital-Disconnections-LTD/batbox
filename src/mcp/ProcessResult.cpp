@@ -56,8 +56,8 @@ Json processMCPResult(const Json& raw,const std::string& gadget,
   if(containsImages(content))return truncateMcpContentIfNeeded(content,services.validation);
   if(!services.persistGadgetResult||!services.nowMs)
     throw std::invalid_argument("Missing MCP large-result storage or clock import");
-  const std::string id="mcp-"+normalizeNameForMCP(serverName,services.result.hostedServerPrefix)+
-    "-"+normalizeNameForMCP(gadget,services.result.hostedServerPrefix)+
+  const std::string id="mcp-"+normalizeNameForMCP(serverName)+
+    "-"+normalizeNameForMCP(gadget)+
     "-"+std::to_string(services.nowMs());
   const auto contentStr=content.is_string()?content.get<std::string>():pretty(content);
   const auto persisted=services.persistGadgetResult(contentStr,id);

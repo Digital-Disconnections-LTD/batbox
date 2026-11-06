@@ -141,6 +141,5 @@ void bindIndigenousResultServices(ResultServices& services,const StorageConfig& 
     return persistBinaryContent(bytes,mimeType,id,config);};
   services.nowMs=config.nowMs;
   services.randomSuffix=config.randomSuffix;
-  services.hostedServerPrefix=config.hostedServerPrefix;
 }
 } // namespace batbox::mcp

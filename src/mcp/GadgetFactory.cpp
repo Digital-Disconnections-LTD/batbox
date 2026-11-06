@@ -74,8 +74,7 @@ std::vector<gadgets::Gadget> fetchGadgetsForClient(const std::shared_ptr<Connect
       if(!raw.is_object()||!value::property(raw,"name").is_string())continue;
       const auto serverName=connection->name;
       const auto sourceName=raw.at("name").get<std::string>();
-      const auto fullyQualified=buildMcpGadgetName(serverName,sourceName,
-        services.wire.hostedServerPrefix);
+      const auto fullyQualified=buildMcpGadgetName(serverName,sourceName);
       const auto& descriptionField=value::property(raw,"description");
       const auto description=descriptionField.is_string()?descriptionField.get<std::string>():"";
       const auto& metadata=value::property(raw,"_meta");

@@ -27,7 +27,7 @@ Json persistBlobToTextBlock(const std::string& bytes,const std::optional<std::st
   const ResultServices& services){
   if(!services.persistBinaryContent||!services.nowMs||!services.randomSuffix)
     throw std::invalid_argument("Missing MCP binary storage, clock or random import");
-  const auto persistId="mcp-"+normalizeNameForMCP(serverName,services.hostedServerPrefix)+
+  const auto persistId="mcp-"+normalizeNameForMCP(serverName)+
     "-blob-"+std::to_string(services.nowMs())+"-"+services.randomSuffix();
   const auto persisted=services.persistBinaryContent(bytes,mimeType,persistId);
   if(persisted.contains("error"))return Json::array({{{"type","text"},

@@ -49,27 +49,17 @@ std::string jsString(const Json& value){
 }
 std::string jsStringValue(const Json& value){return jsString(value);}
 std::vector<std::string> jsOwnKeys(const Json& value){return ownKeys(value);}
-std::string normalizeNameForMCP(const std::string& name,const std::string& hostedPrefix){
+std::string normalizeNameForMCP(const std::string& name){
   std::string output;
   for(const char16_t unit:value::utf16CodeUnits(name)){
     if((unit>='a'&&unit<='z')||(unit>='A'&&unit<='Z')||
        (unit>='0'&&unit<='9')||unit=='_'||unit=='-')output+=static_cast<char>(unit);
     else output+='_';
   }
-  if(!hostedPrefix.empty()&&name.starts_with(hostedPrefix)){
-    std::string collapsed;
-    for(const char c:output)if(c!='_'||collapsed.empty()||collapsed.back()!='_')collapsed+=c;
-    const auto first=collapsed.find_first_not_of('_');
-    if(first==std::string::npos)return "";
-    const auto last=collapsed.find_last_not_of('_');
-    return collapsed.substr(first,last-first+1);
-  }
   return output;
 }
-std::string buildMcpGadgetName(const std::string& serverName,const std::string& gadgetName,
-  const std::string& hostedPrefix){
-  return "mcp__"+normalizeNameForMCP(serverName,hostedPrefix)+"__"+
-    normalizeNameForMCP(gadgetName,hostedPrefix);
+std::string buildMcpGadgetName(const std::string& serverName,const std::string& gadgetName){
+  return "mcp__"+normalizeNameForMCP(serverName)+"__"+normalizeNameForMCP(gadgetName);
 }
 std::string mcpGadgetInputToAutoClassifierInput(const Json& input,const std::string& gadgetName){
   if(!input.is_object()||input.empty())return gadgetName;

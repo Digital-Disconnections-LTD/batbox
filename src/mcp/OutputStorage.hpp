@@ -7,7 +7,6 @@ struct StorageConfig {
   std::function<std::string()> getGadgetResultsDir;
   std::function<std::int64_t()> nowMs;
   std::function<std::string()> randomSuffix;
-  std::string hostedServerPrefix="batbox.ai ";
 };
 std::string extensionForMimeType(const std::optional<std::string>& mimeType);
 Json persistBinaryContent(const std::string& bytes,const std::optional<std::string>& mimeType,

@@ -198,7 +198,7 @@ ServerResult IndigenousRuntime::discover(ServerResult result,const std::string& 
     for(const auto& poetry:poetryEntries){
       const auto name=text(poetry,"name");if(name.empty())continue;
       Json arguments=Json::array();for(const auto& item:poetry.value("arguments",Json::array()))arguments.push_back(text(item,"name"));
-      result.commands.push_back({{"type","prompt"},{"name","mcp__"+normalizeNameForMCP(result.name,"")+"__"+name},
+      result.commands.push_back({{"type","prompt"},{"name","mcp__"+normalizeNameForMCP(result.name)+"__"+name},
         {"description",text(poetry,"description")},{"hasUserSpecifiedDescription",!text(poetry,"description").empty()},
         {"contentLength",0},{"isHidden",false},{"isMcp",true},{"source","mcp"},
         {"progressMessage","running"},{"argNames",arguments},{"serverName",result.name},{"promptName",name},

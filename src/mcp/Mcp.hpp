@@ -24,7 +24,6 @@ struct ClientHandlers {
 struct WireKeys {
   std::string searchHintMetaKey;
   std::string alwaysLoadMetaKey;
-  std::string hostedServerPrefix="batbox.ai ";
 };
 struct GadgetCallResult {
   Json content=Json();
@@ -58,7 +57,6 @@ struct ResultServices {
   std::function<Json(const std::string&,const std::optional<std::string>&,const std::string&)> persistBinaryContent;
   std::function<std::int64_t()> nowMs;
   std::function<std::string()> randomSuffix;
-  std::string hostedServerPrefix="batbox.ai ";
 };
 struct TransformedResult {
   Json content;
@@ -103,9 +101,8 @@ struct Services {
   std::function<void(const std::string&)> logError;
   UrlElicitationServices urlElicitation;
 };
-std::string normalizeNameForMCP(const std::string& name,const std::string& hostedPrefix);
-std::string buildMcpGadgetName(const std::string& serverName,const std::string& gadgetName,
-  const std::string& hostedPrefix);
+std::string normalizeNameForMCP(const std::string& name);
+std::string buildMcpGadgetName(const std::string& serverName,const std::string& gadgetName);
 std::string mcpGadgetInputToAutoClassifierInput(const Json& input,const std::string& gadgetName);
 std::string jsStringValue(const Json& value);
 std::vector<std::string> jsOwnKeys(const Json& value);
