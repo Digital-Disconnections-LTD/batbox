@@ -1,4 +1,5 @@
 #include "mcp/http/Http.hpp"
+#include "runtime/Loopback.hpp"
 #include "runtime/Url.hpp"
 #include <curl/curl.h>
 #include <algorithm>
@@ -108,6 +109,7 @@ Response transfer(const Request& request,const std::string& url,
   char error[CURL_ERROR_SIZE]{};
   auto* curl=handle.get();
   curl_easy_setopt(curl,CURLOPT_URL,url.c_str());
+  if(runtime::isLoopbackUrl(url))curl_easy_setopt(curl,CURLOPT_NOPROXY,"*");
   curl_easy_setopt(curl,CURLOPT_CUSTOMREQUEST,method.c_str());
   curl_easy_setopt(curl,CURLOPT_HTTPHEADER,headers.value);
   curl_easy_setopt(curl,CURLOPT_NOSIGNAL,1L);

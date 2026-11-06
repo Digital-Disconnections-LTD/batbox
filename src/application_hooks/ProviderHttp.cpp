@@ -1,4 +1,5 @@
 #include "application_hooks/Provider.hpp"
+#include "runtime/Loopback.hpp"
 #include "instructions/hooks/runtime/IndigenousHttp.hpp"
 #include "runtime/JsonValue.hpp"
 #ifdef _WIN32
@@ -39,6 +40,7 @@ std::string urlPart(CURLU* url,CURLUPart part){
   std::string result=value;::curl_free(value);return result;
 }
 bool shouldBypass(const std::string& requestUrl){
+  if(runtime::isLoopbackUrl(requestUrl))return true;
   const auto noProxy=firstEnvironment({"no_proxy","NO_PROXY"});
   if(!noProxy)return false;
   if(*noProxy=="*")return true;

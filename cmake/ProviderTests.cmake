@@ -22,4 +22,7 @@ if(UNIX)
   add_test(NAME phase6-endpoint-redirect-smoke COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_SOURCE_DIR}/checks/endpoint_redirect_smoke.py $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-endpoint-redirect-smoke PROPERTIES TIMEOUT 120)
+  add_test(NAME phase6-loopback-proxy-smoke COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_SOURCE_DIR}/checks/loopback_proxy_smoke.py $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-loopback-proxy-smoke PROPERTIES TIMEOUT 150)
 endif()

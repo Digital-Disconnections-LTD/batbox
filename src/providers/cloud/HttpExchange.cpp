@@ -1,6 +1,7 @@
 #include "providers/cloud/HttpExchange.hpp"
 #include "transport/Errors.hpp"
 #include "transport/Perform.hpp"
+#include "runtime/Loopback.hpp"
 #include <curl/curl.h>
 #include <algorithm>
 #include <cerrno>
@@ -127,6 +128,7 @@ HttpResult HttpExchange::perform(const HttpRequest& request, std::stop_token sto
   curl_easy_setopt(curl,CURLOPT_TCP_KEEPALIVE,network.disableKeepAlive ? 0L : 1L);
   curl_easy_setopt(curl,CURLOPT_FORBID_REUSE,network.disableKeepAlive ? 1L : 0L);
   if (!network.proxyUrl.empty()) curl_easy_setopt(curl,CURLOPT_PROXY,network.proxyUrl.c_str());
+  if (runtime::isLoopbackUrl(request.url)) curl_easy_setopt(curl,CURLOPT_NOPROXY,"*");
   if (!network.unixSocketPath.empty()) curl_easy_setopt(curl,CURLOPT_UNIX_SOCKET_PATH,network.unixSocketPath.c_str());
   curl_blob certificate{const_cast<char*>(network.tlsCertificatePem.data()),network.tlsCertificatePem.size(),CURL_BLOB_NOCOPY};
   curl_blob privateKey{const_cast<char*>(network.tlsPrivateKeyPem.data()),network.tlsPrivateKeyPem.size(),CURL_BLOB_NOCOPY};

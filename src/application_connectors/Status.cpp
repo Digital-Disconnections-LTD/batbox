@@ -1,4 +1,5 @@
 #include "application_connectors/Status.hpp"
+#include "runtime/Loopback.hpp"
 #include "application_connectors/Bootstrap.hpp"
 #include "connectors/Executable.hpp"
 #include "connectors/Scrapling.hpp"
@@ -153,6 +154,7 @@ SearxngProbe probeSearxng(const std::string& url,std::chrono::milliseconds timeo
   const auto target=url+(url.find('?')==std::string::npos?"?":"&")+"q=batbox&format=json";
   std::string payload;
   curl_easy_setopt(http.get(),CURLOPT_URL,target.c_str());
+  if(runtime::isLoopbackUrl(target))curl_easy_setopt(http.get(),CURLOPT_NOPROXY,"*");
   curl_easy_setopt(http.get(),CURLOPT_USERAGENT,"batbox-doctor");
   curl_easy_setopt(http.get(),CURLOPT_NOSIGNAL,1L);
   curl_easy_setopt(http.get(),CURLOPT_CONNECTTIMEOUT_MS,
@@ -200,6 +202,7 @@ std::string searxngVersion(const std::string& searchUrl,std::chrono::millisecond
   if(!http)return {};
   std::string payload;
   curl_easy_setopt(http.get(),CURLOPT_URL,target.c_str());
+  if(runtime::isLoopbackUrl(target))curl_easy_setopt(http.get(),CURLOPT_NOPROXY,"*");
   curl_easy_setopt(http.get(),CURLOPT_USERAGENT,"batbox-doctor");
   curl_easy_setopt(http.get(),CURLOPT_NOSIGNAL,1L);
   curl_easy_setopt(http.get(),CURLOPT_CONNECTTIMEOUT_MS,static_cast<long>(timeout.count()));

@@ -2,6 +2,7 @@
 #include "transport/Errors.hpp"
 #include "transport/Perform.hpp"
 #include "transport/SSE.hpp"
+#include "runtime/Loopback.hpp"
 #include <curl/curl.h>
 #include <algorithm>
 #include <cerrno>
@@ -144,6 +145,7 @@ Response Client::request(const Json& body, bool stream, const std::function<void
     config.disableKeepAlive?1L:0L);
   if(!config.proxyUrl.empty())
     curl_easy_setopt(http,CURLOPT_PROXY,config.proxyUrl.c_str());
+  if(runtime::isLoopbackUrl(url))curl_easy_setopt(http,CURLOPT_NOPROXY,"*");
   if(!config.unixSocketPath.empty())
     curl_easy_setopt(http,CURLOPT_UNIX_SOCKET_PATH,
       config.unixSocketPath.c_str());

@@ -1,6 +1,7 @@
 #include "transport/RawHttp.hpp"
 #include "transport/Messages.hpp"
 #include "transport/Perform.hpp"
+#include "runtime/Loopback.hpp"
 #include <curl/curl.h>
 #include <algorithm>
 #include <cerrno>
@@ -149,6 +150,7 @@ RawResponse HttpSession::perform(const RawRequest& request,
   curl_easy_setopt(http,CURLOPT_TCP_KEEPALIVE,config_.disableKeepAlive?0L:1L);
   curl_easy_setopt(http,CURLOPT_FORBID_REUSE,config_.disableKeepAlive?1L:0L);
   if (!config_.proxyUrl.empty()) curl_easy_setopt(http,CURLOPT_PROXY,config_.proxyUrl.c_str());
+  if (runtime::isLoopbackUrl(request.url)) curl_easy_setopt(http,CURLOPT_NOPROXY,"*");
   if (!config_.unixSocketPath.empty())
     curl_easy_setopt(http,CURLOPT_UNIX_SOCKET_PATH,config_.unixSocketPath.c_str());
   curl_blob certificate{const_cast<char*>(config_.tlsCertificatePem.data()),
@@ -221,17 +223,7 @@ std::string joinUrl(const std::string& baseUrl, const std::string& path) {
   return url + path;
 }
 
-bool isLoopbackUrl(const std::string& url) {
-  const auto scheme = url.find("://");
-  auto host = url.substr(scheme == std::string::npos ? 0 : scheme+3);
-  host = host.substr(0,host.find_first_of("/?#"));
-  if (const auto at = host.rfind('@'); at != std::string::npos) host = host.substr(at+1);
-  if (host.starts_with('[')) host = host.substr(1,host.find(']')-1);
-  else if (const auto colon = host.find(':'); colon != std::string::npos) host = host.substr(0,colon);
-  host = lowerAscii(host);
-  return host == "localhost" || host.ends_with(".localhost") || host.starts_with("127.") ||
-    host == "::1" || host == "0.0.0.0";
-}
+bool isLoopbackUrl(const std::string& url) { return runtime::isLoopbackUrl(url); }
 
 std::string errorText(const Json& body, const std::string& raw) {
   const auto& nested = value::property(value::property(body,"error"),"message");

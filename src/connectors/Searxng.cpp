@@ -1,4 +1,5 @@
 #include "connectors/Searxng.hpp"
+#include "runtime/Loopback.hpp"
 #include <curl/curl.h>
 #include <algorithm>
 #include <memory>
@@ -159,6 +160,7 @@ Json Searxng::search(const Json& input, const std::string& gadgetUseId, std::chr
   curl_free(escaped);
   std::string payload;
   curl_easy_setopt(http.get(), CURLOPT_URL, url.c_str());
+  if (runtime::isLoopbackUrl(url)) curl_easy_setopt(http.get(), CURLOPT_NOPROXY, "*");
   curl_easy_setopt(http.get(), CURLOPT_USERAGENT, "batbox/0.0.1");
   curl_easy_setopt(http.get(), CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt(http.get(), CURLOPT_CONNECTTIMEOUT_MS, 10000L);
