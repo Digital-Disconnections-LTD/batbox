@@ -3,6 +3,7 @@
 #include "messages/Messages.hpp"
 #include "model/Lifecycle.hpp"
 #include "providers/ModelRequestSettings.hpp"
+#include "query/Recovery.hpp"
 #include "query/SimpleQueriesBinding.hpp"
 #include "runtime/Platform.hpp"
 #include <iostream>
@@ -152,6 +153,8 @@ int main(int argc,char** argv){
   const auto remote=service->makeQueryServices({},Json{{"model","broken-remote"}});
   require(!remote.disableFallbackFeature&&remote.environment.at("API_TIMEOUT_MS")=="0",
     "Remote fallback settings did not reach the model");
+  require(query::isWithheldMaxOutputTokens(services.reducer.createAssistantAPIErrorMessage(
+    "capped","max_output_tokens","max_output_tokens")),"A reply stopped at the output cap is not continued");
   const auto idle=service->makeQueryServices({},Json{{"model","slow-idle"}});
   require(idle.retry.env.at("BATBOX_MAX_RETRIES")=="0","max_retries did not reach the retry policy");
   messages::Services factories;

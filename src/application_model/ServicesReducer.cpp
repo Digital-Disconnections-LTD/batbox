@@ -82,10 +82,12 @@ streaming::ReducerConfig LocalServiceBuilder::makeReducer(){
     if(reason.is_string())stop=reason.get<std::string>();
     return api_errors::getErrorMessageIfRefusal(stop,model,errors);
   };
+  // apiError marks a reply stopped at the output cap, which the query loop
+  // continues instead of showing as an error (query::isWithheldMaxOutputTokens).
   deps.createAssistantAPIErrorMessage=[messages=messages](
-      const auto& text,const auto& kind,const auto& details)mutable{
+      const auto& text,const auto& apiError,const auto& error)mutable{
     return messages::createAssistantAPIErrorMessage(
-      Json{{"content",text},{"error",kind},{"errorDetails",details}},
+      Json{{"content",text},{"apiError",apiError},{"error",error}},
       messages);
   };
   return deps;
