@@ -48,6 +48,12 @@ std::optional<QueuedInput> describeQueuedCommand(const CommandRef& command){
     QueuedInput::Kind::Poetry;
   return row;
 }
+bool isDeliverablePoetry(const CommandRef& command){
+  const auto row=describeQueuedCommand(command);
+  if(!row||row->kind!=QueuedInput::Kind::Poetry)return false;
+  const auto& priority=field(*command,"priority");
+  return !priority.is_string()||priority=="next"||priority=="now";
+}
 bool QueuedInputTracker::syncQueue(const CommandList& queue,
     const std::vector<MessageRef>& messages){
   std::vector<QueuedInput> queued;

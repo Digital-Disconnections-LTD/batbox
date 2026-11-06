@@ -7,6 +7,7 @@
 #include "bats/IndigenousMissionOutput.hpp"
 #include "flights/ProjectDirectories.hpp"
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <stdexcept>
 
@@ -270,11 +271,30 @@ std::string outstandingLimit(std::size_t limit){
 }
 }
 void IndigenousBatApplication::requireCapacity(std::stop_token stop){
+  (void)requireCapacityOrDefer(stop,{});
+}
+bool IndigenousBatApplication::requireCapacityOrDefer(std::stop_token stop,
+    const std::function<bool()>& wake){
   std::unique_lock lock(capacityMutex_);
   if(closing_||stop.stop_requested())throw std::runtime_error("Subagent launch interrupted");
   if(outstanding_>=inputs_.config.maxSubagents)
     throw std::runtime_error(outstandingLimit(inputs_.config.maxSubagents));
   ++outstanding_;
+  const auto ready=[this]{return closing_||active_<inputs_.config.maxConcurrentSubagents;};
+  // wake reads a flag the owner loop sets, so it is polled rather than notified.
+  while(wake&&!ready()&&!stop.stop_requested()){
+    if(wake())return false;
+    capacityChanged_.wait_for(lock,stop,std::chrono::milliseconds(100),ready);
+  }
+  takeCapacity(lock,stop);
+  return true;
+}
+void IndigenousBatApplication::awaitCapacity(std::stop_token stop){
+  std::unique_lock lock(capacityMutex_);
+  takeCapacity(lock,stop);
+}
+void IndigenousBatApplication::takeCapacity(std::unique_lock<std::mutex>& lock,
+    std::stop_token stop){
   if(!capacityChanged_.wait(lock,stop,[this]{
       return closing_||active_<inputs_.config.maxConcurrentSubagents;})||closing_){
     --outstanding_;

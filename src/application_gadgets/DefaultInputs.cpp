@@ -600,6 +600,7 @@ Inputs makeDefaultInputs(DefaultInputs d){
     if(!status.empty())text+=" ("+status+")";
     const auto retrieval=field(data,"retrieval_status");
     if(retrieval=="timeout")text+=" — wait timed out";
+    else if(retrieval=="user_message")text+=" — wait ended for your message";
     else if(retrieval=="not_ready")text+=" — still running";
     if(output.is_string()&&!output.get<std::string>().empty())
       text+='\n'+output.get<std::string>();
@@ -611,6 +612,7 @@ Inputs makeDefaultInputs(DefaultInputs d){
     return visible(data);};
   missionOutput.renderRejected=missionOutput.renderError;
   missionOutput.renderTag=[](const Json&)->Json{return "Mission output";};
+  missionOutput.userMessageQueued=d.userMessageQueued;
   out.additionalGadgets.push_back(mission_output::makeMissionOutputGadget(
     std::move(missionOutput)));
   mission_stop::Services missionStop;

@@ -58,7 +58,10 @@ public:
   void completeShell(const std::string& missionId,const shell::ExecResult& result);
   std::optional<MissionRecord> get(const std::string& missionId)const;
   std::vector<MissionRecord> list()const;
-  std::optional<MissionRecord> wait(const std::string& missionId,double timeoutMs,std::stop_token signal);
+  // Returns the record when the Mission settles, the timeout passes, or wake
+  // turns true (checked at once and every 100 ms); it may still be running.
+  std::optional<MissionRecord> wait(const std::string& missionId,double timeoutMs,
+    std::stop_token signal,const std::function<bool()>& wake={});
   bool markNotified(const std::string& missionId);
   StopResult stop(const std::string& missionId);
   void stopForBat(const std::string& batId);

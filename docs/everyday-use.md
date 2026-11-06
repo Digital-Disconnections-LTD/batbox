@@ -108,7 +108,9 @@ arrive as a notification. When the model's next step needs that result, it waits
 with TaskOutput (`block: true`) instead of launching the Bat again; work that does
 not depend on the result comes first. A TaskOutput wait on a Bat lasts up to one
 hour by default (30 seconds for a background shell command), and a wait that ends
-first reports the Bat as still running, not failed.
+first reports the Bat as still running, not failed. A message you type during the
+wait ends it at once: the model reads your message in the same round, told that
+the Bat is still running and that it can wait for it again later.
 
 ## Choose how you fly
 
@@ -191,8 +193,14 @@ once at the bottom of the conversation, in the band your sent messages use but
 quieter, marked `queued · delivered at the next Gadget round`. The turn keeps
 running: the model reads the message after its current Gadgets finish, told
 that it arrived while it was working, and can change course before the turn
-ends. If the model is writing its final answer instead, the message goes out
-as soon as that answer ends, with the same note. Several messages stack in the
+ends. Gadgets that only wait do not hold it back: a TaskOutput wait ends, a Bat
+waiting for a free slot stays queued and starts in the background once one
+frees, and a foreground Bat of the main Flight moves to the background as
+Ctrl+B would move it, so the model reads your message within a moment and the
+Bat carries on. A shell command still runs to its end and returns its output
+first; Ctrl+B moves it to the background. If the model is writing its
+final answer instead, or its request is still waiting on the server, the
+message goes out as soon as that answer ends, with the same note. Several messages stack in the
 order you sent them. When a message is delivered its row turns into an ordinary
 message where the model read it, and a resumed Flight shows it there too.
 Slash commands and `!` commands typed during a turn are queued the same way and

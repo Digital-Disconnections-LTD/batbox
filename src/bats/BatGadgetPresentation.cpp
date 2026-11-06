@@ -56,6 +56,14 @@ Json mapBatGadgetResult(const Json& data,const std::string& gadgetUseId) {
       "Briefly tell the user what you launched and end your response. Do not generate any other text — agent results will arrive in a subsequent message.";
     return resultBlock(gadgetUseId,Json::array({contentText(prefix+"\n"+instructions)}));
   }
+  if (hasStatus(data,"queued_for_slot")) {
+    return resultBlock(gadgetUseId,Json::array({contentText(
+      "No Bat slot was free, and the user sent a new message, so this launch returned "
+      "without waiting. The agent is queued: it starts in the background as soon as a "
+      "slot frees, and its result will come back to you as a notification when it "
+      "finishes. It has no agentId until it starts. Do not launch another agent for "
+      "the same work; read the user's message first.")}));
+  }
   if (hasStatus(data,"completed")) {
     const bool hasWorktree=data.contains("worktreePath") &&
       value::truthy(data.at("worktreePath"));
@@ -154,6 +162,7 @@ std::string groupedBatGadgetUseText(const Json& entries){
     if(value::property(entry,"isError")==true)state="Failed";
     else if(status=="async_launched")
       state=by.empty()?"Launched":"";
+    else if(status=="queued_for_slot")state="Waiting for a slot";
     else if(value::property(entry,"isResolved")==true)state="Completed";
     else if(value::property(entry,"isInProgress")==true||
         (progress.is_array()&&!progress.empty()))

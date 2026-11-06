@@ -239,6 +239,7 @@ void Host::Impl::shutdown(){
   if(connectors)connectors->shutdown();
   if(exitSteps)runExitSteps(*exitSteps);
   retentionTimer.cancel();
+  userMessagePoll.cancel();userMessagePolling=false;
   forgetRunningFlight(config.stateDirectory);
   flushLog();
 }

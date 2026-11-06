@@ -170,7 +170,8 @@ std::vector<MissionRecord> Roster::list()const{
   result.reserve(missions_.size());for(const auto& [_,mission]:missions_)result.push_back(mission);
   return result;
 }
-std::optional<MissionRecord> Roster::wait(const std::string& id,double timeoutMs,std::stop_token signal){
+std::optional<MissionRecord> Roster::wait(const std::string& id,double timeoutMs,
+    std::stop_token signal,const std::function<bool()>& wake){
   std::stop_callback stopWake(signal,[this]{cv_.notify_all();});
   const auto start=std::chrono::steady_clock::now();
   for(;;){
@@ -182,6 +183,7 @@ std::optional<MissionRecord> Roster::wait(const std::string& id,double timeoutMs
     std::unique_lock lock(mutex_);
     auto it=missions_.find(id);if(it==missions_.end())return std::nullopt;
     if(it->second.status!="running"&&it->second.status!="pending")return it->second;
+    if(wake&&wake())return it->second;
     const auto slice=std::min(100.0,timeoutMs-elapsed);
     cv_.wait_for(lock,std::chrono::duration<double,std::milli>(slice));
   }

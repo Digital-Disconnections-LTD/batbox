@@ -71,6 +71,7 @@ gadgets::Gadget makeMissionOutputGadget(Services services){
     "- block=true (default) waits until the task finishes, up to timeout. Use it when your next step depends on a background agent's result, instead of launching the agent again\n"
     "- The default wait is one hour for an agent and 30 seconds for a background shell command, which may be a server that never exits\n"
     "- If the wait ends first, the task is still running, not failed; call again to keep waiting\n"
+    "- A new message from the user also ends the wait early so you can read it; the task keeps running\n"
     "- block=false checks the current status without waiting\n"
     "- Finished background tasks also arrive as a <task-notification>; you do not need to poll them"));};
   gadget.validateInput=[shared](const Json& input,const Json&){
@@ -98,10 +99,18 @@ gadgets::Gadget makeMissionOutputGadget(Services services){
       }else{
         if(onProgress)onProgress({"task-output-waiting-"+std::to_string(shared->nowMs()),
           {{"type","waiting_for_task"},{"taskDescription",mission->description},{"taskType",mission->type}}});
-        const auto completed=shared->roster->wait(id,timeoutValue(input,*mission),context.stopToken);
+        // Only the main Flight reads the user's queued messages; a Bat's wait
+        // does not end for them.
+        const auto& caller=value::property(context.data,"agentId");
+        std::function<bool()> wake;
+        if(!(caller.is_string()&&!caller.get_ref<const std::string&>().empty()))
+          wake=shared->userMessageQueued;
+        const auto completed=shared->roster->wait(id,timeoutValue(input,*mission),
+          context.stopToken,wake);
         if(!completed)data={{"retrieval_status","timeout"},{"task",nullptr}};
         else if(completed->status=="running"||completed->status=="pending")
-          data={{"retrieval_status","timeout"},{"task",getMissionOutputData(*completed,*shared->roster)}};
+          data={{"retrieval_status",wake&&wake()?"user_message":"timeout"},
+            {"task",getMissionOutputData(*completed,*shared->roster)}};
         else{
           shared->roster->markNotified(id);
           data={{"retrieval_status","success"},{"task",getMissionOutputData(*completed,*shared->roster)}};

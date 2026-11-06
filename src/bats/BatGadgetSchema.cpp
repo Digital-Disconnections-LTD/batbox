@@ -161,7 +161,10 @@ Json batGadgetOutputShape(){
       "Whether the calling agent has Read/Bash tools to check progress")},
     {"canWaitForResult",described(optional(node("boolean")),
       "Whether the calling agent has TaskOutput to wait for the result")}});
-  return Json{{"kind","union"},{"options",Json::array({sync,async})}};
+  Json queued=object(Json{{"status",literal("queued_for_slot")},
+    {"description",described(string,"The description of the task")},
+    {"prompt",described(string,"The prompt for the agent")}});
+  return Json{{"kind","union"},{"options",Json::array({sync,async,queued})}};
 }
 
 Json batGadgetOutputJSONSchema(){

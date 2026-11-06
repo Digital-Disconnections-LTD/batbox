@@ -43,6 +43,11 @@ if(UNIX)
       ${CMAKE_SOURCE_DIR}/checks/indigenous_queued_poetry_smoke.py
       $<TARGET_FILE:batbox>)
   set_tests_properties(phase6-queued-poetry-pty PROPERTIES TIMEOUT 240)
+  add_test(NAME phase6-queued-wake-pty
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/checks/indigenous_queued_wake_smoke.py
+      $<TARGET_FILE:batbox>)
+  set_tests_properties(phase6-queued-wake-pty PROPERTIES TIMEOUT 240)
   add_test(NAME phase6-paste-terminal-roundtrip
     COMMAND ${Python3_EXECUTABLE}
       ${CMAKE_SOURCE_DIR}/checks/indigenous_paste_smoke.py

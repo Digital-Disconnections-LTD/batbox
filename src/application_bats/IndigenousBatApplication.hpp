@@ -67,6 +67,8 @@ public:
       enqueuePendingNotification;
     std::function<void(const std::string& batId)> killShellMissionsForBat;
     std::function<void(const std::exception&)> logError;
+    // True while the user has poetry queued for the main Flight.
+    std::function<bool()> userMessageQueued;
     query::NotifyLifecycle notifyCommandLifecycle;
     explicit Inputs(event_loop::Loop& loop):owner(loop){}
   };
@@ -148,6 +150,22 @@ private:
   void startBatJob(const std::string& missionId);
   void finishBatJob(const std::string& missionId);
   void requireCapacity(std::stop_token stop);
+  // Like requireCapacity, but stops waiting once wake() is true and returns
+  // false; the launch still counts as outstanding until awaitCapacity takes
+  // its slot or fails.
+  bool requireCapacityOrDefer(std::stop_token stop,const std::function<bool()>& wake);
+  void awaitCapacity(std::stop_token stop);
+  // Requires capacityMutex_ held through lock and the launch counted as outstanding.
+  void takeCapacity(std::unique_lock<std::mutex>& lock,std::stop_token stop);
+  std::future<gadgets::GadgetResult> callGadget(const Json& input,
+    const gadgets::GadgetCallContext& callContext,
+    const std::function<std::future<Json>(const Json&)>& canUseGadget,
+    const Json& assistantMessage,
+    const std::function<void(const gadgets::GadgetProgress&)>& onProgress,bool slotTaken);
+  // Waits for a slot off the turn, then launches the Bat in the background.
+  void launchWhenSlotFrees(Json input,gadgets::GadgetCallContext callContext,
+    std::function<std::future<Json>(const Json&)> canUseGadget,Json assistantMessage,
+    std::optional<std::string> waiting);
   // While a Bat waits for a concurrent slot it shows in Active Missions as a
   // "waiting" row (status pending, waiting true), removed once it starts or
   // gives up. Returns the row id, or nothing when a slot is free now.

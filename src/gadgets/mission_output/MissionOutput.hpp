@@ -13,6 +13,9 @@ struct Services {
   std::function<Json(const Json&,const Json&)> renderError;
   std::function<Json(const Json&,const Json&)> renderRejected;
   std::function<Json(const Json&)> renderTag;
+  // True while the user has a message queued for the main Flight; a blocking
+  // wait there ends early so the message is delivered this round.
+  std::function<bool()> userMessageQueued;
   std::size_t maxOutputLength=32000;
   bool enabled=true;
 };

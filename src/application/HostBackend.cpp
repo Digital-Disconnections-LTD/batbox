@@ -81,6 +81,7 @@ void Host::Impl::bindBackend(){
       });
     });
   };
+  gadgetDefaults.userMessageQueued=[flag=userMessageQueued]{return flag->load();};
   gadgetDefaults.skillRoster=skills->roster();
   gadgetDefaults.skillServices=skills->rosterServices();
   gadgetDefaults.additionalGadgets.push_back(skills->makeGadget());
@@ -392,6 +393,7 @@ void Host::Impl::bindBackend(){
   batInputs.killShellMissionsForBat=[missions=managedShell.missions](const std::string& id){
     missions->stopForBat(id);};
   batInputs.logError=[this](const std::exception& error){log(error.what());};
+  batInputs.userMessageQueued=[flag=userMessageQueued]{return flag->load();};
   batInputs.notifyCommandLifecycle=notifyLifecycle;
   bats=application_bats::IndigenousBatApplication::create(std::move(batInputs));
   preparedGadgets->factory.additionalBaseGadgets.push_back(bats->makeSendMessageGadget());

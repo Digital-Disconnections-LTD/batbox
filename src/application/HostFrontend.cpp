@@ -5,6 +5,7 @@
 #include "application_commands/FlightTitles.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
 #include "interactive/text_input/TextEditorIndigenous.hpp"
+#include "interactive/submit/QueuedInputs.hpp"
 #include "runtime/MessageSnapshot.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/Platform.hpp"
@@ -279,6 +280,30 @@ void Host::Impl::rebindRoost(
   if(completion)completion->clearPathStash();
   releaseRetiredProviders();
   log("Workspace providers rebound: "+next.cwd.string());
+}
+// A message the user typed reaches the model at the next Gadget round, so
+// while one waits the main Flight's foreground Bats move to the background the
+// way Ctrl+B moves them. Rechecked while it stays queued, for a Bat that starts
+// meanwhile. Shell commands run to the end and return their output.
+void Host::Impl::backgroundForUserMessage(){
+  userMessagePolling=false;
+  if(closing||!userMessageQueued->load())return;
+  if(bats&&store){
+    const auto tasks=store->getState()->fieldRef("tasks");
+    std::vector<std::string> foreground;
+    if(tasks&&tasks->is_object())for(auto it=tasks->begin();it!=tasks->end();++it){
+      const auto& mission=it.value();
+      if(value::property(mission,"type")=="local_agent"&&
+         value::property(mission,"status")=="running"&&
+         value::property(mission,"isBackgrounded")==false&&
+         value::property(mission,"agentType")!="main-session"&&
+         !value::property(mission,"parentBatId").is_string())
+        foreground.push_back(it.key());
+    }
+    for(const auto& id:foreground)(void)bats->backgroundForegroundMission(id);
+  }
+  userMessagePolling=true;
+  userMessagePoll=owner.setTimeout(250,[this]{backgroundForUserMessage();},false);
 }
 void Host::Impl::bindFrontend(){
   application_runtime::Inputs bindings(owner,view);
@@ -824,6 +849,16 @@ void Host::Impl::bindFrontend(){
       throw std::runtime_error("No model is connected yet. Pick one in /providers.");
     };
   runtime=application_runtime::ApplicationRuntime::create(std::move(bindings));
+  (void)runtime->queue().subscribe([this]{
+    const auto queued=runtime->queue().snapshot();
+    userMessageQueued->store(std::any_of(queued->begin(),queued->end(),
+      interactive::submit::isDeliverablePoetry));
+    // Not from inside the queue's own notification.
+    if(userMessageQueued->load()&&!userMessagePolling){
+      userMessagePolling=true;
+      userMessagePoll=owner.setTimeout(0,[this]{backgroundForUserMessage();},false);
+    }
+  });
 
   terminal_ftxui::Options options;
   options.mode=config.fullscreen?terminal_ftxui::Mode::Fullscreen:

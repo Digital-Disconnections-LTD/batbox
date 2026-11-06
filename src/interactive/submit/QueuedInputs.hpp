@@ -14,6 +14,9 @@ std::string queuedCommandId(const CommandRef& command);
 // The leader row for a command sent while a turn runs; nothing for Bat-scoped,
 // background or meta commands, which never came from the poetry input.
 std::optional<QueuedInput> describeQueuedCommand(const CommandRef& command);
+// Poetry the user typed for the main Flight that the next Gadget round hands
+// to the model: not a slash command, ! command, notification or Bat message.
+bool isDeliverablePoetry(const CommandRef& command);
 
 // Keeps PresentationState::queuedInputs in step with the command queue and
 // the transcript. A row is drawn from Enter until the message it turns into

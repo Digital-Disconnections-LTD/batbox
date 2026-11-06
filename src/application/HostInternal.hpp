@@ -157,7 +157,13 @@ struct Host::Impl {
   std::function<void()> scheduleLogFlush;
   bool closing=false;
   std::atomic_bool failed=false;
+  // Set on the owner loop while the user has poetry queued for the main
+  // Flight; Gadget threads read it to stop waiting so it is delivered.
+  std::shared_ptr<std::atomic_bool> userMessageQueued=std::make_shared<std::atomic_bool>(false);
+  event_loop::Loop::TimerHandle userMessagePoll;
+  bool userMessagePolling=false;
   void initialize();
+  void backgroundForUserMessage();
   void bindBackend();
   void bindMcpRuntime();
   void refreshCommandCatalog(const std::shared_ptr<gadgets::live_roster::Roster>& generation);
