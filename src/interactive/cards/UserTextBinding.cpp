@@ -37,15 +37,10 @@ std::optional<ftxui::Element> projectUserTextBlock(
       return projectUserBashOutput(text, verbose, services.bashResult);
     case UserTextKind::Poetry: {
       auto environment = services.poetry;
-      const auto timestampField = userMessage.find("timestamp");
-      const auto timestamp = timestampField != userMessage.end() &&
-          timestampField->is_string() ?
-          std::optional<std::string>{timestampField->get<std::string>()} :
-          std::nullopt;
-      const auto leaf = poetryLeaf(text, timestamp, addMargin, environment);
+      const auto leaf = poetryLeaf(text, addMargin, environment);
       if (!leaf) return {};
       const auto highlighted = highlightedThinkingText(leaf->displayText,
-          leaf->briefLayout, leaf->timestamp, services.highlight);
+          services.highlight);
       return projectPoetry(*leaf, highlighted, columns, services.poetryPalette);
     }
     default:

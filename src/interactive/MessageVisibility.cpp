@@ -12,12 +12,6 @@ const Json* member(const Json& object, const char* key) {
   const auto found = object.find(key);
   return found == object.end() ? nullptr : &*found;
 }
-const Json* firstBlock(const Json& message) {
-  const auto* inner = member(message, "message");
-  const auto* content = inner ? member(*inner, "content") : nullptr;
-  return content && content->is_array() && !content->empty() ?
-      &(*content)[0] : nullptr;
-}
 std::string value(const Json& object, const char* key) {
   const auto* found = member(object, key);
   return found && found->is_string() ? found->get<std::string>() : "";
@@ -78,82 +72,6 @@ bool isNullRenderingAttachment(const Json& message) {
     "pen_mode_enter", "pen_mode_exit", "verify_plan_reminder",
     "current_session_memory", "compaction_reminder", "date_change"};
   return hidden.contains(value(*attachment, "type"));
-}
-
-MessageRefs filterForBriefGadget(const MessageRefs& messages,
-                                const std::vector<std::string>& names) {
-  const std::unordered_set<std::string> nameSet(names.begin(), names.end());
-  std::unordered_set<std::string> briefIds;
-  MessageRefs result;
-  for (const auto& message : messages) {
-    if (!message) continue;
-    const auto type = value(*message, "type");
-    if (type == "system") {
-      if (value(*message, "subtype") != "api_metrics") result.push_back(message);
-      continue;
-    }
-    const auto* block = firstBlock(*message);
-    if (type == "assistant") {
-      if (truth(*message, "isApiErrorMessage")) {
-        result.push_back(message);
-      } else if (block && value(*block, "type") == "tool_use" &&
-                 !value(*block, "name").empty() &&
-                 nameSet.contains(value(*block, "name"))) {
-        if (const auto* id = member(*block, "id"); id && id->is_string())
-          briefIds.insert(id->get<std::string>());
-        result.push_back(message);
-      }
-      continue;
-    }
-    if (type == "user") {
-      if (block && value(*block, "type") == "tool_result") {
-        const auto* id = member(*block, "tool_use_id");
-        if (id && id->is_string() && briefIds.contains(id->get<std::string>()))
-          result.push_back(message);
-      } else if (!truth(*message, "isMeta")) result.push_back(message);
-      continue;
-    }
-    if (type == "attachment") {
-      const auto* attachment = member(*message, "attachment");
-      if (attachment && value(*attachment, "type") == "queued_command" &&
-          value(*attachment, "commandMode") == "prompt" &&
-          !truth(*attachment, "isMeta") &&
-          !attachment->contains("origin")) result.push_back(message);
-    }
-  }
-  return result;
-}
-
-MessageListRef dropTextInBriefTurns(const MessageListRef& messages,
-                                    const std::vector<std::string>& names) {
-  if (!messages) throw std::invalid_argument("Message list required");
-  const std::unordered_set<std::string> nameSet(names.begin(), names.end());
-  std::unordered_set<std::size_t> turnsWithBrief;
-  std::vector<std::optional<std::size_t>> textTurns(messages->size());
-  std::size_t turn = 0;
-  for (std::size_t i = 0; i < messages->size(); ++i) {
-    const auto& message = *(*messages)[i];
-    const auto type = value(message, "type");
-    const auto* block = firstBlock(message);
-    if (type == "user" && (!block || value(*block, "type") != "tool_result") &&
-        !truth(message, "isMeta")) {
-      ++turn;
-      continue;
-    }
-    if (type == "assistant" && block) {
-      if (value(*block, "type") == "text") textTurns[i] = turn;
-      else if (value(*block, "type") == "tool_use" &&
-               !value(*block, "name").empty() &&
-               nameSet.contains(value(*block, "name")))
-        turnsWithBrief.insert(turn);
-    }
-  }
-  if (turnsWithBrief.empty()) return messages;
-  auto result = std::make_shared<MessageRefs>();
-  for (std::size_t i = 0; i < messages->size(); ++i)
-    if (!textTurns[i] || !turnsWithBrief.contains(*textTurns[i]))
-      result->push_back((*messages)[i]);
-  return result;
 }
 
 double computeSliceStart(const MessageRefs& collapsed,

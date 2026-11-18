@@ -74,9 +74,6 @@ int main(int argc,char** argv){
   imports.projectionServices=[&theme]{
     message_view::ProjectionServices services;
     services.user.poetry.logError=[](const std::string&){};
-    services.user.poetry.briefModeActive=[]{return false;};
-    services.user.poetry.userMessageOptIn=[]{return false;};
-    services.user.poetry.briefPreference=[]{return false;};
     services.user.userPalette=presentation_providers::userCardPalette(theme);
     services.user.poetryPalette=presentation_providers::poetryPalette(theme);
     return services;

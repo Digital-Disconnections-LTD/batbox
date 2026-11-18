@@ -35,9 +35,8 @@ private:
   struct Key {
     bool transcriptMode = false, showAllInTranscript = false,
          virtualScroll = false, disableRenderCap = false, verbose = false,
-         briefOnly = false, fullscreen = false;
+         fullscreen = false;
     std::optional<std::pair<std::size_t, std::size_t>> renderRange;
-    std::vector<std::string> briefGadgetNames, dropTextGadgetNames;
     std::vector<std::pair<std::string, bool>> groupingGadgets;
     gadgets::Gadgets readSearchGadgets;
     std::string noContentMessage, interruptMessageForGadgetUse;

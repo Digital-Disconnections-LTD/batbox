@@ -342,9 +342,6 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.user.userPalette=ip::userCardPalette(*inputs_.theme);
   out.user.poetryPalette=ip::poetryPalette(*inputs_.theme);
   out.user.poetry.logError=inputs_.log;
-  out.user.poetry.briefModeActive=[]{return false;};
-  out.user.poetry.userMessageOptIn=[]{return false;};
-  out.user.poetry.briefPreference=[]{return false;};
   // Sent poetry keeps the input's prompt glyph.
   out.user.highlight.pointerGlyph="❯";
   out.user.bashResult.outputPalette=ip::outputLinePalette(*inputs_.theme);
@@ -618,7 +615,6 @@ interactive::message_view::RetainedViewServices Bundle::retainedServices()const{
   const auto spinner=[this]{return spinnerGlyph();};
   auto& result=out.result;
   result.success.readTheme=[this]{return gadgetTheme(*inputs_.theme);};
-  result.success.readBriefOnly=[]{return false;};
   result.success.getClassifierApproval=[](const std::string&)->std::optional<std::string>{return {};};
   result.success.getYoloClassifierApproval=[](const std::string&)->std::optional<std::string>{return {};};
   result.success.deleteClassifierApproval=[](const std::string&){};
