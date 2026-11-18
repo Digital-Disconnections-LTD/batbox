@@ -1,7 +1,7 @@
-#include "git_filesystem/GitFilesystemInternal.hpp"
+#include "git/filesystem/GitFilesystemInternal.hpp"
 #include <stdexcept>
 
-namespace batbox::git_filesystem {
+namespace batbox::git::filesystem {
 Deferred<std::optional<std::string>> GitFilesystem::getCommonDir(const std::string& gitDir){
   Deferred<std::optional<std::string>> output(loop_);
   try{services_.readFile(joinPath(gitDir,"commondir")).then(
@@ -123,4 +123,4 @@ Deferred<std::optional<Head>> GitFilesystem::readGitHead(const std::string& gitD
     });}catch(...){output.resolve(std::nullopt);}
   return output;
 }
-} // namespace batbox::git_filesystem
+} // namespace batbox::git::filesystem

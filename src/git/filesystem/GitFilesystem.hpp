@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace batbox::git_filesystem {
+namespace batbox::git::filesystem {
 using event_loop::Deferred;
 using event_loop::Unit;
 struct FileStat {bool isFile=false,isDirectory=false;};
@@ -60,4 +60,4 @@ private:
 // Indigenous FS reads/watches post completion to the supplied owner loop. Callers
 // supply findGitRoot separately.
 Services indigenousGitFsServices(event_loop::Loop& loop);
-} // namespace batbox::git_filesystem
+} // namespace batbox::git::filesystem

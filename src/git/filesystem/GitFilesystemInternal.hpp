@@ -1,8 +1,8 @@
 #pragma once
-#include "git_filesystem/GitFilesystem.hpp"
+#include "git/filesystem/GitFilesystem.hpp"
 #include <utility>
 
-namespace batbox::git_filesystem {
+namespace batbox::git::filesystem {
 struct GitFilesystem::Watcher {
   struct StashEntry {
     Json value;
@@ -23,4 +23,4 @@ template<class T>Deferred<T> resolved(event_loop::Loop& loop,T value){
 template<class T>Deferred<T> rejected(event_loop::Loop& loop,std::exception_ptr error){
   Deferred<T> output(loop);output.reject(error);return output;
 }
-} // namespace batbox::git_filesystem
+} // namespace batbox::git::filesystem

@@ -17,7 +17,7 @@ CanonicalRootImports indigenousCanonicalRootImports(){
     std::error_code error;
     const auto status=std::filesystem::status(runtime::pathFromUtf8(value::encodeUtf8(path)),error);
     if(error)throw std::system_error(error,"git root statSync");
-    return git_filesystem::FileStat{std::filesystem::is_regular_file(status),
+    return git::filesystem::FileStat{std::filesystem::is_regular_file(status),
       std::filesystem::is_directory(status)};
   };
   imports.readFileSync=[](const std::string& path){

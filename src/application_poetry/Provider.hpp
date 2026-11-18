@@ -3,7 +3,7 @@
 #include "context/AsyncContext.hpp"
 #include "git/CanonicalRoot.hpp"
 #include "git/GitBasics.hpp"
-#include "git_filesystem/GitFilesystem.hpp"
+#include "git/filesystem/GitFilesystem.hpp"
 
 #include "instructions/MemoryPath.hpp"
 #include "instructions/project/async/AsyncDiscovery.hpp"
@@ -92,7 +92,7 @@ private:
   instructions::project::async::Services discoveryAsync_;
   context::AsyncServices contextServices_;
   std::shared_ptr<git::CanonicalRoot> canonicalRoot_;
-  std::unique_ptr<git_filesystem::GitFilesystem> gitFilesystem_;
+  std::unique_ptr<git::filesystem::GitFilesystem> gitFilesystem_;
   std::unique_ptr<git::GitBasics> gitBasics_;
   process::ExecImports execImports_;
   std::optional<std::string> stashedBatboxMdContent_;

@@ -1,5 +1,5 @@
 #include <cstdlib>
-#include "git_filesystem/GitFilesystem.hpp"
+#include "git/filesystem/GitFilesystem.hpp"
 #include "git/CanonicalRoot.hpp"
 #include <cassert>
 #include <filesystem>
@@ -8,7 +8,7 @@
 #include <optional>
 #include <unistd.h>
 
-using namespace batbox::git_filesystem;
+using namespace batbox::git::filesystem;
 namespace fs=std::filesystem;
 namespace {
 void write(const fs::path& path,const std::string& text){

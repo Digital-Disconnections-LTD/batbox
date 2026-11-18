@@ -6,7 +6,7 @@ namespace batbox::application_poetry {
 void Provider::bindGit(){
   canonicalRoot_=std::make_shared<git::CanonicalRoot>(
     git::indigenousCanonicalRootImports());
-  auto filesystem=git_filesystem::indigenousGitFsServices(owner_);
+  auto filesystem=git::filesystem::indigenousGitFsServices(owner_);
   // GitFilesystem resolves the .git entry itself, so it needs the nearest
   // root: a worktree's own directory with its gitdir-pointing .git file.
   filesystem.findGitRoot=[root=canonicalRoot_](const std::string& path){
@@ -15,7 +15,7 @@ void Provider::bindGit(){
   filesystem.getCwd=[this]{return cwd();};
   // GitFilesystem owns the indigenous file watches and tears them down on destruction.
   filesystem.registerCleanup=[](std::function<void()>){};
-  gitFilesystem_=std::make_unique<git_filesystem::GitFilesystem>(
+  gitFilesystem_=std::make_unique<git::filesystem::GitFilesystem>(
     owner_,std::move(filesystem));
   auto diagnostics=inputs_.logDiagnostic;
   if(!diagnostics)diagnostics=[](const std::string&,const std::string&,

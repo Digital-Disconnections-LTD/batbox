@@ -1,5 +1,5 @@
 #pragma once
-#include "git_filesystem/GitFilesystem.hpp"
+#include "git/filesystem/GitFilesystem.hpp"
 #include <functional>
 #include <list>
 #include <map>
@@ -9,14 +9,14 @@
 
 namespace batbox::git {
 struct CanonicalRootImports {
-  std::function<git_filesystem::FileStat(const std::string&)> statSync;
+  std::function<git::filesystem::FileStat(const std::string&)> statSync;
   std::function<std::string(const std::string&)> readFileSync;
   std::function<std::string(const std::string&)> realpathSync;
 };
 
 // Git-root discovery (upward walk for .git) and worktree canonicalization in
 // one finder behind a single LRU of 50 entries. This was two finders --
-// git_filesystem::RootFinder (walk + cache) and CanonicalRoot (canonicalize
+// git::filesystem::RootFinder (walk + cache) and CanonicalRoot (canonicalize
 // + a second cache of the same shape) -- composed through a findGitRoot
 // function. One system finding git roots, one cache holding per key two
 // facts: the nearest root and the canonical root.

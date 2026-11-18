@@ -1,7 +1,7 @@
 #include "git/CanonicalRoot.hpp"
 #include "git/GitBasics.hpp"
 #include "git/GitBindings.hpp"
-#include "git_filesystem/GitFilesystem.hpp"
+#include "git/filesystem/GitFilesystem.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -62,11 +62,11 @@ int main(){
     assert(reads==52);
 
     event_loop::Loop loop;std::string cwd=work.string();
-    auto services=git_filesystem::indigenousGitFsServices(loop);
+    auto services=git::filesystem::indigenousGitFsServices(loop);
     services.findGitRoot=[canonical](const std::string& path){return canonical->nearest(path);};
     services.getCwd=[&]{return cwd;};
     services.registerCleanup=[](std::function<void()>){ };
-    git_filesystem::GitFilesystem filesystem(loop,services);
+    git::filesystem::GitFilesystem filesystem(loop,services);
     Json gitDiagnostics=Json::array();
     auto imports=git::indigenousBasicsImports(canonical,filesystem,[&]{return cwd;},
       [&](const std::string& level,const std::string& event,

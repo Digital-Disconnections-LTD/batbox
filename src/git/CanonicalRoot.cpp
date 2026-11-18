@@ -1,5 +1,5 @@
 #include "git/CanonicalRoot.hpp"
-#include "git_filesystem/GitFilesystemInternal.hpp"
+#include "git/filesystem/GitFilesystemInternal.hpp"
 #include "runtime/Encoding.hpp"
 #include "runtime/JsonValue.hpp"
 #include "runtime/IndigenousPath.hpp"
@@ -49,13 +49,13 @@ CanonicalRoot::Entry& CanonicalRoot::touch(const std::string& key){
   return inserted.first->second;
 }
 std::optional<std::string> CanonicalRoot::walk(const std::string& startPath)const{
-  auto current=git_filesystem::resolvePath(startPath);
+  auto current=git::filesystem::resolvePath(startPath);
   constexpr char separator=static_cast<char>(std::filesystem::path::preferred_separator);
   const auto slash=current.find(separator);
   const auto root=slash==std::string::npos?std::string(1,separator):current.substr(0,slash+1);
   while(current!=root){
     try{
-      const auto st=imports_.statSync(git_filesystem::joinPath(current,".git"));
+      const auto st=imports_.statSync(git::filesystem::joinPath(current,".git"));
       if(st.isDirectory||st.isFile)return value::normalizeNFC(current);
     }catch(...){}
     const auto parent=runtime::pathToUtf8(runtime::pathFromUtf8(current).parent_path());
@@ -63,7 +63,7 @@ std::optional<std::string> CanonicalRoot::walk(const std::string& startPath)cons
     current=parent;
   }
   try{
-    const auto st=imports_.statSync(git_filesystem::joinPath(root,".git"));
+    const auto st=imports_.statSync(git::filesystem::joinPath(root,".git"));
     if(st.isDirectory||st.isFile)return value::normalizeNFC(root);
   }catch(...){}
   return std::nullopt;

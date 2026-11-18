@@ -1,7 +1,7 @@
-#include "git_filesystem/GitFilesystemInternal.hpp"
+#include "git/filesystem/GitFilesystemInternal.hpp"
 #include <stdexcept>
 
-namespace batbox::git_filesystem {
+namespace batbox::git::filesystem {
 void GitFilesystem::invalidate(){
   for(auto& [key,entry]:watcher_->stash){(void)key;entry.dirty=true;}
 }
@@ -75,4 +75,4 @@ void GitFilesystem::stopWatching(){
   for(const auto& path:watcher_->watchedPaths)services_.unwatchFile(path);
   watcher_->watchedPaths.clear();
 }
-} // namespace batbox::git_filesystem
+} // namespace batbox::git::filesystem

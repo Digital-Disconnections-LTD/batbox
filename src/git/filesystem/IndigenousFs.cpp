@@ -1,5 +1,5 @@
 #include "runtime/AsyncLaunch.hpp"
-#include "git_filesystem/GitFilesystem.hpp"
+#include "git/filesystem/GitFilesystem.hpp"
 #include "runtime/Encoding.hpp"
 #include "runtime/JsonValue.hpp"
 #include "runtime/IndigenousPath.hpp"
@@ -21,7 +21,7 @@
 #include <thread>
 #include <utility>
 
-namespace batbox::git_filesystem {
+namespace batbox::git::filesystem {
 namespace {
 template<class Result,class Operation>Deferred<Result> onWorker(event_loop::Loop& loop,
   Operation operation){
@@ -131,4 +131,4 @@ Services indigenousGitFsServices(event_loop::Loop& loop){
   };
   return services;
 }
-} // namespace batbox::git_filesystem
+} // namespace batbox::git::filesystem

@@ -1,6 +1,6 @@
-#include "git_filesystem/GitFilesystemInternal.hpp"
+#include "git/filesystem/GitFilesystemInternal.hpp"
 
-namespace batbox::git_filesystem {
+namespace batbox::git::filesystem {
 Deferred<std::string> GitFilesystem::computeBranch(){
   Deferred<std::string> output(loop_);
   resolveGitDir().then([this,output](const std::optional<std::string>* gitDir,
@@ -47,4 +47,4 @@ Deferred<std::string> GitFilesystem::computeDefaultBranch(){
   });
   return output;
 }
-} // namespace batbox::git_filesystem
+} // namespace batbox::git::filesystem

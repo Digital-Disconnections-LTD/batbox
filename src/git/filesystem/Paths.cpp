@@ -1,10 +1,10 @@
-#include "git_filesystem/GitFilesystemInternal.hpp"
+#include "git/filesystem/GitFilesystemInternal.hpp"
 #include "shell/PosixPath.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include <filesystem>
 #include <stdexcept>
 
-namespace batbox::git_filesystem {
+namespace batbox::git::filesystem {
 std::string joinPath(const std::string& first,const std::string& second){
   return shell::joinPosixPath(first,second);
 }
@@ -83,4 +83,4 @@ Deferred<std::optional<std::string>> GitFilesystem::resolveGitDir(
   }catch(...){output.reject(std::current_exception());}
   return output;
 }
-} // namespace batbox::git_filesystem
+} // namespace batbox::git::filesystem

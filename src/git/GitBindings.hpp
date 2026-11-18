@@ -2,12 +2,12 @@
 #include "context/AsyncContext.hpp"
 #include "git/GitBasics.hpp"
 #include "git/CanonicalRoot.hpp"
-#include "git_filesystem/GitFilesystem.hpp"
+#include "git/filesystem/GitFilesystem.hpp"
 #include <memory>
 
 namespace batbox::git {
 BasicsImports indigenousBasicsImports(std::shared_ptr<CanonicalRoot> finder,
-  git_filesystem::GitFilesystem& filesystem,
+  git::filesystem::GitFilesystem& filesystem,
   std::function<std::string()> getCwd,
   std::function<void(const std::string&,const std::string&,
     const std::optional<Json>&)> logDiagnostic);
