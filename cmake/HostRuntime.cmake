@@ -125,7 +125,6 @@ include(cmake/Cron.cmake)
 include(cmake/TerminalEvents.cmake)
 include(cmake/KeyboardInput.cmake)
 include(cmake/Clipboard.cmake)
-include(cmake/Truncate.cmake)
 
 include(cmake/BatContext.cmake)
 include(cmake/CronIntegration.cmake)

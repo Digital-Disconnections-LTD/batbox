@@ -2,7 +2,6 @@ find_package(ICU REQUIRED COMPONENTS uc)
 add_library(batbox_core
   src/runtime/Version.cpp
   src/runtime/ArrayJoin.cpp
-  src/terminal_search/Scan.cpp
   src/runtime/JsonValue.cpp
   src/runtime/Platform.cpp
   src/runtime/Strings.cpp

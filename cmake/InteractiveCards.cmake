@@ -8,7 +8,7 @@ target_sources(batbox_interactive PRIVATE
   src/interactive/cards/UserPoetryLeaf.cpp
   src/interactive/cards/UserTextCard.cpp
   src/interactive/cards/UserTextLeaves.cpp)
-target_link_libraries(batbox_interactive PUBLIC batbox_ansi_tokenize batbox_intl)
+target_link_libraries(batbox_interactive PUBLIC batbox_text_sdk batbox_intl)
 target_sources(batbox_terminal_ftxui PRIVATE
   src/interactive/cards/BashResultProjection.cpp
   src/interactive/cards/OutputLineProjection.cpp

@@ -40,7 +40,6 @@ include(cmake/CronTests.cmake)
 include(cmake/TerminalEventsTests.cmake)
 include(cmake/KeyboardInputTests.cmake)
 include(cmake/ClipboardTests.cmake)
-include(cmake/TruncateTests.cmake)
 
 include(cmake/AsyncContextTests.cmake)
 include(cmake/BatContextTests.cmake)

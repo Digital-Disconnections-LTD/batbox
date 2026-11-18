@@ -58,7 +58,7 @@ target_compile_options(batbox_application_poetry PRIVATE -Wall -Wextra -Wpedanti
 
 add_library(batbox_application_presentation src/application_presentation/Bindings.cpp)
 target_link_libraries(batbox_application_presentation PUBLIC batbox_conversation_shell
-  batbox_text_editor batbox_npm_wrap_ansi)
+  batbox_text_editor batbox_text_sdk)
 target_compile_options(batbox_application_presentation PRIVATE -Wall -Wextra -Wpedantic)
 
 include(cmake/IndigenousBats.cmake)

@@ -56,7 +56,7 @@ add_library(batbox_file_gadgets
 )
 target_include_directories(batbox_file_gadgets PUBLIC src)
 target_link_libraries(batbox_file_gadgets PUBLIC batbox_core
-  batbox_glob batbox_npm_wrap_ansi)
+  batbox_glob batbox_text_sdk)
 target_compile_options(batbox_file_gadgets PRIVATE -Wall -Wextra -Wpedantic)
 # batbox_core keeps its consumers working unchanged by re-exposing this
 # mechanism layer (no source back-edge: no core TU references file-gadget

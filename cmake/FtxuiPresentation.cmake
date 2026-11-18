@@ -18,7 +18,7 @@ add_library(batbox_terminal_ftxui
   src/terminal_ftxui/IndigenousStringMetrics.cpp
   src/terminal_ftxui/ScrollbackProjection.cpp)
 target_link_libraries(batbox_terminal_ftxui PUBLIC batbox_interactive
-  ftxui::component ftxui::dom ftxui::screen batbox_text_width batbox_intl)
+  ftxui::component ftxui::dom ftxui::screen batbox_text_sdk batbox_intl)
 target_compile_options(batbox_terminal_ftxui PRIVATE -Wall -Wextra -Wpedantic)
 include(cmake/InteractiveCards.cmake)
 include(cmake/MessageView.cmake)
