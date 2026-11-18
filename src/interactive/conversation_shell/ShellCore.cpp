@@ -117,7 +117,7 @@ void Shell::initialize(){
       self->currentGadgets_);
   };
   search.scanItem=[weak](std::size_t index,const std::string& query)
-      ->std::optional<std::vector<terminal_search::MatchPosition>>{
+      ->std::optional<std::vector<text_sdk::scan::MatchPosition>>{
     if(auto self=weak.lock())return self->viewport_->scanItem(index,query);
     return {};
   };

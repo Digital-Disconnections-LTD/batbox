@@ -71,7 +71,7 @@ target_link_libraries(batbox_auth PUBLIC batbox_core batbox_event_loop batbox_ur
 target_compile_options(batbox_auth PRIVATE -Wall -Wextra -Wpedantic)
 
 
-# Tag-string scrubbing (src/display/Tags.cpp) now compiles into batbox_protocol;
+# Tag-string scrubbing (src/messages/Tags.cpp) now compiles into batbox_protocol;
 # flights resolves it through the core aggregate.
 target_sources(batbox_flights PRIVATE src/flights/DisplayTitle.cpp)
 

@@ -62,11 +62,11 @@ int main(){
       return key=="batbox_cron_durable"?Json(true):fallback;},true);
   bat_context::PartnerIdentityState identity;
   auto intlStash=std::make_shared<intl::Stash>(intl::indigenousServices());
-  auto widths=std::make_shared<text_width::StringWidth>(
-    text_width::indigenousServices(intlStash));
+  auto widths=std::make_shared<text_sdk::width::StringWidth>(
+    text_sdk::width::indigenousServices(intlStash));
   auto services=gadgets::cron::composeIndigenousCronGadgetServices(loop,state,missions,
     std::move(configuration),identity,
-    format::indigenousTruncateServices(intlStash,widths),ui);
+    text_sdk::truncate::indigenousTruncateServices(intlStash,widths),ui);
   assert(services.truncate("一二三",5,false)=="一二…");
   const auto create=gadgets::cron::makeCronCreateGadget(services);
   const auto remove=gadgets::cron::makeCronDeleteGadget(services);

@@ -10,8 +10,8 @@ namespace tf = batbox::terminal_ftxui;
 
 int main() {
   auto intl = std::make_shared<batbox::intl::Stash>(batbox::intl::indigenousServices());
-  auto width = std::make_shared<batbox::text_width::StringWidth>(
-      batbox::text_width::indigenousServices(intl));
+  auto width = std::make_shared<batbox::text_sdk::width::StringWidth>(
+      batbox::text_sdk::width::indigenousServices(intl));
   tf::installIndigenousStringMetrics(intl, width);
 
   assert(ftxui::string_width("👩‍💻") == 2);

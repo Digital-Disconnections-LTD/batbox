@@ -12,9 +12,9 @@
 #include "interactive/cards/UserTextProjection.hpp"
 #include "interactive/cards_system/SystemAPIErrorProjection.hpp"
 #include "api_errors/ApiErrors.hpp"
-#include "text_width/AnsiSlice.hpp"
-#include "text_width/IndigenousLayout.hpp"
-#include "npm_wrap_ansi/Wrap.hpp"
+#include "text_sdk/width/AnsiSlice.hpp"
+#include "text_sdk/width/IndigenousLayout.hpp"
+#include "text_sdk/npm_wrap_ansi/Wrap.hpp"
 #include "runtime/Encoding.hpp"
 #include "runtime/IndigenousTime.hpp"
 #include <chrono>
@@ -186,8 +186,8 @@ Bundle::Bundle(interactive::conversation_shell::Imports& shell,Inputs inputs):
   if(!inputs_.log)inputs_.log=[](const std::string&){};
   if(!inputs_.displayPath)inputs_.displayPath=[](const std::string& path){return path;};
   intl_=std::make_shared<intl::Stash>(intl::indigenousServices());
-  width_=std::make_shared<text_width::StringWidth>(text_width::indigenousServices(intl_));
-  wrap_=text_width::indigenousWrapAnsiModule(false).wrapAnsi();
+  width_=std::make_shared<text_sdk::width::StringWidth>(text_sdk::width::indigenousServices(intl_));
+  wrap_=text_sdk::width::indigenousWrapAnsiModule(false).wrapAnsi();
   markdownPalette_=std::make_shared<MarkdownPalette>();
   markdownPalette_->colors=inputs_.colors;
   refreshMarkdownPalette();
@@ -350,9 +350,9 @@ interactive::message_view::ProjectionServices Bundle::projectionServices()const{
   out.user.bashResult.outputPalette=ip::outputLinePalette(*inputs_.theme);
   out.user.bashResult.dimColor=subtle;
   out.user.bashResult.outputLine.stringWidth=[width=width_](const std::string& text){return width->stringWidth(Json(text));};
-  out.user.bashResult.outputLine.sliceAnsi=[slice=text_width::indigenousSliceServices(width_)](
+  out.user.bashResult.outputLine.sliceAnsi=[slice=text_sdk::width::indigenousSliceServices(width_)](
       const std::string& text,double start,double end){
-    return text_width::sliceAnsi(text,start,end,slice);
+    return text_sdk::width::sliceAnsi(text,start,end,slice);
   };
   out.user.bashResult.outputLine.dim=[](const std::string& text){return text;};
   out.user.bashResult.outputLine.expandHint=[this]{return inputs_.shortcuts.display("expand","global","ctrl+o");};

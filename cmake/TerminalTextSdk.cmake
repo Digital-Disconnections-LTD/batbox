@@ -7,24 +7,24 @@
 # implementations keep their own directories so license provenance
 # files stay beside their code.
 add_library(batbox_text_sdk
-  src/ansi_tokenize/AnsiCodes.cpp src/ansi_tokenize/Reduce.cpp
-  src/ansi_tokenize/StyledChars.cpp src/ansi_tokenize/TokenizeParse.cpp
-  src/ansi_tokenize/Tokenize.cpp src/ansi_tokenize/Fullwidth.cpp
-  src/bun_text_width/WidthCore.cpp
-  src/bun_text_width/Grapheme.cpp src/bun_text_width/Classification.cpp
-  src/bun_text_width/Tables.cpp src/bun_text_width/WrapRows.cpp
-  src/bun_text_width/WrapTrim.cpp src/bun_text_width/WrapPreserve.cpp
-  src/bun_text_width/WrapCore.cpp src/bun_text_width/WrapSdk.cpp
-  src/npm_wrap_ansi/Wrap.cpp src/npm_wrap_ansi/WrapRows.cpp
-  src/npm_wrap_ansi/Preserve.cpp src/npm_wrap_ansi/Dependencies.cpp
-  src/npm_wrap_ansi/Data.cpp
-  src/text_width/StringWidth.cpp src/text_width/Classification.cpp
-  src/text_width/Indigenous.cpp src/text_width/Patterns.cpp
-  src/text_width/EastAsianWidth.cpp
-  src/text_width/AnsiSlice.cpp src/text_width/IndigenousLayout.cpp
-  src/format/Truncate.cpp
-  src/format/TruncateExtra.cpp
-  src/terminal_search/Scan.cpp
+  src/text_sdk/ansi_tokenize/AnsiCodes.cpp src/text_sdk/ansi_tokenize/Reduce.cpp
+  src/text_sdk/ansi_tokenize/StyledChars.cpp src/text_sdk/ansi_tokenize/TokenizeParse.cpp
+  src/text_sdk/ansi_tokenize/Tokenize.cpp src/text_sdk/ansi_tokenize/Fullwidth.cpp
+  src/text_sdk/bun_text_width/WidthCore.cpp
+  src/text_sdk/bun_text_width/Grapheme.cpp src/text_sdk/bun_text_width/Classification.cpp
+  src/text_sdk/bun_text_width/Tables.cpp src/text_sdk/bun_text_width/WrapRows.cpp
+  src/text_sdk/bun_text_width/WrapTrim.cpp src/text_sdk/bun_text_width/WrapPreserve.cpp
+  src/text_sdk/bun_text_width/WrapCore.cpp src/text_sdk/bun_text_width/WrapSdk.cpp
+  src/text_sdk/npm_wrap_ansi/Wrap.cpp src/text_sdk/npm_wrap_ansi/WrapRows.cpp
+  src/text_sdk/npm_wrap_ansi/Preserve.cpp src/text_sdk/npm_wrap_ansi/Dependencies.cpp
+  src/text_sdk/npm_wrap_ansi/Data.cpp
+  src/text_sdk/width/StringWidth.cpp src/text_sdk/width/Classification.cpp
+  src/text_sdk/width/Indigenous.cpp src/text_sdk/width/Patterns.cpp
+  src/text_sdk/width/EastAsianWidth.cpp
+  src/text_sdk/width/AnsiSlice.cpp src/text_sdk/width/IndigenousLayout.cpp
+  src/text_sdk/truncate/Truncate.cpp
+  src/text_sdk/truncate/TruncateExtra.cpp
+  src/text_sdk/scan/Scan.cpp
 )
 target_link_libraries(batbox_text_sdk PUBLIC batbox_intl batbox_glob
   batbox_core batbox_termio)

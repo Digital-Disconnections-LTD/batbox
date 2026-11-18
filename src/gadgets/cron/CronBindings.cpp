@@ -7,7 +7,7 @@ CronGadgetServices composeIndigenousCronGadgetServices(event_loop::Loop& loop,
     batbox::cron::CronMissionServices missionServices,
     batbox::cron::config::Services configuration,
     bat_context::PartnerIdentityState& identity,
-    format::TruncateServices truncation,CronGadgetUI ui){
+    text_sdk::truncate::TruncateServices truncation,CronGadgetUI ui){
   const auto gates=std::make_shared<batbox::cron::config::Services>(
     std::move(configuration));
   return makeIndigenousCronGadgetServices(loop,std::move(state),
@@ -15,6 +15,6 @@ CronGadgetServices composeIndigenousCronGadgetServices(event_loop::Loop& loop,
     [gates]{return batbox::cron::config::isCronEnabled(*gates);},
     [gates]{return batbox::cron::config::isDurableCronEnabled(*gates);},
     [&identity]{return bat_context::getBatId(identity);},
-    format::bindTruncate(std::move(truncation)),std::move(ui));
+    text_sdk::truncate::bindTruncate(std::move(truncation)),std::move(ui));
 }
 }

@@ -1,13 +1,13 @@
 #include "application/HostCron.hpp"
 #include "cron/CronSchedulerIndigenous.hpp"
 #include "cron/use_scheduled/FireTime.hpp"
-#include "format/Truncate.hpp"
+#include "text_sdk/truncate/Truncate.hpp"
 #include "gadgets/cron/CronGadgets.hpp"
 #include "interactive/gadget_views/GadgetViewModel.hpp"
 #include "intl/Intl.hpp"
 #include "messages/RuntimeMessages.hpp"
 #include "runtime/JsonValue.hpp"
-#include "text_width/StringWidth.hpp"
+#include "text_sdk/width/StringWidth.hpp"
 #include <cerrno>
 #include <stdexcept>
 #include <system_error>
@@ -116,12 +116,12 @@ std::vector<gadgets::Gadget> makeCronGadgets(event_loop::Loop& owner,
   const auto gates=std::make_shared<cron::config::Services>(wiring->gates);
   const bool durable=wiring->durable;
   auto intl=std::make_shared<intl::Stash>(intl::indigenousServices());
-  auto width=std::make_shared<text_width::StringWidth>(text_width::indigenousServices(intl));
+  auto width=std::make_shared<text_sdk::width::StringWidth>(text_sdk::width::indigenousServices(intl));
   auto services=gadgets::cron::makeIndigenousCronGadgetServices(owner,wiring->state,
     wiring->missions,[gates]{return cron::config::isCronEnabled(*gates);},
     [durable]{return durable;},
     []()->std::optional<std::string>{return std::nullopt;},
-    format::bindTruncate(format::indigenousTruncateServices(intl,width)),cronViews());
+    text_sdk::truncate::bindTruncate(text_sdk::truncate::indigenousTruncateServices(intl,width)),cronViews());
   return {gadgets::cron::makeCronCreateGadget(services),
     gadgets::cron::makeCronDeleteGadget(services),
     gadgets::cron::makeCronListGadget(services)};

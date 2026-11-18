@@ -1,5 +1,5 @@
 #include "interactive/markdown/IndigenousRenderer.hpp"
-#include "npm_wrap_ansi/Wrap.hpp"
+#include "text_sdk/npm_wrap_ansi/Wrap.hpp"
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -8,7 +8,7 @@
 namespace batbox::interactive::markdown {
 
 std::shared_ptr<Renderer> makeIndigenousRenderer(
-    std::shared_ptr<text_width::StringWidth> width,
+    std::shared_ptr<text_sdk::width::StringWidth> width,
     int terminalColumns,bool colors,bool hyperlinks,
     std::string permissionSgr,
     std::optional<SyntaxHighlighter> highlighter,
@@ -40,7 +40,7 @@ std::shared_ptr<Renderer> makeIndigenousRenderer(
   }
   if(customize)customize(services);
   WrapAnsi wrap=[](const std::string& text,int columns,bool hard){
-    return npm_wrap_ansi::wrapAnsi(text,columns,
+    return text_sdk::npm_wrap_ansi::wrapAnsi(text,columns,
       Json{{"hard",hard},{"trim",false},{"wordWrap",true}});
   };
   return std::make_shared<Renderer>(std::move(services),std::move(wrap),

@@ -1,7 +1,7 @@
 #include "application_cli/Adapter.hpp"
 #include "application_cli/LocalOutput.hpp"
 #include "messages/Context.hpp"
-#include "npm_wrap_ansi/Internal.hpp"
+#include "text_sdk/npm_wrap_ansi/Internal.hpp"
 #include "runtime/MessageSnapshot.hpp"
 #include "runtime/Platform.hpp"
 #include <algorithm>
@@ -17,7 +17,7 @@ bool commandTag(const std::string& text){
     text.find("<local-command-stderr>")!=std::string::npos;
 }
 std::string strip(const std::string& text){
-  return value::fromUtf16(npm_wrap_ansi::stripAnsi(value::utf16CodeUnits(text)));
+  return value::fromUtf16(text_sdk::npm_wrap_ansi::stripAnsi(value::utf16CodeUnits(text)));
 }
 }
 Json toSdkCompactMetadata(const Json& metadata){

@@ -4,8 +4,8 @@
 #include "interactive/presentation_providers/Chrome.hpp"
 #include "interactive/markdown/IndigenousRenderer.hpp"
 #include "messages/Messages.hpp"
-#include "text_width/StringWidth.hpp"
-#include "text_width/WrapAnsi.hpp"
+#include "text_sdk/width/StringWidth.hpp"
+#include "text_sdk/width/WrapAnsi.hpp"
 #include <memory>
 
 namespace batbox::application_presentation {
@@ -47,8 +47,8 @@ private:
   Inputs inputs_;
   interactive::PresentationState* state_=nullptr;
   std::shared_ptr<intl::Stash> intl_;
-  std::shared_ptr<text_width::StringWidth> width_;
-  text_width::WrapAnsiRef wrap_;
+  std::shared_ptr<text_sdk::width::StringWidth> width_;
+  text_sdk::width::WrapAnsiRef wrap_;
   std::shared_ptr<interactive::markdown::Renderer> markdown_;
   interactive::markdown::StreamingState streaming_;
   interactive::markdown::PieceState responsePieces_,thinkingPieces_;

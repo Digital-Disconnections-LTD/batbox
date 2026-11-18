@@ -1,7 +1,7 @@
 #include "interactive/conversation_shell/Shell.hpp"
 #include "application_editor/IndigenousProcess.hpp"
 #include "application_editor/TranscriptFile.hpp"
-#include "npm_wrap_ansi/Internal.hpp"
+#include "text_sdk/npm_wrap_ansi/Internal.hpp"
 #include "runtime/JsonValue.hpp"
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
@@ -106,7 +106,7 @@ std::string Shell::renderTranscriptChunk(const PreparedMessageList& full,
   auto screen=ftxui::Screen::Create(ftxui::Dimension::Fixed(columns),
     ftxui::Dimension::Fixed(dimensions.dimy));
   ftxui::Render(screen,element);
-  auto plain=value::fromUtf16(npm_wrap_ansi::stripAnsi(
+  auto plain=value::fromUtf16(text_sdk::npm_wrap_ansi::stripAnsi(
     value::utf16CodeUnits(screen.ToString())));
   retained->unmountAll();
   return trimLineEnds(std::move(plain));

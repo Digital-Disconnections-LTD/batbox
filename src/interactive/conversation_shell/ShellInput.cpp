@@ -2,7 +2,7 @@
 #include "interactive/presentation_providers/MissionFooter.hpp"
 #include "termio/Csi.hpp"
 #include "history/References.hpp"
-#include "npm_wrap_ansi/Internal.hpp"
+#include "text_sdk/npm_wrap_ansi/Internal.hpp"
 #include "application_editor/PoetryEditor.hpp"
 #include "application_editor/IndigenousProcess.hpp"
 #include <algorithm>
@@ -502,7 +502,7 @@ void Shell::onClipboardImage(const Json& image){
 void Shell::onPastedText(const std::string& text){
   if(text.empty())return;
   pendingImageSpace_=false;
-  auto cleaned=value::fromUtf16(npm_wrap_ansi::stripAnsi(value::utf16CodeUnits(text)));
+  auto cleaned=value::fromUtf16(text_sdk::npm_wrap_ansi::stripAnsi(value::utf16CodeUnits(text)));
   std::string normalized;normalized.reserve(cleaned.size());
   for(std::size_t i=0;i<cleaned.size();++i){
     const char c=cleaned[i];
