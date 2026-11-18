@@ -49,8 +49,6 @@ AppStateRef getDefaultAppState(const DefaultAppStateServices& services){
   set("isBriefOnly",false);
   set("showTeammateMessagePreview",false);
   set("selectedIPAgentIndex",-1);
-  set("viewSelectionMode","none");
-  set("footerSelection",nullptr);
   undefined("remoteSessionUrl");
   set("remoteConnectionStatus","connecting");
   set("remoteBackgroundTaskCount",0);
