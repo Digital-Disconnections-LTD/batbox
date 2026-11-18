@@ -1,11 +1,11 @@
 batbox_indigenous(phase6-conversation-shell-indigenous
-  tests/phase6/conversation_shell_indigenous.cpp batbox_conversation_shell)
+  tests/phase6/conversation_shell_indigenous.cpp batbox_terminal_ftxui)
 batbox_indigenous(phase6-permission-provider-indigenous
   tests/phase6/permission_provider_indigenous.cpp batbox_application_permissions)
 batbox_indigenous(phase6-permission-dialog-path-indigenous
   tests/phase6/permission_dialog_path_indigenous.cpp batbox_application_permissions)
 batbox_indigenous(phase6-startup-presentation-indigenous
-  tests/phase6/interactive_presentation_providers_probe.cpp batbox_conversation_shell)
+  tests/phase6/interactive_presentation_providers_probe.cpp batbox_terminal_ftxui)
 batbox_indigenous(phase6-application-runtime-indigenous
   tests/phase6/application_runtime_indigenous.cpp batbox_application_runtime)
 add_executable(batbox-phase5-live-gadget-roster-indigenous tests/phase5/live_gadget_roster_indigenous.cpp)

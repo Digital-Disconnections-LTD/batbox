@@ -1,39 +1,7 @@
 # Concrete owners and providers used by the indigenous terminal application.
-add_library(batbox_conversation_shell
-  src/interactive/conversation_shell/ShellCore.cpp
-  src/interactive/conversation_shell/ShellConversation.cpp
-  src/interactive/conversation_shell/ShellRender.cpp
-  src/interactive/conversation_shell/PoetryViewport.cpp
-  src/interactive/conversation_shell/ShellInput.cpp
-  src/interactive/presentation_providers/ThemeLight.cpp
-  src/interactive/presentation_providers/ThemeDark.cpp
-  src/interactive/presentation_providers/ThemeDaltonized.cpp
-  src/interactive/presentation_providers/ThemeData.cpp
-  src/interactive/presentation_providers/ThemeBatbox.cpp
-  src/interactive/presentation_providers/StyleRoles.cpp
-  src/interactive/presentation_providers/SystemTheme.cpp
-  src/interactive/presentation_providers/ThemeState.cpp
-  src/interactive/presentation_providers/Shortcut.cpp
-  src/interactive/presentation_providers/DefaultBindings.cpp
-  src/interactive/presentation_providers/Chrome.cpp
-  src/interactive/presentation_providers/MissionFooter.cpp
-  src/interactive/presentation_providers/CardPalettes.cpp
-  src/interactive/conversation_shell/ShellTranscript.cpp
-  # Conversation-side bindings -- formerly the separate
-  # application_completion, application_editor, and application_history
-  # cmake slices. They compile here because their only consumer is the
-  # conversation shell.
-  src/application_completion/Commands.cpp
-  src/application_completion/Paths.cpp
-  src/application_editor/IndigenousProcess.cpp
-  src/application_editor/PoetryEditor.cpp
-  src/application_editor/TranscriptFile.cpp
-  src/application_history/History.cpp)
-target_link_libraries(batbox_conversation_shell PUBLIC batbox_terminal_ftxui
-  batbox_interactive_lifecycle batbox_text_editor batbox_user_input
-  batbox_event_loop batbox_core batbox_history batbox_interactive
-  batbox_fs_operations batbox_locking batbox_cleanup)
-target_compile_options(batbox_conversation_shell PRIVATE -Wall -Wextra -Wpedantic)
+# The conversation shell and its input/editing/history bindings now compile
+# inside the UI library pair (batbox_terminal_ftxui / batbox_interactive);
+# see cmake/FtxuiPresentation.cmake.
 
 target_sources(batbox_core_commands PRIVATE
   src/commands_indigenous/Rename.cpp src/commands_indigenous/FlightSimple.cpp)
@@ -61,8 +29,8 @@ add_library(batbox_application_runtime
   src/application_runtime/ApplicationBindings.cpp
   src/application_runtime/RuntimeBindings.cpp
   src/application_runtime/ShellBinding.cpp)
-target_link_libraries(batbox_application_runtime PUBLIC batbox_conversation_shell
-  batbox_application_config batbox_interactive_lifecycle)
+target_link_libraries(batbox_application_runtime PUBLIC batbox_terminal_ftxui
+  batbox_application_config)
 target_compile_options(batbox_application_runtime PRIVATE -Wall -Wextra -Wpedantic)
 include(cmake/IndigenousApplicationBackend.cmake)
 include(cmake/Providers.cmake)

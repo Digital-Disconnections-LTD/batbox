@@ -3,7 +3,7 @@ add_library(batbox_attachments
   src/attachments/Messages.cpp
   src/attachments/Leaves.cpp)
 target_link_libraries(batbox_attachments PUBLIC batbox_attachment_triggers
-  batbox_background_flight batbox_bootstrap_state batbox_query batbox_event_loop)
+  batbox_interactive batbox_bootstrap_state batbox_query batbox_event_loop)
 target_compile_options(batbox_attachments PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_attachments PRIVATE
   src/attachments/files/Mentions.cpp

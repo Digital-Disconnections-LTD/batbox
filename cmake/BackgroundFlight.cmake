@@ -1,6 +1,0 @@
-add_library(batbox_background_flight
-  src/interactive/background/NotificationAttachments.cpp)
-target_link_libraries(batbox_background_flight PUBLIC batbox_poetry_submit
-  batbox_bat_context batbox_interactive batbox_poetryEntries batbox_core
-  batbox_app_state batbox_event_loop)
-target_compile_options(batbox_background_flight PRIVATE -Wall -Wextra -Wpedantic)

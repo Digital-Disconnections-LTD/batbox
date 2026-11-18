@@ -121,7 +121,7 @@ add_library(batbox_application_frontend src/application_frontend/Defaults.cpp
 target_link_libraries(batbox_application_frontend PUBLIC batbox_application_runtime
   batbox_application_poetry batbox_application_flights batbox_application_bats
   batbox_application_permissions batbox_message_runtime batbox_application_gadgets
-  batbox_conversation_shell batbox_text_editor batbox_text_sdk)
+  batbox_terminal_ftxui batbox_text_sdk)
 target_compile_options(batbox_application_frontend PRIVATE -Wall -Wextra -Wpedantic)
 
 include(cmake/IndigenousCli.cmake)

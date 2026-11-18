@@ -227,11 +227,8 @@ include(cmake/HostRuntime.cmake)
 include(cmake/FtxuiDependency.cmake)
 include(cmake/FtxuiPresentation.cmake)
 include(cmake/UserInput.cmake)
-include(cmake/PoetrySubmit.cmake)
-include(cmake/BackgroundFlight.cmake)
 include(cmake/AttachmentTriggers.cmake)
 include(cmake/Attachments.cmake)
-include(cmake/InteractiveLifecycle.cmake)
 include(cmake/CoreCommands.cmake)
 
 # Scoped context is shared by low-level timer/future adapters and the owner
