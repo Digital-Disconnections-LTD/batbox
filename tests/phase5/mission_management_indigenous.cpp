@@ -1,4 +1,4 @@
-#include "gadgets/mission_management/Gadgets.hpp"
+#include "missions/store/Gadgets.hpp"
 #include <atomic>
 #include <cassert>
 #include <chrono>
@@ -9,7 +9,7 @@
 #include <thread>
 
 using batbox::Json;
-using namespace batbox::mission_management;
+using namespace batbox::missions::store;
 
 namespace {
 const batbox::gadgets::Gadget& byName(const std::vector<batbox::gadgets::Gadget>& gadgets,

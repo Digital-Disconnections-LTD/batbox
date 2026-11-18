@@ -1,8 +1,8 @@
 #include "runtime/AsyncLaunch.hpp"
-#include "gadgets/mission_stop/MissionStop.hpp"
+#include "missions/stop/MissionStop.hpp"
 #include <future>
 
-namespace batbox::mission_stop {
+namespace batbox::missions::stop {
 namespace {
 template<class T>std::future<T> ready(T value){
   std::promise<T> promise;promise.set_value(std::move(value));return promise.get_future();
@@ -77,4 +77,4 @@ gadgets::Gadget makeMissionStopGadget(Services services){
   };
   return gadgets::buildGadget(std::move(gadget));
 }
-} // namespace batbox::mission_stop
+} // namespace batbox::missions::stop

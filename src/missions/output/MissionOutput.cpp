@@ -1,8 +1,8 @@
 #include "runtime/AsyncLaunch.hpp"
-#include "gadgets/mission_output/MissionOutput.hpp"
+#include "missions/output/MissionOutput.hpp"
 #include <future>
 
-namespace batbox::mission_output {
+namespace batbox::missions::output {
 namespace {
 template<class T>std::future<T> ready(T value){
   std::promise<T> promise;promise.set_value(std::move(value));return promise.get_future();
@@ -16,7 +16,7 @@ constexpr double shellWaitMs=30000;
 bool blockValue(const Json& input){
   return !input.contains("block")||input["block"].get<bool>();
 }
-double timeoutValue(const Json& input,const shell_missions::MissionRecord& mission){
+double timeoutValue(const Json& input,const missions::roster::MissionRecord& mission){
   if(input.contains("timeout"))return input["timeout"].get<double>();
   return mission.type=="local_bash"?shellWaitMs:batWaitMs;
 }
@@ -133,4 +133,4 @@ gadgets::Gadget makeMissionOutputGadget(Services services){
   gadget.renderGadgetUseErrorMessage=shared->renderError;
   return gadgets::buildGadget(std::move(gadget));
 }
-} // namespace batbox::mission_output
+} // namespace batbox::missions::output

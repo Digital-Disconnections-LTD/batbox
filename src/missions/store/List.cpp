@@ -1,8 +1,8 @@
-#include "gadgets/mission_management/GadgetSupport.hpp"
-#include "gadgets/mission_management/PoetryEntries.hpp"
+#include "missions/store/GadgetSupport.hpp"
+#include "missions/store/PoetryEntries.hpp"
 #include <set>
 
-namespace batbox::mission_management {
+namespace batbox::missions::store {
 namespace {
 Json parse(const Json& input){detail::checkFields(input,"TaskList",{});return input;}
 }
@@ -74,4 +74,4 @@ std::vector<gadgets::Gadget> makeMissionGadgets(Services services){
   result.push_back(makeListGadget(shared));
   return result;
 }
-} // namespace batbox::mission_management
+} // namespace batbox::missions::store

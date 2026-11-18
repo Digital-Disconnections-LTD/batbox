@@ -1,11 +1,11 @@
 #pragma once
 #include "gadgets/Gadget.hpp"
-#include "gadgets/mission_management/Store.hpp"
+#include "missions/store/Store.hpp"
 #include <future>
 #include <memory>
 #include <stop_token>
 
-namespace batbox::mission_management {
+namespace batbox::missions::store {
 struct Services {
   std::shared_ptr<Store> store;
   std::function<std::string()> missionListId;
@@ -22,4 +22,4 @@ gadgets::Gadget makeCreateGadget(std::shared_ptr<Services> services);
 gadgets::Gadget makeGetGadget(std::shared_ptr<Services> services);
 gadgets::Gadget makeUpdateGadget(std::shared_ptr<Services> services);
 gadgets::Gadget makeListGadget(std::shared_ptr<Services> services);
-} // namespace batbox::mission_management
+} // namespace batbox::missions::store

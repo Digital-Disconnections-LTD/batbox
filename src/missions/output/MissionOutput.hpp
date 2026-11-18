@@ -1,11 +1,11 @@
 #pragma once
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include "gadgets/Gadget.hpp"
 #include <memory>
 
-namespace batbox::mission_output {
+namespace batbox::missions::output {
 struct Services {
-  std::shared_ptr<shell_missions::Roster> roster;
+  std::shared_ptr<missions::roster::Roster> roster;
   std::function<long long()> nowMs;
   std::function<std::string(const std::string&)> getMissionOutputPath;
   std::function<Json(const Json&,const Json&,const Json&)> renderResult;
@@ -22,8 +22,8 @@ struct Services {
 Json parseInput(const Json& input);
 Json formatMissionOutput(const std::string& output,const std::string& missionId,
   std::size_t maxLength,const std::function<std::string(const std::string&)>& getMissionOutputPath);
-Json getMissionOutputData(const shell_missions::MissionRecord& mission,const shell_missions::Roster& roster);
+Json getMissionOutputData(const missions::roster::MissionRecord& mission,const missions::roster::Roster& roster);
 Json mapGadgetResult(const Json& data,const std::string& gadgetUseID,
   std::size_t maxLength,const std::function<std::string(const std::string&)>& getMissionOutputPath);
 gadgets::Gadget makeMissionOutputGadget(Services services);
-} // namespace batbox::mission_output
+} // namespace batbox::missions::output

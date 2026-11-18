@@ -14,9 +14,9 @@ std::string field(const Json& value,const char* name){
   return value.is_object()&&value.contains(name)&&value.at(name).is_string()
     ?value.at(name).get<std::string>():"";
 }
-shell_missions::MissionRecord record(const std::string& id,
+missions::roster::MissionRecord record(const std::string& id,
     const std::string& command,const std::string& description,const Json& context){
-  shell_missions::MissionRecord value;
+  missions::roster::MissionRecord value;
   value.id=id;value.command=command;value.description=description;
   const auto gadgetUseId=field(context,"toolUseId");
   if(!gadgetUseId.empty())value.gadgetUseId=gadgetUseId;
@@ -36,17 +36,17 @@ Host makeHost(Inputs input){
   need(input.onMissionTerminated,"task termination observer");
   if(input.provider)need(input.generateExecId,"shell execution ID generator");
   const auto dispatcher=input.owner->dispatcher();
-  shell_missions::Services missionServices;
+  missions::roster::Services missionServices;
   missionServices.nowMs=input.nowMs;
   missionServices.enqueueNotification=[dispatcher,callback=input.enqueueNotification](
       const std::string& message,const std::optional<std::string>& batId){
     dispatcher.postMission([callback,message,batId]{callback(message,batId);});
   };
   missionServices.onMissionTerminated=[dispatcher,callback=input.onMissionTerminated](
-      const shell_missions::MissionRecord& mission){
+      const missions::roster::MissionRecord& mission){
     dispatcher.postMission([callback,mission]{callback(mission);});
   };
-  auto missions=std::make_shared<shell_missions::Roster>(std::move(missionServices));
+  auto missions=std::make_shared<missions::roster::Roster>(std::move(missionServices));
   shell::FlightConfig config;
   config.shellPath=std::move(input.shellPath);
   config.originalCwd=std::move(input.originalCwd);

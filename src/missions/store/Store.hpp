@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace batbox::mission_management {
+namespace batbox::missions::store {
 // One mission list lives at <config-home>/missions/<sanitized-list-id>.  Every
 // operation holds a cross-process list lock; gadget calls do disk work off owner.
 class Store {
@@ -25,4 +25,4 @@ private:
     const std::string& missionId);
   std::filesystem::path home_;
 };
-} // namespace batbox::mission_management
+} // namespace batbox::missions::store

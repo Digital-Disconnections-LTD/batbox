@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace batbox::shell_missions {
+namespace batbox::missions::roster {
 struct MissionRecord {
   std::string id,type="local_bash",status="running",description,command;
   std::optional<std::string> gadgetUseId,batId,kind,poetry,result,error;
@@ -79,4 +79,4 @@ private:
     std::optional<std::string>& notification);
 };
 std::string escapeXml(const std::string& text);
-} // namespace batbox::shell_missions
+} // namespace batbox::missions::roster

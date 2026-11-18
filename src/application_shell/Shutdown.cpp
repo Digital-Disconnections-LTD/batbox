@@ -17,7 +17,7 @@ event_loop::Deferred<event_loop::Unit> stopAndWait(event_loop::Loop& owner,
     for(const auto& mission:host.missions->list()){
       if(mission.type!="local_bash"||mission.status!="running")continue;
       try{(void)host.missions->stop(mission.id);}
-      catch(const shell_missions::StopMissionError&){}
+      catch(const missions::roster::StopMissionError&){}
       catch(const std::out_of_range&){} // process exited between list and stop
       catch(...){if(!failure)failure=std::current_exception();}
     }

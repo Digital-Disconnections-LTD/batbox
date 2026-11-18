@@ -1,6 +1,6 @@
-#include "gadgets/mission_output/MissionOutput.hpp"
+#include "missions/output/MissionOutput.hpp"
 
-namespace batbox::mission_output {
+namespace batbox::missions::output {
 Json formatMissionOutput(const std::string& output,const std::string& missionId,
   std::size_t maxLength,const std::function<std::string(const std::string&)>& getMissionOutputPath){
   if(value::stringLength(output)<=maxLength)
@@ -55,4 +55,4 @@ Json mapGadgetResult(const Json& data,const std::string& gadgetUseID,
   for(const auto& part:parts){if(!content.empty())content+="\n\n";content+=part;}
   return {{"tool_use_id",gadgetUseID},{"type","tool_result"},{"content",content}};
 }
-} // namespace batbox::mission_output
+} // namespace batbox::missions::output

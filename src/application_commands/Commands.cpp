@@ -365,7 +365,7 @@ void Bundle::initialize(){
   if(inputs_.store&&inputs_.managedShell.missions&&inputs_.managedShell.shell){
     application_mission_ui::Inputs missions(inputs_.owner);
     missions.store=inputs_.store;
-    missions.missionStore=std::make_shared<mission_management::Store>(
+    missions.missionStore=std::make_shared<missions::store::Store>(
       application::configurationDirectory(inputs_.config));
     missions.missionListId=[flight=inputs_.flight]{
 #ifdef _WIN32

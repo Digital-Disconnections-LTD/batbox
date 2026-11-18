@@ -1,21 +1,20 @@
-# The missions system: the background-mission roster, its output gadget,
-# the stop gadget, and the mission store. It was scattered -- roster, output
-# and stop compiled inside batbox_shell, the store a thin standalone target
-# -- while the name-shaped dirs (src/missions/, src/gadgets/mission_*) sat
-# apart from their target. It includes shell headers (ManagedShell, the
-# output poller); the shell declares the cycle back.
+# The missions system as one module: src/missions holds the four roles in
+# directories that match their namespaces -- roster (background-mission
+# state), output and stop (the mission gadgets), store (the mission
+# registry and its gadget bindings). It includes shell headers
+# (ManagedShell, the output poller); the shell declares the cycle back.
 add_library(batbox_missions
-  src/missions/shell/Roster.cpp
-  src/gadgets/mission_output/MissionOutput.cpp
-  src/gadgets/mission_output/Formatting.cpp
-  src/gadgets/mission_output/Data.cpp
-  src/gadgets/mission_stop/MissionStop.cpp
-  src/gadgets/mission_stop/Result.cpp
-  src/gadgets/mission_management/Store.cpp
-  src/gadgets/mission_management/PoetryEntries.cpp
-  src/gadgets/mission_management/CreateGet.cpp
-  src/gadgets/mission_management/Update.cpp
-  src/gadgets/mission_management/List.cpp)
+  src/missions/roster/Roster.cpp
+  src/missions/output/MissionOutput.cpp
+  src/missions/output/Formatting.cpp
+  src/missions/output/Data.cpp
+  src/missions/stop/MissionStop.cpp
+  src/missions/stop/Result.cpp
+  src/missions/store/Store.cpp
+  src/missions/store/PoetryEntries.cpp
+  src/missions/store/CreateGet.cpp
+  src/missions/store/Update.cpp
+  src/missions/store/List.cpp)
 target_link_libraries(batbox_missions PUBLIC batbox_core batbox_event_loop)
 target_compile_options(batbox_missions PRIVATE -Wall -Wextra -Wpedantic)
 

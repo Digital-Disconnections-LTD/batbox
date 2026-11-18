@@ -1,7 +1,7 @@
 #pragma once
 #include "gadgets/bash/AsyncBashCall.hpp"
 #include "shell/CommandSplitter.hpp"
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include <atomic>
 #include <filesystem>
 #include <future>
@@ -18,7 +18,7 @@ struct BashAsyncFixture final {
   event_loop::Loop& loop;
   std::filesystem::path root;
   std::atomic<int> ids{0};
-  std::shared_ptr<shell_missions::Roster> roster;
+  std::shared_ptr<missions::roster::Roster> roster;
   std::shared_ptr<shell::ManagedShell> shell;
   gadgets::Gadget gadget;
   static std::shared_ptr<BashAsyncFixture> create(event_loop::Loop& loop,
@@ -31,12 +31,12 @@ private:
     loop(owner),root(std::move(path)){}
   void bind(){
     std::filesystem::create_directories(root);
-    shell_missions::Services missionServices;
+    missions::roster::Services missionServices;
     missionServices.nowMs=[] {return 1234LL;};
     missionServices.enqueueNotification=[](const std::string&,
       const std::optional<std::string>&){};
-    missionServices.onMissionTerminated=[](const shell_missions::MissionRecord&){};
-    roster=std::make_shared<shell_missions::Roster>(missionServices);
+    missionServices.onMissionTerminated=[](const missions::roster::MissionRecord&){};
+    roster=std::make_shared<missions::roster::Roster>(missionServices);
     shell::FlightConfig config;config.shellPath="/bin/bash";
     config.originalCwd=root.string();config.outputDir=(root/"jobs").string();
     config.maxInlineOutputBytes=100;
@@ -77,11 +77,11 @@ private:
       return (path/"results"/(id+".txt")).string();};
     services.registerBackgroundMission=[missions=roster](const std::string& id,
       const std::string& command,const std::string& description,const Json&){
-      shell_missions::MissionRecord record;record.id=id;record.command=command;
+      missions::roster::MissionRecord record;record.id=id;record.command=command;
       record.description=description;missions->adoptBackground(std::move(record));};
     services.registerForegroundMission=[missions=roster](const std::string& id,
       const std::string& command,const std::string& description,const Json&){
-      shell_missions::MissionRecord record;record.id=id;record.command=command;
+      missions::roster::MissionRecord record;record.id=id;record.command=command;
       record.description=description;missions->registerForeground(std::move(record));};
     services.unregisterForegroundMission=[missions=roster](const std::string& id){
       (void)missions->unregisterForeground(id);};
@@ -101,7 +101,7 @@ private:
       return output;};
     host.spawnShellMission=[this](const bash_gadget::AsyncRunInput& input,
       const bash_gadget::AsyncShellCommand& command,const gadgets::GadgetCallContext&){
-      shell_missions::MissionRecord record;record.id=command.missionId;record.command=input.command;
+      missions::roster::MissionRecord record;record.id=command.missionId;record.command=input.command;
       record.description=input.description.empty()?input.command:input.description;
       record.gadgetUseId=input.gadgetUseId;record.batId=input.batId;
       roster->adoptBackground(std::move(record));
@@ -112,7 +112,7 @@ private:
       const gadgets::GadgetCallContext&){return missions->backgroundExistingForeground(id);};
     host.registerForeground=[missions=roster](const bash_gadget::AsyncRunInput& input,
       const bash_gadget::AsyncShellCommand& command,const gadgets::GadgetCallContext&){
-      shell_missions::MissionRecord record;record.id=command.missionId;record.command=input.command;
+      missions::roster::MissionRecord record;record.id=command.missionId;record.command=input.command;
       record.description=input.description.empty()?input.command:input.description;
       missions->registerForeground(std::move(record));return command.missionId;};
     host.unregisterForeground=[missions=roster](const std::string& id,

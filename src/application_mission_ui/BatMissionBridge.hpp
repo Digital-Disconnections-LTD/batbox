@@ -1,7 +1,7 @@
 #pragma once
 #include "app_state/State.hpp"
 #include "event_loop/Loop.hpp"
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include <functional>
 #include <memory>
 #include <set>
@@ -13,7 +13,7 @@ class BatMissionBridge final:public std::enable_shared_from_this<BatMissionBridg
 public:
   static std::shared_ptr<BatMissionBridge> create(event_loop::Loop& owner,
     std::shared_ptr<app_state::AppStateStore> store,
-    std::shared_ptr<shell_missions::Roster> roster,
+    std::shared_ptr<missions::roster::Roster> roster,
     std::function<void(const std::string&)> stopBatMission,
     std::function<void()> changed={});
   ~BatMissionBridge();
@@ -21,12 +21,12 @@ public:
 private:
   BatMissionBridge(event_loop::Loop& owner,
     std::shared_ptr<app_state::AppStateStore> store,
-    std::shared_ptr<shell_missions::Roster> roster,
+    std::shared_ptr<missions::roster::Roster> roster,
     std::function<void(const std::string&)> stopBatMission);
   void markNotified(const std::string& id);
   event_loop::Loop& owner_;
   std::shared_ptr<app_state::AppStateStore> store_;
-  std::shared_ptr<shell_missions::Roster> roster_;
+  std::shared_ptr<missions::roster::Roster> roster_;
   std::function<void(const std::string&)> stopBatMission_;
   std::function<void()> unsubscribe_;
   std::function<void()> changed_;

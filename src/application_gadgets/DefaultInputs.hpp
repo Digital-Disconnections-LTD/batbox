@@ -8,7 +8,7 @@
 #include "app_state/State.hpp"
 #include "application_file_history/History.hpp"
 #include "application_lsp/Runtime.hpp"
-#include "gadgets/mission_management/Gadgets.hpp"
+#include "missions/store/Gadgets.hpp"
 
 namespace batbox::application_gadgets {
 struct DefaultInputs {

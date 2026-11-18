@@ -33,7 +33,7 @@ void checkVocabulary(const interactive::UiRequest& request){
     check(!contains(all,word),std::string("Bats UI must use Batbox vocabulary, found '")+
       word+"' in:\n"+all);
 }
-Json missions(){
+Json missionState(){
   return Json{
     {"bat-reviewer",{{"type","local_agent"},{"status","running"},
       {"name","reviewer"},{"description","Review the parser"},
@@ -65,13 +65,13 @@ int main(){
     event_loop::Loop loop;
     auto state=std::make_shared<app_state::AppState>();
     state->fields=std::make_shared<value::SharedRecord>();
-    state->fields->set("tasks",missions());
+    state->fields->set("tasks",missionState());
     auto store=std::make_shared<app_state::AppStateStore>(state);
-    shell_missions::Services missionServices;
+    batbox::missions::roster::Services missionServices;
     missionServices.nowMs=[]{return now;};
     missionServices.enqueueNotification=[](const std::string&,const std::optional<std::string>&){};
-    missionServices.onMissionTerminated=[](const shell_missions::MissionRecord&){};
-    auto roster=std::make_shared<shell_missions::Roster>(missionServices);
+    missionServices.onMissionTerminated=[](const batbox::missions::roster::MissionRecord&){};
+    auto roster=std::make_shared<batbox::missions::roster::Roster>(missionServices);
     shell::FlightConfig shellConfig;shellConfig.shellPath="/bin/sh";
     shellConfig.originalCwd=root.string();shellConfig.outputDir=(root/"jobs").string();
     shellConfig.generateMissionId=[]{return std::string("shell-1");};
@@ -200,7 +200,7 @@ int main(){
       for(int i=0;i<5;++i)loop.runReady();
     }
 
-    const auto footerRows=providers::backgroundFooterMissions(missions());
+    const auto footerRows=providers::backgroundFooterMissions(missionState());
     check(footerRows.size()==2&&footerRows[0].at("id")=="bat-foreground",
       "Footer must list both running Bats, newest first, and skip the leader");
     const auto render=[](const Json& rows,const providers::FooterOptions& options,int height){
@@ -225,7 +225,7 @@ int main(){
 
     // Sub-Bats sit under the Bat that launched them; a settled open Bat and
     // the Bats above it stay listed so the highlight has somewhere to be.
-    auto tree=missions();
+    auto tree=missionState();
     tree["bat-child"]={{"type","local_agent"},{"status","running"},
       {"description","Check the lexer"},{"agentType","general-purpose"},
       {"parentBatId","bat-reviewer"},{"startTime",now-1000}};
@@ -303,7 +303,7 @@ int main(){
       contains(stopped,"stopped  0 Gadgets"),
       "Stopped Bats in the open trail read as stopped:\n"+stopped);
 
-    const auto glance=providers::batGlance(missions().at("bat-done"),now);
+    const auto glance=providers::batGlance(missionState().at("bat-done"),now);
     check(glance.label=="Summarize history"&&glance.elapsed=="1m 0s"&&
       glance.gadgetUses==7&&glance.tokens==4200&&!glance.running,
       "Settled glance must read the result totals");

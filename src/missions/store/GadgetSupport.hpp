@@ -1,12 +1,12 @@
 #pragma once
-#include "gadgets/mission_management/Gadgets.hpp"
+#include "missions/store/Gadgets.hpp"
 #include "runtime/AsyncLaunch.hpp"
 #include "runtime/JsonValue.hpp"
 #include <future>
 #include <set>
 #include <stdexcept>
 
-namespace batbox::mission_management::detail {
+namespace batbox::missions::store::detail {
 template<class T>std::future<T> ready(T value){
   std::promise<T> promise;auto result=promise.get_future();
   promise.set_value(std::move(value));return result;
@@ -77,4 +77,4 @@ inline gadgets::Gadget base(std::shared_ptr<Services> services,const char* name,
     return output.is_string()?output:Json(output.dump(2));};
   return gadget;
 }
-} // namespace batbox::mission_management::detail
+} // namespace batbox::missions::store::detail

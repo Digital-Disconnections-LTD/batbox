@@ -1,6 +1,6 @@
-#include "gadgets/mission_management/PoetryEntries.hpp"
+#include "missions/store/PoetryEntries.hpp"
 
-namespace batbox::mission_management {
+namespace batbox::missions::store {
 std::string createPoetry(){return R"TASK(Use this tool to create a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 It also helps the user understand the progress of the task and overall progress of their requests.
 
@@ -159,4 +159,4 @@ Returns a summary of each task:
 
 Use TaskGet with a specific task ID to view full details including description and comments.
 )TASK";}
-} // namespace batbox::mission_management
+} // namespace batbox::missions::store

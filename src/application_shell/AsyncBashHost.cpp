@@ -9,9 +9,9 @@ namespace {
 template<class F>void need(const F& value,const char* name){
   if(!value)throw std::invalid_argument(std::string("Application async Bash import required: ")+name);
 }
-shell_missions::MissionRecord record(const bash_gadget::AsyncRunInput& input,
+missions::roster::MissionRecord record(const bash_gadget::AsyncRunInput& input,
     const bash_gadget::AsyncShellCommand& command){
-  shell_missions::MissionRecord mission;
+  missions::roster::MissionRecord mission;
   mission.id=command.missionId;
   mission.command=input.command;
   mission.description=input.description.empty()?input.command:input.description;

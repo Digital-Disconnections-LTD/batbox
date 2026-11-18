@@ -1,8 +1,8 @@
-#include "gadgets/mission_management/GadgetSupport.hpp"
-#include "gadgets/mission_management/PoetryEntries.hpp"
+#include "missions/store/GadgetSupport.hpp"
+#include "missions/store/PoetryEntries.hpp"
 #include <algorithm>
 
-namespace batbox::mission_management {
+namespace batbox::missions::store {
 namespace {
 Json parse(const Json& input){
   detail::checkFields(input,"TaskUpdate",{"taskId","subject","description",
@@ -133,4 +133,4 @@ gadgets::Gadget makeUpdateGadget(std::shared_ptr<Services> services){
   };
   return gadgets::buildGadget(std::move(gadget));
 }
-} // namespace batbox::mission_management
+} // namespace batbox::missions::store

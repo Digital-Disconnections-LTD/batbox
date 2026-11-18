@@ -1,7 +1,7 @@
-#include "gadgets/mission_output/MissionOutput.hpp"
+#include "missions/output/MissionOutput.hpp"
 
-namespace batbox::mission_output {
-Json getMissionOutputData(const shell_missions::MissionRecord& mission,const shell_missions::Roster& roster){
+namespace batbox::missions::output {
+Json getMissionOutputData(const missions::roster::MissionRecord& mission,const missions::roster::Roster& roster){
   auto output=roster.readOutput(mission);
   Json result={{"task_id",mission.id},{"task_type",mission.type},{"status",mission.status},
     {"description",mission.description},{"output",output}};
@@ -22,4 +22,4 @@ Json getMissionOutputData(const shell_missions::MissionRecord& mission,const she
   }
   return result;
 }
-} // namespace batbox::mission_output
+} // namespace batbox::missions::output

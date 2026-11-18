@@ -3,7 +3,7 @@
 #include "shell/BashProvider.hpp"
 #include "shell/ManagedShell.hpp"
 #include "shell/MissionOutputPoller.hpp"
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include "gadget_results/Storage.hpp"
 #include "gadgets/bash/BashGadget.hpp"
 #include "gadgets/bash/AsyncBashCall.hpp"
@@ -17,7 +17,7 @@ struct Inputs {
   std::function<long long()> nowMs;
   std::function<void(const std::string&,const std::optional<std::string>&)>
     enqueueNotification;
-  std::function<void(const shell_missions::MissionRecord&)> onMissionTerminated;
+  std::function<void(const missions::roster::MissionRecord&)> onMissionTerminated;
   std::function<void(std::exception_ptr)> onBackgroundError;
   std::shared_ptr<shell::CwdCompletionServices> cwdCompletion;
   std::size_t maxInlineOutputBytes=30000;
@@ -28,7 +28,7 @@ struct Inputs {
 struct Host {
   std::shared_ptr<shell::ManagedShell> shell;
   std::shared_ptr<shell::MissionOutputPoller> poller;
-  std::shared_ptr<shell_missions::Roster> missions;
+  std::shared_ptr<missions::roster::Roster> missions;
 };
 Host makeHost(Inputs inputs);
 // Seal this generation against new commands, stop its local Bash missions, and

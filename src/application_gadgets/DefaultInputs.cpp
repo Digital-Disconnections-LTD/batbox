@@ -8,9 +8,9 @@
 #include "mcp/ProcessResult.hpp"
 #include "services/tokenEstimation.hpp"
 #include "settings/schema/IndigenousBindings.hpp"
-#include "gadgets/mission_output/MissionOutput.hpp"
-#include "gadgets/mission_stop/MissionStop.hpp"
-#include "gadgets/mission_management/Gadgets.hpp"
+#include "missions/output/MissionOutput.hpp"
+#include "missions/stop/MissionStop.hpp"
+#include "missions/store/Gadgets.hpp"
 #include "runtime/JsonValue.hpp"
 #include "process/IndigenousJsonlProcess.hpp"
 #include "interactive/gadget_views/GadgetViewModel.hpp"
@@ -583,7 +583,7 @@ Inputs makeDefaultInputs(DefaultInputs d){
   out.bat=std::move(d.bat);
   out.makeBatGadget=std::move(d.makeBatGadget);
   out.additionalGadgets=std::move(d.additionalGadgets);
-  mission_output::Services missionOutput;
+  missions::output::Services missionOutput;
   missionOutput.roster=d.shell.missions;
   missionOutput.nowMs=nowMs;
   missionOutput.getMissionOutputPath=[shell=d.shell.shell,missions=d.shell.missions](
@@ -613,19 +613,19 @@ Inputs makeDefaultInputs(DefaultInputs d){
   missionOutput.renderRejected=missionOutput.renderError;
   missionOutput.renderTag=[](const Json&)->Json{return "Mission output";};
   missionOutput.userMessageQueued=d.userMessageQueued;
-  out.additionalGadgets.push_back(mission_output::makeMissionOutputGadget(
+  out.additionalGadgets.push_back(missions::output::makeMissionOutputGadget(
     std::move(missionOutput)));
-  mission_stop::Services missionStop;
+  missions::stop::Services missionStop;
   missionStop.roster=d.shell.missions;
   missionStop.renderUse=[](const Json& input,const Json&)->Json{
     const auto id=field(input,"task_id");
     return "Stop Mission "+(id.empty()?field(input,"shell_id"):id);};
   missionStop.renderResult=[](const Json& data,const Json&,const Json&)->Json{
     return gv::textView(visible(data),"muted",false);};
-  out.additionalGadgets.push_back(mission_stop::makeMissionStopGadget(
+  out.additionalGadgets.push_back(missions::stop::makeMissionStopGadget(
     std::move(missionStop)));
-  mission_management::Services missionList;
-  missionList.store=std::make_shared<mission_management::Store>(
+  missions::store::Services missionList;
+  missionList.store=std::make_shared<missions::store::Store>(
     application::configurationDirectory(d.config));
   missionList.missionListId=[flight=d.missionListId]{
     const auto override=missionEnvironment("BATBOX_TASK_LIST_ID");
@@ -636,7 +636,7 @@ Inputs makeDefaultInputs(DefaultInputs d){
   missionList.expandMissions=std::move(d.expandMissionList);
   const std::string flag=missionEnvironment("BATBOX_ENABLE_TASKS");
   missionList.enabled=!d.config.print||flag=="1"||flag=="true"||flag=="yes";
-  for(auto& missionGadget:mission_management::makeMissionGadgets(std::move(missionList)))
+  for(auto& missionGadget:missions::store::makeMissionGadgets(std::move(missionList)))
     out.additionalGadgets.push_back(std::move(missionGadget));
   out.mcpConnections=d.connectors->mcpConnections;
   auto& mcpServices=out.mcpServices;

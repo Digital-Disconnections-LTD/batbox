@@ -1,4 +1,4 @@
-#include "gadgets/mission_management/Store.hpp"
+#include "missions/store/Store.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -14,7 +14,7 @@
 #include <unistd.h>
 #endif
 
-namespace batbox::mission_management {
+namespace batbox::missions::store {
 namespace {
 class ListLock {
 public:
@@ -205,4 +205,4 @@ bool Store::block(const std::string& listId,const std::string& fromId,
   writeMission(missionPath(dir,toId),*to);
   return true;
 }
-} // namespace batbox::mission_management
+} // namespace batbox::missions::store

@@ -551,7 +551,7 @@ private:
     auto pending=application::runInWorker<event_loop::Unit>(input_.owner,
       [roster=input_.shellMissions,id=item.id]{
         try{(void)roster->stop(id);}
-        catch(const shell_missions::StopMissionError&){}
+        catch(const missions::roster::StopMissionError&){}
         return event_loop::Unit{};
       });
     pending.then([self](const event_loop::Unit*,const std::exception_ptr& error){

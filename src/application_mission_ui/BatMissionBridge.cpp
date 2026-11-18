@@ -31,8 +31,8 @@ std::string resultText(const Json& result){
   }
   return output;
 }
-shell_missions::MissionRecord recordFrom(const std::string& id,const Json& mission){
-  shell_missions::MissionRecord record;
+missions::roster::MissionRecord recordFrom(const std::string& id,const Json& mission){
+  missions::roster::MissionRecord record;
   record.id=id;record.type="local_agent";
   record.status=string(field(mission,"status"));
   record.description=string(field(mission,"description"));
@@ -49,7 +49,7 @@ shell_missions::MissionRecord recordFrom(const std::string& id,const Json& missi
   record.waiting=field(mission,"waiting")==true;
   return record;
 }
-std::string readOutputFile(const shell_missions::MissionRecord& mission){
+std::string readOutputFile(const missions::roster::MissionRecord& mission){
   if(!mission.outputFilePath)return {};
   try{
     constexpr std::size_t maxBytes=8*1024*1024;
@@ -65,13 +65,13 @@ std::string readOutputFile(const shell_missions::MissionRecord& mission){
 }
 BatMissionBridge::BatMissionBridge(event_loop::Loop& owner,
     std::shared_ptr<app_state::AppStateStore> store,
-    std::shared_ptr<shell_missions::Roster> roster,
+    std::shared_ptr<missions::roster::Roster> roster,
     std::function<void(const std::string&)> stopBatMission):
   owner_(owner),store_(std::move(store)),roster_(std::move(roster)),
   stopBatMission_(std::move(stopBatMission)){}
 std::shared_ptr<BatMissionBridge> BatMissionBridge::create(event_loop::Loop& owner,
     std::shared_ptr<app_state::AppStateStore> store,
-    std::shared_ptr<shell_missions::Roster> roster,
+    std::shared_ptr<missions::roster::Roster> roster,
     std::function<void(const std::string&)> stopBatMission,
     std::function<void()> changed){
   if(!owner.isOwnerThread()||!store||!roster||!stopBatMission)
@@ -82,14 +82,14 @@ std::shared_ptr<BatMissionBridge> BatMissionBridge::create(event_loop::Loop& own
   const std::weak_ptr<BatMissionBridge> weak=bridge;
   const auto dispatcher=owner.dispatcher();
   bridge->roster_->bindExternalServices(
-    [weak,dispatcher](const shell_missions::MissionRecord& mission){
+    [weak,dispatcher](const missions::roster::MissionRecord& mission){
       application::onOwnerAndWait<void>(dispatcher,[weak,id=mission.id]{
         const auto self=weak.lock();
         if(!self)throw std::runtime_error("Agent task owner closed");
         self->stopBatMission_(id);
       });
     },readOutputFile,
-    [weak,dispatcher](const shell_missions::MissionRecord& mission){
+    [weak,dispatcher](const missions::roster::MissionRecord& mission){
       application::onOwnerAndWait<void>(dispatcher,[weak,id=mission.id]{
         if(const auto self=weak.lock())self->markNotified(id);
       });

@@ -1,9 +1,9 @@
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include <algorithm>
 #include <chrono>
 #include <utility>
 
-namespace batbox::shell_missions {
+namespace batbox::missions::roster {
 StopMissionError::StopMissionError(std::string message,std::string errorCode):
   std::runtime_error(std::move(message)),code(std::move(errorCode)){}
 std::string escapeXml(const std::string& text){
@@ -242,4 +242,4 @@ std::string Roster::readOutput(const MissionRecord& mission)const{
   if(!services_.readExternalOutput)throw std::logic_error("external task output reader not supplied");
   return services_.readExternalOutput(mission);
 }
-} // namespace batbox::shell_missions
+} // namespace batbox::missions::roster

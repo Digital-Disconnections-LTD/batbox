@@ -1,10 +1,10 @@
 #pragma once
 #include "app_state/State.hpp"
 #include "shell/ManagedShell.hpp"
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include "user_input/UiCommandRouter.hpp"
 #include "interactive/conversation_shell/Shell.hpp"
-#include "gadgets/mission_management/Store.hpp"
+#include "missions/store/Store.hpp"
 #include <functional>
 #include <memory>
 
@@ -14,9 +14,9 @@ namespace batbox::application_mission_ui {
 struct Inputs {
   event_loop::Loop& owner;
   std::shared_ptr<app_state::AppStateStore> store;
-  std::shared_ptr<shell_missions::Roster> shellMissions;
+  std::shared_ptr<missions::roster::Roster> shellMissions;
   std::shared_ptr<shell::ManagedShell> managedShell;
-  std::shared_ptr<mission_management::Store> missionStore;
+  std::shared_ptr<missions::store::Store> missionStore;
   std::function<std::string()> missionListId;
   std::function<void(const std::string&)> stopBatMission;
   std::function<void(const std::string&)> openBatConversation;

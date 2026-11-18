@@ -387,7 +387,7 @@ void Host::Impl::bindRoostProviders(){
   shellInputs.nowMs=nowMs;
   shellInputs.enqueueNotification=[this](const std::string& text,
       const std::optional<std::string>&){log("Shell task: "+text);};
-  shellInputs.onMissionTerminated=[this](const shell_missions::MissionRecord& mission){
+  shellInputs.onMissionTerminated=[this](const missions::roster::MissionRecord& mission){
     log("Shell task terminated: "+mission.id);};
   shellInputs.onBackgroundError=[this](std::exception_ptr error){report(error,"background shell");};
   managedShell=application_shell::makeHost(std::move(shellInputs));
