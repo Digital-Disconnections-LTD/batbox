@@ -3,7 +3,12 @@ if(WIN32)
 else()
   set(BATBOX_RIPGREP_PROCESS_SOURCE src/filesystem/RipgrepProcess.cpp)
 endif()
-target_sources(batbox_core PRIVATE
+# The file gadgets (Read/Edit/Grep/Glob/Notebook implementations), their
+# filesystem support, and the read-file staleness stash form one cohesive
+# mechanism layer. They were compiled into batbox_core, which put L2 gadget
+# code into the foundation target. batbox_core links this target PUBLIC so
+# existing consumers keep resolving.
+add_library(batbox_file_gadgets
   src/file_state_stash/FileStateStash.cpp
   src/file_state_stash/Path.cpp
   src/file_state_stash/Helpers.cpp
@@ -49,3 +54,11 @@ target_sources(batbox_core PRIVATE
   src/gadgets/files/NotebookRead.cpp
   src/gadgets/files/NotebookResult.cpp
 )
+target_include_directories(batbox_file_gadgets PUBLIC src)
+target_link_libraries(batbox_file_gadgets PUBLIC batbox_core
+  batbox_glob batbox_npm_wrap_ansi)
+target_compile_options(batbox_file_gadgets PRIVATE -Wall -Wextra -Wpedantic)
+# batbox_core keeps its consumers working unchanged by re-exposing this
+# mechanism layer (no source back-edge: no core TU references file-gadget
+# symbols, so the archive order core -> file_gadgets is acyclic).
+target_link_libraries(batbox_core PUBLIC batbox_file_gadgets)
