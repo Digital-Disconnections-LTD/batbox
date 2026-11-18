@@ -16,11 +16,6 @@ add_library(batbox_core
   src/utils/envUtils.cpp
   src/utils/tokens.cpp
   src/utils/messages.cpp
-  src/services/tokenEstimation.cpp
-  src/services/api/emptyUsage.cpp
-  src/services/api/batbox.cpp
-  src/services/compact/autoCompact.cpp
-  src/services/compact/grouping.cpp
 )
 # The one place the project version enters the sources.
 set_source_files_properties(src/runtime/Version.cpp PROPERTIES
@@ -67,6 +62,13 @@ add_library(batbox_protocol
   src/normalization/References.cpp
   src/model_config/ModelNames.cpp
   src/formatting/Format.cpp
+  # services/ helpers: token estimation, API usage, compaction grouping --
+  # protocol-level helpers over messages, moved with the layer.
+  src/services/tokenEstimation.cpp
+  src/services/api/emptyUsage.cpp
+  src/services/api/batbox.cpp
+  src/services/compact/autoCompact.cpp
+  src/services/compact/grouping.cpp
 )
 target_include_directories(batbox_protocol PUBLIC src)
 target_link_libraries(batbox_protocol PUBLIC batbox_core batbox_glob)
@@ -96,6 +98,13 @@ target_compile_options(batbox_transport PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_core PRIVATE
   src/accounting/Cost.cpp
   src/accounting/Flight.cpp
+)
+# The gadget mechanism layer: the gadget interface, schema, input
+# normalization, catalog, and the app-state execution modifiers. Like the
+# protocol and file-gadget layers, it was compiled into batbox_core; it is
+# L2 execution/mechanism code, not foundation. batbox_core re-exposes it
+# PUBLIC so existing consumers keep resolving.
+add_library(batbox_gadget_execution
   src/gadgets/Gadget.cpp
   src/gadgets/Schema.cpp
   src/gadgets/InputNormalization.cpp
@@ -103,6 +112,11 @@ target_sources(batbox_core PRIVATE
   src/execution/AppStateModifier.cpp
   src/execution/TypedAppStateModifier.cpp
 )
+target_include_directories(batbox_gadget_execution PUBLIC src)
+target_link_libraries(batbox_gadget_execution PUBLIC batbox_core
+  batbox_protocol batbox_file_gadgets batbox_app_state batbox_gadget_results)
+target_compile_options(batbox_gadget_execution PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(batbox_core PUBLIC batbox_gadget_execution)
 add_library(batbox_model
   src/model/SimpleQueries.cpp
   src/model/StreamObservation.cpp
@@ -218,6 +232,7 @@ include(cmake/Attachments.cmake)
 include(cmake/InteractiveLifecycle.cmake)
 include(cmake/CoreCommands.cmake)
 
-# Scoped context is shared by low-level timer/future adapters and the owner loop.
-target_sources(batbox_core PRIVATE src/event_loop/AsyncContext.cpp)
+# Scoped context is shared by low-level timer/future adapters and the owner
+# loop: it belongs to the event-loop mechanism, not the foundation bundle.
+target_sources(batbox_event_loop PRIVATE src/event_loop/AsyncContext.cpp)
 include(cmake/CloudProviders.cmake)
