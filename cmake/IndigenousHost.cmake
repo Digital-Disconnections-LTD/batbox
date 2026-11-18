@@ -14,7 +14,7 @@ target_link_libraries(batbox_indigenous_host PUBLIC
   batbox_application_hooks batbox_application_permissions
   batbox_application_gadgets batbox_application_runtime
   batbox_application_frontend batbox_application_presentation
-  batbox_application_commands batbox_application_restore batbox_application_cli
+  batbox_application_commands batbox_application_cli
   batbox_application_memory batbox_providers batbox_diagnostics
   batbox_cron batbox_cron_gadgets)
 target_compile_options(batbox_indigenous_host PRIVATE -Wall -Wextra -Wpedantic)

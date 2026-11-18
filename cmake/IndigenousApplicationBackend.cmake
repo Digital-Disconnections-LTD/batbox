@@ -24,14 +24,22 @@ target_link_libraries(batbox_application_engine PUBLIC batbox_application_config
   batbox_message_runtime batbox_interactive batbox_shell)
 target_compile_options(batbox_application_engine PRIVATE -Wall -Wextra -Wpedantic)
 
-add_library(batbox_application_roost src/application_roost/Roost.cpp)
-target_link_libraries(batbox_application_roost PUBLIC batbox_core batbox_event_loop)
-target_compile_options(batbox_application_roost PRIVATE -Wall -Wextra -Wpedantic)
-
+# Flight bindings plus the flight-restore layer (formerly the separate
+# application_restore target, sourced from this same directory) and the
+# application roost host (formerly application_roost). These three were one
+# session-flight module split into three cmake slices.
 add_library(batbox_application_flights src/application_flights/Flight.cpp
-  src/application_flights/Plans.cpp)
+  src/application_flights/Plans.cpp
+  src/application_roost/Roost.cpp
+  src/flight_restore/State.cpp
+  src/application_flights/RestoreLoad.cpp
+  src/application_flights/RestoreApply.cpp
+  src/application_flights/RestoreCommand.cpp)
 target_link_libraries(batbox_application_flights PUBLIC batbox_application_config
-  batbox_flights batbox_process batbox_message_runtime batbox_application_roost)
+  batbox_flights batbox_process batbox_message_runtime batbox_core
+  batbox_core_commands batbox_roost batbox_instruction_async
+  batbox_poetryEntries batbox_shell batbox_gadget_results
+  batbox_event_loop)
 target_compile_options(batbox_application_flights PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(batbox_application_shell src/application_shell/ApplicationShell.cpp
@@ -112,7 +120,7 @@ include(cmake/IndigenousCommands.cmake)
 include(cmake/IndigenousEndpointConfig.cmake)
 include(cmake/IndigenousMissionUi.cmake)
 include(cmake/MissionManagement.cmake)
-include(cmake/IndigenousRestore.cmake)
+include(cmake/FlightRestoreTests.cmake)
 include(cmake/IndigenousMedia.cmake)
 include(cmake/IndigenousHistory.cmake)
 include(cmake/IndigenousEditor.cmake)
