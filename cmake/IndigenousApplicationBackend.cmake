@@ -129,7 +129,12 @@ include(cmake/IndigenousMemory.cmake)
 include(cmake/IndigenousCommands.cmake)
 include(cmake/IndigenousEndpointConfig.cmake)
 include(cmake/IndigenousMissionUi.cmake)
-include(cmake/MissionManagement.cmake)
+include(cmake/Missions.cmake)
+# The mission gadget store serves the gadget and command bindings (the
+# mission UI TUs compile in application_commands via
+# cmake/IndigenousMissionUi.cmake).
+target_link_libraries(batbox_application_gadgets PUBLIC batbox_missions)
+target_link_libraries(batbox_application_commands PUBLIC batbox_missions)
 include(cmake/FlightRestoreTests.cmake)
 include(cmake/IndigenousMedia.cmake)
 include(cmake/IndigenousShellShutdown.cmake)

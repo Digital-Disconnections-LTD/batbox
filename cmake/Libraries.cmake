@@ -162,9 +162,7 @@ add_library(batbox_shell
   src/shell/Heredoc.cpp src/shell/HeredocCollect.cpp src/shell/HeredocSyntax.cpp
   src/shell/ShellQuoteParse.cpp src/shell/ShellQuoteQuote.cpp
   src/shell/CommandSplitter.cpp src/shell/CommandSplitterRedirections.cpp
-  src/missions/shell/Roster.cpp
-  src/gadgets/mission_output/MissionOutput.cpp src/gadgets/mission_output/Formatting.cpp src/gadgets/mission_output/Data.cpp
-  src/gadgets/mission_stop/MissionStop.cpp src/gadgets/mission_stop/Result.cpp
+  # The mission roster, output and stop gadgets now compile in batbox_missions.
   src/shell/ManagedShell.cpp ${BATBOX_SHELL_SPAWN_SOURCE} src/shell/WindowsPaths.cpp
   src/shell/Output.cpp src/shell/ShellDiscovery.cpp
   src/shell/CommandHandle.cpp src/shell/TailFile.cpp src/shell/MissionOutputPoller.cpp
@@ -179,7 +177,9 @@ target_sources(batbox_shell PRIVATE
   src/gadgets/bash/AsyncRunShellCommand.cpp src/gadgets/bash/AsyncRunBindings.cpp
   src/gadgets/bash/AsyncShellBinding.cpp src/gadgets/bash/BashCompletion.cpp
   src/gadgets/bash/AsyncBashCall.cpp src/gadgets/bash/AsyncBashFactory.cpp)
-target_link_libraries(batbox_shell PUBLIC batbox_core batbox_event_loop)
+# batbox_missions includes shell headers (ManagedShell, MissionOutputPoller);
+# the shell consumes the roster -- the declared cycle folds in the aggregate.
+target_link_libraries(batbox_shell PUBLIC batbox_core batbox_event_loop batbox_missions)
 target_compile_options(batbox_shell PRIVATE -Wall -Wextra -Wpedantic)
 add_library(batbox_query
   src/execution/Dispatch.cpp src/execution/Call.cpp
