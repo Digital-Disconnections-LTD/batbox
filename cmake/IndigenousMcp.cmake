@@ -12,7 +12,11 @@ if(WIN32)
 endif()
 if(WIN32)
   target_link_libraries(batbox_core PUBLIC bcrypt)
-  target_link_libraries(batbox_core PUBLIC batbox_indigenous_jsonl_process)
+  # The Win ripgrep process source (compiled into batbox_core) uses
+  # batbox_indigenous_jsonl_process, which itself links batbox_core.
+  # That edge made the static-link graph cyclic; the MSVC linker is
+  # order-insensitive across archives, so consumers resolve it without
+  # the core->jsonl_process declaration.
 endif()
 
 add_library(batbox_mcp_runtime
