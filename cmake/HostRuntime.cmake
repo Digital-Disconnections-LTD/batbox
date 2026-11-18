@@ -69,13 +69,12 @@ target_sources(batbox_instruction_async PRIVATE
   src/instructions/hooks/runtime/HookMatching.cpp
   src/instructions/hooks/runtime/HookConfig.cpp)
 target_link_libraries(batbox_instruction_async PUBLIC batbox_glob batbox_shell)
-add_library(batbox_profiler src/profiler/Indigenous.cpp)
-target_link_libraries(batbox_profiler PUBLIC batbox_core batbox_event_loop)
-target_compile_options(batbox_profiler PRIVATE -Wall -Wextra -Wpedantic)
-
 add_library(batbox_diagnostics src/diagnostics/DebugLog.cpp)
 target_link_libraries(batbox_diagnostics PUBLIC batbox_core batbox_event_loop)
 target_compile_options(batbox_diagnostics PRIVATE -Wall -Wextra -Wpedantic)
+# Profiler (memory-usage sampling) is observability beside the debug log;
+# formerly a single-file target with one consumer.
+target_sources(batbox_diagnostics PRIVATE src/profiler/Indigenous.cpp)
 
 target_sources(batbox_instruction_async PRIVATE src/instructions/hooks/runtime/HookOutputParser.cpp)
 
@@ -105,11 +104,9 @@ target_link_libraries(batbox_auth PUBLIC batbox_core batbox_event_loop batbox_ur
 target_compile_options(batbox_auth PRIVATE -Wall -Wextra -Wpedantic)
 
 
-add_library(batbox_display src/display/Tags.cpp)
-target_link_libraries(batbox_display PUBLIC batbox_glob)
-target_compile_options(batbox_display PRIVATE -Wall -Wextra -Wpedantic)
+# Tag-string scrubbing (src/display/Tags.cpp) now compiles into batbox_protocol;
+# flights resolves it through the core aggregate.
 target_sources(batbox_flights PRIVATE src/flights/DisplayTitle.cpp)
-target_link_libraries(batbox_flights PUBLIC batbox_display)
 
 include(cmake/SyntheticOutput.cmake)
 include(cmake/HookRuntime.cmake)

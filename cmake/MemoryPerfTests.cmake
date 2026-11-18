@@ -26,7 +26,7 @@ if(UNIX)
   endif()
 endif()
 batbox_indigenous(phase4-memory-usage-indigenous
-  tests/phase4/memory_usage_indigenous.cpp batbox_profiler)
+  tests/phase4/memory_usage_indigenous.cpp batbox_diagnostics)
 batbox_indigenous(phase6-string-width-short-cache-indigenous
   tests/phase6/string_width_short_cache_indigenous.cpp batbox_terminal_ftxui)
 batbox_indigenous(phase6-poetry-xml-tags-indigenous

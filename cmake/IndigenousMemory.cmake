@@ -6,8 +6,7 @@ add_library(batbox_application_memory
   src/application_memory/ConsolidationPoetry.cpp src/application_memory/Fork.cpp)
 target_link_libraries(batbox_application_memory PUBLIC
   batbox_application_poetry batbox_application_model batbox_application_flights
-  batbox_application_engine batbox_application_bats batbox_memory_prefetch
-  batbox_side_query)
+  batbox_application_engine batbox_application_bats batbox_memory_prefetch)
 target_compile_options(batbox_application_memory PRIVATE -Wall -Wextra -Wpedantic)
 
 if(BUILD_TESTING)

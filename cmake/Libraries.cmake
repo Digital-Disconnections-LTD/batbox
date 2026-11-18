@@ -61,6 +61,10 @@ add_library(batbox_protocol
   src/normalization/References.cpp
   src/model_config/ModelNames.cpp
   src/formatting/Format.cpp
+  # Tag-string scrubbing (the misnamed src/display/ dir): message
+  # normalization, folded into this layer. Its flights consumer now
+  # resolves through the core aggregate, fixing the link/include divergence.
+  src/display/Tags.cpp
   # services/ helpers: token estimation, API usage, compaction grouping --
   # protocol-level helpers over messages, moved with the layer.
   src/services/tokenEstimation.cpp
@@ -218,7 +222,6 @@ include(cmake/McpGadgets.cmake)
 include(cmake/InstructionGadgets.cmake)
 include(cmake/Foundation.cmake)
 include(cmake/MemoryPrefetch.cmake)
-include(cmake/SideQuery.cmake)
 include(cmake/IndigenousDependencies.cmake)
 include(cmake/HostRuntime.cmake)
 include(cmake/FtxuiDependency.cmake)
