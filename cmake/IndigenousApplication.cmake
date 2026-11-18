@@ -17,9 +17,22 @@ add_library(batbox_conversation_shell
   src/interactive/presentation_providers/DefaultBindings.cpp
   src/interactive/presentation_providers/Chrome.cpp
   src/interactive/presentation_providers/MissionFooter.cpp
-  src/interactive/presentation_providers/CardPalettes.cpp)
+  src/interactive/presentation_providers/CardPalettes.cpp
+  src/interactive/conversation_shell/ShellTranscript.cpp
+  # Conversation-side bindings -- formerly the separate
+  # application_completion, application_editor, and application_history
+  # cmake slices. They compile here because their only consumer is the
+  # conversation shell.
+  src/application_completion/Commands.cpp
+  src/application_completion/Paths.cpp
+  src/application_editor/IndigenousProcess.cpp
+  src/application_editor/PoetryEditor.cpp
+  src/application_editor/TranscriptFile.cpp
+  src/application_history/History.cpp)
 target_link_libraries(batbox_conversation_shell PUBLIC batbox_terminal_ftxui
-  batbox_interactive_lifecycle batbox_terminal_ftxui batbox_text_editor)
+  batbox_interactive_lifecycle batbox_text_editor batbox_user_input
+  batbox_event_loop batbox_core batbox_history batbox_interactive
+  batbox_fs_operations batbox_locking batbox_cleanup)
 target_compile_options(batbox_conversation_shell PRIVATE -Wall -Wextra -Wpedantic)
 
 target_sources(batbox_core_commands PRIVATE
