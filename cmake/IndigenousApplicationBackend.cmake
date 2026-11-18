@@ -64,11 +64,6 @@ target_link_libraries(batbox_application_poetry PUBLIC batbox_application_config
   batbox_instructions batbox_glob batbox_process batbox_roost batbox_project_recovery)
 target_compile_options(batbox_application_poetry PRIVATE -Wall -Wextra -Wpedantic)
 
-add_library(batbox_application_presentation src/application_presentation/Bindings.cpp)
-target_link_libraries(batbox_application_presentation PUBLIC batbox_conversation_shell
-  batbox_text_editor batbox_text_sdk)
-target_compile_options(batbox_application_presentation PRIVATE -Wall -Wextra -Wpedantic)
-
 include(cmake/IndigenousBats.cmake)
 # PermissionProvider is a leaf provider: it binds shell rules, gadget
 # views, and app-state helpers. Owning it as a real target (instead of an
@@ -104,14 +99,29 @@ target_link_libraries(batbox_application_engine PUBLIC batbox_application_hooks
   batbox_attachments batbox_bootstrap_state batbox_memory_prefetch)
 
 target_sources(batbox_application_gadgets PRIVATE src/application_gadgets/DefaultInputs.cpp)
+# The file-history bindings (formerly their own application_file_history
+# target) are gadget-side bindings over flight storage; merged here.
+target_sources(batbox_application_gadgets PRIVATE
+  src/application_file_history/HistoryState.cpp
+  src/application_file_history/HistoryBackup.cpp
+  src/application_file_history/HistorySnapshots.cpp
+  src/application_file_history/HistoryRestore.cpp
+  src/application_file_history/HistoryDiff.cpp
+  src/application_file_history/HistoryResume.cpp)
 target_link_libraries(batbox_application_gadgets PUBLIC batbox_application_model
   batbox_application_connectors batbox_application_shell batbox_application_bats
-  batbox_application_permissions batbox_gadget_results batbox_settings)
+  batbox_application_permissions batbox_gadget_results batbox_settings
+  batbox_application_flights batbox_core batbox_event_loop OpenSSL::Crypto)
 
-add_library(batbox_application_frontend src/application_frontend/Defaults.cpp)
+# The presentation bindings (formerly application_presentation) and the
+# rewind modal join the frontend bindings: one presentation-side module.
+add_library(batbox_application_frontend src/application_frontend/Defaults.cpp
+  src/application_frontend/RewindModal.cpp
+  src/application_presentation/Bindings.cpp)
 target_link_libraries(batbox_application_frontend PUBLIC batbox_application_runtime
   batbox_application_poetry batbox_application_flights batbox_application_bats
-  batbox_application_permissions batbox_message_runtime)
+  batbox_application_permissions batbox_message_runtime batbox_application_gadgets
+  batbox_conversation_shell batbox_text_editor batbox_text_sdk)
 target_compile_options(batbox_application_frontend PRIVATE -Wall -Wextra -Wpedantic)
 
 include(cmake/IndigenousCli.cmake)
@@ -125,7 +135,6 @@ include(cmake/IndigenousMedia.cmake)
 include(cmake/IndigenousHistory.cmake)
 include(cmake/IndigenousEditor.cmake)
 include(cmake/IndigenousCompletion.cmake)
-include(cmake/IndigenousFileHistory.cmake)
 include(cmake/IndigenousShellShutdown.cmake)
 include(cmake/IndigenousSkills.cmake)
 include(cmake/IndigenousMcp.cmake)

@@ -39,7 +39,7 @@ batbox_indigenous(phase6-stable-prompt-prefix-indigenous
 batbox_indigenous(phase6-system-poetry-file-indigenous
   tests/phase6/system_poetry_file_indigenous.cpp batbox_application_commands)
 batbox_indigenous(phase6-application-presentation-indigenous
-  tests/phase6/application_presentation_indigenous.cpp batbox_application_presentation)
+  tests/phase6/application_presentation_indigenous.cpp batbox_application_frontend)
 
 batbox_indigenous(phase6-application-usage-indigenous
   tests/phase6/application_usage_indigenous.cpp batbox_application_commands)
@@ -120,30 +120,30 @@ target_compile_options(batbox-phase6-indigenous-lsp-grouped PRIVATE
 add_executable(batbox-phase6-visual-goldens-indigenous
   tests/phase6/visual_goldens_indigenous.cpp)
 target_link_libraries(batbox-phase6-visual-goldens-indigenous PRIVATE
-  batbox_application_presentation batbox_application_gadgets
+  batbox_application_frontend batbox_application_gadgets
   batbox_application_permissions batbox_application_commands)
 add_test(NAME phase6-visual-goldens-indigenous
   COMMAND batbox-phase6-visual-goldens-indigenous
   ${CMAKE_SOURCE_DIR}/tests/phase6/goldens/visual)
 batbox_indigenous(phase6-markdown-pieces-indigenous
-  tests/phase6/markdown_pieces_indigenous.cpp batbox_application_presentation)
+  tests/phase6/markdown_pieces_indigenous.cpp batbox_application_frontend)
 add_executable(batbox-phase6-tui-frame-bench-indigenous
   tests/phase6/tui_frame_bench_indigenous.cpp)
 target_link_libraries(batbox-phase6-tui-frame-bench-indigenous PRIVATE
-  batbox_application_presentation)
+  batbox_application_frontend)
 add_test(NAME phase6-tui-frame-bench-indigenous
   COMMAND batbox-phase6-tui-frame-bench-indigenous)
 add_executable(batbox-phase6-settings-file-path-indigenous
   tests/phase6/settings_file_path_indigenous.cpp)
 target_link_libraries(batbox-phase6-settings-file-path-indigenous PRIVATE
-  batbox_application_presentation batbox_application_gadgets
+  batbox_application_frontend batbox_application_gadgets
   batbox_application_permissions batbox_application_commands)
 add_test(NAME phase6-settings-file-path-indigenous
   COMMAND batbox-phase6-settings-file-path-indigenous)
 batbox_indigenous(phase6-visual-roles-indigenous
   tests/phase6/visual_roles_indigenous.cpp batbox_application_commands)
 batbox_indigenous(phase6-mission-notice-card-indigenous
-  tests/phase6/mission_notice_card_indigenous.cpp batbox_application_presentation)
+  tests/phase6/mission_notice_card_indigenous.cpp batbox_application_frontend)
 include(cmake/BatsPanelTests.cmake)
 if(UNIX)
   add_executable(batbox-phase5-web-connectors-indigenous tests/phase5/web_connectors_indigenous.cpp)
