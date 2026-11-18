@@ -66,11 +66,10 @@ int main(int argc,char** argv){
   std::filesystem::create_directories(root);
   try{
     auto store=std::make_shared<Store>(root);
-    std::atomic<int> createdHooks{0},completedHooks{0},expansions{0};
+    std::atomic<int> createdHooks{0},completedHooks{0};
     bool rejectCreate=true,rejectComplete=true;
     Services services;
     services.store=store;services.missionListId=[] {return std::string("session/one");};
-    services.expandMissions=[&]{++expansions;};
     services.lifecycleHooks=[&](const std::string& event,const Json& detail,
         const batbox::gadgets::GadgetCallContext&){
       assert(detail.contains("task_id")&&detail.contains("task_subject")&&
@@ -108,7 +107,7 @@ int main(int argc,char** argv){
       {"metadata",{{"priority",1}}}});
     const auto second=call(create,{{"subject","B"},{"description","Second"}});
     assert(first["task"]["id"]=="2"&&second["task"]["id"]=="3");
-    assert(createdHooks==3&&expansions==2);
+    assert(createdHooks==3);
     assert(get.mapGadgetResultToGadgetResultBlockParam(
       call(get,{{"taskId","missing"}}),"use")["content"]=="Task not found");
     const auto block=call(update,{{"taskId","3"},{"addBlockedBy",Json::array({"2"})},

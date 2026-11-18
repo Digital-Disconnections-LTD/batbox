@@ -51,7 +51,6 @@ gadgets::Gadget makeCreateGadget(std::shared_ptr<Services> services){
           throw std::runtime_error(detail::join(blockers,"\n"));
         }
       }
-      if(services->expandMissions)services->expandMissions();
       gadgets::GadgetResult result;
       result.data={{"task",{{"id",id},{"subject",input.at("subject")}}}};
       return result;

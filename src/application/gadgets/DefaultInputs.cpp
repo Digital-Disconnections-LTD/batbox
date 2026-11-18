@@ -633,7 +633,6 @@ Inputs makeDefaultInputs(DefaultInputs d){
     if(!flight)throw std::logic_error("Current session task list ID is unavailable");
     return flight();};
   missionList.lifecycleHooks=std::move(d.missionLifecycleHooks);
-  missionList.expandMissions=std::move(d.expandMissionList);
   const std::string flag=missionEnvironment("BATBOX_ENABLE_TASKS");
   missionList.enabled=!d.config.print||flag=="1"||flag=="true"||flag=="yes";
   for(auto& missionGadget:missions::store::makeMissionGadgets(std::move(missionList)))

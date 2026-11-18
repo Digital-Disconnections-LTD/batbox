@@ -14,7 +14,6 @@ struct Services {
   // data and cancellation token.
   std::function<std::vector<std::string>(const std::string&,const Json&,
     const gadgets::GadgetCallContext&)> lifecycleHooks;
-  std::function<void()> expandMissions;
   bool enabled=true;
 };
 std::vector<gadgets::Gadget> makeMissionGadgets(Services services);

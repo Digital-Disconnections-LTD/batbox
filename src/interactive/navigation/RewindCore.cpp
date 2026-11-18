@@ -55,9 +55,6 @@ void Rewind::rewindConversationTo(const TurnMessageRef& message){
         updated->setPermissionContext(std::move(context));
       }
     }
-    updated->fields->set("promptSuggestion",Json{{"text",nullptr},
-      {"promptId",nullptr},{"shownAt",0},{"acceptedAt",0},
-      {"generationRequestId",nullptr}});
     return updated;
   });
 }

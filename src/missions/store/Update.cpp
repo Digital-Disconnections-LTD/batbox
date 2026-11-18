@@ -33,7 +33,6 @@ Json updateData(const Services& services,const Json& input,
     const gadgets::GadgetCallContext& context){
   const auto list=detail::listId(services);
   const auto id=input.at("taskId").get<std::string>();
-  if(services.expandMissions)services.expandMissions();
   const auto existing=services.store->get(list,id);
   if(!existing)return dataFailure(id,"Task not found");
   Json updates=Json::object();std::vector<std::string> changed;

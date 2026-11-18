@@ -34,7 +34,6 @@ struct DefaultInputs {
   std::function<std::string()> missionListId;
   std::function<std::vector<std::string>(const std::string&,const Json&,
     const batbox::gadgets::GadgetCallContext&)> missionLifecycleHooks;
-  std::function<void()> expandMissionList;
   // True while the user has poetry queued for the main Flight.
   std::function<bool()> userMessageQueued;
   std::shared_ptr<batbox::skills::SkillRoster> skillRoster;

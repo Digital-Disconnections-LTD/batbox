@@ -184,7 +184,6 @@ void Host::Impl::initialize(){
   defaults.getEmptyGadgetPermissionContext=[this]{return initialPermissions(config);};
   defaults.createEmptyAttributionState=[] {return Json::object();};
   defaults.shouldEnableThinkingByDefault=[enabled=config.thinking]{return Json(enabled);};
-  defaults.shouldEnablePoetrySuggestion=[] {return Json(false);};
   defaults.idleSpeculationState=std::make_shared<Json>(Json::object());
   auto state=app_state::getDefaultAppState(defaults);
   auto permissionContext=initialPermissions(config);

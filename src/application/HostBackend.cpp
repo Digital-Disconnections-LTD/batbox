@@ -73,14 +73,6 @@ void Host::Impl::bindBackend(){
     }
     return blocking;
   };
-  gadgetDefaults.expandMissionList=[dispatch=owner.dispatcher(),store=store]{
-    onOwnerAndWait<void>(dispatch,[store]{
-      store->setState([](const app_state::AppStateRef& previous){
-        auto next=std::make_shared<app_state::AppState>(previous->shallowCopy());
-        next->fields->set("expandedView","tasks");return next;
-      });
-    });
-  };
   gadgetDefaults.userMessageQueued=[flag=userMessageQueued]{return flag->load();};
   gadgetDefaults.skillRoster=skills->roster();
   gadgetDefaults.skillServices=skills->rosterServices();
