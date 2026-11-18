@@ -60,7 +60,7 @@ add_library(batbox_application_poetry src/application_poetry/ProviderCore.cpp
   src/application_poetry/ProviderGit.cpp src/application_poetry/ProviderContext.cpp
   src/application_poetry/ProviderPoetry.cpp src/application_poetry/ProviderHead.cpp)
 target_link_libraries(batbox_application_poetry PUBLIC batbox_application_config
-  batbox_poetryEntries batbox_context batbox_git_utils batbox_git batbox_instruction_async
+  batbox_poetryEntries batbox_context batbox_git batbox_instruction_async
   batbox_instructions batbox_glob batbox_process batbox_roost batbox_project_recovery)
 target_compile_options(batbox_application_poetry PRIVATE -Wall -Wextra -Wpedantic)
 

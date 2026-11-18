@@ -35,10 +35,8 @@ target_sources(batbox_settings PRIVATE src/settings/schema/IndigenousBindings.cp
   src/settings/schema/imports/HooksDescriptor.cpp src/settings/schema/imports/HooksParse.cpp)
 target_link_libraries(batbox_settings PUBLIC batbox_url)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
-add_library(batbox_git_utils src/git/GitBasics.cpp src/git/IndigenousBasics.cpp
-  src/git/GitBindings.cpp src/git/CanonicalRoot.cpp src/git/IndigenousCanonicalRoot.cpp)
-target_link_libraries(batbox_git_utils PUBLIC batbox_git batbox_context batbox_process OpenSSL::Crypto ICU::uc)
-target_compile_options(batbox_git_utils PRIVATE -Wall -Wextra -Wpedantic)
+# The git binding half (src/git/) now compiles inside batbox_git
+# (Foundation.cmake); the former batbox_git_utils target was a name inversion.
 target_sources(batbox_settings PRIVATE src/settings/persistence/WatchTargets.cpp)
 add_library(batbox_instruction_async
   src/instructions/project/async/IndigenousFs.cpp src/instructions/project/async/AsyncFile.cpp
