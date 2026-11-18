@@ -1,7 +1,6 @@
 find_package(ICU REQUIRED COMPONENTS uc)
 add_library(batbox_core
   src/runtime/Version.cpp
-  src/retry/Machine.cpp src/retry/MachineDirect.cpp
   src/runtime/ArrayJoin.cpp
   src/terminal_search/Scan.cpp
   src/runtime/JsonValue.cpp
@@ -22,6 +21,19 @@ add_library(batbox_core
   src/services/api/batbox.cpp
   src/services/compact/autoCompact.cpp
   src/services/compact/grouping.cpp
+)
+# The one place the project version enters the sources.
+set_source_files_properties(src/runtime/Version.cpp PROPERTIES
+  COMPILE_DEFINITIONS "BATBOX_VERSION=\"${PROJECT_VERSION}\"")
+target_include_directories(batbox_core PUBLIC src)
+target_link_libraries(batbox_core PUBLIC nlohmann_json::nlohmann_json Threads::Threads ICU::uc)
+target_compile_options(batbox_core PRIVATE -Wall -Wextra -Wpedantic)
+# The conversation/wire protocol mechanism layer: message construction and
+# pairing, request assembly, stream reduction, retry policy, API error
+# rendering, content normalization, model naming, and formatting. It was
+# compiled into batbox_core, mixing L2 protocol code with the foundation.
+# batbox_core links this target PUBLIC so existing consumers keep resolving.
+add_library(batbox_protocol
   src/messages/TextContent.cpp
   src/messages/Construction.cpp
   src/messages/Context.cpp
@@ -32,6 +44,7 @@ add_library(batbox_core
   src/requests/RequestBuilder.cpp
   src/requests/PoetryStash.cpp
   src/streaming/Reducer.cpp
+  src/retry/Machine.cpp src/retry/MachineDirect.cpp
   src/retry/ErrorDetails.cpp
   src/retry/Policy.cpp
   src/retry/Retry.cpp
@@ -41,13 +54,27 @@ add_library(batbox_core
   src/api_errors/Formatting.cpp
   src/api_errors/RendererHelpers.cpp
   src/api_errors/Renderer.cpp
+  src/normalization/AttachmentDeltas.cpp
+  src/normalization/AttachmentMore.cpp
+  src/normalization/AttachmentPlanText.cpp
+  src/normalization/AttachmentPlans.cpp
+  src/normalization/AttachmentGadgets.cpp
+  src/normalization/Attachments.cpp
+  src/normalization/Cleanup.cpp
+  src/normalization/Content.cpp
+  src/normalization/ImageValidation.cpp
+  src/normalization/Pipeline.cpp
+  src/normalization/References.cpp
+  src/model_config/ModelNames.cpp
+  src/formatting/Format.cpp
 )
-# The one place the project version enters the sources.
-set_source_files_properties(src/runtime/Version.cpp PROPERTIES
-  COMPILE_DEFINITIONS "BATBOX_VERSION=\"${PROJECT_VERSION}\"")
-target_include_directories(batbox_core PUBLIC src)
-target_link_libraries(batbox_core PUBLIC nlohmann_json::nlohmann_json Threads::Threads ICU::uc)
-target_compile_options(batbox_core PRIVATE -Wall -Wextra -Wpedantic)
+target_include_directories(batbox_protocol PUBLIC src)
+target_link_libraries(batbox_protocol PUBLIC batbox_core batbox_glob)
+target_compile_options(batbox_protocol PRIVATE -Wall -Wextra -Wpedantic)
+# Same aggregate pattern as batbox_file_gadgets: no core TU references
+# protocol symbols, so the core -> protocol archive order is acyclic at the
+# declaration level.
+target_link_libraries(batbox_core PUBLIC batbox_protocol)
 include(cmake/FileGadgets.cmake)
 include(cmake/EventLoop.cmake)
 add_library(batbox_connectors src/connectors/Searxng.cpp src/connectors/Scrapling.cpp
@@ -67,19 +94,6 @@ target_include_directories(batbox_transport PUBLIC src)
 target_link_libraries(batbox_transport PUBLIC batbox_core CURL::libcurl)
 target_compile_options(batbox_transport PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_core PRIVATE
-  src/normalization/AttachmentDeltas.cpp
-  src/normalization/AttachmentMore.cpp
-  src/normalization/AttachmentPlanText.cpp
-  src/normalization/AttachmentPlans.cpp
-  src/normalization/AttachmentGadgets.cpp
-  src/normalization/Attachments.cpp
-  src/normalization/Cleanup.cpp
-  src/normalization/Content.cpp
-  src/normalization/ImageValidation.cpp
-  src/normalization/Pipeline.cpp
-  src/normalization/References.cpp
-  src/model_config/ModelNames.cpp
-  src/formatting/Format.cpp
   src/accounting/Cost.cpp
   src/accounting/Flight.cpp
   src/gadgets/Gadget.cpp
