@@ -1,6 +1,6 @@
 #include "interactive/conversation_shell/Shell.hpp"
-#include "application_editor/IndigenousProcess.hpp"
-#include "application_editor/TranscriptFile.hpp"
+#include "application/editor/IndigenousProcess.hpp"
+#include "application/editor/TranscriptFile.hpp"
 #include "text_sdk/npm_wrap_ansi/Internal.hpp"
 #include "runtime/JsonValue.hpp"
 #include <ftxui/dom/elements.hpp>
@@ -13,7 +13,7 @@
 namespace batbox::interactive::conversation_shell {
 struct TranscriptExportRun {
   std::shared_ptr<PreparedMessageList> prepared;
-  std::shared_ptr<application_editor::TranscriptFile> file;
+  std::shared_ptr<application::editor::TranscriptFile> file;
   std::size_t next=0;
   int columns=80;
 };
@@ -128,7 +128,7 @@ void Shell::startTranscriptExport(){
     auto run=std::make_shared<TranscriptExportRun>();
     run->prepared=std::make_shared<PreparedMessageList>(
       prepareMessageList(presentation().messages,settings,anchor));
-    run->file=application_editor::TranscriptFile::create();
+    run->file=application::editor::TranscriptFile::create();
     run->columns=std::max(80,presentation().viewport.columns-6);
     transcriptExport_=run;
     transcriptStatus("rendering "+
@@ -156,15 +156,15 @@ void Shell::advanceTranscriptExport(){
     }
     run->file->finish();
     const auto path=run->file->path().string();
-    const auto editor=application_editor::indigenous::externalEditor();
+    const auto editor=application::editor::indigenous::externalEditor();
     bool opened=false;
     if(editor){
       if(editor->gui)
-        opened=application_editor::indigenous::launchDetached(*editor,path);
+        opened=application::editor::indigenous::launchDetached(*editor,path);
       else{
-        application_editor::indigenous::ProcessResult result;
+        application::editor::indigenous::ProcessResult result;
         driver_->withRestoredIO([&]{
-          result=application_editor::indigenous::runInherited(*editor,path);});
+          result=application::editor::indigenous::runInherited(*editor,path);});
         opened=!result.error;
       }
     }

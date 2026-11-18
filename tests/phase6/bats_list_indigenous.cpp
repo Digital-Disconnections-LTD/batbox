@@ -1,4 +1,4 @@
-#include "application_mission_ui/MissionDialog.hpp"
+#include "application/mission_ui/MissionDialog.hpp"
 #include "interactive/presentation_providers/MissionFooter.hpp"
 #include "runtime/Platform.hpp"
 #include "shell/CommandSplitter.hpp"
@@ -88,7 +88,7 @@ int main(){
     projection.onPoetryFocus=[](bool){};
     auto router=user_input::UiCommandRouter::create(loop,std::move(projection));
     std::vector<std::string> opened;
-    application_mission_ui::Inputs inputs(loop);
+    application::mission_ui::Inputs inputs(loop);
     inputs.store=store;inputs.shellMissions=roster;inputs.managedShell=managed;
     inputs.openBatConversation=[&](const std::string& id){opened.push_back(id);};
     inputs.stopBatMission=[](const std::string&){};
@@ -96,7 +96,7 @@ int main(){
     inputs.terminalRows=[]{return 40;};
     inputs.nowMillis=[]{return now;};
 
-    auto bats=application_mission_ui::makeBatsCommand(router,inputs);
+    auto bats=application::mission_ui::makeBatsCommand(router,inputs);
     check(bats.descriptor.at("name")=="bats"&&
       bats.descriptor.at("aliases")==Json::array({"agents"}),
       "The Bats command must be named bats with the agents alias");
@@ -152,7 +152,7 @@ int main(){
       "Enter must open the selected Bat conversation");
 
     auto missionInputs=inputs;
-    auto missionsCommand=application_mission_ui::makeMissionsCommand(router,missionInputs);
+    auto missionsCommand=application::mission_ui::makeMissionsCommand(router,missionInputs);
     check(missionsCommand.descriptor.at("name")=="missions"&&
       missionsCommand.descriptor.at("aliases")==Json::array({"tasks","bashes"}),
       "The Missions command must be named missions with tasks and bashes aliases");
@@ -180,7 +180,7 @@ int main(){
       emptyInputs.batDefinitions=[]{return Json{{"activeAgents",Json::array({
         Json{{"agentType","general-purpose"},{"whenToUse","Research and multi-step work"}},
         Json{{"agentType","reviewer"},{"whenToUse","Reviews a change for bugs"}}})}};};
-      auto emptyBats=application_mission_ui::makeBatsCommand(router,emptyInputs);
+      auto emptyBats=application::mission_ui::makeBatsCommand(router,emptyInputs);
       auto shown=emptyBats.invokeUi("");
       (void)shown;
       for(int i=0;i<5;++i)loop.runReady();

@@ -1,11 +1,11 @@
-#include "application_config/ConfigPanelInternal.hpp"
-#include "application_commands/ProvidersCommand.hpp"
-#include "application_config/Discovery.hpp"
+#include "application/config/ConfigPanelInternal.hpp"
+#include "application/commands/ProvidersCommand.hpp"
+#include "application/config/Discovery.hpp"
 #include "providers/WireClients.hpp"
 #include "transport/Errors.hpp"
-#include "application_config/EndpointStore.hpp"
+#include "application/config/EndpointStore.hpp"
 #include "application/Config.hpp"
-#include "application_model/LocalModelService.hpp"
+#include "application/model/LocalModelService.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "app_state/State.hpp"
 #include <algorithm>
@@ -65,7 +65,7 @@ void permissionConfig(const std::filesystem::path& root){
   {std::ofstream file(root/"settings.json");
     file<<R"JSON({"permissions":{"deny":["Bash(rm:*)"],"ask":["WebFetch"],"allow":["Read"]}})JSON";}
   const auto load=[&](std::vector<std::string> flags){
-    flags.insert(flags.begin(),{"--help","--config",runtime::pathToUtf8(client)});
+    flags.insert(flags.begin(),{"--help","--config",batbox::runtime::pathToUtf8(client)});
     return application::loadConfig(flags);
   };
   const auto layered=load({});
@@ -115,8 +115,8 @@ void permissionConfig(const std::filesystem::path& root){
   assert(denied);
   assert(application::commandLineHelp().find("--permission-mode")!=std::string::npos);
 }
-application_model::ModelProfile seedProfile(){
-  application_model::ModelProfile profile;
+application::model::ModelProfile seedProfile(){
+  application::model::ModelProfile profile;
   profile.id="seed";profile.wireModel="seed";
   profile.contextTokens=8192;profile.maxOutputTokens=1024;
   profile.costs={{"inputTokens",0},{"outputTokens",0},
@@ -124,28 +124,28 @@ application_model::ModelProfile seedProfile(){
     {"webSearchRequests",0}};
   return profile;
 }
-std::shared_ptr<application_model::LocalModelService> backend(event_loop::Loop& loop){
-  application_model::Config settings;
+std::shared_ptr<application::model::LocalModelService> backend(event_loop::Loop& loop){
+  application::model::Config settings;
   settings.mainModel=settings.smallModel=settings.visionModel="seed";
   settings.profiles.emplace("seed",seedProfile());
-  application_model::Imports imports;
+  application::model::Imports imports;
   imports.authToken=[]{return std::string{};};
   imports.invalidateAuthToken=[]{};
   imports.debug=[](const std::string&,const std::string&){};
   imports.diagnostic=imports.debug;
   imports.normalizeAttachmentForAPI=[](const Json& value){return value;};
-  imports.normalizeGadgetInputForAPI=[](const gadgets::Gadget&,const Json& value){return value;};
-  imports.gadgetSchemaSync=[](const gadgets::Gadget&,const gadgets::GadgetSchemaOptions&){
+  imports.normalizeGadgetInputForAPI=[](const batbox::gadgets::Gadget&,const Json& value){return value;};
+  imports.gadgetSchemaSync=[](const batbox::gadgets::Gadget&,const batbox::gadgets::GadgetSchemaOptions&){
     return Json::object();};
-  imports.gadgetSchemaAsync=[&loop](const gadgets::Gadget&,
-      const gadgets::GadgetSchemaOptions&){
+  imports.gadgetSchemaAsync=[&loop](const batbox::gadgets::Gadget&,
+      const batbox::gadgets::GadgetSchemaOptions&){
     event_loop::Deferred<Json> result(loop);result.resolve(Json::object());return result;};
-  return std::make_shared<application_model::LocalModelService>(loop,
+  return std::make_shared<application::model::LocalModelService>(loop,
     std::move(settings),std::move(imports));
 }
 }
 void endpointBetas(const std::filesystem::path& root){
-  using namespace application_config;
+  using namespace application::config;
   ConfigRoot environment(root);
   const auto path=root/"betas-client.json";
   application::EndpointRecord endpoint;
@@ -157,7 +157,7 @@ void endpointBetas(const std::filesystem::path& root){
     assert(!Json::parse(file).at("endpoints").at("plain").contains("betas"));}
   assert(readEndpoints(path)->at("plain").betas.empty());
   assert(inferenceProfile(endpoint,"alpha").betas.empty());
-  assert(application_model::requestBetas(
+  assert(application::model::requestBetas(
     runtimeProfile(profileId("plain","alpha"),endpoint,"alpha")).empty());
   const std::vector<std::string> betas{"context-1m-2025-08-07",
     "interleaved-thinking-2025-05-14"};
@@ -168,18 +168,18 @@ void endpointBetas(const std::filesystem::path& root){
   assert(readEndpoints(path)->at("beta").betas==betas);
   assert(inferenceProfile(endpoint,"alpha").betas==betas);
   auto profile=runtimeProfile(profileId("beta","alpha"),endpoint,"alpha");
-  assert(profile.betas==betas&&application_model::requestBetas(profile)==betas);
+  assert(profile.betas==betas&&application::model::requestBetas(profile)==betas);
   for(const auto* kind:{"bedrock","vertex"}){
-    profile.provider=kind;assert(application_model::requestBetas(profile)==betas);
+    profile.provider=kind;assert(application::model::requestBetas(profile)==betas);
   }
   profile.provider="openai-chat";
-  assert(profile.betas==betas&&application_model::requestBetas(profile).empty());
+  assert(profile.betas==betas&&application::model::requestBetas(profile).empty());
   {std::ofstream file(path);file<<Json{{"profile","named"},{"profiles",{{"named",{
     {"model","alpha"},{"base_url","http://127.0.0.1:8000"},{"betas",betas}}}}},
     {"endpoints",{{"beta",{{"label","Betas"},{"base_url","http://127.0.0.1:8000"},
       {"context_window",16384},{"max_output_tokens",2048},{"models",{"alpha"}},
       {"betas",betas}}}}}}.dump();}
-  const auto loaded=application::loadConfig({"--help","--config",runtime::pathToUtf8(path)});
+  const auto loaded=application::loadConfig({"--help","--config",batbox::runtime::pathToUtf8(path)});
   assert(loaded.profiles.at("named").betas==betas);
   assert(loaded.endpoints.at("beta").betas==betas);
   for(const auto* bad:{R"([""])",R"(["a,b"])",R"(["a b"])",R"(["\u00e9"])",R"([1])",
@@ -212,8 +212,8 @@ void requireBoth(const application::EndpointRecord& endpoint){
   assert(endpoint.betas==bothBetas);
   assert(application::requestLimitsDocument(endpoint.limits)==bothLimits);
 }
-void requireBothInProfile(const application_model::ModelProfile& profile){
-  assert(profile.betas==bothBetas&&application_model::requestBetas(profile)==bothBetas);
+void requireBothInProfile(const application::model::ModelProfile& profile){
+  assert(profile.betas==bothBetas&&application::model::requestBetas(profile)==bothBetas);
   assert(!profile.local&&!profile.nonStreamingFallback);
   assert(profile.nonStreamingTimeoutMs==1800000&&profile.maxRetries==2u);
   assert(profile.client&&profile.client->requestTimeout==std::chrono::milliseconds(0));
@@ -221,7 +221,7 @@ void requireBothInProfile(const application_model::ModelProfile& profile){
   assert(profile.client->connectTimeout==std::chrono::milliseconds(3000));
 }
 void endpointBetasAndLimits(const std::filesystem::path& root){
-  using namespace application_config;
+  using namespace application::config;
   ConfigRoot environment(root);
   const auto path=root/"both-client.json";
   const auto endpoint=endpointWithBoth();
@@ -242,7 +242,7 @@ void endpointBetasAndLimits(const std::filesystem::path& root){
   Json endpointRow=endpointDocument({{"both",endpoint}}).at("both");
   {std::ofstream file(path);file<<Json{{"profile","named"},
     {"profiles",{{"named",profileRow}}},{"endpoints",{{"both",endpointRow}}}}.dump();}
-  const auto loaded=application::loadConfig({"--help","--config",runtime::pathToUtf8(path)});
+  const auto loaded=application::loadConfig({"--help","--config",batbox::runtime::pathToUtf8(path)});
   assert(loaded.profiles.at("named").betas==bothBetas);
   assert(application::requestLimitsDocument(loaded.profiles.at("named").limits)==bothLimits);
   requireBoth(loaded.endpoints.at("both"));
@@ -260,7 +260,7 @@ void endpointBetasAndLimits(const std::filesystem::path& root){
   // A /providers re-edit rebuilds the record from the catalog walk-through;
   // the betas and request limits it has no step for must survive the save.
   event_loop::Loop loop;
-  application_commands::ProvidersInputs inputs;
+  application::commands::ProvidersInputs inputs;
   inputs.configPath=path;inputs.animate=false;
   inputs.environment=[](const std::string&)->std::optional<std::string>{return std::nullopt;};
   inputs.discover=[]{return std::vector<providers::LocalServer>{};};
@@ -273,8 +273,8 @@ void endpointBetasAndLimits(const std::filesystem::path& root){
   std::optional<interactive::UiRequest> shown;
   interactive::CommandUi::Action act;
   std::optional<std::string> finished;
-  application_commands::startProvidersDialog(loop,
-    application_commands::completeProvidersInputs(std::move(inputs)),
+  application::commands::startProvidersDialog(loop,
+    application::commands::completeProvidersInputs(std::move(inputs)),
     [&](interactive::CommandCompletion done){finished=done.result.value_or("");},
     [&](std::optional<interactive::UiRequest> request,interactive::CommandUi::Action action){
       shown=std::move(request);act=std::move(action);});
@@ -307,7 +307,7 @@ void endpointBetasAndLimits(const std::filesystem::path& root){
   requireBothInProfile(runtimeProfile(profileId("both","alpha"),reedited,"alpha"));
 }
 int main(){
-  using namespace application_config;
+  using namespace application::config;
   Temporary temporary;
   permissionConfig(temporary.path);
   endpointBetas(temporary.path);

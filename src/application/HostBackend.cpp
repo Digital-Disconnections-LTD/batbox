@@ -1,10 +1,10 @@
 #include "application/HostInternal.hpp"
 #include "application/ModelBinding.hpp"
-#include "application_engine/CompactBinding.hpp"
-#include "application_engine/Defaults.hpp"
-#include "application_engine/Execution.hpp"
-#include "application_gadgets/DefaultInputs.hpp"
-#include "application_commands/CommandsMcp.hpp"
+#include "application/engine/CompactBinding.hpp"
+#include "application/engine/Defaults.hpp"
+#include "application/engine/Execution.hpp"
+#include "application/gadgets/DefaultInputs.hpp"
+#include "application/commands/CommandsMcp.hpp"
 #include "mcp/OutputStorage.hpp"
 #include "application/Async.hpp"
 #include "runtime/IndigenousPath.hpp"
@@ -13,11 +13,11 @@
 
 namespace batbox::application {
 namespace {
-gadgets::Gadgets snapshotGadgets(
-    const std::shared_ptr<gadgets::live_roster::Roster>& roster){
+batbox::gadgets::Gadgets snapshotGadgets(
+    const std::shared_ptr<batbox::gadgets::live_roster::Roster>& roster){
   const auto snapshot=roster->current();
   if(!snapshot)return {};
-  gadgets::Gadgets all=snapshot->base;
+  batbox::gadgets::Gadgets all=snapshot->base;
   all.insert(all.end(),snapshot->mcp.begin(),snapshot->mcp.end());
   return all;
 }
@@ -43,9 +43,9 @@ void Host::Impl::bindBackend(){
   commandRows=std::make_shared<Json>(Json::array());
   mcpRuntimeSlot=std::make_shared<std::weak_ptr<mcp::manager::IndigenousRuntime>>();
   auto generationBats=generationBatSlot;
-  lsp=application_lsp::Runtime::create(bindingProjectRoot(),
+  lsp=application::lsp::Runtime::create(bindingProjectRoot(),
     config.settings.value("lsp",config.settings));
-  application_gadgets::DefaultInputs gadgetDefaults{owner};
+  application::gadgets::DefaultInputs gadgetDefaults{owner};
   gadgetDefaults.config=config;gadgetDefaults.store=store;
   gadgetDefaults.messages=messages;gadgetDefaults.fileStash=fileStash;
   gadgetDefaults.permission=permission;gadgetDefaults.connectors=connectors;
@@ -54,7 +54,7 @@ void Host::Impl::bindBackend(){
   gadgetDefaults.storage=storage;
   gadgetDefaults.missionListId=[flight=flight]{return flight->id();};
   gadgetDefaults.missionLifecycleHooks=[hooks=hooks,dispatch=owner.dispatcher()](
-      const std::string& event,const Json& detail,const gadgets::GadgetCallContext& call){
+      const std::string& event,const Json& detail,const batbox::gadgets::GadgetCallContext& call){
     execution::Context context=call.batContext?call.batContext->query:
       execution::Context{};
     context.data=call.data;
@@ -108,14 +108,14 @@ void Host::Impl::bindBackend(){
       if(shell)shell->requestRedraw();
     });
   };
-  preparedGadgets=application_gadgets::prepare(
-    application_gadgets::makeDefaultInputs(std::move(gadgetDefaults)));
+  preparedGadgets=application::gadgets::prepare(
+    application::gadgets::makeDefaultInputs(std::move(gadgetDefaults)));
   mcpServices=preparedGadgets->factory.mcpServices;
   if(!preparedGadgets->factory.read)
     throw std::logic_error("Read tool service unavailable for compaction");
-  auto readServices=std::make_shared<gadgets::files::FileReadServices>(
+  auto readServices=std::make_shared<batbox::gadgets::files::FileReadServices>(
     *preparedGadgets->factory.read);
-  application_media::AggregateInputs attachmentInputs(owner);
+  application::media::AggregateInputs attachmentInputs(owner);
   attachmentInputs.files.readServices=[readServices]{return readServices;};
   attachmentInputs.files.getAppState=[store=store]{return store->getState();};
   attachmentInputs.files.isFileReadDenied=[permission=permission](
@@ -193,11 +193,11 @@ void Host::Impl::bindBackend(){
     // A retired workspace releases its poetry; attachments may outlive it.
     const auto live=weak.lock();
     return live?live->takeHeadChangeAttachments(coveredElsewhere):Json::array();};
-  attachments=application_media::AggregateProvider::create(
+  attachments=application::media::AggregateProvider::create(
     std::move(attachmentInputs));
   skills->bindRuntime(attachments,hooks);
   auto generationEngine=generationEngineSlot;
-  application_engine::CompactBindingInputs compactInputs(owner);
+  application::engine::CompactBindingInputs compactInputs(owner);
   compactInputs.config=config;compactInputs.model=model;
   compactInputs.messages=messages;compactInputs.hooks=hooks;
   compactInputs.poetry=poetry;compactInputs.flight=flight;
@@ -220,9 +220,9 @@ void Host::Impl::bindBackend(){
     if(closing||!text.is_string())return;
     statusText=text.get<std::string>();++view.revision;
     if(shell)shell->requestRedraw();};
-  compactor=application_engine::makeCompactor(std::move(compactInputs));
+  compactor=application::engine::makeCompactor(std::move(compactInputs));
 
-  application_engine::ExecutionInputs executionInputs(owner);
+  application::engine::ExecutionInputs executionInputs(owner);
   executionInputs.messages=messages;executionInputs.storage=storage;
   executionInputs.getAppState=[this]{return appState();};
   executionInputs.updateAppState=[this](const auto& update){
@@ -243,10 +243,10 @@ void Host::Impl::bindBackend(){
   executionInputs.imports.canUseGadget=[this](const Json& input){
     return permission->check("Agent",input,
       value::property(appState(),"toolPermissionContext"));};
-  auto execution=application_engine::makeExecutionServices(
+  auto execution=application::engine::makeExecutionServices(
     std::move(executionInputs));
 
-  application_memory::Inputs memoryInputs(owner);
+  application::memory::Inputs memoryInputs(owner);
   memoryInputs.config=config;memoryInputs.poetry=poetry;memoryInputs.model=model;
   memoryInputs.flight=flight;memoryInputs.messages=messages;
   memoryInputs.getAppState=[store=store]{return store->getState()->snapshot();};
@@ -256,9 +256,9 @@ void Host::Impl::bindBackend(){
   memoryInputs.log=[this](const std::string& value){log(value);};
   memoryInputs.notify=[this](const Json& value){
     log("Memory: "+value.dump());if(shell)shell->requestRedraw();};
-  memory=application_memory::Provider::create(std::move(memoryInputs));
+  memory=application::memory::Provider::create(std::move(memoryInputs));
 
-  application_engine::DefaultInputs engineDefaults(owner);
+  application::engine::DefaultInputs engineDefaults(owner);
   auto& engineInputs=engineDefaults.engine;
   engineInputs.config=config;
   engineInputs.model=model;engineInputs.messages=messages;
@@ -271,7 +271,7 @@ void Host::Impl::bindBackend(){
   engineInputs.checkpoint=[this](const std::string& value){log(value);};
   engineInputs.logError=[this](const std::exception& error){log(error.what());};
   engineInputs.addNotification=[this](const Json& value){log(value.dump());};
-  application_engine::bindCompactor(engineInputs,compactor);
+  application::engine::bindCompactor(engineInputs,compactor);
   engineDefaults.poetry=poetry;engineDefaults.flight=flight;
   engineDefaults.hooks=hooks;engineDefaults.permission=permission;
   engineDefaults.store=store;
@@ -294,10 +294,10 @@ void Host::Impl::bindBackend(){
   engineDefaults.notifyCommandLifecycle=[this](const std::string& id,
       const std::string& status){log("Command "+id+": "+status);};
   const auto notifyLifecycle=engineDefaults.notifyCommandLifecycle;
-  auto configuredEngine=application_engine::makeDefaultEngineInputs(std::move(engineDefaults));
+  auto configuredEngine=application::engine::makeDefaultEngineInputs(std::move(engineDefaults));
   auto postGadgetUse=configuredEngine.execution->postGadgetUseHooks;
   configuredEngine.execution->postGadgetUseHooks=[postGadgetUse,memory=memory,
-      dispatch=owner.dispatcher()](const gadgets::Gadget& gadget,const Json& input,
+      dispatch=owner.dispatcher()](const batbox::gadgets::Gadget& gadget,const Json& input,
       const Json& result,const execution::Context& context,
       const std::function<void(const Json&)>& yield){
     // A Bash command needs no check here: every reader of the instruction
@@ -309,7 +309,7 @@ void Host::Impl::bindBackend(){
     if(gadget.name=="Write"||gadget.name=="Edit"){
       const auto& raw=value::property(input,"file_path");
       const bool ownWrite=!value::truthy(value::property(context.data,"agentId"));
-      if(raw.is_string()&&(ownWrite||runtime::pathFromUtf8(
+      if(raw.is_string()&&(ownWrite||batbox::runtime::pathFromUtf8(
           raw.get_ref<const std::string&>()).extension()==".md")){
         const auto path=raw.get<std::string>();
         onOwnerAndWait<void>(dispatch,[memory,path,ownWrite]{
@@ -318,10 +318,10 @@ void Host::Impl::bindBackend(){
     }
     if(postGadgetUse)postGadgetUse(gadget,input,result,context,yield);
   };
-  engine=application_engine::Engine::create(std::move(configuredEngine));
+  engine=application::engine::Engine::create(std::move(configuredEngine));
   *generationEngine=engine;
 
-  application_bats::IndigenousBatApplication::Inputs batInputs(owner);
+  application::bats::IndigenousBatApplication::Inputs batInputs(owner);
   batInputs.config=config;batInputs.flightId=flightId;
   batInputs.projectRoot=bindingProjectRoot();
   batInputs.currentFlightId=[flight=flight]{return flight->id();};
@@ -333,7 +333,7 @@ void Host::Impl::bindBackend(){
     const auto generation=weak.lock();
     if(!generation)throw std::runtime_error("Agent workspace tool catalog has retired");
     if(generation==roster&&currentBat)return *currentBat;
-    bats::BatContext context;
+    batbox::bats::BatContext context;
     context.query.gadgetSnapshotOwner=generation->current();
     context.query.gadgets=snapshotGadgets(generation);
     context.query.baseGadgets=context.query.gadgets;
@@ -367,7 +367,7 @@ void Host::Impl::bindBackend(){
     return snapshotGadgets(generation);};
   batInputs.getUserContextAsync=[poetry=poetry]{return poetry->userContext();};
   batInputs.getSystemContextAsync=[poetry=poetry]{return poetry->systemContext();};
-  batInputs.getSystemPoetryAsync=[poetry=poetry,loop=&owner](const gadgets::Gadgets& gadgets,
+  batInputs.getSystemPoetryAsync=[poetry=poetry,loop=&owner](const batbox::gadgets::Gadgets& gadgets,
       const Json& modelName,const Json&,const Json& clients){
     if(!modelName.is_string())throw std::invalid_argument("Agent model ID required");
     Json names=Json::array();for(const auto* gadget:gadgets)if(gadget)
@@ -395,33 +395,33 @@ void Host::Impl::bindBackend(){
   batInputs.logError=[this](const std::exception& error){log(error.what());};
   batInputs.userMessageQueued=[flag=userMessageQueued]{return flag->load();};
   batInputs.notifyCommandLifecycle=notifyLifecycle;
-  bats=application_bats::IndigenousBatApplication::create(std::move(batInputs));
+  bats=application::bats::IndigenousBatApplication::create(std::move(batInputs));
   preparedGadgets->factory.additionalBaseGadgets.push_back(bats->makeSendMessageGadget());
-  missionBridge=application_mission_ui::BatMissionBridge::create(owner,store,
+  missionBridge=application::mission_ui::BatMissionBridge::create(owner,store,
     managedShell.missions,[bats=bats](const std::string& id){
       bats->stopMission(id);},[this]{if(shell)shell->requestRedraw();});
   *generationBats=bats;
-  skills->bindBatRunner([weak=std::weak_ptr(bats)](const bats::RunBatParams& params,
+  skills->bindBatRunner([weak=std::weak_ptr(bats)](const batbox::bats::RunBatParams& params,
       const query::Yield& yield){
     const auto bat=weak.lock();
     if(!bat)throw std::runtime_error("Agent runtime has retired");
     bat->runForSkill(params,yield);
   });
   skills->bindSkillBatLauncher([weak=std::weak_ptr(bats)](std::string title,
-      application_skills::Provider::ForkedRun prepare){
+      application::skills::Provider::ForkedRun prepare){
     const auto bat=weak.lock();
     if(!bat)throw std::runtime_error("Agent runtime has retired");
     return bat->launchSkillBat(std::move(title),std::move(prepare));
   });
   replaceJsonState(store,[definitions=bats->batDefinitions()](const Json& current){
     Json next=current;next["agentDefinitions"]=definitions;return next;});
-  roster->publish(gadgets::live_roster::makeSnapshot(
+  roster->publish(batbox::gadgets::live_roster::makeSnapshot(
     std::move(preparedGadgets->factory)));
   preparedGadgets.reset();
 }
 void Host::Impl::bindMcpRuntime(){
   if(!mcpClientRows)mcpClientRows=std::make_shared<Json>(Json::array());
-  mcpAuthUi=std::make_shared<application_commands::McpAuthUi>();
+  mcpAuthUi=std::make_shared<application::commands::McpAuthUi>();
   mcp::manager::IndigenousInputs inputs(owner);
   inputs.configHome=configurationDirectory(config);
   inputs.projectRoot=bindingProjectRoot();
@@ -430,7 +430,7 @@ void Host::Impl::bindMcpRuntime(){
   inputs.gadgetServices=mcpServices;
   inputs.elicitationRequest=[controller=mcpElicitation,hooks=hooks](
       const std::string& server,const Json& request,std::stop_token signal){
-    application_mcp_elicitation::Hooks lifecycle;
+    application::mcp_elicitation::Hooks lifecycle;
     lifecycle.before=[hooks](const std::string& server,const Json& params,
         std::stop_token signal){return hooks->elicitationBefore(server,params,signal);};
     lifecycle.after=[hooks](const std::string& server,const Json& params,
@@ -438,7 +438,7 @@ void Host::Impl::bindMcpRuntime(){
       return hooks->elicitationAfter(server,params,raw,signal);};
     return controller->request(server,request,signal,std::move(lifecycle));
   };
-  const std::weak_ptr<gadgets::live_roster::Roster> weakGeneration=roster;
+  const std::weak_ptr<batbox::gadgets::live_roster::Roster> weakGeneration=roster;
   const auto clientRows=mcpClientRows;
   const auto lastPoetryEntries=std::make_shared<Json>(Json::array());
   auto ownerRef=std::make_shared<std::weak_ptr<mcp::manager::IndigenousRuntime>>();
@@ -446,7 +446,7 @@ void Host::Impl::bindMcpRuntime(){
       const std::vector<mcp::manager::ServerResult>& servers){
     const auto generation=weakGeneration.lock();
     if(!generation)return;
-    std::vector<gadgets::Gadget> gadgets;
+    std::vector<batbox::gadgets::Gadget> gadgets;
     std::vector<std::shared_ptr<mcp::Connection>> connections;
     Json mcpCommands=Json::array(),gadgetRows=Json::array();
     for(const auto& server:servers){
@@ -528,7 +528,7 @@ void Host::Impl::bindMcpRuntime(){
   skills->bindMcpPoetryRunner([manager=mcpRuntime,resultServices,
       aggregate=attachments,messages=messages,invoked=invokedSkills,
       dispatcher=owner.dispatcher(),loop=&owner](const Json& command,
-      const std::string& args,const bats::BatContext& context){
+      const std::string& args,const batbox::bats::BatContext& context){
     const auto result=application::awaitOnOwner<user_input::InputResult>(
       dispatcher,[manager,resultServices,aggregate,messages,invoked,
         loop,command,args,context]{
@@ -536,9 +536,9 @@ void Host::Impl::bindMcpRuntime(){
           return aggregate->collectPoetry(text,Json(),Json::array(),
             execution::conversationMessages(context.query),
             std::optional<std::string>("repl_main_thread"));};
-        auto entry=application_commands::makeMcpPoetryCommand(manager,
+        auto entry=application::commands::makeMcpPoetryCommand(manager,
           resultServices,getAttachments,messages,invoked,
-          [context]{return std::make_shared<bats::BatContext>(context);},
+          [context]{return std::make_shared<batbox::bats::BatContext>(context);},
           *loop,command);
         return entry.expandPoetry(args,Json::array(),Json::array(),{});
       });
@@ -551,7 +551,7 @@ void Host::Impl::bindMcpRuntime(){
   });
 }
 void Host::Impl::refreshCommandCatalog(
-    const std::shared_ptr<gadgets::live_roster::Roster>& generation){
+    const std::shared_ptr<batbox::gadgets::live_roster::Roster>& generation){
   if(generation!=roster||!frontend||!commands||!runtime||closing)return;
   auto nextCommands=makeCommands();
   Json allRows=Json::array();

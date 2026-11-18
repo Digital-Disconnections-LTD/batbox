@@ -4,7 +4,7 @@
 // answer or long reasoning streams. With no arguments it runs a small
 // configuration so the suite keeps it compiling and working; pass
 // "--rows 2000 --stream-bytes 80000" for the numbers in the perf notes.
-#include "application_presentation/Bindings.hpp"
+#include "application/presentation/Bindings.hpp"
 #include "interactive/TranscriptRows.hpp"
 #include "interactive/presentation_providers/StyleRoles.hpp"
 #include "terminal_ftxui/ScrollbackProjection.hpp"
@@ -22,7 +22,7 @@
 
 using namespace batbox;
 using namespace batbox::interactive;
-namespace ap=batbox::application_presentation;
+namespace ap=batbox::application::presentation;
 namespace ip=batbox::interactive::presentation_providers;
 
 namespace {

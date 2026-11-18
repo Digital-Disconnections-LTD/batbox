@@ -18,17 +18,17 @@ target_link_libraries(batbox_application_config PUBLIC batbox_core)
 target_compile_options(batbox_application_config PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(batbox_application_gadgets
-  src/application_gadgets/ApplicationGadgets.cpp
-  src/application_gadgets/IndigenousFiles.cpp src/application_gadgets/IndigenousFileHelpers.cpp)
+  src/application/gadgets/ApplicationGadgets.cpp
+  src/application/gadgets/IndigenousFiles.cpp src/application/gadgets/IndigenousFileHelpers.cpp)
 target_link_libraries(batbox_application_gadgets PUBLIC batbox_live_gadget_roster
   batbox_skills batbox_media batbox_core batbox_fs_operations)
 target_compile_options(batbox_application_gadgets PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(batbox_application_runtime
-  src/application_runtime/ApplicationRuntimeCore.cpp
-  src/application_runtime/ApplicationBindings.cpp
-  src/application_runtime/RuntimeBindings.cpp
-  src/application_runtime/ShellBinding.cpp)
+  src/application/runtime/ApplicationRuntimeCore.cpp
+  src/application/runtime/ApplicationBindings.cpp
+  src/application/runtime/RuntimeBindings.cpp
+  src/application/runtime/ShellBinding.cpp)
 target_link_libraries(batbox_application_runtime PUBLIC batbox_terminal_ftxui
   batbox_application_config)
 target_compile_options(batbox_application_runtime PRIVATE -Wall -Wextra -Wpedantic)

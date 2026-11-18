@@ -35,7 +35,7 @@ std::shared_ptr<CronWiring> makeCronWiring(event_loop::Loop& owner,
   std::string projectRoot,std::string flightId,std::function<Json()> settings,
   std::function<void(const std::string&)> log);
 // CronCreate, CronDelete and CronList; each is enabled only while cron is.
-std::vector<gadgets::Gadget> makeCronGadgets(event_loop::Loop& owner,
+std::vector<batbox::gadgets::Gadget> makeCronGadgets(event_loop::Loop& owner,
   const std::shared_ptr<CronWiring>& wiring);
 // Interactive: a fired job shows a "Running scheduled task" line and queues
 // its prompt behind anything already queued; nothing fires while a turn runs.

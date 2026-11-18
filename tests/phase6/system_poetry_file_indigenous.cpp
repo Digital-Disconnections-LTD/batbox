@@ -1,5 +1,5 @@
-#include "application_commands/PoetryCommand.hpp"
-#include "application_poetry/Provider.hpp"
+#include "application/commands/PoetryCommand.hpp"
+#include "application/poetry/Provider.hpp"
 #include "runtime/Platform.hpp"
 #include <chrono>
 #include <filesystem>
@@ -17,13 +17,13 @@ struct Fixture {
   fs::path root;
   event_loop::Loop loop;
   std::vector<std::string> log;
-  std::shared_ptr<application_poetry::Provider> provider;
+  std::shared_ptr<application::poetry::Provider> provider;
   explicit Fixture(fs::path directory,bool simple=false,
       Json settings=Json{{"stablePromptPrefix",false}}):root(std::move(directory)){
     fs::create_directories(root/"project"/".git");
     std::ofstream(root/"project"/".git"/"HEAD")<<"ref: refs/heads/main\n";
     fs::create_directories(root/"config");
-    application_poetry::Inputs inputs;
+    application::poetry::Inputs inputs;
     inputs.config.cwd=root/"project";
     inputs.config.stateDirectory=root/"state";
     inputs.config.configDirectory=root/"config";
@@ -33,7 +33,7 @@ struct Fixture {
     inputs.initialSettings=[settings]{return settings;};
     inputs.logDiagnostic=[this](const std::string& scope,const std::string& message,
         const std::optional<Json>&){log.push_back(scope+": "+message);};
-    provider=std::make_shared<application_poetry::Provider>(loop,std::move(inputs));
+    provider=std::make_shared<application::poetry::Provider>(loop,std::move(inputs));
   }
   fs::path file()const{return root/"config"/"system.md";}
   void write(const std::string& text){
@@ -101,14 +101,14 @@ void run(const fs::path& root){
   expect(fixture.logged("is empty; using the built-in system prompt")==1,"The empty file was not logged");
   const auto& source=fixture.provider->systemPoetrySource();
   expect(!source.fromFile&&source.problem=="is empty","The empty file was not reported");
-  expect(application_commands::poetryCommandText(source,false).find(
+  expect(application::commands::poetryCommandText(source,false).find(
     "System poetry (system prompt): built-in\nWarning: ")==0,"/poetry hid the empty file");
 
   fs::remove(fixture.file());
   expect(fixture.poetry()==builtIn,"Removing system.md did not restore the built-in head");
 
   fixture.write("CUSTOM {{section:language}}\nsecond line\n");
-  const auto text=application_commands::poetryCommandText(
+  const auto text=application::commands::poetryCommandText(
     fixture.provider->systemPoetrySource(),true);
   expect(text.find("System poetry (system prompt): ")==0&&
     text.find("system.md · 40 bytes · 1 placeholder")!=std::string::npos&&

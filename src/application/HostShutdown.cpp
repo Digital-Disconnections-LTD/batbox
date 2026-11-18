@@ -29,7 +29,7 @@ void Host::Impl::requestExit(){
   if(permission)permission->cancelAll();
   if(mcpElicitation)mcpElicitation->cancelAll();
   const auto flush=[this]{
-    bats::saveStashSafeParams({});
+    batbox::bats::saveStashSafeParams({});
     if(connectors)connectors->shutdown();
     const auto count=std::size_t(bool(flight))+std::size_t(bool(history));
     if(!count){owner.stop();return;}
@@ -80,7 +80,7 @@ void Host::Impl::requestExit(){
     }
   };
   const auto closeLsp=[this,closeMcp]{
-    std::vector<std::shared_ptr<application_lsp::Runtime>> generations;
+    std::vector<std::shared_ptr<application::lsp::Runtime>> generations;
     if(lsp)generations.push_back(lsp);
     for(const auto& retired:retiredRoosts)
       if(retired.lsp)generations.push_back(retired.lsp);
@@ -96,7 +96,7 @@ void Host::Impl::requestExit(){
     });
   };
   const auto closeShells=[this,closeLsp]{
-    std::vector<application_shell::Host> generations;
+    std::vector<application::shell::Host> generations;
     if(managedShell.shell)generations.push_back(managedShell);
     for(const auto& retired:retiredRoosts)
       if(retired.managedShell.shell)generations.push_back(retired.managedShell);
@@ -104,7 +104,7 @@ void Host::Impl::requestExit(){
     auto remaining=std::make_shared<std::size_t>(generations.size());
     for(const auto& generation:generations){
       try{
-        application_shell::stopAndWait(owner,generation).then(
+        application::shell::stopAndWait(owner,generation).then(
           [this,remaining,closeLsp](const event_loop::Unit*,
               const std::exception_ptr& error){
             if(error){failed.store(true);log("Shell shutdown failed: "+errorText(error));}
@@ -118,7 +118,7 @@ void Host::Impl::requestExit(){
     }
   };
   const auto closeHooks=[this,closeShells]{
-    std::vector<std::shared_ptr<application_hooks::Provider>> generations;
+    std::vector<std::shared_ptr<application::hooks::Provider>> generations;
     if(hooks)generations.push_back(hooks);
     for(const auto& retired:retiredRoosts)
       if(retired.hooks)generations.push_back(retired.hooks);
@@ -141,7 +141,7 @@ void Host::Impl::requestExit(){
     }
   };
   const auto closeBats=[this,closeHooks]{
-    std::vector<std::shared_ptr<application_bats::IndigenousBatApplication>> generations;
+    std::vector<std::shared_ptr<application::bats::IndigenousBatApplication>> generations;
     if(bats)generations.push_back(bats);
     for(const auto& retired:retiredRoosts)
       if(retired.bats)generations.push_back(retired.bats);
@@ -162,7 +162,7 @@ void Host::Impl::requestExit(){
     }
   };
   const auto closeMemory=[this,closeBats]{
-    std::vector<std::shared_ptr<application_memory::Provider>> generations;
+    std::vector<std::shared_ptr<application::memory::Provider>> generations;
     if(memory)generations.push_back(memory);
     for(const auto& previous:retiredRoosts)
       if(previous.memory)generations.push_back(previous.memory);
@@ -217,7 +217,7 @@ void Host::Impl::printResumeHint(){
   services.getFlightId=[flight=host.flight]{return flight->id();};
   services.flightIdExists=[flight=host.flight](const std::string& id){
     std::error_code error;
-    return std::filesystem::exists(runtime::pathFromUtf8(
+    return std::filesystem::exists(batbox::runtime::pathFromUtf8(
       flight->paths()->getTranscriptPathForFlight(id)),error);};
   services.getCurrentFlightTitle=[flight=host.flight](const std::string&){
     return flight->project()->state().currentFlightTitle;};

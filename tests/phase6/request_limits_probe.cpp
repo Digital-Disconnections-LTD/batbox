@@ -1,5 +1,5 @@
-#include "application_config/EndpointStore.hpp"
-#include "application_model/LocalModelService.hpp"
+#include "application/config/EndpointStore.hpp"
+#include "application/model/LocalModelService.hpp"
 #include "messages/Messages.hpp"
 #include "model/Lifecycle.hpp"
 #include "providers/ModelRequestSettings.hpp"
@@ -79,7 +79,7 @@ void checkResolution(){
     "A zero connect timeout was accepted");
 
   application::Config config;
-  application_config::loadEndpoints(config,Json{{"endpoints",{{"gpu",{
+  application::config::loadEndpoints(config,Json{{"endpoints",{{"gpu",{
     {"label","GPU box"},{"base_url","http://192.168.1.20:8000"},
     {"provider","openai-chat"},{"context_window",100000},{"max_output_tokens",8000},
     {"models",Json::array({"qwen"})},{"stream_idle_timeout_ms",600000},
@@ -87,22 +87,22 @@ void checkResolution(){
   const auto& endpoint=config.endpoints.at("gpu");
   require(endpoint.limits.streamIdleTimeoutMs==600000u&&
     endpoint.limits.nonStreamingFallback==true,"Endpoint limits were not read");
-  const auto document=application_config::endpointDocument(config.endpoints);
+  const auto document=application::config::endpointDocument(config.endpoints);
   require(document.at("gpu").at("stream_idle_timeout_ms")==600000&&
     document.at("gpu").at("nonstreaming_fallback")==true&&
     !document.at("gpu").contains("local"),"Endpoint limits were not saved back");
-  application_model::ModelProfile profile;
-  providers::applyRequestSettings(profile,application_config::inferenceProfile(endpoint,"qwen"));
+  application::model::ModelProfile profile;
+  providers::applyRequestSettings(profile,application::config::inferenceProfile(endpoint,"qwen"));
   require(profile.local&&profile.nonStreamingFallback&&profile.nonStreamingTimeoutMs==0&&
     profile.client->streamIdleTimeout==milliseconds(600000)&&
     profile.client->requestTimeout==milliseconds(0),"Endpoint limits did not reach the profile");
 }
-application_model::ModelProfile limitedProfile(const std::string& id,const std::string& base,
+application::model::ModelProfile limitedProfile(const std::string& id,const std::string& base,
     const std::string& path,const Json& limits){
   application::InferenceProfile configured;
   configured.model=id;configured.baseUrl=base;configured.messagesPath=path;
   configured.limits=application::parseRequestLimits(limits,id);
-  application_model::ModelProfile profile;
+  application::model::ModelProfile profile;
   profile.id=id;profile.wireModel=id;profile.contextTokens=200000;profile.maxOutputTokens=1000;
   profile.costs={{"inputTokens",0},{"outputTokens",0},{"promptCacheReadTokens",0},
     {"promptCacheWriteTokens",0},{"webSearchRequests",0}};
@@ -117,9 +117,9 @@ int main(int argc,char** argv){
   checkResolution();
   const std::string base=argv[1];
   event_loop::Loop loop;
-  application_model::Config config;
+  application::model::Config config;
   config.client.baseUrl=base;config.client.messagesPath="/unused";
-  const std::vector<std::pair<std::string,application_model::ModelProfile>> profiles{
+  const std::vector<std::pair<std::string,application::model::ModelProfile>> profiles{
     {"brokenLocal",limitedProfile("broken-local",base,"/broken-local",Json::object())},
     {"brokenRemote",limitedProfile("broken-remote",base,"/broken-remote",
       {{"local",false},{"nonstreaming_fallback",true}})},
@@ -133,7 +133,7 @@ int main(int argc,char** argv){
   config.mainModel=config.smallModel="broken-local";
   config.retryWire.retryAfter="retry-after";
   config.retryWire.shouldRetry="x-should-retry";
-  application_model::Imports imports;
+  application::model::Imports imports;
   imports.authToken=[]{return std::string("test-token");};
   imports.invalidateAuthToken=[]{};
   imports.debug=[](const auto&,const auto&){};
@@ -145,7 +145,7 @@ int main(int argc,char** argv){
       ->event_loop::Deferred<Json>{throw std::logic_error("tool schema");};
   imports.gadgetSchemaSync=[](const gadgets::Gadget&,const gadgets::GadgetSchemaOptions&)
       ->Json{throw std::logic_error("tool schema");};
-  auto service=std::make_shared<application_model::LocalModelService>(
+  auto service=std::make_shared<application::model::LocalModelService>(
     loop,std::move(config),std::move(imports));
   const auto services=service->makeQueryServices({},Json{{"model","broken-local"}});
   require(services.disableFallbackFeature&&

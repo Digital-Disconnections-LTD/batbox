@@ -1,0 +1,93 @@
+#include "application/model/Internal.hpp"
+#include "streaming/Reducer.hpp"
+#include "gadgets/Gadget.hpp"
+#include <algorithm>
+
+namespace batbox::application::model {
+LocalServiceBuilder::LocalServiceBuilder(LocalModelService& service,
+    batbox::gadgets::Gadgets activeGadgets,Json requestOptions,
+    batbox::gadgets::PoetryContext poetryContext):host(service),
+    runtime(service.configurationSnapshot()),
+    gadgets(std::move(activeGadgets)),poetry(std::move(poetryContext)),
+    options(std::move(requestOptions)){
+  poetry.gadgets=gadgets;
+  messages=makeMessages();
+  normalization=makeNormalization();
+  errors=makeErrors();
+}
+Json LocalServiceBuilder::gadgetMetadata()const{
+  Json result=Json::array();
+  for(const auto* gadget:gadgets){
+    if(!gadget)throw std::invalid_argument("Null tool in local model request");
+    Json row={{"name",gadget->name}};
+    if(gadget->isMcp)row["isMcp"]=*gadget->isMcp;
+    if(gadget->isLsp)row["isLsp"]=*gadget->isLsp;
+    if(gadget->shouldDefer)row["shouldDefer"]=*gadget->shouldDefer;
+    if(gadget->alwaysLoad)row["alwaysLoad"]=*gadget->alwaysLoad;
+    result.push_back(std::move(row));
+  }
+  return result;
+}
+messages::Services LocalServiceBuilder::makeMessages(){
+  const auto& config=runtime.config;
+  messages::Services service;
+  service.randomUUID=platform::randomUUID;
+  service.nowISO=[]{return platform::isoTimestamp();};
+  service.strictGadgetResultPairing=[strict=config.strictGadgetResultPairing]{
+    return strict;
+  };
+  service.logError=[&host=host](const std::string& value){
+    host.imports_.debug("error",value);
+  };
+  return service;
+}
+normalization::Dependencies LocalServiceBuilder::makeNormalization(){
+  normalization::Dependencies deps;
+  deps.messageServices=&messages;
+  deps.gadgetSearchEnabledOptimistic=[enabled=runtime.config.gadgetSearch]{
+    return enabled;
+  };
+  deps.gadgetMatchesName=[active=gadgets](const Json& row,
+      const std::string& name){
+    const auto& item=value::property(row,"name");
+    if(!item.is_string())return false;
+    const auto target=item.get<std::string>();
+    for(const auto* gadget:active)
+      if(gadget&&gadget->name==target)return batbox::gadgets::gadgetMatchesName(*gadget,name);
+    return target==name;
+  };
+  deps.normalizeGadgetInputForAPI=[active=gadgets,
+      normalize=host.imports_.normalizeGadgetInputForAPI](
+      const Json& row,const Json& input){
+    const auto& name=value::property(row,"name");
+    if(!name.is_string())throw std::invalid_argument("Tool name required");
+    for(const auto* gadget:active)
+      if(gadget&&gadget->name==name.get<std::string>())
+        return normalize(*gadget,input);
+    throw std::invalid_argument("Tool not found for input normalization");
+  };
+  if(host.imports_.normalizeAttachmentForGadgets){
+    deps.normalizeAttachmentForAPI=[active=gadgets,
+        normalize=host.imports_.normalizeAttachmentForGadgets](const Json& value){
+      return normalize(value,active);
+    };
+  }else deps.normalizeAttachmentForAPI=host.imports_.normalizeAttachmentForAPI;
+  deps.validateImagesForAPI=normalization::validateImagesForAPI;
+  return deps;
+}
+api_errors::Providers LocalServiceBuilder::makeErrors(){
+  api_errors::Providers result;
+  result.randomUUID=platform::randomUUID;
+  result.nowISO=[]{return platform::isoTimestamp();};
+  result.nonInteractive=[enabled=runtime.config.nonInteractive]{return enabled;};
+  result.apiProvider=[provider=runtime.config.provider]{return provider;};
+  result.wire=runtime.config.errorWire;
+  result.policyURL=runtime.config.policyURL;
+  result.preferredModel=runtime.config.mainModel;
+  const auto& selected=value::property(options,"model");
+  const auto found=runtime.config.profiles.find(
+    selected.is_string()?selected.get<std::string>():runtime.config.mainModel);
+  if(found!=runtime.config.profiles.end())result.betas=requestBetas(found->second);
+  return result;
+}
+} // namespace batbox::application::model

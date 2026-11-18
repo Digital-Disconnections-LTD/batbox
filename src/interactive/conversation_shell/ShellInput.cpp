@@ -3,8 +3,8 @@
 #include "termio/Csi.hpp"
 #include "history/References.hpp"
 #include "text_sdk/npm_wrap_ansi/Internal.hpp"
-#include "application_editor/PoetryEditor.hpp"
-#include "application_editor/IndigenousProcess.hpp"
+#include "application/editor/PoetryEditor.hpp"
+#include "application/editor/IndigenousProcess.hpp"
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
@@ -315,10 +315,10 @@ void Shell::onKey(const keyboard_input::KeyRef& key){
   if(named(key,"o")&&key->ctrl){setTranscript(!transcript_);return;}
   if(!transcript_&&named(key,"g")&&key->ctrl){
     try{
-      if(!application_editor::indigenous::externalEditor())return;
-      application_editor::EditResult edited;
+      if(!application::editor::indigenous::externalEditor())return;
+      application::editor::EditResult edited;
       driver_->withRestoredIO([&]{
-        edited=application_editor::editPoetryInEditor(
+        edited=application::editor::editPoetryInEditor(
           presentation().input.text,
           presentation().input.pastedContents);
       });
@@ -431,13 +431,13 @@ void Shell::refreshCompletions(){
     throw std::invalid_argument("Completion Promise crossed owner loop");
   auto weak=weak_from_this();
   pending.then([weak,generation](
-      const std::vector<application_completion::Suggestion>* result,
+      const std::vector<application::completion::Suggestion>* result,
       const std::exception_ptr& error){
     if(auto self=weak.lock()){
       if(generation!=self->completionGeneration_)return;
       if(error){self->reportDetached(error);return;}
       self->suggestions_=result?*result:
-        std::vector<application_completion::Suggestion>{};
+        std::vector<application::completion::Suggestion>{};
       self->selectedSuggestion_=0;self->requestRedraw();
     }
   });

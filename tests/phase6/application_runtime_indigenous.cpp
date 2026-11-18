@@ -1,9 +1,9 @@
-#include "application_runtime/ApplicationRuntime.hpp"
+#include "application/runtime/ApplicationRuntime.hpp"
 #include <cassert>
 #include <iostream>
 
 using namespace batbox;
-namespace ar=batbox::application_runtime;
+namespace ar=batbox::application::runtime;
 namespace ix=batbox::interactive;
 
 int main(){

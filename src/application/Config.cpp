@@ -1,5 +1,5 @@
 #include "application/Config.hpp"
-#include "application_config/EndpointStore.hpp"
+#include "application/config/EndpointStore.hpp"
 #include "app_state/PermissionModeBridge.hpp"
 #include "app_state/provider/PermissionHelpers.hpp"
 #include "runtime/IndigenousPath.hpp"
@@ -19,7 +19,7 @@ namespace batbox::application {
 namespace {
 std::string environment(const char* name){
 #ifdef _WIN32
-  return runtime::environmentUtf8(name);
+  return batbox::runtime::environmentUtf8(name);
 #else
   const auto* value=std::getenv(name);return value?value:"";
 #endif
@@ -31,13 +31,13 @@ std::filesystem::path homeDirectory(){
   auto path=environment("HOME");if(path.empty())path=environment("USERPROFILE");
 #endif
   if(path.empty())throw std::runtime_error("Home directory is unavailable");
-  return runtime::pathFromUtf8(path);
+  return batbox::runtime::pathFromUtf8(path);
 }
 Json readObject(const std::filesystem::path& path,bool required){
   std::ifstream stream(path);
-  if(!stream){if(required)throw std::runtime_error("Cannot read configuration: "+runtime::pathToUtf8(path));return Json::object();}
+  if(!stream){if(required)throw std::runtime_error("Cannot read configuration: "+batbox::runtime::pathToUtf8(path));return Json::object();}
   auto value=Json::parse(stream);
-  if(!value.is_object())throw std::runtime_error("Configuration must be a JSON object: "+runtime::pathToUtf8(path));
+  if(!value.is_object())throw std::runtime_error("Configuration must be a JSON object: "+batbox::runtime::pathToUtf8(path));
   return value;
 }
 std::size_t positive(const std::string& value,const char* name){
@@ -91,7 +91,7 @@ void applyConfig(Config& config,const Json& value){
   if(value.contains("builtinExplorePlanAgents"))
     config.builtinExplorePlanBats=value.at("builtinExplorePlanAgents").get<bool>();
   if(value.contains("state_directory"))config.stateDirectory=
-    runtime::pathFromUtf8(value.at("state_directory").get<std::string>());
+    batbox::runtime::pathFromUtf8(value.at("state_directory").get<std::string>());
   if(value.contains("mcpServers")){
     config.mcpServers=value.at("mcpServers");config.mcpServersConfigured=true;
   }
@@ -179,7 +179,7 @@ void applyConfig(Config& config,const Json& value){
       config.profiles.emplace(it.key(),std::move(profile));
     }
   }
-  application_config::loadEndpoints(config,value);
+  application::config::loadEndpoints(config,value);
 }
 }
 RequestLimits parseRequestLimits(const Json& row,const std::string& where){
@@ -232,11 +232,11 @@ bool bypassPermissionsDisabled(const Config& config,const Json& effectiveSetting
 Config loadConfig(const std::vector<std::string>& arguments){
   Config config;const auto home=homeDirectory();config.cwd=std::filesystem::current_path();
   const auto root=environment("XDG_CONFIG_HOME");
-  const auto legacyConfig=(root.empty()?home/".config":runtime::pathFromUtf8(root))/
+  const auto legacyConfig=(root.empty()?home/".config":batbox::runtime::pathFromUtf8(root))/
     "batbox"/"native-client.json";
   const auto directory=environment("BATBOX_CONFIG_DIR");
   config.configDirectory=directory.empty()?home/".batbox":
-    std::filesystem::absolute(runtime::pathFromUtf8(directory)).lexically_normal();
+    std::filesystem::absolute(batbox::runtime::pathFromUtf8(directory)).lexically_normal();
   if(directory.empty())config.legacyConfigDirectory=legacyConfig.parent_path();
   config.configPath=config.configDirectory/"native-client.json";
   const auto legacyState=home/".local"/"state"/"batbox-native";
@@ -245,7 +245,7 @@ Config loadConfig(const std::vector<std::string>& arguments){
   bool explicitConfig=false;
   for(std::size_t i=0;i<arguments.size();++i)if(arguments[i]=="--config"){
     if(i+1==arguments.size())throw std::invalid_argument("--config requires a path");
-    config.configPath=runtime::pathFromUtf8(arguments[++i]);explicitConfig=true;
+    config.configPath=batbox::runtime::pathFromUtf8(arguments[++i]);explicitConfig=true;
   }
   config.settings=readObject(config.configDirectory/"settings.json",false);
   applyConfig(config,config.settings);
@@ -294,7 +294,7 @@ Config loadConfig(const std::vector<std::string>& arguments){
       config.baseUrl=next("--base-url");requestedBaseUrl=config.baseUrl;}
     else if(argument=="--api-key-helper"){
       config.apiKeyHelper=next("--api-key-helper");requestedHelper=config.apiKeyHelper;}
-    else if(argument=="--cwd")config.cwd=runtime::pathFromUtf8(next("--cwd"));
+    else if(argument=="--cwd")config.cwd=batbox::runtime::pathFromUtf8(next("--cwd"));
     else if(argument=="--yolo"||argument=="--dangerously-skip-permissions")
       requestedPermissionMode="bypassPermissions";
     else if(argument=="--permission-mode"){
@@ -320,7 +320,7 @@ Config loadConfig(const std::vector<std::string>& arguments){
         argument.substr(sizeof("--debug-file=")-1);
       if(path.empty())throw std::invalid_argument("--debug-file requires a path");
       config.debug.enabled=true;
-      config.debug.file=std::filesystem::absolute(runtime::pathFromUtf8(path));}
+      config.debug.file=std::filesystem::absolute(batbox::runtime::pathFromUtf8(path));}
     else if(argument=="--debug-to-stderr"){
       config.debug.enabled=true;config.debug.toStderr=true;}
     else if(argument=="--replay-user-messages")
@@ -342,7 +342,7 @@ Config loadConfig(const std::vector<std::string>& arguments){
       else config.resumeFlight=arguments[++i];
     }
     else if(argument=="--mcp-config"){
-      const auto value=readObject(runtime::pathFromUtf8(next("--mcp-config")),true);
+      const auto value=readObject(batbox::runtime::pathFromUtf8(next("--mcp-config")),true);
       config.mcpServers=value.value("mcpServers",value);
       config.mcpServersConfigured=true;
     }else if(argument=="--max-output-tokens"){
@@ -389,10 +389,10 @@ Config loadConfig(const std::vector<std::string>& arguments){
   }
   for(const auto& [id,endpoint]:config.endpoints)
     for(const auto& wireModel:endpoint.models){
-      const auto name=application_config::profileId(id,wireModel);
+      const auto name=application::config::profileId(id,wireModel);
       if(config.profiles.contains(name))throw std::invalid_argument(
         "Endpoint profile conflicts with an explicit profile: "+name);
-      config.profiles.emplace(name,application_config::inferenceProfile(endpoint,wireModel));
+      config.profiles.emplace(name,application::config::inferenceProfile(endpoint,wireModel));
     }
   if(!config.profiles.empty()){
     if(config.selectedProfile.empty()){

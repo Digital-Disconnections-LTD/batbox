@@ -1,4 +1,4 @@
-#include "application_flights/Plans.hpp"
+#include "application/flights/Plans.hpp"
 #include "flight_restore/FlightRestore.hpp"
 #include "runtime/Platform.hpp"
 #include <filesystem>
@@ -7,7 +7,7 @@
 #include <stdexcept>
 
 using namespace batbox;
-using namespace batbox::application_flights;
+using namespace batbox::application::flights;
 namespace {
 void require(bool value,const char* message){if(!value)throw std::runtime_error(message);}
 void write(const std::filesystem::path& file,const std::string& content){

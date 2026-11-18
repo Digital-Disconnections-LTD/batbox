@@ -25,7 +25,7 @@ std::map<std::string,std::string> processEnvironment(){
     if(text.empty()||text.front()==L'=')continue;
     const auto equal=text.find(L'=');
     if(equal!=std::wstring::npos)
-      values[runtime::wideToUtf8(text.substr(0,equal))]=runtime::wideToUtf8(text.substr(equal+1));
+      values[batbox::runtime::wideToUtf8(text.substr(0,equal))]=batbox::runtime::wideToUtf8(text.substr(equal+1));
   }
   FreeEnvironmentStringsW(block);
 #else
@@ -71,7 +71,7 @@ std::function<std::shared_future<std::optional<std::string>>(const std::string&)
 #ifdef _WIN32
       services.content.windows=true;
 #endif
-      services.configHome=[directory=runtime::pathToUtf8(stateDirectory)]{return directory;};
+      services.configHome=[directory=batbox::runtime::pathToUtf8(stateDirectory)]{return directory;};
       services.homeDirectory=[]{
         auto home=variable("HOME");
         return home.empty()?variable("USERPROFILE"):home;};
@@ -90,7 +90,7 @@ std::function<std::shared_future<std::optional<std::string>>(const std::string&)
       // the file is removed either way.
       addExitStep(*exit,[result=started->result]{
         if(const auto path=result.get()){std::error_code ignored;
-          std::filesystem::remove(runtime::pathFromUtf8(*path),ignored);}});
+          std::filesystem::remove(batbox::runtime::pathFromUtf8(*path),ignored);}});
     });
     return started->result;
   };

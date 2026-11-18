@@ -2,7 +2,7 @@
 #include "application/ModelBinding.hpp"
 #include "application/Async.hpp"
 #include "application/ErrorReport.hpp"
-#include "application_mcp_elicitation/ModelBinding.hpp"
+#include "application/mcp_elicitation/ModelBinding.hpp"
 #include "runtime/Platform.hpp"
 #include "flights/ProjectDirectories.hpp"
 #include "shell/BashProvider.hpp"
@@ -43,21 +43,21 @@ std::shared_ptr<shell_provider::BashProvider> makeShellProvider(
   services.tmuxGadgetUsed=[] {return false;};
   services.ensureTmuxSocket=[] {};
   services.tmuxEnvironment=[]()->std::optional<std::string>{return {};};
-  services.operatingSystemTempDir=[](){return runtime::pathToUtf8(
+  services.operatingSystemTempDir=[](){return batbox::runtime::pathToUtf8(
     std::filesystem::temp_directory_path());};
   services.snapshotAccessible=[](const std::string& path){return std::filesystem::exists(
-    runtime::pathFromUtf8(path));};
+    batbox::runtime::pathFromUtf8(path));};
 #ifdef _WIN32
   services.windows=true;
-  services.indigenousToPosixPath=shell::windowsPathToPosixPath;
+  services.indigenousToPosixPath=batbox::shell::windowsPathToPosixPath;
   services.indigenousJoin=[](const std::string& base,const std::string& suffix){
-    return runtime::pathToUtf8(runtime::pathFromUtf8(base)/
-      runtime::pathFromUtf8(suffix));};
+    return batbox::runtime::pathToUtf8(batbox::runtime::pathFromUtf8(base)/
+      batbox::runtime::pathFromUtf8(suffix));};
 #endif
   return std::make_shared<shell_provider::BashProvider>(shellPath,std::move(services));
 }
 Json initialPermissions(const Config& config){
-  Json result=gadgets::getEmptyGadgetPermissionContext();
+  Json result=batbox::gadgets::getEmptyGadgetPermissionContext();
   if(config.permissions.is_object())for(auto it=config.permissions.begin();
       it!=config.permissions.end();++it)result[it.key()]=it.value();
   for(const auto& [setting,contextKey]:{
@@ -99,7 +99,7 @@ Host::~Host(){
   }
   // The process-wide fork stash may retain callbacks into this owner loop.
   // Release it while the host and its event loop still exist.
-  bats::saveStashSafeParams({});
+  batbox::bats::saveStashSafeParams({});
 }
 void Host::Impl::log(std::string value)const{
   if(debugLog)debugLog->write(value);
@@ -136,10 +136,10 @@ void Host::Impl::report(std::exception_ptr error,std::string_view origin){
   if(owner.isOwnerThread())show();
   else owner.postMission(show);
 }
-gadgets::Gadgets Host::Impl::currentGadgets()const{
+batbox::gadgets::Gadgets Host::Impl::currentGadgets()const{
   const auto snapshot=roster?roster->current():nullptr;
   if(!snapshot)return {};
-  gadgets::Gadgets result=snapshot->base;
+  batbox::gadgets::Gadgets result=snapshot->base;
   result.insert(result.end(),snapshot->mcp.begin(),snapshot->mcp.end());
   return result;
 }
@@ -149,7 +149,7 @@ Json Host::Impl::appState()const{
 void Host::Impl::initialize(){
   std::filesystem::current_path(config.cwd);
   std::filesystem::create_directories(config.stateDirectory);
-  roost=std::make_shared<application_roost::Roost>(owner,config.cwd);
+  roost=std::make_shared<application::roost::Roost>(owner,config.cwd);
   config.cwd=roost->cwd();
   flightId=platform::randomUUID();
   logMutex=std::make_shared<std::mutex>();
@@ -191,8 +191,8 @@ void Host::Impl::initialize(){
   state->setPermissionContext(std::make_shared<value::SharedRecord>(
     value::SharedRecord::fromJson(permissionContext)));
   store=std::make_shared<app_state::AppStateStore>(std::move(state));
-  compactionPolicy=application_compaction_settings::Policy::create(owner,config,store);
-  application_mcp_elicitation::Inputs elicitationInputs(owner);
+  compactionPolicy=application::compaction_settings::Policy::create(owner,config,store);
+  application::mcp_elicitation::Inputs elicitationInputs(owner);
   elicitationInputs.interactive=!config.print;
   elicitationInputs.diagnostic=[this](const std::string& message){log(message);};
   elicitationInputs.openUrl=[this](const std::string& url){
@@ -203,37 +203,37 @@ void Host::Impl::initialize(){
   };
   elicitationInputs.parseNaturalDateTime=[this](const std::string& input,
       const std::string& format,std::stop_token signal){
-    return application_mcp_elicitation::parseNaturalLanguageDateTime(owner,input,format,
-      signal,application_mcp_elicitation::makeDateTimeQuery(owner,model),
+    return application::mcp_elicitation::parseNaturalLanguageDateTime(owner,input,format,
+      signal,application::mcp_elicitation::makeDateTimeQuery(owner,model),
       [this](std::exception_ptr error){log("Date parsing: "+errorText(error));});
   };
-  mcpElicitation=application_mcp_elicitation::Controller::create(std::move(elicitationInputs));
+  mcpElicitation=application::mcp_elicitation::Controller::create(std::move(elicitationInputs));
   fileStash=file_state_stash::createFileStateStashWithSizeLimit(
     file_state_stash::READ_FILE_STATE_STASH_SIZE);
   // gadgetResultBudget: when a message's Gadget results together pass
   // 200,000 characters, the largest go to files and the model gets a preview.
   replacements=gadget_results::provisionContentReplacementState(
     value::property(config.settings,"gadgetResultBudget")==true);
-  loadedMemoryPaths=std::make_shared<runtime::OrderedStringSet>();
-  discoveredSkills=std::make_shared<runtime::OrderedStringSet>();
+  loadedMemoryPaths=std::make_shared<batbox::runtime::OrderedStringSet>();
+  discoveredSkills=std::make_shared<batbox::runtime::OrderedStringSet>();
   invokedSkills=std::make_shared<bootstrap::InvokedSkillsState>();
-  roster=std::make_shared<gadgets::live_roster::Roster>();
-  application_flights::Inputs flightInputs(owner);
+  roster=std::make_shared<batbox::gadgets::live_roster::Roster>();
+  application::flights::Inputs flightInputs(owner);
   flightInputs.config=config;flightInputs.roost=roost;
   flightInputs.flightId=flightId;
   flightInputs.logError=[this](std::exception_ptr error){report(error,"Flight storage");};
   flightInputs.commandNames=[] {return std::set<std::string>{};};
-  flight=application_flights::Flight::create(std::move(flightInputs));
+  flight=application::flights::Flight::create(std::move(flightInputs));
   bindFileHistory();
-  application_media::Inputs mediaInputs(owner);
+  application::media::Inputs mediaInputs(owner);
   mediaInputs.stateDirectory=config.stateDirectory;
   mediaInputs.flightId=[flight=flight]{return flight->id();};
   mediaInputs.log=[this](const std::string& value){log(value);};
   mediaInputs.onError=[this](std::exception_ptr error){report(error,"media");};
   mediaInputs.terminalName=[] {
     const char* name=std::getenv("TERM");return name&&*name?std::string(name):std::string{};};
-  media=application_media::Bundle::create(std::move(mediaInputs));
-  application_history::Inputs historyInputs(owner);
+  media=application::media::Bundle::create(std::move(mediaInputs));
+  application::history::Inputs historyInputs(owner);
   historyInputs.stateDirectory=config.stateDirectory.string();
   historyInputs.projectRoot=[roost=roost]{
     return roost->projectRoot().string();};
@@ -241,27 +241,27 @@ void Host::Impl::initialize(){
   historyInputs.log=[this](const std::string& value){log(value);};
   historyInputs.onError=[this](std::exception_ptr error){report(error,"prompt history");};
   historyInputs.skipPoetryHistory=[] {return false;};
-  history=application_history::Bundle::create(std::move(historyInputs));
+  history=application::history::Bundle::create(std::move(historyInputs));
   bindStorage();
   model=makeLocalModel(owner,config,messages,
     [this](const std::string& value){log(value);},roster);
-  connectors=application_connectors::bootstrap(owner,config,{},
+  connectors=application::connectors::bootstrap(owner,config,{},
     [this](const std::string& server,const std::string& message){
       log("MCP "+server+": "+message);},true);
-  application_permissions::PermissionProvider::Inputs permissionInputs(owner);
+  application::permissions::PermissionProvider::Inputs permissionInputs(owner);
   permissionInputs.interactive=!config.print;
-  permissionInputs.workingDirectory=[roost=roost]{return runtime::pathToUtf8(roost->cwd());};
+  permissionInputs.workingDirectory=[roost=roost]{return batbox::runtime::pathToUtf8(roost->cwd());};
   permissionInputs.homeDirectory=[]{
 #ifdef _WIN32
-    auto home=runtime::environmentUtf8("USERPROFILE");
-    if(home.empty())home=runtime::environmentUtf8("HOME");
+    auto home=batbox::runtime::environmentUtf8("USERPROFILE");
+    if(home.empty())home=batbox::runtime::environmentUtf8("HOME");
 #else
     const char* value=std::getenv("HOME");
     std::string home=value?value:"";
 #endif
     return home;
   };
-  permission=application_permissions::PermissionProvider::create(
+  permission=application::permissions::PermissionProvider::create(
     std::move(permissionInputs));
   bindRoostProviders();
   bindBackend();
@@ -269,7 +269,7 @@ void Host::Impl::initialize(){
   bindFrontend();
 }
 void Host::Impl::bindStorage(){
-  auto directories=std::make_shared<flights::ProjectDirectories>(
+  auto directories=std::make_shared<batbox::flights::ProjectDirectories>(
     [state=config.stateDirectory]{return state.string();});
   gadget_results::StorageImports paths;
   paths.getOriginalCwd=[cwd=config.cwd]{return cwd.string();};
@@ -281,7 +281,7 @@ void Host::Impl::bindStorage(){
   storage=gadget_results::indigenousStorageImports(owner,std::move(paths));
 }
 void Host::Impl::bindFileHistory(){
-  application_file_history::Inputs inputs(owner);
+  application::file_history::Inputs inputs(owner);
   inputs.store=store;inputs.flight=flight;
   inputs.originalCwd=config.cwd;
   inputs.configHome=config.stateDirectory;
@@ -289,14 +289,14 @@ void Host::Impl::bindFileHistory(){
   inputs.configuredEnabled=[enabled=config.fileCheckpointingEnabled]{
     return enabled.value_or(true);};
   inputs.logError=[this](std::exception_ptr error){report(error,"file history");};
-  fileHistory=application_file_history::History::create(std::move(inputs));
+  fileHistory=application::file_history::History::create(std::move(inputs));
 }
 void Host::Impl::bindRoostProviders(){
-  generationEngineSlot=std::make_shared<std::weak_ptr<application_engine::Engine>>();
-  generationBatSlot=std::make_shared<std::weak_ptr<application_bats::IndigenousBatApplication>>();
-  const std::weak_ptr<gadgets::live_roster::Roster> generation=roster;
+  generationEngineSlot=std::make_shared<std::weak_ptr<application::engine::Engine>>();
+  generationBatSlot=std::make_shared<std::weak_ptr<application::bats::IndigenousBatApplication>>();
+  const std::weak_ptr<batbox::gadgets::live_roster::Roster> generation=roster;
   const auto generationSettings=value::property(appState(),"settings");
-  application_skills::Inputs skillInputs(owner);
+  application::skills::Inputs skillInputs(owner);
   skillInputs.config=config;
   skillInputs.projectRoot=bindingProjectRoot();
   skillInputs.messages=messages;skillInputs.flight=flight;
@@ -304,7 +304,7 @@ void Host::Impl::bindRoostProviders(){
   skillInputs.resultStorage=storage;
   skillInputs.currentGadgetSnapshot=[generation]{
     if(auto live=generation.lock())return live->current();
-    return std::shared_ptr<const gadgets::live_roster::Snapshot>{};
+    return std::shared_ptr<const batbox::gadgets::live_roster::Snapshot>{};
   };
   skillInputs.currentMessages=[this,generation]{
     Json rows=Json::array();
@@ -322,8 +322,8 @@ void Host::Impl::bindRoostProviders(){
   skillInputs.diagnostic=[this](const std::string& value){log(value);};
   skillInputs.changed=[this,generation]{
     if(auto live=generation.lock())refreshCommandCatalog(live);};
-  skills=application_skills::Provider::create(std::move(skillInputs));
-  application_poetry::Inputs poetryInputs;
+  skills=application::skills::Provider::create(std::move(skillInputs));
+  application::poetry::Inputs poetryInputs;
   poetryInputs.config=config;
   poetryInputs.initialSettings=[this,generation,generationSettings]{
     return generation.lock()==roster?value::property(appState(),"settings"):generationSettings;};
@@ -335,31 +335,31 @@ void Host::Impl::bindRoostProviders(){
   poetryInputs.logError=[this](std::exception_ptr error){report(error,"project instructions");};
   poetryInputs.logDiagnostic=[this](const std::string& scope,
       const std::string& value,const std::optional<Json>&){log(scope+": "+value);};
-  poetry=std::make_shared<application_poetry::Provider>(owner,std::move(poetryInputs));
+  poetry=std::make_shared<application::poetry::Provider>(owner,std::move(poetryInputs));
   if(!exitSteps)exitSteps=std::make_shared<ExitSteps>();
   if(!shellSnapshot&&value::property(config.settings,"shellSnapshot")==true)
     shellSnapshot=makeShellSnapshot(config.stateDirectory,exitSteps,
       [this](const std::string& value){log(value);});
-  application_shell::Inputs shellInputs;
+  application::shell::Inputs shellInputs;
   shellInputs.owner=&owner;
 #ifdef _WIN32
-  shellInputs.shellPath=shell::findGitBashPath();
+  shellInputs.shellPath=batbox::shell::findGitBashPath();
 #else
-  shell::DiscoveryServices discovery;
+  batbox::shell::DiscoveryServices discovery;
   if(const char* value=std::getenv("BATBOX_SHELL");value&&*value)discovery.shellOverride=value;
   if(const char* value=std::getenv("SHELL");value&&*value)discovery.preferredShell=value;
-  discovery.isExecutable=shell::indigenousIsExecutable;
+  discovery.isExecutable=batbox::shell::indigenousIsExecutable;
   const char* searchPath=std::getenv("PATH");
-  discovery.which=shell::indigenousWhich(searchPath?searchPath:"");
+  discovery.which=batbox::shell::indigenousWhich(searchPath?searchPath:"");
   discovery.debug=[this](const std::string& value){log(value);};
-  shellInputs.shellPath=shell::findSuitableShell(discovery);
+  shellInputs.shellPath=batbox::shell::findSuitableShell(discovery);
 #endif
   shellInputs.originalCwd=config.cwd.string();
   shellInputs.outputDir=(config.stateDirectory/"shell-output").string();
   std::filesystem::create_directories(shellInputs.outputDir);
   // Bash commands are built on worker threads; the hook environment lives on
   // the owner loop and is read there.
-  auto hookSlot=std::make_shared<std::weak_ptr<application_hooks::Provider>>();
+  auto hookSlot=std::make_shared<std::weak_ptr<application::hooks::Provider>>();
   shellInputs.provider=makeShellProvider(shellInputs.shellPath,
       [hookSlot,dispatcher=owner.dispatcher(),this]()->std::optional<std::string>{
     const auto provider=hookSlot->lock();
@@ -390,8 +390,8 @@ void Host::Impl::bindRoostProviders(){
   shellInputs.onMissionTerminated=[this](const missions::roster::MissionRecord& mission){
     log("Shell task terminated: "+mission.id);};
   shellInputs.onBackgroundError=[this](std::exception_ptr error){report(error,"background shell");};
-  managedShell=application_shell::makeHost(std::move(shellInputs));
-  application_hooks::Inputs hookInputs;
+  managedShell=application::shell::makeHost(std::move(shellInputs));
+  application::hooks::Inputs hookInputs;
   hookInputs.config=config;hookInputs.flightId=flightId;
   hookInputs.flightIdProvider=[this]{
     return hookFlightOverride.value_or(flight->id());};
@@ -401,7 +401,7 @@ void Host::Impl::bindRoostProviders(){
   hookInputs.getAppState=[this]{return appState();};
   hookInputs.model=model;hookInputs.messages=messages;
   const auto generationGadgets=[weak=std::weak_ptr(roster)]{
-    gadgets::Gadgets result;
+    batbox::gadgets::Gadgets result;
     if(auto roster=weak.lock())if(auto snapshot=roster->current()){
       result=snapshot->base;result.insert(result.end(),snapshot->mcp.begin(),snapshot->mcp.end());
     }
@@ -418,7 +418,7 @@ void Host::Impl::bindRoostProviders(){
     }
     if(context.baseGadgets.empty())context.baseGadgets=context.gadgets;
     return context;};
-  hookInputs.makeBatEngine=[slot=generationEngineSlot](const bats::BatContext& context,
+  hookInputs.makeBatEngine=[slot=generationEngineSlot](const batbox::bats::BatContext& context,
       const std::function<std::future<Json>(const Json&)>& canUse){
     const auto engine=slot->lock();
     if(!engine)throw std::logic_error("Agent hook workspace engine is unavailable");
@@ -462,11 +462,11 @@ void Host::Impl::bindRoostProviders(){
     return *interactive::background::createAttachmentMessage(attachment,
       randomUUID,nowISO);
   };
-  hooks=std::make_shared<application_hooks::Provider>(owner,std::move(hookInputs));
+  hooks=std::make_shared<application::hooks::Provider>(owner,std::move(hookInputs));
   *hookSlot=hooks;
   if(fileWatcher)fileWatcher->close();
-  application_hooks::FileChangedInputs fileInputs(owner);
-  fileInputs.cwd=runtime::pathToUtf8(config.cwd);
+  application::hooks::FileChangedInputs fileInputs(owner);
+  fileInputs.cwd=batbox::runtime::pathToUtf8(config.cwd);
   fileInputs.hooksConfig=[this]{return value::property(appState(),"settings");};
   fileInputs.fileChanged=[provider=hooks](const std::string& path,
       const std::string& event){return provider->fileChanged(path,event);};
@@ -479,7 +479,7 @@ void Host::Impl::bindRoostProviders(){
     if(isError)log("FileChanged hook: "+value);
     if(shell)shell->requestRedraw();};
   fileInputs.log=[this](const std::string& value){log(value);};
-  fileWatcher=application_hooks::FileChangedWatcher::create(
+  fileWatcher=application::hooks::FileChangedWatcher::create(
     std::move(fileInputs));
   fileWatcher->start();
 }

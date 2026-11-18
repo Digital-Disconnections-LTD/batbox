@@ -14,8 +14,8 @@
 #include "interactive/transcript_navigation/Navigation.hpp"
 #include "interactive/viewport/Controller.hpp"
 #include "terminal_ftxui/TranscriptCopy.hpp"
-#include "application_history/History.hpp"
-#include "application_completion/Completion.hpp"
+#include "application/history/History.hpp"
+#include "application/completion/Completion.hpp"
 #include <ftxui/dom/node.hpp>
 #include <optional>
 #include <deque>
@@ -95,7 +95,7 @@ struct ChromeProviders {
   std::function<ftxui::Element(const ViewState&)> renderReminder;
   std::function<PoetryDecor(const ViewState&)> poetryDecor;
   // Optional suggestion rows; the shell draws plain rows without it.
-  std::function<ftxui::Element(const std::vector<application_completion::Suggestion>&,
+  std::function<ftxui::Element(const std::vector<application::completion::Suggestion>&,
     std::size_t selected,const ViewState&)> renderSuggestions;
   // The current transcript search match.
   std::function<ftxui::Color()> searchHighlight;
@@ -131,8 +131,8 @@ struct Imports {
   std::function<event_loop::Deferred<Json>()> getImageFromClipboard;
   std::function<event_loop::Deferred<Json>(const std::string&)> readPastedImagePaths;
   std::function<void(const Json&)> onImagePasted;
-  std::shared_ptr<application_history::Bundle> history;
-  std::shared_ptr<application_completion::Provider> completion;
+  std::shared_ptr<application::history::Bundle> history;
+  std::shared_ptr<application::completion::Provider> completion;
   std::function<MessageListSettings(const PresentationState&)> listSettings;
   std::function<message_list_view::SurfaceOptions(const PresentationState&)>
     surfaceOptions;
@@ -283,8 +283,8 @@ private:
   std::shared_ptr<transcript_navigation::Navigation> navigation_;
   std::shared_ptr<message_view::RetainedViews> retained_;
   std::unique_ptr<text_input::TextEditor> editor_;
-  std::shared_ptr<application_history::Navigator> historyNavigator_;
-  std::vector<application_completion::Suggestion> suggestions_;
+  std::shared_ptr<application::history::Navigator> historyNavigator_;
+  std::vector<application::completion::Suggestion> suggestions_;
   std::deque<keyboard_input::KeyRef> bufferedPasteKeys_;
   bool pastePending_=false,pendingImageSpace_=false;
   std::shared_ptr<TranscriptExportRun> transcriptExport_;

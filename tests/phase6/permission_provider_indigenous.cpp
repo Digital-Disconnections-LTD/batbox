@@ -1,4 +1,4 @@
-#include "application_permissions/PermissionProvider.hpp"
+#include "application/permissions/PermissionProvider.hpp"
 #include <cassert>
 #include <chrono>
 #include <iostream>
@@ -6,9 +6,9 @@
 using namespace batbox;
 int main(){
   event_loop::Loop loop;
-  application_permissions::PermissionProvider::Inputs inputs(loop);
+  application::permissions::PermissionProvider::Inputs inputs(loop);
   inputs.interactive=false;
-  auto permission=application_permissions::PermissionProvider::create(std::move(inputs));
+  auto permission=application::permissions::PermissionProvider::create(std::move(inputs));
   const Json search={{"query","Batbox fixture"}};
   const auto decide=[&](const Json& context,bool forced=false){
     auto pending=permission->check("WebSearch",search,context,forced);

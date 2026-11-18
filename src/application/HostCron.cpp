@@ -36,8 +36,8 @@ std::system_error noDurableFile(){
   return std::system_error(ENOENT,std::generic_category(),
     "durable scheduled jobs are off (cronDurable)");
 }
-gadgets::cron::CronGadgetUI cronViews(){
-  gadgets::cron::CronGadgetUI ui;
+batbox::gadgets::cron::CronGadgetUI cronViews(){
+  batbox::gadgets::cron::CronGadgetUI ui;
   ui.renderCreateResult=[](const Json& output,const Json&,const Json& options)->Json{
     const bool recurring=value::property(output,"recurring")==true;
     const bool durable=value::property(output,"durable")==true;
@@ -111,20 +111,20 @@ std::shared_ptr<CronWiring> makeCronWiring(event_loop::Loop& owner,
   }
   return wiring;
 }
-std::vector<gadgets::Gadget> makeCronGadgets(event_loop::Loop& owner,
+std::vector<batbox::gadgets::Gadget> makeCronGadgets(event_loop::Loop& owner,
     const std::shared_ptr<CronWiring>& wiring){
   const auto gates=std::make_shared<cron::config::Services>(wiring->gates);
   const bool durable=wiring->durable;
   auto intl=std::make_shared<intl::Stash>(intl::indigenousServices());
   auto width=std::make_shared<text_sdk::width::StringWidth>(text_sdk::width::indigenousServices(intl));
-  auto services=gadgets::cron::makeIndigenousCronGadgetServices(owner,wiring->state,
+  auto services=batbox::gadgets::cron::makeIndigenousCronGadgetServices(owner,wiring->state,
     wiring->missions,[gates]{return cron::config::isCronEnabled(*gates);},
     [durable]{return durable;},
     []()->std::optional<std::string>{return std::nullopt;},
     text_sdk::truncate::bindTruncate(text_sdk::truncate::indigenousTruncateServices(intl,width)),cronViews());
-  return {gadgets::cron::makeCronCreateGadget(services),
-    gadgets::cron::makeCronDeleteGadget(services),
-    gadgets::cron::makeCronListGadget(services)};
+  return {batbox::gadgets::cron::makeCronCreateGadget(services),
+    batbox::gadgets::cron::makeCronDeleteGadget(services),
+    batbox::gadgets::cron::makeCronListGadget(services)};
 }
 void startInteractiveCron(event_loop::Loop& owner,CronWiring& wiring,
     interactive::QueryGuard& guard,std::shared_ptr<messages::Services> messages,

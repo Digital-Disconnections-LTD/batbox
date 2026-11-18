@@ -1,6 +1,6 @@
 // The permission dialog names a file by its path inside the Roost, or under
 // "~" outside it, while the rule it offers to save keeps the exact path.
-#include "application_permissions/PermissionProvider.hpp"
+#include "application/permissions/PermissionProvider.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/Platform.hpp"
 #include <filesystem>
@@ -29,11 +29,11 @@ Asked ask(const std::string& gadget,const Json& input,
     [&](std::optional<interactive::UiRequest> request){if(request)shown=request;},
     [](const interactive::CommandDescriptor&,const interactive::CommandCompletion&,bool){},
     [](const std::string&){},[](bool){},[](bool){}});
-  application_permissions::PermissionProvider::Inputs inputs(loop);
+  application::permissions::PermissionProvider::Inputs inputs(loop);
   inputs.ui=ui;
   inputs.workingDirectory=std::move(cwd);
   inputs.homeDirectory=std::move(home);
-  auto provider=application_permissions::PermissionProvider::create(std::move(inputs));
+  auto provider=application::permissions::PermissionProvider::create(std::move(inputs));
   auto decision=provider->check(gadget,input,Json{{"mode","default"}});
   for(int i=0;i<20&&!shown;++i)loop.runReady();
   check(shown.has_value(),gadget+" request did not reach the dialog");

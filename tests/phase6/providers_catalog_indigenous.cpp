@@ -1,6 +1,6 @@
 // The embedded provider catalog parses, carries the promised presets, and
 // every supported entry turns into an endpoint record the store accepts.
-#include "application_config/EndpointStore.hpp"
+#include "application/config/EndpointStore.hpp"
 #include "providers/Catalog.hpp"
 #include "providers/Onboarding.hpp"
 #include "providers/WireClients.hpp"
@@ -65,7 +65,7 @@ int main(){
       setup.model=provider.models.empty()?"local-model":provider.models.front().id;
       if(bp::takesKey(provider)&&!provider.keyEnv.empty())setup.keyEnv=provider.keyEnv.front();
       const auto endpoint=bp::buildEndpoint(provider,setup);
-      application_config::validateEndpoint(provider.id,endpoint);
+      application::config::validateEndpoint(provider.id,endpoint);
       check(endpoint.provider==provider.kind&&endpoint.preset==provider.id,
         provider.id+" lost its kind or preset");
       check(endpoint.quirks.empty()==(provider.kind!="openai-chat"),
@@ -127,7 +127,7 @@ int main(){
     struct stat info{};
     check(::stat(path.c_str(),&info)==0&&(info.st_mode&0777)==0600,"config must stay 0600");
 #endif
-    const auto reread=application_config::readEndpoints(path);
+    const auto reread=application::config::readEndpoints(path);
     check(reread&&reread->at("ollama").preset=="ollama","endpoint store reads the preset back");
     std::filesystem::remove_all(directory);
 

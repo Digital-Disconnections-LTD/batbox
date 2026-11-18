@@ -168,8 +168,8 @@ void Shell::initialize(){
   };
   commands_=std::make_shared<CommandUi>(imports_.owner,std::move(commands));
   if(imports_.history){
-    historyNavigator_=std::make_shared<application_history::Navigator>(
-      application_history::Navigator::Inputs{
+    historyNavigator_=std::make_shared<application::history::Navigator>(
+      application::history::Navigator::Inputs{
         imports_.history,imports_.presentation.input,
         [weak]{if(auto self=weak.lock())self->requestRedraw();},
         [weak](const std::string& text){

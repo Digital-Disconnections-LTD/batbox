@@ -88,12 +88,12 @@ target_sources(batbox_terminal_ftxui PRIVATE
   src/interactive/presentation_providers/Chrome.cpp
   src/interactive/presentation_providers/MissionFooter.cpp
   src/interactive/presentation_providers/CardPalettes.cpp
-  src/application_completion/Commands.cpp
-  src/application_completion/Paths.cpp
-  src/application_editor/IndigenousProcess.cpp
-  src/application_editor/PoetryEditor.cpp
-  src/application_editor/TranscriptFile.cpp
-  src/application_history/History.cpp)
+  src/application/completion/Commands.cpp
+  src/application/completion/Paths.cpp
+  src/application/editor/IndigenousProcess.cpp
+  src/application/editor/PoetryEditor.cpp
+  src/application/editor/TranscriptFile.cpp
+  src/application/history/History.cpp)
 include(cmake/InteractiveCards.cmake)
 include(cmake/MessageView.cmake)
 include(cmake/MessageListView.cmake)

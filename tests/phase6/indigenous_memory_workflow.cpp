@@ -1,5 +1,5 @@
-#include "application_memory/Provider.hpp"
-#include "application_memory/Consolidation.hpp"
+#include "application/memory/Provider.hpp"
+#include "application/memory/Consolidation.hpp"
 #include "query/MemoryAttachmentFilter.hpp"
 #include "memory_prefetch/PoetryScan.hpp"
 #include "runtime/Platform.hpp"
@@ -20,7 +20,7 @@ template<class T>T await(event_loop::Loop& loop,event_loop::Deferred<T> pending)
 }
 int main(int argc,char** argv){
   if(argc==5&&std::string(argv[1])=="--prompt"){
-    std::cout<<application_memory::buildConsolidationPoetry(argv[2],argv[3],argv[4]);
+    std::cout<<application::memory::buildConsolidationPoetry(argv[2],argv[3],argv[4]);
     return 0;
   }
   event_loop::Loop loop;
@@ -37,14 +37,14 @@ int main(int argc,char** argv){
   messages->randomUUID=platform::randomUUID;messages->nowISO=[]{return platform::isoTimestamp();};
   messages->strictGadgetResultPairing=[]{return true;};
   messages->logError=[](const std::string& value){throw std::runtime_error(value);};
-  application_model::Config modelConfig;modelConfig.mainModel=modelConfig.smallModel="fixture";
+  application::model::Config modelConfig;modelConfig.mainModel=modelConfig.smallModel="fixture";
   modelConfig.client.baseUrl="http://127.0.0.1:1";
-  application_model::ModelProfile profile;profile.id="fixture";
+  application::model::ModelProfile profile;profile.id="fixture";
   profile.contextTokens=100000;profile.maxOutputTokens=4000;
   profile.costs={{"inputTokens",0},{"outputTokens",0},{"promptCacheReadTokens",0},
     {"promptCacheWriteTokens",0},{"webSearchRequests",0}};
   modelConfig.profiles.emplace("fixture",profile);
-  application_model::Imports imports;
+  application::model::Imports imports;
   imports.authToken=[]{return std::string{};};imports.invalidateAuthToken=[]{};
   imports.debug=[](const std::string&,const std::string&){};imports.diagnostic=imports.debug;
   imports.normalizeAttachmentForAPI=[](const Json& value){return value;};
@@ -52,20 +52,20 @@ int main(int argc,char** argv){
   imports.gadgetSchemaSync=[](const gadgets::Gadget&,const gadgets::GadgetSchemaOptions&){return Json::object();};
   imports.gadgetSchemaAsync=[&](const gadgets::Gadget&,const gadgets::GadgetSchemaOptions&){
     event_loop::Deferred<Json> result(loop);result.resolve(Json::object());return result;};
-  auto model=std::make_shared<application_model::LocalModelService>(loop,modelConfig,imports);
-  application_flights::Inputs flightInputs(loop);flightInputs.config=config;
+  auto model=std::make_shared<application::model::LocalModelService>(loop,modelConfig,imports);
+  application::flights::Inputs flightInputs(loop);flightInputs.config=config;
   flightInputs.flightId=platform::randomUUID();
   flightInputs.commandNames=[]{return std::set<std::string>{};};
   flightInputs.logError=[](std::exception_ptr error){if(error)std::rethrow_exception(error);};
-  auto flight=application_flights::Flight::create(std::move(flightInputs));
-  application_poetry::Inputs poetryInputs;poetryInputs.config=config;
+  auto flight=application::flights::Flight::create(std::move(flightInputs));
+  application::poetry::Inputs poetryInputs;poetryInputs.config=config;
   poetryInputs.initialSettings=[&]{return settings;};
-  auto poetry=std::make_shared<application_poetry::Provider>(loop,std::move(poetryInputs));
+  auto poetry=std::make_shared<application::poetry::Provider>(loop,std::move(poetryInputs));
   const auto make=[&]{
-    application_memory::Inputs input(loop);input.config=config;
+    application::memory::Inputs input(loop);input.config=config;
     input.model=model;input.messages=messages;input.poetry=poetry;input.flight=flight;
     input.getAppState=[&]{return Json{{"settings",settings}};};
-    return application_memory::Provider::create(std::move(input));
+    return application::memory::Provider::create(std::move(input));
   };
   auto memory=make();
   const auto directory=memory->autoMemoryDirectory();
@@ -129,11 +129,11 @@ int main(int argc,char** argv){
   auto state=await(loop,memory->status());
   assert(state["enabled"]==true&&state["recallEnabled"]==true&&state["autoDreamEnabled"]==false);
   assert(state["lastConsolidatedAt"]==0);
-  auto lock=application_memory::tryAcquireConsolidationLock(directory,platform::nowMillis());
+  auto lock=application::memory::tryAcquireConsolidationLock(directory,platform::nowMillis());
   assert(lock&&*lock==0);
-  assert(!application_memory::tryAcquireConsolidationLock(directory,platform::nowMillis()));
-  application_memory::rollbackConsolidationLock(directory,*lock);
-  assert(application_memory::readLastConsolidatedAt(directory)==0);
+  assert(!application::memory::tryAcquireConsolidationLock(directory,platform::nowMillis()));
+  application::memory::rollbackConsolidationLock(directory,*lock);
+  assert(application::memory::readLastConsolidatedAt(directory)==0);
   await(loop,memory->shutdown());await(loop,flight->flush());
   std::filesystem::remove_all(root);
   std::cout<<"memory workflow: durable write, external invalidation, owner restart, recall, provenance, dedup, compact carryover, gates and lock passed\n";
