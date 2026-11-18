@@ -62,8 +62,15 @@ target_link_libraries(batbox_application_presentation PUBLIC batbox_conversation
 target_compile_options(batbox_application_presentation PRIVATE -Wall -Wextra -Wpedantic)
 
 include(cmake/IndigenousBats.cmake)
-add_library(batbox_application_permissions INTERFACE)
-target_link_libraries(batbox_application_permissions INTERFACE batbox_application_bats)
+# PermissionProvider is a leaf provider: it binds shell rules, gadget
+# views, and app-state helpers. Owning it as a real target (instead of an
+# INTERFACE alias to batbox_application_bats) keeps engine and hooks off
+# the transitive application_bats path, which made hooks->engine->bats
+# cyclic through this alias.
+add_library(batbox_application_permissions src/application_permissions/PermissionProvider.cpp)
+target_link_libraries(batbox_application_permissions PUBLIC
+  batbox_core batbox_app_state batbox_application_shell batbox_web batbox_interactive)
+target_compile_options(batbox_application_permissions PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(batbox_application_hooks src/application_hooks/ProviderCore.cpp
   src/application_hooks/ProviderDispatch.cpp src/application_hooks/ProviderExecute.cpp
@@ -84,18 +91,19 @@ target_link_libraries(batbox_application_hooks PUBLIC batbox_application_permiss
   batbox_interactive)
 target_compile_options(batbox_application_hooks PRIVATE -Wall -Wextra -Wpedantic)
 target_link_libraries(batbox_application_engine PUBLIC batbox_application_hooks
-  batbox_application_poetry batbox_application_flights batbox_application_bats
+  batbox_application_poetry batbox_application_flights
+  batbox_application_permissions
   batbox_attachments batbox_bootstrap_state batbox_memory_prefetch)
 
 target_sources(batbox_application_gadgets PRIVATE src/application_gadgets/DefaultInputs.cpp)
 target_link_libraries(batbox_application_gadgets PUBLIC batbox_application_model
   batbox_application_connectors batbox_application_shell batbox_application_bats
-  batbox_gadget_results batbox_settings)
+  batbox_application_permissions batbox_gadget_results batbox_settings)
 
 add_library(batbox_application_frontend src/application_frontend/Defaults.cpp)
 target_link_libraries(batbox_application_frontend PUBLIC batbox_application_runtime
   batbox_application_poetry batbox_application_flights batbox_application_bats
-  batbox_message_runtime)
+  batbox_application_permissions batbox_message_runtime)
 target_compile_options(batbox_application_frontend PRIVATE -Wall -Wextra -Wpedantic)
 
 include(cmake/IndigenousCli.cmake)
