@@ -3,13 +3,8 @@ if(WIN32)
 else()
   set(BATBOX_SHELL_BOOTSTRAP_SOURCE src/shell/ShellBootstrapIndigenous.cpp)
 endif()
-if(WIN32)
-  set(BATBOX_HOOK_COMMAND_SOURCE src/instructions/hooks/runtime/IndigenousCommandProcessWin.cpp)
-  set(BATBOX_HOOK_MANAGED_SOURCE src/instructions/hooks/runtime/IndigenousManagedHookProcessWin.cpp)
-else()
-  set(BATBOX_HOOK_COMMAND_SOURCE src/instructions/hooks/runtime/IndigenousCommandProcess.cpp)
-  set(BATBOX_HOOK_MANAGED_SOURCE src/instructions/hooks/runtime/IndigenousManagedHookProcess.cpp)
-endif()
+# The hook runtime (src/instructions/hooks/runtime/) is its own target in
+# cmake/HooksCore.cmake, with the Indigenous process sources there too.
 add_library(batbox_roost src/cwd/Override.cpp
   src/shell/ShellBootstrap.cpp ${BATBOX_SHELL_BOOTSTRAP_SOURCE})
 target_link_libraries(batbox_roost PUBLIC batbox_shell batbox_core batbox_event_loop)
@@ -58,15 +53,6 @@ add_library(batbox_glob src/glob/Regex16.cpp src/glob/IgnorePattern.cpp
 target_link_libraries(batbox_glob PUBLIC batbox_instructions PkgConfig::PCRE2_16)
 target_compile_options(batbox_glob PRIVATE -Wall -Wextra -Wpedantic)
 
-target_sources(batbox_instruction_async PRIVATE
-  src/instructions/hooks/runtime/OutsideRepl.cpp
-  src/instructions/hooks/runtime/OutsideReplBranches.cpp
-  src/instructions/hooks/runtime/HookAbort.cpp
-  src/instructions/hooks/runtime/IndigenousCommandPrepared.cpp
-  ${BATBOX_HOOK_COMMAND_SOURCE}
-  src/instructions/hooks/runtime/HookMatching.cpp
-  src/instructions/hooks/runtime/HookConfig.cpp)
-target_link_libraries(batbox_instruction_async PUBLIC batbox_glob batbox_shell)
 add_library(batbox_diagnostics src/diagnostics/DebugLog.cpp)
 target_link_libraries(batbox_diagnostics PUBLIC batbox_core batbox_event_loop)
 target_compile_options(batbox_diagnostics PRIVATE -Wall -Wextra -Wpedantic)
@@ -74,28 +60,11 @@ target_compile_options(batbox_diagnostics PRIVATE -Wall -Wextra -Wpedantic)
 # formerly a single-file target with one consumer.
 target_sources(batbox_diagnostics PRIVATE src/profiler/Indigenous.cpp)
 
-target_sources(batbox_instruction_async PRIVATE src/instructions/hooks/runtime/HookOutputParser.cpp)
-
 add_library(batbox_flight_titles src/flights/Title.cpp src/flights/TitleText.cpp
   src/flights/TitlePoetry.cpp)
 target_link_libraries(batbox_flight_titles PUBLIC batbox_query batbox_settings)
 target_compile_options(batbox_flight_titles PRIVATE -Wall -Wextra -Wpedantic)
 
-target_sources(batbox_instruction_async PRIVATE
-  src/instructions/hooks/runtime/BaseHookInput.cpp
-  src/instructions/hooks/runtime/HttpHook.cpp src/instructions/hooks/runtime/SsrfGuard.cpp
-  src/instructions/hooks/runtime/IndigenousHttp.cpp src/instructions/hooks/runtime/IfCondition.cpp
-  src/instructions/hooks/runtime/HookSchema.cpp
-  src/instructions/hooks/runtime/AsyncHookRoster.cpp
-  src/instructions/hooks/runtime/AsyncHookRosterPoll.cpp
-  src/instructions/hooks/runtime/AsyncHookRosterFinalize.cpp
-  src/instructions/hooks/runtime/BackgroundHook.cpp
-  ${BATBOX_HOOK_MANAGED_SOURCE}
-  src/instructions/hooks/runtime/AsyncHookDetection.cpp
-  src/instructions/hooks/runtime/HookPoetryStream.cpp
-  src/instructions/hooks/runtime/IndigenousCommandPreparation.cpp
-  src/instructions/hooks/runtime/IndigenousCommandFull.cpp)
-target_link_libraries(batbox_instruction_async PUBLIC batbox_settings CURL::libcurl)
 target_sources(batbox_diagnostics PRIVATE src/diagnostics/DebugFilter.cpp)
 add_library(batbox_auth)
 target_link_libraries(batbox_auth PUBLIC batbox_core batbox_event_loop batbox_url ICU::uc)
@@ -107,7 +76,7 @@ target_compile_options(batbox_auth PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_flights PRIVATE src/flights/DisplayTitle.cpp)
 
 include(cmake/SyntheticOutput.cmake)
-include(cmake/HookRuntime.cmake)
+include(cmake/HooksCore.cmake)
 include(cmake/AuthRuntime.cmake)
 include(cmake/FilesystemRuntime.cmake)
 include(cmake/HistoryRuntime.cmake)
