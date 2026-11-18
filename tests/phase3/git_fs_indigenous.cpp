@@ -1,6 +1,6 @@
 #include <cstdlib>
 #include "git_filesystem/GitFilesystem.hpp"
-#include "git_filesystem/RootFinder.hpp"
+#include "git/CanonicalRoot.hpp"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -34,8 +34,8 @@ int main(){
     batbox::event_loop::Loop loop;
     auto services=indigenousGitFsServices(loop);
     services.getCwd=[root]{return root.string();};
-    auto finder=indigenousRootFinder();
-    services.findGitRoot=[finder](const std::string& cwd){return finder->find(cwd);};
+    auto finder=batbox::git::indigenousCanonicalRoot();
+    services.findGitRoot=[finder](const std::string& cwd){return finder->nearest(cwd);};
     services.registerCleanup=[](std::function<void()>){};
     services.watchIntervalMs=20;
     GitFilesystem git(loop,services);

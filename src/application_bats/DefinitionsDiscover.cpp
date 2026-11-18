@@ -1,6 +1,6 @@
 #include "application_bats/Definitions.hpp"
 #include "application_bats/BuiltinDefinitions.hpp"
-#include "git_filesystem/RootFinder.hpp"
+#include "git/CanonicalRoot.hpp"
 #include "runtime/IndigenousPath.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
@@ -20,8 +20,8 @@ void note(const DefinitionInputs& inputs,const std::string& value){
   if(inputs.diagnostic)inputs.diagnostic(value);
 }
 std::vector<Path> projectDirs(const DefinitionInputs& inputs){
-  auto finder=git_filesystem::indigenousRootFinder();
-  const auto gitRoot=finder->find(runtime::pathToUtf8(inputs.config.cwd));
+  auto finder=git::indigenousCanonicalRoot();
+  const auto gitRoot=finder->nearest(runtime::pathToUtf8(inputs.config.cwd));
   const auto root=gitRoot?Path(*gitRoot):Path{};
 #ifdef _WIN32
   auto home=runtime::environmentUtf8("USERPROFILE");

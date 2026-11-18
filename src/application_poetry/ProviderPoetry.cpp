@@ -55,7 +55,7 @@ Json Provider::enhanceBatPoetry(const Json& poetry,const std::string& model,
     env.platform="linux";
 #endif
     bindIndigenousOsInfo(env);
-    const bool isGit=rootFinder_->find(cwd()).has_value();
+    const bool isGit=canonicalRoot_->nearest(cwd()).has_value();
     env.getIsGit=[isGit]{
       std::promise<bool> result;result.set_value(isGit);
       return result.get_future();};

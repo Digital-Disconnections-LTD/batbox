@@ -2,7 +2,6 @@
 #include "git/GitBasics.hpp"
 #include "git/GitBindings.hpp"
 #include "git_filesystem/GitFilesystem.hpp"
-#include "git_filesystem/RootFinder.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -44,15 +43,11 @@ int main(){
     gitCommand({"-C",root.string(),"add","README"});
     gitCommand({"-C",root.string(),"commit","-qm","first"});
     gitCommand({"-C",root.string(),"worktree","add","-q","-b","work",work.string()});
-    auto finder=git_filesystem::indigenousRootFinder();
-    auto canonicalImports=git::indigenousCanonicalRootImports();
-    canonicalImports.findGitRoot=[finder](const std::string& path){return finder->find(path);};
-    git::CanonicalRoot canonical(canonicalImports);
-    assert(canonical.find((root/"README").string())==root.string());
-    assert(canonical.find((work/"README").string())==root.string());
+    auto canonical=git::indigenousCanonicalRoot();
+    assert(canonical->find((root/"README").string())==root.string());
+    assert(canonical->find((work/"README").string())==root.string());
     int reads=0;
     auto stashImports=git::indigenousCanonicalRootImports();
-    stashImports.findGitRoot=[](const std::string& path){return std::optional<std::string>(path);};
     stashImports.readFileSync=[&reads](const std::string&)->std::string{
       ++reads;throw std::runtime_error("ENOENT");};
     git::CanonicalRoot lru(stashImports);
@@ -68,12 +63,12 @@ int main(){
 
     event_loop::Loop loop;std::string cwd=work.string();
     auto services=git_filesystem::indigenousGitFsServices(loop);
-    services.findGitRoot=[finder](const std::string& path){return finder->find(path);};
+    services.findGitRoot=[canonical](const std::string& path){return canonical->nearest(path);};
     services.getCwd=[&]{return cwd;};
     services.registerCleanup=[](std::function<void()>){ };
     git_filesystem::GitFilesystem filesystem(loop,services);
     Json gitDiagnostics=Json::array();
-    auto imports=git::indigenousBasicsImports(finder,filesystem,[&]{return cwd;},
+    auto imports=git::indigenousBasicsImports(canonical,filesystem,[&]{return cwd;},
       [&](const std::string& level,const std::string& event,
         const std::optional<Json>& payload){
         gitDiagnostics.push_back({{"level",level},{"event",event},

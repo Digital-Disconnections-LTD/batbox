@@ -48,7 +48,6 @@ target_compile_options(batbox_process PRIVATE -Wall -Wextra -Wpedantic)
 add_library(batbox_git src/git_filesystem/Paths.cpp src/git_filesystem/Refs.cpp
   src/git_filesystem/Computations.cpp src/git_filesystem/Watcher.cpp
   src/git_filesystem/IndigenousFs.cpp
-  src/git_filesystem/RootFinder.cpp
   src/git/GitBasics.cpp src/git/IndigenousBasics.cpp
   src/git/GitBindings.cpp src/git/CanonicalRoot.cpp src/git/IndigenousCanonicalRoot.cpp)
 target_link_libraries(batbox_git PUBLIC batbox_event_loop batbox_core ICU::i18n

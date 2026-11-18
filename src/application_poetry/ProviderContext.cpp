@@ -84,7 +84,7 @@ void Provider::bindDiscovery(){
   };
   discovery_.additionalDirectories=[this]{return inputs_.additionalDirectories;};
   discovery_.findGitRoot=[this](const std::string& path){
-    return rootFinder_->find(path);
+    return canonicalRoot_->nearest(path);
   };
   discovery_.findCanonicalGitRoot=[this](const std::string& path){
     return canonicalRoot_->find(path);

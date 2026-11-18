@@ -1,5 +1,5 @@
 #include "application_bats/Memory.hpp"
-#include "git_filesystem/RootFinder.hpp"
+#include "git/CanonicalRoot.hpp"
 #include "instructions/MemoryPoetry.hpp"
 #include "memory_prefetch/BatMemoryPath.hpp"
 #include "runtime/IndigenousPath.hpp"
@@ -39,7 +39,7 @@ instructions::MemoryPathServices memoryPaths(const application::Config& config,
       paths.keys.remoteMemoryDir,
       paths.keys.fullPathOverride})
     if(const auto value=environment(key.c_str()))paths.environment[key]=*value;
-  auto finder=git_filesystem::indigenousRootFinder();
+  auto finder=git::indigenousCanonicalRoot();
   paths.findCanonicalGitRoot=[finder](const std::string& current){
     return finder->find(current);};
   return paths;

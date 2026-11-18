@@ -3,7 +3,7 @@
 #include "application_hooks/Provider.hpp"
 #include "application_media/AttachmentAggregate.hpp"
 #include "application_flights/Flight.hpp"
-#include "git_filesystem/RootFinder.hpp"
+#include "git/CanonicalRoot.hpp"
 #include "runtime/IndigenousPath.hpp"
 #ifdef _WIN32
 #include "runtime/IndigenousUnicode.hpp"
@@ -57,8 +57,8 @@ void Provider::initialize(){
 #else
   services_.managedPath="/etc/batbox";
 #endif
-  const auto finder=git_filesystem::indigenousRootFinder();
-  const auto root=finder->find(runtime::pathToUtf8(inputs_.config.cwd));
+  const auto finder=git::indigenousCanonicalRoot();
+  const auto root=finder->nearest(runtime::pathToUtf8(inputs_.config.cwd));
   services_.gitRoot=root.value_or("");
   if(root&&!inputs_.projectRoot.empty()&&
       runtime::pathFromUtf8(*root).lexically_normal()!=

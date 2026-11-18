@@ -4,15 +4,13 @@
 
 namespace batbox::application_poetry {
 void Provider::bindGit(){
-  rootFinder_=git_filesystem::indigenousRootFinder();
-  auto canonical=git::indigenousCanonicalRootImports();
-  canonical.findGitRoot=[finder=rootFinder_](const std::string& path){
-    return finder->find(path);
-  };
-  canonicalRoot_=std::make_unique<git::CanonicalRoot>(std::move(canonical));
+  canonicalRoot_=std::make_shared<git::CanonicalRoot>(
+    git::indigenousCanonicalRootImports());
   auto filesystem=git_filesystem::indigenousGitFsServices(owner_);
-  filesystem.findGitRoot=[finder=rootFinder_](const std::string& path){
-    return finder->find(path);
+  // GitFilesystem resolves the .git entry itself, so it needs the nearest
+  // root: a worktree's own directory with its gitdir-pointing .git file.
+  filesystem.findGitRoot=[root=canonicalRoot_](const std::string& path){
+    return root->nearest(path);
   };
   filesystem.getCwd=[this]{return cwd();};
   // GitFilesystem owns the indigenous file watches and tears them down on destruction.
@@ -23,7 +21,7 @@ void Provider::bindGit(){
   if(!diagnostics)diagnostics=[](const std::string&,const std::string&,
       const std::optional<Json>&){};
   gitBasics_=std::make_unique<git::GitBasics>(owner_,
-    git::indigenousBasicsImports(rootFinder_,*gitFilesystem_,
+    git::indigenousBasicsImports(canonicalRoot_,*gitFilesystem_,
       [this]{return cwd();},std::move(diagnostics)));
   execImports_.execa=process::indigenousExeca(owner_);
   execImports_.getCwd=[this]{return cwd();};

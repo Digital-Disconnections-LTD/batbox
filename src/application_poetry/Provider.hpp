@@ -4,7 +4,7 @@
 #include "git/CanonicalRoot.hpp"
 #include "git/GitBasics.hpp"
 #include "git_filesystem/GitFilesystem.hpp"
-#include "git_filesystem/RootFinder.hpp"
+
 #include "instructions/MemoryPath.hpp"
 #include "instructions/project/async/AsyncDiscovery.hpp"
 #include "process/ExecFileNoThrow.hpp"
@@ -91,8 +91,7 @@ private:
   instructions::project::DiscoveryServices discovery_;
   instructions::project::async::Services discoveryAsync_;
   context::AsyncServices contextServices_;
-  std::shared_ptr<git_filesystem::RootFinder> rootFinder_;
-  std::unique_ptr<git::CanonicalRoot> canonicalRoot_;
+  std::shared_ptr<git::CanonicalRoot> canonicalRoot_;
   std::unique_ptr<git_filesystem::GitFilesystem> gitFilesystem_;
   std::unique_ptr<git::GitBasics> gitBasics_;
   process::ExecImports execImports_;

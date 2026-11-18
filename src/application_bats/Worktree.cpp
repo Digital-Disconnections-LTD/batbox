@@ -2,7 +2,7 @@
 #include "application/Async.hpp"
 #include "application_hooks/Provider.hpp"
 #include "git/CanonicalRoot.hpp"
-#include "git_filesystem/RootFinder.hpp"
+
 #include "runtime/JsonValue.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include <algorithm>
@@ -71,12 +71,8 @@ Json WorktreeProvider::create(const std::string& slug){
         return hooks->createWorktreeHook(slug);});
     return Json{{"worktreePath",path},{"hookBased",true}};
   }
-  auto finder=git_filesystem::indigenousRootFinder();
-  auto canonical=git::indigenousCanonicalRootImports();
-  canonical.findGitRoot=[finder](const std::string& start){
-    return finder->find(start);};
-  git::CanonicalRoot rootFinder(std::move(canonical));
-  const auto root=rootFinder.find(runtime::pathToUtf8(inputs_.config.cwd));
+  const auto finder=git::indigenousCanonicalRoot();
+  const auto root=finder->find(runtime::pathToUtf8(inputs_.config.cwd));
   if(!root)throw std::runtime_error(
     "Cannot create agent worktree: not in a git repository and no WorktreeCreate hooks are configured.");
   const fs::path rootPath=runtime::pathFromUtf8(*root);

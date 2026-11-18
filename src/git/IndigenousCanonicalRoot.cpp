@@ -13,6 +13,13 @@
 namespace batbox::git {
 CanonicalRootImports indigenousCanonicalRootImports(){
   CanonicalRootImports imports;
+  imports.statSync=[](const std::string& path){
+    std::error_code error;
+    const auto status=std::filesystem::status(runtime::pathFromUtf8(value::encodeUtf8(path)),error);
+    if(error)throw std::system_error(error,"git root statSync");
+    return git_filesystem::FileStat{std::filesystem::is_regular_file(status),
+      std::filesystem::is_directory(status)};
+  };
   imports.readFileSync=[](const std::string& path){
     std::ifstream stream(runtime::pathFromUtf8(path),std::ios::binary);
     if(!stream)throw std::system_error(errno,std::generic_category(),"readFileSync");
@@ -31,5 +38,8 @@ CanonicalRootImports indigenousCanonicalRootImports(){
 #endif
   };
   return imports;
+}
+std::shared_ptr<CanonicalRoot> indigenousCanonicalRoot(){
+  return std::make_shared<CanonicalRoot>(indigenousCanonicalRootImports());
 }
 } // namespace batbox::git
