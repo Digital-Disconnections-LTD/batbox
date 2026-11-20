@@ -61,7 +61,7 @@ Deferred<std::optional<std::string>> AsyncProject::getExistingFlightFile(const s
   }catch(...){result.reject(std::current_exception());}
   return result;
 }
-Completion AsyncProject::appendEntry(Json entry,std::optional<std::string> targetFlight,
+Completion AsyncProject::appendEntry(Json entry,const std::string* targetFlight,
   async_queue::EntryReader reader){
   Completion result(loop_);
   try{
@@ -160,18 +160,11 @@ Completion AsyncProject::materializeFlightFile(){
       void next(){
         if(index>=entries->size()){completed.resolve({});return;}
         auto& current=(*entries)[index++];
-        // GCC 13 reports a false-positive -Wmaybe-uninitialized for the empty
-        // optional<string> argument destroyed at the end of this statement:
-        // the inlined destructor reads the string members without the
-        // engaged check its own flow analysis knows to be false here.
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        project->appendEntry(std::move(current.value),std::nullopt,
+        project->appendEntry(std::move(current.value),nullptr,
           std::move(current.reader)).then([self=shared_from_this()](
           const Unit*,const std::exception_ptr& error){
           if(error)self->completed.reject(error);else self->next();
         });
-        #pragma GCC diagnostic pop
       }
     };
     auto pending=std::make_shared<Pending>(this,result,buffered);

@@ -85,13 +85,13 @@ struct FunctionHookHost::Run:std::enable_shared_from_this<Run>{
       const auto timeout=call.hook->timeout.value_or(call.timeoutMs);
       combined=CombinedAbort::create(loop,call.signal,std::nullopt,timeout);
       if(combined->aborted()){
-        // GCC 13 false-positive -Wmaybe-uninitialized: the empty optional in
-        // this temporary result's destructor reads string storage the analysis
-        // knows unreachable when the optional is not engaged.
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        finish({"cancelled",call.hook});
-        #pragma GCC diagnostic pop
+        // A named local rather than a braced temporary: GCC 13's flow analysis
+        // loses the engaged-flag guard of the empty optional's destructor when
+        // the destructor is inlined from an anonymous argument, and reports a
+        // false-positive -Wmaybe-uninitialized on the unconstructed string
+        // payload. The named object makes the construction visible.
+        FunctionHookResult result{"cancelled",call.hook};
+        finish(std::move(result));
         return;
       }
       const auto weak=weak_from_this();
