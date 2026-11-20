@@ -36,26 +36,30 @@ std::vector<std::string> splitCommandDeprecated(const std::string& command,
     if(!parts[i])continue;
     const auto part=*parts[i];
     if(part!=">&"&&part!=">"&&part!=">>")continue;
-    const auto prev=i>0&&parts[i-1]?std::optional(value::trim(*parts[i-1])):std::nullopt;
-    const auto next=i+1<parts.size()&&parts[i+1]?std::optional(value::trim(*parts[i+1])):std::nullopt;
-    const auto after=i+2<parts.size()&&parts[i+2]?std::optional(value::trim(*parts[i+2])):std::nullopt;
-    if(!next)continue;
+    const bool hasPrev=i>0&&parts[i-1].has_value();
+    const auto prevText=hasPrev?value::trim(*parts[i-1]):std::string{};
+    const bool hasNext=i+1<parts.size()&&parts[i+1].has_value();
+    const auto nextText=hasNext?value::trim(*parts[i+1]):std::string{};
+    const bool hasAfter=i+2<parts.size()&&parts[i+2].has_value();
+    const auto afterText=hasAfter?value::trim(*parts[i+2]):std::string{};
+    if(!hasNext)continue;
     bool strip=false,stripThird=false;
-    std::string effective=*next;
-    if((part==">"||part==">>")&&next->size()>=3&&
-       (*next)[next->size()-2]==' '&&descriptor(next->substr(next->size()-1))&&
-       after&&(*after==">"||*after==">>"||*after==">&"))
-      effective=next->substr(0,next->size()-2);
-    if(part==">&"&&descriptor(*next))strip=true;
-    else if(part==">"&&*next=="&"&&after&&descriptor(*after)){
+    std::string effective=nextText;
+    if((part==">"||part==">>")&&nextText.size()>=3&&
+       nextText[nextText.size()-2]==' '&&descriptor(nextText.substr(nextText.size()-1))&&
+       hasAfter&&(afterText==">"||afterText==">>"||afterText==">&"))
+      effective=nextText.substr(0,nextText.size()-2);
+    if(part==">&"&&descriptor(nextText))strip=true;
+    else if(part==">"&&nextText=="&"&&hasAfter&&descriptor(afterText)){
       strip=true;stripThird=true;
-    }else if(part==">"&&starts(*next,'&')&&next->size()>1&&descriptor(next->substr(1)))
+    }else if(part==">"&&starts(nextText,'&')&&nextText.size()>1&&
+             descriptor(nextText.substr(1)))
       strip=true;
     else if((part==">"||part==">>")&&isStaticRedirectTarget(effective))strip=true;
     if(!strip)continue;
-    if(prev&&!prev->empty()&&prev->size()>=3&&
-       descriptor(prev->substr(prev->size()-1))&&(*prev)[prev->size()-2]==' ')
-      parts[i-1]=prev->substr(0,prev->size()-2);
+    if(hasPrev&&prevText.size()>=3&&
+       descriptor(prevText.substr(prevText.size()-1))&&prevText[prevText.size()-2]==' ')
+      parts[i-1]=prevText.substr(0,prevText.size()-2);
     parts[i]=std::nullopt;parts[i+1]=std::nullopt;
     if(stripThird)parts[i+2]=std::nullopt;
   }

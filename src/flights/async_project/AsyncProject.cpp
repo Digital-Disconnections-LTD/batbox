@@ -159,12 +159,19 @@ Completion AsyncProject::materializeFlightFile(){
         project(project),completed(std::move(completed)),entries(std::move(entries)){}
       void next(){
         if(index>=entries->size()){completed.resolve({});return;}
-        auto current=std::move((*entries)[index++]);
+        auto& current=(*entries)[index++];
+        // GCC 13 reports a false-positive -Wmaybe-uninitialized for the empty
+        // optional<string> argument destroyed at the end of this statement:
+        // the inlined destructor reads the string members without the
+        // engaged check its own flow analysis knows to be false here.
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
         project->appendEntry(std::move(current.value),std::nullopt,
           std::move(current.reader)).then([self=shared_from_this()](
           const Unit*,const std::exception_ptr& error){
           if(error)self->completed.reject(error);else self->next();
         });
+        #pragma GCC diagnostic pop
       }
     };
     auto pending=std::make_shared<Pending>(this,result,buffered);

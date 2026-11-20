@@ -85,7 +85,14 @@ struct FunctionHookHost::Run:std::enable_shared_from_this<Run>{
       const auto timeout=call.hook->timeout.value_or(call.timeoutMs);
       combined=CombinedAbort::create(loop,call.signal,std::nullopt,timeout);
       if(combined->aborted()){
-        finish({"cancelled",call.hook});return;
+        // GCC 13 false-positive -Wmaybe-uninitialized: the empty optional in
+        // this temporary result's destructor reads string storage the analysis
+        // knows unreachable when the optional is not engaged.
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+        finish({"cancelled",call.hook});
+        #pragma GCC diagnostic pop
+        return;
       }
       const auto weak=weak_from_this();
       passed.then([weak](const bool* value,const std::exception_ptr& error){
