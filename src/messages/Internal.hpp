@@ -28,7 +28,8 @@ inline std::string requireNow(Services& services) {
 inline Json textBlock(const std::string& text) { return Json{{"type", "text"}, {"text", text}}; }
 inline bool isBlock(const Json& block, const std::string& type) {
   if (!block.is_object()) return false;
-  const Json& value = get(block, "type");
-  return value.is_string() ? value.get_ref<const std::string&>() == type : type.empty();
+  const auto entry = block.find("type");
+  return entry != block.end() && entry->is_string()
+    ? entry->get_ref<const std::string&>() == type : type.empty();
 }
 } // namespace batbox::messages::internal

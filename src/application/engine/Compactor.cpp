@@ -116,7 +116,7 @@ compaction::WorkflowServices Compactor::workflowFor(const execution::Context& qu
     application::onOwnerAndWait<void>(owner,after);
   };
   workflow.promptTooLongRetries=[this]{
-    const auto& value=value::property(settings(),"compactRetriesWhenTooLong");
+    const auto value=value::property(settings(),"compactRetriesWhenTooLong");
     return value.is_number_integer()&&value.get<long long>()>=0&&value.get<long long>()<=100?
       static_cast<int>(value.get<long long>()):3;
   }();

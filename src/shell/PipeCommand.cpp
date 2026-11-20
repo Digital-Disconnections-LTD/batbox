@@ -51,8 +51,8 @@ bool isOperator(const Json& entry,const std::string& op={}){
 }
 bool descriptor(const std::string& value){return value=="0"||value=="1"||value=="2";}
 bool envAssignment(const std::string& value){
-  if(value.empty()||!(value[0]>='A'&&value[0]<='Z')&&
-     !(value[0]>='a'&&value[0]<='z')&&value[0]!='_')return false;
+  if(value.empty()||(!(value[0]>='A'&&value[0]<='Z')&&
+     !(value[0]>='a'&&value[0]<='z')&&value[0]!='_'))return false;
   std::size_t i=1;
   while(i<value.size()&&((value[i]>='A'&&value[i]<='Z')||
     (value[i]>='a'&&value[i]<='z')||(value[i]>='0'&&value[i]<='9')||value[i]=='_'))++i;

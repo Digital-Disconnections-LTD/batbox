@@ -102,12 +102,15 @@ Json ensureGadgetResultPairing(Json messages, Services& services) {
     const Json* nextMsg = i + 1 < messages.size() ? &messages[i + 1] : nullptr;
     std::set<std::string> existingGadgetResultIds; bool hasDuplicateGadgetResults = false;
     if (nextMsg && field(*nextMsg, "type") == "user") {
-      const Json& content = get(nextMsg->at("message"), "content");
-      if (content.is_array()) for (const auto& block : content) if (isBlock(block, "tool_result")) {
-        const std::string id = field(block, "tool_use_id");
-        if (existingGadgetResultIds.count(id)) hasDuplicateGadgetResults = true;
-        existingGadgetResultIds.insert(id);
-      }
+      const auto message = nextMsg->find("message");
+      const auto content = message != nextMsg->end() && message->is_object()
+        ? message->find("content") : message->end();
+      if (content != message->end() && content->is_array())
+        for (const auto& block : *content) if (isBlock(block, "tool_result")) {
+          const std::string id = field(block, "tool_use_id");
+          if (existingGadgetResultIds.count(id)) hasDuplicateGadgetResults = true;
+          existingGadgetResultIds.insert(id);
+        }
     }
     std::vector<std::string> missingIds, orphanedIds;
     for (const auto& id : gadgetUseIds) if (!existingGadgetResultIds.count(id)) missingIds.push_back(id);

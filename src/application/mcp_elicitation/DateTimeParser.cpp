@@ -48,7 +48,7 @@ DateTimeContext currentDateTimeContext(
   const auto milliseconds=duration_cast<std::chrono::milliseconds>(now-second).count();
   const auto stamp=system_clock::to_time_t(second);
   const auto utc=utcTime(stamp),local=localTime(stamp);
-  char clock[40];
+  char clock[96]; // worst-case int-width expansion of every field plus NUL
   std::snprintf(clock,sizeof(clock),"%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
     utc.tm_year+1900,utc.tm_mon+1,utc.tm_mday,
     utc.tm_hour,utc.tm_min,utc.tm_sec,static_cast<int>(milliseconds));
@@ -61,7 +61,7 @@ DateTimeContext currentDateTimeContext(
   const int offset=static_cast<int>((localDay-utcDay).count())*1440+
     (local.tm_hour-utc.tm_hour)*60+(local.tm_min-utc.tm_min);
   const auto absolute=offset<0?-offset:offset;
-  char zone[7];
+  char zone[24]; // sign + worst-case digit width + ':' + seconds + NUL
   std::snprintf(zone,sizeof(zone),"%c%02d:%02d",offset>=0?'+':'-',
     absolute/60,absolute%60);
   constexpr std::array weekdays={"Sunday","Monday","Tuesday",
