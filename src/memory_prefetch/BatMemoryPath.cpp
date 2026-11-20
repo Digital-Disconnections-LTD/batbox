@@ -10,7 +10,8 @@ std::string join(const std::string& a,const std::string& b){
   return shell::joinPosixPath(a,b);
 }
 std::string withSlash(std::string value){
-  if(value.empty()||value.back()!='/')value+='/';return value;
+  if(value.empty()||value.back()!='/')value+='/';
+  return value;
 }
 }
 std::string getBatMemoryDir(const std::string& batType,

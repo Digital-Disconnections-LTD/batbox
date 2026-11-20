@@ -61,7 +61,8 @@ private:
     const auto shell=shell_();return std::clamp(shell?shell->viewState().rows-13:11,3,18);
   }
   void showList(){
-    if(!active_)return;detail_=false;
+    if(!active_)return;
+    detail_=false;
     const auto total=rows_.size()+1;selected_=std::min(selected_,total-1);
     const auto capacity=static_cast<std::size_t>(pageSize());
     const auto begin=selected_>=capacity?selected_-capacity+1:0;
@@ -116,7 +117,8 @@ private:
     });
   }
   void showFile(){
-    if(!active_)return;detail_=true;
+    if(!active_)return;
+    detail_=true;
     interactive::UiRequest request;request.kind=interactive::UiRequest::Kind::Select;
     request.id="memory-file";request.title=text(current_,"label");
     request.body=text(current_,"path");
@@ -128,7 +130,8 @@ private:
       std::vector<std::string> lines;std::size_t at=0;
       while(at<content_.size()){
         const auto end=content_.find('\n',at);lines.push_back(content_.substr(at,end==std::string::npos?end:end-at));
-        if(end==std::string::npos)break;at=end+1;
+        if(end==std::string::npos)break;
+        at=end+1;
       }
       const auto capacity=static_cast<std::size_t>(std::max(2,pageSize()-4));
       const auto pages=std::max<std::size_t>(1,(lines.size()+capacity-1)/capacity);
@@ -188,7 +191,8 @@ private:
     });
   }
   void consolidate(){
-    if(busy_)return;busy_=true;
+    if(busy_)return;
+    busy_=true;
     interactive::UiRequest request;request.kind=interactive::UiRequest::Kind::Progress;
     request.id="memory-consolidating";request.title="Memory consolidation";
     request.body="Reading recent sessions and updating durable memory…\nEsc closes this panel; consolidation continues.";

@@ -454,7 +454,8 @@ private:
             "Blocked by: ":"Blocks: ");
           bool first=true;
           for(const auto& id:ids)if(id.is_string()){
-            if(!first)request.body+=", ";first=false;
+            if(!first)request.body+=", ";
+            first=false;
             request.body+="#"+id.get<std::string>();
           }
         }
