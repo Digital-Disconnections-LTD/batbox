@@ -43,28 +43,28 @@ inline constexpr unsigned welcomeAnimationFrames=12;
 struct ViewState {
   const PresentationState& presentation;
   const transcript_navigation::StickyPoetry& sticky;
-  text_input::EditorView editor;
-  std::string_view searchQuery;
+  text_input::EditorView editor = {};
+  std::string_view searchQuery = {};
   std::size_t searchCount=0,searchCurrent=0,newMessageCount=0;
   int columns=80,rows=24;
   bool transcript=false,searchOpen=false,pillVisible=false;
   Json backgroundMissions=Json::array();
-  std::optional<std::string> batId;
-  std::string batLabel,batStatus;
+  std::optional<std::string> batId = {};
+  std::string batLabel = {},batStatus = {};
   // Titles from the top-level Bat down to the open one.
-  std::vector<std::string> batTrail;
+  std::vector<std::string> batTrail = {};
   bool missionsCollapsed=false;
   // The Active Missions row picked with Down from an empty input.
-  std::optional<std::string> selectedMission;
+  std::optional<std::string> selectedMission = {};
   bool remembering=false;
   unsigned activityFrame=0;
   unsigned welcomeFrame=welcomeAnimationFrames;
   int bodyRows=0,bodyScreenRow=0;
   // Milliseconds since the current turn started working; zero when idle.
   double workingMs=0;
-  std::string streamMode;
+  std::string streamMode = {};
   // What the Stop hooks report while they run ("Checking the build… 1/2").
-  std::string stopHookStatus;
+  std::string stopHookStatus = {};
   bool historySearch=false;
   // Esc was accepted and the turn is unwinding.
   bool interrupting=false;

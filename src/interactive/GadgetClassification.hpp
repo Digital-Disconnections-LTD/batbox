@@ -15,8 +15,8 @@ struct SearchOrReadResult {
   bool isREPL = false;
   bool isMemoryWrite = false;
   bool isAbsorbedSilently = false;
-  std::optional<std::string> mcpServerName;
-  std::optional<bool> isBash;
+  std::optional<std::string> mcpServerName = {};
+  std::optional<bool> isBash = {};
 };
 
 struct GadgetClassificationImports {

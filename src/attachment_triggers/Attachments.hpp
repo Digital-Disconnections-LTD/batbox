@@ -15,15 +15,15 @@ using PathSet=instructions::project::PathSet;
 
 struct Services {
   event_loop::Loop& loop;
-  std::string cwd;
-  instructions::project::async::Services memory;
-  instructions::hooks::InstructionsLoadedImports hooks;
-  std::function<app_state::AppStateRef()> getAppState;
+  std::string cwd = {};
+  instructions::project::async::Services memory = {};
+  instructions::hooks::InstructionsLoadedImports hooks = {};
+  std::function<app_state::AppStateRef()> getAppState = {};
   std::function<bool(const std::string&,const app_state::AppStateRef&)>
-    pathInAllowedWorkingPath;
-  std::function<bool()> skipProjectLevel;
-  std::function<void(std::exception_ptr)> logError;
-  std::function<double()> nowMillis;
+    pathInAllowedWorkingPath = {};
+  std::function<bool()> skipProjectLevel = {};
+  std::function<void(std::exception_ptr)> logError = {};
+  std::function<double()> nowMillis = {};
 };
 
 struct DirectoriesToProcess {

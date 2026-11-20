@@ -32,13 +32,13 @@ struct Collectors {
 
 struct Services {
   event_loop::Loop& loop;
-  Collectors collectors;
-  std::shared_ptr<attachment_triggers::Services> triggers;
-  interactive::background::AttachmentServices notifications;
-  std::function<bool()> isTodoV2Enabled,disableAttachments,simpleMode;
-  std::function<void(std::exception_ptr)> logError;
-  std::function<void(const std::string&,std::exception_ptr)> logDiagnostic;
-  std::function<std::string()> randomUuid,nowIso;
+  Collectors collectors = {};
+  std::shared_ptr<attachment_triggers::Services> triggers = {};
+  interactive::background::AttachmentServices notifications = {};
+  std::function<bool()> isTodoV2Enabled = {},disableAttachments = {},simpleMode = {};
+  std::function<void(std::exception_ptr)> logError = {};
+  std::function<void(const std::string&,std::exception_ptr)> logDiagnostic = {};
+  std::function<std::string()> randomUuid = {},nowIso = {};
 };
 
 event_loop::Deferred<Json> getAttachments(Input input,

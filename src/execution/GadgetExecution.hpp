@@ -38,10 +38,10 @@ struct Context {
 };
 
 struct Update {
-  std::optional<Json> message;
-  std::optional<std::function<Json(const Json&)>> contextModifier;
-  std::string gadgetUseID;
-  std::optional<std::function<Json(const Json&)>> appStateModifier;
+  std::optional<Json> message = {};
+  std::optional<std::function<Json(const Json&)>> contextModifier = {};
+  std::string gadgetUseID = {};
+  std::optional<std::function<Json(const Json&)>> appStateModifier = {};
 };
 
 // Apply each Gadget's getAppState wrapper to a freshly read base state.

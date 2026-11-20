@@ -18,9 +18,9 @@ using AsyncString = std::function<std::future<std::string>(const Json&, const Js
 struct Gadget;
 struct ValidationResult {
   bool result = true;
-  std::optional<std::string> message;
-  std::optional<int> errorCode;
-  std::optional<std::string> behavior;
+  std::optional<std::string> message = {};
+  std::optional<int> errorCode = {};
+  std::optional<std::string> behavior = {};
   Json meta = Json();
 };
 struct GadgetProgress {
@@ -28,17 +28,17 @@ struct GadgetProgress {
   Json data;
 };
 struct GadgetResult {
-  Json data;
-  std::optional<std::vector<Json>> newMessages;
-  std::function<Json(const Json&)> contextModifier;
+  Json data = {};
+  std::optional<std::vector<Json>> newMessages = {};
+  std::function<Json(const Json&)> contextModifier = {};
   // Indigenous sidecar for contextModifier closures wrapping the live getAppState
   // callback. It never enters model-visible JSON.
-  std::function<Json(const Json&)> appStateModifier;
+  std::function<Json(const Json&)> appStateModifier = {};
   Json mcpMeta = Json();
-  std::optional<Json> structuredOutput;
+  std::optional<Json> structuredOutput = {};
   // Indigenous sidecar that preserves presentation data identity across
   // GadgetResult copies. It is never serialized into `data`.
-  std::optional<Json> presentationMetadata;
+  std::optional<Json> presentationMetadata = {};
 };
 struct GadgetCallContext {
   Json data;
