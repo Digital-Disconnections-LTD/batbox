@@ -65,7 +65,9 @@ std::optional<CommandSpan> findCommandSpan(
     const auto tokenEnd=split==std::string::npos?text.size():split;
     if(before.find_first_of(" \t\r\n")==std::string::npos&&
        before.size()<=tokenEnd)
-      return CommandSpan{before.substr(1),0,
+      // caret at or before the opening slash: empty query over the whole
+      // token (list-all); substr(1) would throw on the empty prefix.
+      return CommandSpan{before.empty()?std::string{}:before.substr(1),0,
         value::stringLength(text.substr(0,tokenEnd)),true};
     return {};
   }
