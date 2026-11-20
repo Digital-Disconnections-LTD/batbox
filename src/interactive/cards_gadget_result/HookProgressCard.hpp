@@ -17,6 +17,5 @@ struct HookProgressCard {
 HookProgressCard classifyHookProgress(
     const std::string& hookEvent, const std::string& gadgetUseID,
     bool transcriptMode, const MessageDecisionLookups& lookups);
-const char* hookProgressKindName(HookProgressKind kind);
 
 } // namespace batbox::interactive::cards_gadget_result

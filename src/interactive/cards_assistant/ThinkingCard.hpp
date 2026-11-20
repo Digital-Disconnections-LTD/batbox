@@ -21,6 +21,5 @@ ThinkingCard classifyThinking(const std::string& thinking, bool addMargin,
 ThinkingCard thinkingFromBlock(const Json& block, bool addMargin,
                                bool transcriptMode, bool verbose,
                                bool hideInTranscript);
-const char* thinkingKindName(ThinkingKind kind);
 
 } // namespace batbox::interactive::cards_assistant

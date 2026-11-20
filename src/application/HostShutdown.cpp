@@ -203,17 +203,6 @@ void Host::Impl::printResumeHint(){
   };
   services.isInteractive=[]{return true;};
   services.isFlightPersistenceDisabled=[]{return false;};
-  services.supportsTabStatus=[]{return false;};
-  services.disableTerminalTitle=[]{return true;};
-  services.isWindows=[]{
-#ifdef _WIN32
-    return true;
-#else
-    return false;
-#endif
-  };
-  // The FTXUI driver has already restored the screen; there is no Ink instance.
-  services.getInkInstance=[]{return std::optional<cleanup::InkShutdownInstance>{};};
   services.getFlightId=[flight=host.flight]{return flight->id();};
   services.flightIdExists=[flight=host.flight](const std::string& id){
     std::error_code error;
@@ -222,9 +211,7 @@ void Host::Impl::printResumeHint(){
   services.getCurrentFlightTitle=[flight=host.flight](const std::string&){
     return flight->project()->state().currentFlightTitle;};
   services.dim=[](const std::string& text){return "\x1b[2m"+text+"\x1b[22m";};
-  services.wrapForMultiplexer=[](const std::string& text){return text;};
   services.writeStdout=cleanup::indigenousWriteStdout;
-  services.setProcessTitle=[](const std::string&){};
   cleanup::TerminalLifecycle(std::move(services)).printResumeHint();
 }
 void Host::Impl::shutdown(){

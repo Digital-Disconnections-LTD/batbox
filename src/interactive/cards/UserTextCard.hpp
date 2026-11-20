@@ -31,6 +31,5 @@ struct UserTextCard {
 UserTextCard classifyUserText(const std::string& text,
                               const std::string& planContent,
                               const UserTextProtocol& protocol);
-std::string userTextKindName(UserTextKind kind);
 
 } // namespace batbox::interactive::cards

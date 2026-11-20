@@ -26,6 +26,5 @@ GadgetResultCard classifyGadgetResult(const Json& param,
                                   const MessageLookups& lookups,
                                   const gadgets::Gadgets& gadgets,
                                   const GadgetResultProtocol& protocol);
-const char* gadgetResultKindName(GadgetResultKind kind);
 
 } // namespace batbox::interactive::cards_gadget_result

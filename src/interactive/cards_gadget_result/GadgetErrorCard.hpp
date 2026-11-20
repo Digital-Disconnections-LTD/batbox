@@ -25,6 +25,5 @@ struct GadgetErrorCard {
 GadgetErrorCard classifyGadgetError(const Json& content,
                                 bool classifierFeature,
                                 const GadgetErrorProtocol& protocol);
-const char* gadgetErrorKindName(GadgetErrorKind kind);
 
 } // namespace batbox::interactive::cards_gadget_result

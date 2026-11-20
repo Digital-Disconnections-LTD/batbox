@@ -85,16 +85,4 @@ CronHumanServices indigenousCronHumanServices(){
     }
   };
 }
-std::string indigenousLocalDateTime(double epochMs){
-  const auto date=local(static_cast<std::time_t>(std::floor(epochMs/1000)));
-  const auto hour=date.tm_hour%12==0?12:date.tm_hour%12;
-  std::string text=std::to_string(date.tm_mon+1)+"/"+
-    std::to_string(date.tm_mday)+"/"+
-    std::to_string(date.tm_year+1900)+", "+
-    std::to_string(hour)+":"+
-    (date.tm_min<10?"0":"")+std::to_string(date.tm_min)+":"+
-    (date.tm_sec<10?"0":"")+std::to_string(date.tm_sec)+
-    (date.tm_hour<12?" AM":" PM");
-  return text;
-}
 }

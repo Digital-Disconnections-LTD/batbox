@@ -83,19 +83,4 @@ Card classifyAssistantText(const std::string& text, bool verbose,
   return card(Kind::Markdown, text);
 }
 
-std::string kindName(Kind kind) {
-  switch (kind) {
-    case Kind::Hidden: return "hidden";
-    case Kind::RateLimit: return "rate_limit";
-    case Kind::ContextLimit: return "context_limit";
-    case Kind::CreditBalance: return "credit_balance";
-    case Kind::InvalidKey: return "invalid_key";
-    case Kind::Timeout: return "timeout";
-    case Kind::ModelUnavailable: return "model_unavailable";
-    case Kind::Interrupted: return "interrupted";
-    case Kind::ApiError: return "api_error";
-    case Kind::Markdown: return "markdown";
-  }
-  throw std::logic_error("Unknown assistant card kind");
-}
 } // namespace batbox::interactive::cards_assistant
