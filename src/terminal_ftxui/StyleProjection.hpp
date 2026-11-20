@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ansi_tokenize/Types.hpp"
+#include "text_sdk/ansi_tokenize/Types.hpp"
 #include "ftxui/screen/cell.hpp"
 #include <stdexcept>
 
@@ -14,6 +14,6 @@ public:
 // Apply the active terminal styles in their original order to one FTXUI cell.
 // A style that FTXUI cannot represent fails visibly instead of changing its
 // appearance without telling the caller.
-void projectStyle(const ansi_tokenize::Codes& codes, ftxui::Cell& cell);
+void projectStyle(const text_sdk::ansi_tokenize::Codes& codes, ftxui::Cell& cell);
 
 } // namespace batbox::terminal_ftxui

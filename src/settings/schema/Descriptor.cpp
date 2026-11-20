@@ -19,7 +19,7 @@ Json settingsDescriptor(){
     "Disabled\",{\"type\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"alwaysThinkingEnabled\",{\"type\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"eff"
     "ortLevel\",{\"type\":\"catch\",\"inner\":{\"type\":\"optional\",\"inner\":{\"type\":\"enum\",\"values\":[\"low\",\"medium\",\"high\"]}}}],[\"advisorModel\",{\"t"
     "ype\":\"optional\",\"inner\":{\"type\":\"string\"}}],[\"fastMode\",{\"type\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"fastModePerSessionOptIn\",{\"typ"
-    "e\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"promptSuggestionEnabled\",{\"type\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"showClearContextOn"
+    "e\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"showClearContextOn"
     "PlanAccept\",{\"type\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"agent\",{\"type\":\"optional\",\"inner\":{\"type\":\"string\"}}],[\"plansDirectory\",{"
     "\"type\":\"optional\",\"inner\":{\"type\":\"string\"}}],[\"autoMemoryEnabled\",{\"type\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"autoMemoryDirectory"
     "\",{\"type\":\"optional\",\"inner\":{\"type\":\"string\"}}],[\"autoDreamEnabled\",{\"type\":\"optional\",\"inner\":{\"type\":\"boolean\"}}],[\"skipDangerousModeP"

@@ -45,15 +45,5 @@ GadgetResultCard classifyGadgetResult(const Json& param,
   return card;
 }
 
-const char* gadgetResultKindName(GadgetResultKind kind) {
-  switch (kind) {
-    case GadgetResultKind::Hidden: return "hidden";
-    case GadgetResultKind::Canceled: return "canceled";
-    case GadgetResultKind::Rejected: return "rejected";
-    case GadgetResultKind::Error: return "error";
-    case GadgetResultKind::Success: return "success";
-  }
-  throw std::logic_error("Unknown Gadget result kind");
-}
 
 } // namespace batbox::interactive::cards_gadget_result

@@ -40,11 +40,16 @@ endif()
 add_library(batbox_process src/process/ExecFileNoThrow.cpp ${BATBOX_INDIGENOUS_EXEC_SOURCE})
 target_link_libraries(batbox_process PUBLIC batbox_event_loop batbox_core)
 target_compile_options(batbox_process PRIVATE -Wall -Wextra -Wpedantic)
-add_library(batbox_git src/git_filesystem/Paths.cpp src/git_filesystem/Refs.cpp
-  src/git_filesystem/Computations.cpp src/git_filesystem/Watcher.cpp
-  src/git_filesystem/IndigenousFs.cpp
-  src/git_filesystem/RootFinder.cpp)
-target_link_libraries(batbox_git PUBLIC batbox_event_loop batbox_core ICU::i18n)
+# One git system, one target. src/git/ holds the subprocess/binding half,
+# src/git/filesystem/ the filesystem/state half; GitBindings.hpp bridges
+# the two halves, so one target is the honest shape.
+add_library(batbox_git src/git/filesystem/Paths.cpp src/git/filesystem/Refs.cpp
+  src/git/filesystem/Computations.cpp src/git/filesystem/Watcher.cpp
+  src/git/filesystem/IndigenousFs.cpp
+  src/git/GitBasics.cpp src/git/IndigenousBasics.cpp
+  src/git/GitBindings.cpp src/git/CanonicalRoot.cpp src/git/IndigenousCanonicalRoot.cpp)
+target_link_libraries(batbox_git PUBLIC batbox_event_loop batbox_core ICU::i18n
+  batbox_context batbox_process OpenSSL::Crypto ICU::uc)
 target_compile_options(batbox_git PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_shell PRIVATE src/gadgets/bash/AsyncBashPersistence.cpp
   src/gadgets/bash/AsyncBashImage.cpp)

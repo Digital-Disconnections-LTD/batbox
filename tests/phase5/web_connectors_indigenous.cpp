@@ -1,8 +1,8 @@
 // Optional web helpers: lazy Scrapling, fetch tool discovery, clear unavailable
 // errors, SearXNG discovery without personal fallbacks, the startup availability
 // line, the doctor's Scrapling handshake and the SearXNG answer shape.
-#include "application_connectors/Bootstrap.hpp"
-#include "application_connectors/Status.hpp"
+#include "application/connectors/Bootstrap.hpp"
+#include "application/connectors/Status.hpp"
 #include "connectors/Executable.hpp"
 #include "gadgets/web/Web.hpp"
 #include <cstdlib>
@@ -16,7 +16,7 @@
 #endif
 
 using namespace batbox;
-namespace ac=batbox::application_connectors;
+namespace ac=batbox::application::connectors;
 namespace fs=std::filesystem;
 namespace {
 void check(bool condition,const std::string& reason){

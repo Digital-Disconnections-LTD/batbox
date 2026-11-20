@@ -6,8 +6,8 @@
 namespace batbox::interactive::text_input {
 MetricsServices indigenousMetricsServices(
     std::shared_ptr<intl::Stash> intl,
-    std::shared_ptr<text_width::StringWidth> width,
-    text_width::WrapAnsiRef wrap){
+    std::shared_ptr<text_sdk::width::StringWidth> width,
+    text_sdk::width::WrapAnsiRef wrap){
   if(!intl||!width||!wrap)
     throw std::invalid_argument("Text metric services required");
   MetricsServices services;

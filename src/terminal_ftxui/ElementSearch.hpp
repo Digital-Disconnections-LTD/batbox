@@ -1,14 +1,14 @@
 #pragma once
-#include "terminal_search/Scan.hpp"
+#include "text_sdk/scan/Scan.hpp"
 #include <ftxui/dom/node.hpp>
 #include <optional>
 
 namespace batbox::terminal_ftxui {
 struct PositionedMatches {
-  std::vector<terminal_search::MatchPosition> positions;
+  std::vector<text_sdk::scan::MatchPosition> positions;
   double rowOffset=0,currentIndex=0;
 };
-std::vector<terminal_search::MatchPosition> scanElement(
+std::vector<text_sdk::scan::MatchPosition> scanElement(
   const ftxui::Element& element,int columns,int rows,const std::string& query);
 // Every match is inverted; the current one also takes the highlight color.
 ftxui::Element withSearchOverlay(ftxui::Element content,

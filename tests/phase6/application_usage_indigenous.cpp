@@ -1,8 +1,8 @@
-#include "application_usage/UsageCommand.hpp"
-#include "application_commands/PermissionCommand.hpp"
-#include "application_commands/EffortCommand.hpp"
+#include "application/usage/UsageCommand.hpp"
+#include "application/commands/PermissionCommand.hpp"
+#include "application/commands/EffortCommand.hpp"
 #include "bats/ForkedBat.hpp"
-#include "application_engine/AutoPolicy.hpp"
+#include "application/engine/AutoPolicy.hpp"
 #include "project_recovery/Recovery.hpp"
 #include "runtime/Platform.hpp"
 #include <filesystem>
@@ -24,17 +24,17 @@ template<class T>T await(event_loop::Loop& loop,event_loop::Deferred<T> pending)
 void check(bool condition,const char* message){
   if(!condition)throw std::logic_error(message);
 }
-std::shared_ptr<application_model::LocalModelService> fixtureModel(event_loop::Loop& loop){
-  application_model::Config config;
+std::shared_ptr<application::model::LocalModelService> fixtureModel(event_loop::Loop& loop){
+  application::model::Config config;
   config.mainModel=config.smallModel="fixture";
   config.client.baseUrl="http://user:secret@127.0.0.1:9001/private?token=secret";
-  application_model::ModelProfile profile;
+  application::model::ModelProfile profile;
   profile.id="fixture";profile.contextTokens=100000;profile.maxOutputTokens=4000;
   profile.costs={{"inputTokens",0},{"outputTokens",0},
     {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
     {"webSearchRequests",0}};
   config.profiles.emplace("fixture",profile);
-  application_model::Imports imports;
+  application::model::Imports imports;
   imports.authToken=[]{return std::string{};};
   imports.invalidateAuthToken=[]{ };
   imports.debug=[](const std::string&,const std::string&){};
@@ -44,7 +44,7 @@ std::shared_ptr<application_model::LocalModelService> fixtureModel(event_loop::L
   imports.gadgetSchemaSync=[](const gadgets::Gadget&,const gadgets::GadgetSchemaOptions&){return Json::object();};
   imports.gadgetSchemaAsync=[&loop](const gadgets::Gadget&,const gadgets::GadgetSchemaOptions&){
     event_loop::Deferred<Json> result(loop);result.resolve(Json::object());return result;};
-  return std::make_shared<application_model::LocalModelService>(loop,config,imports);
+  return std::make_shared<application::model::LocalModelService>(loop,config,imports);
 }
 }
 int main(){
@@ -67,9 +67,9 @@ int main(){
     state->fields=std::make_shared<value::SharedRecord>();
     state->fields->set("settings",Json::object());
     auto store=std::make_shared<app_state::AppStateStore>(state);
-    auto policy=application_compaction_settings::Policy::create(loop,config,store);
-    application_poetry::Inputs poetryInputs;poetryInputs.config=config;
-    auto poetry=std::make_shared<application_poetry::Provider>(loop,std::move(poetryInputs));
+    auto policy=application::compaction_settings::Policy::create(loop,config,store);
+    application::poetry::Inputs poetryInputs;poetryInputs.config=config;
+    auto poetry=std::make_shared<application::poetry::Provider>(loop,std::move(poetryInputs));
     auto backend=fixtureModel(loop);
     interactive::PresentationState view;
     view.messages.push_back(std::make_shared<Json>(Json{{"type","user"},
@@ -79,7 +79,7 @@ int main(){
         {"content",Json::array({Json{{"type","text"},{"text","Hi"}}})},
         {"usage",{{"input_tokens",100},{"cache_read_input_tokens",20},
           {"cache_creation_input_tokens",10},{"output_tokens",7}}}}}}));
-    application_usage::Sources sources;
+    application::usage::Sources sources;
     sources.config=config;sources.view=&view;sources.model=backend;
     sources.store=store;sources.compactionPolicy=policy;
     sources.poetry=poetry;sources.flightId=[]{return std::string("session-1");};
@@ -88,7 +88,7 @@ int main(){
       {"retainedStreamBytes",4096},{"residentBytes",150.0*1024*1024},
       {"heapUsedBytes",42.5*1024*1024}};};
     sources.interactive=false;
-    auto status=application_usage::makeStatusCommand(loop,{},sources);
+    auto status=application::usage::makeStatusCommand(loop,{},sources);
     auto statusText=await(loop,await(loop,status.loadLocal())(""));
     const auto rendered=statusText.at("value").get<std::string>();
     check(rendered.find("Last context: 130 / 100000")!=std::string::npos,
@@ -105,7 +105,7 @@ int main(){
     check(rendered.find("Memory: 150MB resident · 42.5MB heap in use")!=std::string::npos,
       "Native runtime state must show resident and heap memory");
 
-    auto context=application_usage::makeContextCommand(loop,{},sources);
+    auto context=application::usage::makeContextCommand(loop,{},sources);
     const auto contextText=await(loop,await(loop,context.loadLocal())(""));
     const auto report=contextText.at("value").get<std::string>();
     check(report.find("Context: 130 / 100000 tokens")!=std::string::npos,
@@ -120,8 +120,8 @@ int main(){
       "Category counts must be labeled estimated");
     const auto livePolicy=[&]{
       const auto current=store->getState()->snapshot();
-      return application_engine::autoCompactDependencies(config,
-        application_engine::autoCompactSetting(current),"fixture",backend.get(),
+      return application::engine::autoCompactDependencies(config,
+        application::engine::autoCompactSetting(current),"fixture",backend.get(),
         value::property(current,"settings"));
     };
     auto updated=await(loop,await(loop,context.loadLocal())("auto off"));
@@ -160,7 +160,7 @@ int main(){
     projection.onQueueBlocked=[](bool){};
     projection.onPoetryFocus=[](bool){};
     auto router=user_input::UiCommandRouter::create(loop,std::move(projection));
-    auto effort=application_commands::makeEffortCommand(loop,router,config,store,
+    auto effort=application::commands::makeEffortCommand(loop,router,config,store,
       []{return true;});
     check(effort.descriptor.at("name")=="effort"&&
       effort.descriptor.at("immediate")==true,
@@ -182,7 +182,7 @@ int main(){
       std::string::npos&&
       value::property(store->getState()->snapshot(),"effortValue")=="low",
       "Invalid effort must not modify the setting");
-    auto unavailable=application_commands::makeEffortCommand(loop,router,config,store,
+    auto unavailable=application::commands::makeEffortCommand(loop,router,config,store,
       []{return false;});
     effortChanged=await(loop,unavailable.invokeUi("medium"));
     check(effortChanged.result&&effortChanged.result->find("does not support")!=
@@ -197,7 +197,7 @@ int main(){
       check(!document.contains("effortLevel"),
         "Auto must remove the persisted effort override");}
     auto interactiveSources=sources;interactiveSources.interactive=true;
-    auto interactiveContext=application_usage::makeContextCommand(
+    auto interactiveContext=application::usage::makeContextCommand(
       loop,router,interactiveSources);
     auto open=interactiveContext.invokeUi("");
     loop.run();
@@ -230,7 +230,7 @@ int main(){
         value::SharedRecord::fromJson(rules)));return next;});
     const auto currentPermission=[&]{return store->getState()->permissionContext->snapshot();};
     auto transitions=std::make_shared<bootstrap::FlightTransitions>();
-    auto permissions=application_commands::makePermissionsCommand(loop,router,
+    auto permissions=application::commands::makePermissionsCommand(loop,router,
       config,store,transitions);
     check(permissions.descriptor.at("aliases")==Json::array({"permission","allowed-tools"}),
       "Permission command aliases must be discoverable");
@@ -283,7 +283,7 @@ int main(){
     router->ui()->dispatchAction({interactive::UiAction::Kind::Cancel,0,{}});
     (void)await(loop,choosing);
     auto printConfig=config;printConfig.print=true;
-    auto headlessPermissions=application_commands::makePermissionsCommand(loop,router,
+    auto headlessPermissions=application::commands::makePermissionsCommand(loop,router,
       printConfig,store,transitions);
     const auto headlessStatus=await(loop,headlessPermissions.invokeUi(""));
     check(!modal&&headlessStatus.result&&

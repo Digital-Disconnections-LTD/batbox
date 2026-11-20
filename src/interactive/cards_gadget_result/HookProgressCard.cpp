@@ -31,13 +31,5 @@ HookProgressCard classifyHookProgress(
       (inProgress == 1 ? " hook…" : " hooks…")};
 }
 
-const char* hookProgressKindName(HookProgressKind kind) {
-  switch (kind) {
-    case HookProgressKind::Hidden: return "hidden";
-    case HookProgressKind::TranscriptSummary: return "transcript_summary";
-    case HookProgressKind::Running: return "running";
-  }
-  throw std::logic_error("Unknown hook progress kind");
-}
 
 } // namespace batbox::interactive::cards_gadget_result

@@ -2,7 +2,7 @@
 #include "bats/BatMissionForeground.hpp"
 #include "bats/BatMissionRegistration.hpp"
 #include "bats/BatMissionState.hpp"
-#include "application_bats/StreamPublishThrottle.hpp"
+#include "application/bats/StreamPublishThrottle.hpp"
 #include <iostream>
 #include <stdexcept>
 
@@ -212,8 +212,8 @@ void savedRecord(){
 }
 
 void throttle(){
-  batbox::application_bats::StreamPublishThrottle gate(100);
-  using Decision=batbox::application_bats::StreamPublishThrottle::Decision;
+  batbox::application::bats::StreamPublishThrottle gate(100);
+  using Decision=batbox::application::bats::StreamPublishThrottle::Decision;
   auto step=gate.onEvent("b",1000,false);
   check(step.decision==Decision::Now,"The first delta publishes at once");
   gate.published("b",1000);

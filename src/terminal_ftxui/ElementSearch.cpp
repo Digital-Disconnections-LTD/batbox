@@ -7,18 +7,18 @@
 
 namespace batbox::terminal_ftxui {
 namespace {
-std::vector<terminal_search::MatchPosition> scan(ftxui::Screen& screen,
+std::vector<text_sdk::scan::MatchPosition> scan(ftxui::Screen& screen,
     ftxui::Box box,const std::string& query){
   box=ftxui::Box::Intersection(box,{0,screen.dimx()-1,0,screen.dimy()-1});
-  const auto positions=terminal_search::scanRows(box.x_max-box.x_min+1,
-    box.y_max-box.y_min+1,terminal_search::lowercase(value::utf16CodeUnits(query)),
+  const auto positions=text_sdk::scan::scanRows(box.x_max-box.x_min+1,
+    box.y_max-box.y_min+1,text_sdk::scan::lowercase(value::utf16CodeUnits(query)),
     [&](double column,double row){
       const auto& cell=screen.CellAt(box.x_min+static_cast<int>(column),box.y_min+static_cast<int>(row));
-      if(!cell.character.empty())return terminal_search::Cell{cell.character,false};
+      if(!cell.character.empty())return text_sdk::scan::Cell{cell.character,false};
       const auto col=box.x_min+static_cast<int>(column);
       const bool wideTail=col>box.x_min&&ftxui::string_width(screen.CellAt(col-1,
         box.y_min+static_cast<int>(row)).character)==2;
-      return terminal_search::Cell{wideTail?"":" ",wideTail};
+      return text_sdk::scan::Cell{wideTail?"":" ",wideTail};
     });
   auto result=positions;
   for(auto& position:result){position.col+=box.x_min;position.row+=box.y_min;}
@@ -56,7 +56,7 @@ private:
   ftxui::Color highlight_;
 };
 }
-std::vector<terminal_search::MatchPosition> scanElement(const ftxui::Element& element,
+std::vector<text_sdk::scan::MatchPosition> scanElement(const ftxui::Element& element,
     int columns,int rows,const std::string& query){
   if(!element||columns<=0||rows<=0)return {};
   auto screen=ftxui::Screen::Create(ftxui::Dimension::Fixed(columns),ftxui::Dimension::Fixed(rows));

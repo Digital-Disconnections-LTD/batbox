@@ -5,7 +5,6 @@
 #include <string>
 
 namespace batbox::interactive::submit {
-std::optional<std::string> getWorkload();
 
 // Always creates a fresh async-context boundary, including for undefined.
 class WorkloadScope {

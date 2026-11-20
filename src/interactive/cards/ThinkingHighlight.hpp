@@ -13,19 +13,13 @@ struct HighlightPart {
   std::string color;
 };
 struct HighlightedTextView {
-  bool brief = false;
-  std::vector<HighlightPart> heading;
   std::vector<HighlightPart> content;
 };
 struct HighlightOptions {
-  bool queued = false;
   bool selected = false;
-  std::function<std::string(const std::string&)> formatBriefTimestamp;
   std::string pointerGlyph;
 };
 HighlightedTextView highlightedThinkingText(
-    const std::string& text, bool brief,
-    const std::optional<std::string>& timestamp,
-    const HighlightOptions& options);
+    const std::string& text, const HighlightOptions& options);
 
 } // namespace batbox::interactive::cards

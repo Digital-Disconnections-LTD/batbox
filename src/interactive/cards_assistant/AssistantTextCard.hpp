@@ -46,6 +46,5 @@ bool isEmptyMessageText(const std::string& text,
 Card classifyAssistantText(const std::string& text, bool verbose,
                            bool addMargin, bool selected, bool shouldShowDot,
                            const Protocol& protocol, const Imports& imports);
-std::string kindName(Kind kind);
 
 } // namespace batbox::interactive::cards_assistant

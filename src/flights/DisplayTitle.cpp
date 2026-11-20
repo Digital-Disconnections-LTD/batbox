@@ -1,5 +1,5 @@
 #include "flights/DisplayTitle.hpp"
-#include "display/Tags.hpp"
+#include "messages/Tags.hpp"
 namespace batbox::flights {
 std::string getLogDisplayTitle(const Json& log,
   const std::optional<std::string>& defaultTitle,const std::string& tickTag){
@@ -7,7 +7,7 @@ std::string getLogDisplayTitle(const Json& log,
   const bool autonomous=firstPoetry.is_string()&&
     firstPoetry.get_ref<const std::string&>().starts_with("<"+tickTag+">");
   const auto stripped=value::truthy(firstPoetry)?
-    display::stripDisplayTagsAllowEmpty(firstPoetry.get<std::string>()):std::string();
+    messages::stripDisplayTagsAllowEmpty(firstPoetry.get<std::string>()):std::string();
   const bool useFirstPoetry=!stripped.empty()&&!autonomous;
   std::string title;
   for(const auto* key:{"agentName","customTitle","aiTitle"}){
@@ -23,6 +23,6 @@ std::string getLogDisplayTitle(const Json& log,
       if(value::truthy(id))title=value::slice(id.get<std::string>(),0,8);
     }
   }
-  return value::trim(display::stripDisplayTags(title));
+  return value::trim(messages::stripDisplayTags(title));
 }
 }

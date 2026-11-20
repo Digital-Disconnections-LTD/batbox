@@ -54,10 +54,4 @@ std::shared_ptr<const Json> TlsOptions::getMTLSConfig(){
   else mtlsStash_=std::make_shared<const Json>(std::move(config));
   return *mtlsStash_;
 }
-void TlsOptions::clearMTLSStash(){
-  mtlsStash_.reset();
-  if(services_.clearMTLSBatStash)
-    services_.clearMTLSBatStash();
-  debug("Cleared mTLS configuration cache");
-}
 }

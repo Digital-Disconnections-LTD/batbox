@@ -23,14 +23,4 @@ ThinkingCard thinkingFromBlock(const Json& block, bool addMargin,
                           hideInTranscript);
 }
 
-const char* thinkingKindName(ThinkingKind kind) {
-  switch (kind) {
-    case ThinkingKind::Hidden: return "hidden";
-    case ThinkingKind::Collapsed: return "collapsed";
-    case ThinkingKind::Expanded: return "expanded";
-    case ThinkingKind::Redacted: return "redacted";
-  }
-  return "unknown";
-}
-
 } // namespace batbox::interactive::cards_assistant

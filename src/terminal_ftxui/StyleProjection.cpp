@@ -131,7 +131,7 @@ void apply(const Parameters& params, ftxui::Cell& cell) {
 }
 } // namespace
 
-void projectStyle(const ansi_tokenize::Codes& codes, ftxui::Cell& cell) {
+void projectStyle(const text_sdk::ansi_tokenize::Codes& codes, ftxui::Cell& cell) {
   for (const auto& code : codes) {
     if (!code) throw ProjectionError("Null terminal style");
     // Hyperlink identity is carried by the source cell, not by its style ID.

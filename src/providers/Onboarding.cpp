@@ -1,5 +1,5 @@
 #include "providers/Onboarding.hpp"
-#include "application_config/EndpointStore.hpp"
+#include "application/config/EndpointStore.hpp"
 #include "transport/Errors.hpp"
 #include "transport/RawHttp.hpp"
 #ifdef _WIN32
@@ -170,7 +170,7 @@ ConnectionResult testConnection(const application::EndpointRecord& endpoint,
   const bool vertex=endpoint.provider==transport::kProviderVertex;
   std::string url,host=bedrock?"Amazon Bedrock":vertex?"Vertex AI":"";
   if(host.empty()){
-    try{url=application_config::modelsUrl(endpoint);}
+    try{url=application::config::modelsUrl(endpoint);}
     catch(const std::exception& error){result.message=error.what();return result;}
     host=origin(url);
   }
@@ -231,12 +231,12 @@ SaveResult saveEndpoint(const std::filesystem::path& path,
     const std::string& endpointId,application::EndpointRecord endpoint,const std::string& model){
   if(std::find(endpoint.models.begin(),endpoint.models.end(),model)==endpoint.models.end())
     endpoint.models.insert(endpoint.models.begin(),model);
-  application_config::validateEndpoint(endpointId,endpoint);
+  application::config::validateEndpoint(endpointId,endpoint);
   endpoints.insert_or_assign(endpointId,endpoint);
   SaveResult result;
   result.endpointId=endpointId;
-  result.profile=application_config::profileId(endpointId,model);
-  application_config::saveEndpoints(path,endpoints,result.profile,Json::object(),true,legacyPath);
+  result.profile=application::config::profileId(endpointId,model);
+  application::config::saveEndpoints(path,endpoints,result.profile,Json::object(),true,legacyPath);
   result.endpoint=std::move(endpoint);
   result.endpoints=std::move(endpoints);
   return result;

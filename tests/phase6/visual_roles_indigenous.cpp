@@ -1,7 +1,7 @@
 // Behavior of the visual layer below the golden frames: color-depth
 // detection, theme resolution, the role table, Gadget view building,
 // terminal-safe text, syntax highlighting, markdown blocks, /theme and /help.
-#include "application_commands/ThemeCommand.hpp"
+#include "application/commands/ThemeCommand.hpp"
 #include "commands_indigenous/UiCommands.hpp"
 #include "interactive/gadget_views/GadgetViewProjection.hpp"
 #include "interactive/markdown/AnsiProjection.hpp"
@@ -308,7 +308,7 @@ void themeCommand(){
   auto theme=std::make_shared<ip::ThemeState>(ip::ThemeStateServices{
     []{return std::string("auto");},[&](const std::string& value){saved=value;},
     []{return std::string("dark");},[]{}});
-  auto command=application_commands::makeThemeCommand(router,[theme]{return theme;},true);
+  auto command=application::commands::makeThemeCommand(router,[theme]{return theme;},true);
   auto pending=command.invokeUi("");
   for(int i=0;i<10&&!view;++i)loop.runReady();
   check(view&&view->id=="theme"&&view->choices.size()==ip::selectableThemes().size(),

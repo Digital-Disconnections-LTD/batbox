@@ -1,6 +1,6 @@
 #include "application/ModelBinding.hpp"
-#include "application_skills/Provider.hpp"
-#include "application_flights/Flight.hpp"
+#include "application/skills/Provider.hpp"
+#include "application/flights/Flight.hpp"
 #include "bats/ForkedBat.hpp"
 #include "bootstrap/InvokedSkills.hpp"
 #include "runtime/Platform.hpp"
@@ -52,17 +52,17 @@ int main(){
     messages->nowISO=[]{return platform::isoTimestamp();};
     messages->strictGadgetResultPairing=[]{return true;};
     messages->logError=[](const std::string&){};
-    application_flights::Inputs flightInputs(owner);
+    application::flights::Inputs flightInputs(owner);
     flightInputs.config=config;flightInputs.flightId="fixture-session";
     flightInputs.logError=[](std::exception_ptr){};
     flightInputs.commandNames=[]{return std::set<std::string>{};};
-    auto flight=application_flights::Flight::create(std::move(flightInputs));
+    auto flight=application::flights::Flight::create(std::move(flightInputs));
     auto model=application::makeLocalModel(owner,config,messages,
       [](const std::string&){});
-    auto snapshot=std::make_shared<gadgets::live_roster::Snapshot>();
+    auto snapshot=std::make_shared<batbox::gadgets::live_roster::Snapshot>();
     std::atomic<int> permissionChecks=0,calls=0;
     std::atomic<bool> deny=false;
-    gadgets::Gadget bash;bash.name="Bash";bash.maxResultSizeChars=30000;
+    batbox::gadgets::Gadget bash;bash.name="Bash";bash.maxResultSizeChars=30000;
     bash.checkPermissions=[&](const Json& input,const Json& state){
       ++permissionChecks;
       check(input.at("command")=="printf native","Skill command changed");
@@ -73,9 +73,9 @@ int main(){
       return ready(deny?Json{{"behavior","deny"},{"message","fixture denied"}}
                        :Json{{"behavior","allow"}});
     };
-    bash.call=[&](const Json&,const gadgets::GadgetCallContext& context,
+    bash.call=[&](const Json&,const batbox::gadgets::GadgetCallContext& context,
         const std::function<std::future<Json>(const Json&)>&,const Json&,
-        const std::function<void(const gadgets::GadgetProgress&)>&){
+        const std::function<void(const batbox::gadgets::GadgetProgress&)>&){
       ++calls;
       check(!context.stopToken.stop_requested(),"Stopped skill ran Bash");
       return readyGadget({{"stdout","native-output"},{"stderr",""}});
@@ -87,25 +87,25 @@ int main(){
     };
     snapshot->owned.push_back(std::move(bash));
     snapshot->base.push_back(&snapshot->owned.back());
-    application_skills::Inputs inputs(owner);
+    application::skills::Inputs inputs(owner);
     inputs.config=config;inputs.projectRoot=temp;
     inputs.messages=messages;inputs.flight=flight;inputs.model=model;
     inputs.invoked=std::make_shared<bootstrap::InvokedSkillsState>();
     inputs.currentMessages=[]{return Json::array();};
     inputs.mcpCommands=[]{return Json::array();};
     inputs.appState=[]{return Json{{"toolPermissionContext",Json::object()}};};
-    inputs.currentBat=[]()->std::shared_ptr<bats::BatContext>{return {};};
+    inputs.currentBat=[]()->std::shared_ptr<batbox::bats::BatContext>{return {};};
     inputs.currentGadgetSnapshot=[snapshot]{return snapshot;};
     inputs.diagnostic=[](const std::string&){};
     inputs.resultStorage.getOriginalCwd=[temp]{return temp.string();};
     inputs.resultStorage.getFlightId=[flight]{return flight->id();};
     inputs.resultStorage.getProjectDir=[temp](const std::string&){return temp.string();};
-    auto provider=application_skills::Provider::create(std::move(inputs));
+    auto provider=application::skills::Provider::create(std::move(inputs));
     Json descriptor;
     for(const auto& row:provider->allCommands())
       if(row.at("name")=="fixture")descriptor=row;
     check(descriptor.is_object(),"Fixture skill was not discovered");
-    const auto execute=[&](const bats::BatContext& context){
+    const auto execute=[&](const batbox::bats::BatContext& context){
       auto hold=std::make_shared<event_loop::Loop::KeepAlive>(owner.hold());
       auto future=std::async(std::launch::async,[&,hold]{
         try{
@@ -117,7 +117,7 @@ int main(){
       owner.run();
       return future.get();
     };
-    bats::BatContext initial;
+    batbox::bats::BatContext initial;
     const auto first=poetryText(execute(initial));
     check(first.find("Result: native-output")!=std::string::npos,
       "First skill invocation did not expand through Bash result mapping");
@@ -129,7 +129,7 @@ int main(){
     check(denied&&permissionChecks==2&&calls==1,
       "Denied skill shell command reached Bash");
     deny=false;
-    bats::BatContext active;
+    batbox::bats::BatContext active;
     active.query.gadgets=snapshot->base;
     active.query.gadgetSnapshotOwner=snapshot;
     const auto second=poetryText(execute(active));

@@ -3,7 +3,7 @@
 
   <h1>Small bat. Big ideas.</h1>
   <p><strong>Your terminal. Your models. Our little corner of the night.</strong></p>
-  <p>A C++20 coding companion with streaming conversations, curious Bats, useful Gadgets, and a place for everyone to contribute.</p>
+  <p>Robust harness for agentic terminal companions with streaming conversations, subagents, and skills. No telemetry. Community built. Write all night.</p>
 
   <p><a href="docs/getting-started.md">Take your first Flight</a> · <a href="CONTRIBUTING.md">Join the Roost</a> · <a href="docs/README.md">Guidebook</a></p>
   <p><strong>LINUX · macOS · WINDOWS</strong> &nbsp; / &nbsp; <a href="LICENSE">MIT</a> &nbsp; / &nbsp; COMMUNITY PROJECT</p>

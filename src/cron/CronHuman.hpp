@@ -11,5 +11,4 @@ struct CronHumanServices {
 std::string cronToHuman(const std::string& expression,bool utc,
   const CronHumanServices& services);
 CronHumanServices indigenousCronHumanServices();
-std::string indigenousLocalDateTime(double epochMs);
 }

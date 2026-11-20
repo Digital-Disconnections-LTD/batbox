@@ -18,24 +18,6 @@
 #include <system_error>
 
 namespace batbox::cleanup {
-TerminalSequences indigenousTerminalSequences(bool kittyTerminal){
-  const std::string tab="\x1b]21337;indicator=;status=;status-color="+
-    std::string(kittyTerminal?"\x1b\\":"\x07");
-  return {
-    "\x1b[?1006l\x1b[?1003l\x1b[?1002l\x1b[?1000l",
-    "\x1b[?1049l","\x1b[>4m","\x1b[<u","\x1b[?1004l",
-    "\x1b[?2004l","\x1b[?25h","\x1b]9;4;0;\x07",tab,"\x1b]0;\x07"
-  };
-}
-std::string indigenousWrapForMultiplexer(const std::string& sequence,bool tmux,bool screen){
-  if(tmux){
-    std::string escaped;
-    for(const char ch:sequence){if(ch=='\x1b')escaped+='\x1b';escaped+=ch;}
-    return "\x1bPtmux;"+escaped+"\x1b\\";
-  }
-  if(screen)return "\x1bP"+sequence+"\x1b\\";
-  return sequence;
-}
 void indigenousWriteStdout(const std::string& text){
   const auto encoded=value::encodeUtf8(text);
 #ifdef _WIN32

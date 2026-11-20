@@ -1,4 +1,4 @@
-#include "application_gadgets/DefaultInputs.hpp"
+#include "application/gadgets/DefaultInputs.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -9,7 +9,7 @@ void require(bool value,const std::string& message){
 }
 }
 int main(){
-  using batbox::application_gadgets::isSettingsFile;
+  using batbox::application::gadgets::isSettingsFile;
   for(const auto* path:{"/home/user/.batbox/settings.json",
       "/work/app/.batbox/settings.local.json",
       "/work/app/.BATBOX/Settings.JSON",

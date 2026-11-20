@@ -2,7 +2,7 @@
 // as one compact card, whether it started a turn or arrived mid-turn as a
 // queued attachment. The message keeps the whole block for the model.
 #include "GoldenFrame.hpp"
-#include "application_presentation/Bindings.hpp"
+#include "application/presentation/Bindings.hpp"
 #include "bats/BatMissionNotification.hpp"
 #include "interactive/gadget_views/GadgetViewProjection.hpp"
 #include "interactive/message_view/RetainedViews.hpp"
@@ -14,7 +14,7 @@
 
 using namespace batbox;
 using namespace batbox::interactive;
-namespace ap=batbox::application_presentation;
+namespace ap=batbox::application::presentation;
 namespace ip=batbox::interactive::presentation_providers;
 namespace mv=batbox::interactive::message_view;
 namespace gv=batbox::interactive::gadget_views;

@@ -117,7 +117,7 @@ void Shell::initialize(){
       self->currentGadgets_);
   };
   search.scanItem=[weak](std::size_t index,const std::string& query)
-      ->std::optional<std::vector<terminal_search::MatchPosition>>{
+      ->std::optional<std::vector<text_sdk::scan::MatchPosition>>{
     if(auto self=weak.lock())return self->viewport_->scanItem(index,query);
     return {};
   };
@@ -168,8 +168,8 @@ void Shell::initialize(){
   };
   commands_=std::make_shared<CommandUi>(imports_.owner,std::move(commands));
   if(imports_.history){
-    historyNavigator_=std::make_shared<application_history::Navigator>(
-      application_history::Navigator::Inputs{
+    historyNavigator_=std::make_shared<application::history::Navigator>(
+      application::history::Navigator::Inputs{
         imports_.history,imports_.presentation.input,
         [weak]{if(auto self=weak.lock())self->requestRedraw();},
         [weak](const std::string& text){

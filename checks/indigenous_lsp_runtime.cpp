@@ -1,4 +1,4 @@
-#include "application_lsp/Runtime.hpp"
+#include "application/lsp/Runtime.hpp"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -15,7 +15,7 @@ int main(int argc,char** argv){
   Json servers={{"servers",{{"fixture",{{"command","python3"},
     {"args",Json::array({argv[1]})},
     {"extensionToLanguage",{{".cpp","cpp"}}}}}}}};
-  auto runtime=batbox::application_lsp::Runtime::create(root,servers);
+  auto runtime=batbox::application::lsp::Runtime::create(root,servers);
   assert(runtime->available()&&runtime->supportsFile(file.string()));
   batbox::gadgets::GadgetCallContext context;
   Json definition={{"operation","goToDefinition"},{"filePath",file.string()},

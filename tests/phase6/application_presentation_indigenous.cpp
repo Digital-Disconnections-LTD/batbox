@@ -1,4 +1,4 @@
-#include "application_presentation/Bindings.hpp"
+#include "application/presentation/Bindings.hpp"
 #include "api_errors/ApiErrors.hpp"
 #include "interactive/message_view/RetainedViews.hpp"
 #include <ftxui/screen/screen.hpp>
@@ -7,7 +7,7 @@
 
 using namespace batbox;
 using namespace batbox::interactive;
-namespace ap=batbox::application_presentation;
+namespace ap=batbox::application::presentation;
 namespace ip=batbox::interactive::presentation_providers;
 namespace mv=batbox::interactive::message_view;
 namespace {

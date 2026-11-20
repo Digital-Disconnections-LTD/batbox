@@ -17,11 +17,6 @@ GadgetSuccessCard GadgetSuccessState::render(
     const SuccessServices& services) {
   require(services.readTheme,"theme");
   const auto theme=services.readTheme();
-  bool briefOnly=false;
-  if (services.briefFeature) {
-    require(services.readBriefOnly,"brief mode");
-    briefOnly=services.readBriefOnly();
-  }
   if (!initialized) {
     require(services.getClassifierApproval,"classifier approval lookup");
     require(services.getYoloClassifierApproval,"auto-mode approval lookup");
@@ -42,7 +37,7 @@ GadgetSuccessCard GadgetSuccessState::render(
   if (!gadget->renderGadgetResultMessage) return {};
   require(services.renderGadgetResult,"Gadget result renderer");
   SuccessRenderContext context{std::move(style),theme,&availableGadgets,
-      verbose,transcriptMode,briefOnly,{}};
+      verbose,transcriptMode,{}};
   const auto use=lookups.gadgetUseByGadgetUseID.find(gadgetUseID);
   if (use!=lookups.gadgetUseByGadgetUseID.end()) {
     const auto& block=use->second.value();

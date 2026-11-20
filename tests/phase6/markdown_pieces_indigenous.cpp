@@ -2,7 +2,7 @@
 // For random Markdown streamed in random fragments, stacking the pieces must
 // draw exactly what the whole element draws: every cell, color and attribute.
 #include "GoldenFrame.hpp"
-#include "application_presentation/Bindings.hpp"
+#include "application/presentation/Bindings.hpp"
 #include "interactive/presentation_providers/StyleRoles.hpp"
 #include <ftxui/screen/terminal.hpp>
 #include <iostream>
@@ -11,7 +11,7 @@
 
 using namespace batbox;
 using namespace batbox::interactive;
-namespace ap=batbox::application_presentation;
+namespace ap=batbox::application::presentation;
 namespace ip=batbox::interactive::presentation_providers;
 
 namespace {

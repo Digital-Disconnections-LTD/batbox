@@ -41,21 +41,4 @@ UserTextCard classifyUserText(const std::string& text,
     return result(UserTextKind::ResourceUpdate);
   return result(UserTextKind::Poetry);
 }
-
-std::string userTextKindName(UserTextKind kind) {
-  switch (kind) {
-    case UserTextKind::Hidden: return "hidden";
-    case UserTextKind::Plan: return "plan";
-    case UserTextKind::BashOutput: return "bash_output";
-    case UserTextKind::LocalCommandOutput: return "local_command_output";
-    case UserTextKind::Interrupted: return "interrupted";
-    case UserTextKind::BashInput: return "bash_input";
-    case UserTextKind::Command: return "command";
-    case UserTextKind::MemoryInput: return "memory_input";
-    case UserTextKind::MissionNotification: return "task_notification";
-    case UserTextKind::ResourceUpdate: return "resource_update";
-    case UserTextKind::Poetry: return "prompt";
-  }
-  throw std::logic_error("Unknown user text card kind");
-}
 } // namespace batbox::interactive::cards

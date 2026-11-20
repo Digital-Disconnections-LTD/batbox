@@ -1,5 +1,5 @@
-#include "application_commands/FlightTitles.hpp"
-#include "application_flights/Restore.hpp"
+#include "application/commands/FlightTitles.hpp"
+#include "application/flights/Restore.hpp"
 #include "commands_indigenous/UiCommands.hpp"
 #include "flights/FlightListing.hpp"
 #include "flights/Load.hpp"
@@ -460,22 +460,22 @@ void continueSkipsBadFiles(){
     if(id=="empty")return ready(loop,std::optional<Json>{});
     return ready(loop,std::optional<Json>(Json{{"sessionId",id}}));
   };
-  const auto chosen=await(loop,application_flights::firstLoadable(loop,records,loader));
+  const auto chosen=await(loop,application::flights::firstLoadable(loop,records,loader));
   check(chosen&&chosen->at("sessionId")=="good","a failing file is skipped, not fatal");
   check(tried==std::vector<std::string>({"broken","empty","good"}),"stops at the first loadable");
   bool rejected=false;
   try{
-    (void)await(loop,application_flights::firstLoadable(loop,
+    (void)await(loop,application::flights::firstLoadable(loop,
       Json::array({Json{{"id","broken"}}}),loader));
   }catch(const std::exception& error){
     rejected=std::string(error.what()).find("1 file unreadable: Unexpected end of JSON")!=
       std::string::npos;
   }
   check(rejected,"all-unreadable reports the reason");
-  const auto nothing=await(loop,application_flights::firstLoadable(loop,Json::array(),loader));
+  const auto nothing=await(loop,application::flights::firstLoadable(loop,Json::array(),loader));
   check(!nothing,"no records resolves empty");
   bool throwing=false;
-  const auto recovered=await(loop,application_flights::firstLoadable(loop,
+  const auto recovered=await(loop,application::flights::firstLoadable(loop,
     Json::array({Json{{"id","throws"}},Json{{"id","good"}}}),
     [&](const Json& item)->event_loop::Deferred<std::optional<Json>>{
       if(item.at("id")=="throws"){throwing=true;throw std::runtime_error("bad path");}
@@ -509,23 +509,23 @@ void launchChoices(){
   std::ifstream input(fixtures/"normal.jsonl",std::ios::binary);
   std::stringstream buffer;buffer<<input.rdbuf();
   const Json log={{"messages",flights::parseJSONLBuffer(buffer.str())}};
-  const auto recorded=application_flights::recordedLaunchChoices(log);
+  const auto recorded=application::flights::recordedLaunchChoices(log);
   check(recorded.model=="claude-sonnet-4-5-20250929","recorded model");
   check(recorded.permissionMode=="acceptEdits","recorded permission mode");
   application::Config config;
   config.profiles["sonnet"].model="claude-sonnet-4-5-20250929";
   config.profiles["local"].model="qwen3";
-  check(application_flights::profileForModel(config,"claude-sonnet-4-5-20250929")=="sonnet",
+  check(application::flights::profileForModel(config,"claude-sonnet-4-5-20250929")=="sonnet",
     "wire model maps to its profile");
-  check(application_flights::profileForModel(config,"local")=="local","profile id maps");
-  check(!application_flights::profileForModel(config,"gone"),"unknown models are not restored");
-  check(application_flights::restorablePermissionMode("plan"),"plan restores");
-  check(!application_flights::restorablePermissionMode("bypassPermissions"),
+  check(application::flights::profileForModel(config,"local")=="local","profile id maps");
+  check(!application::flights::profileForModel(config,"gone"),"unknown models are not restored");
+  check(application::flights::restorablePermissionMode("plan"),"plan restores");
+  check(!application::flights::restorablePermissionMode("bypassPermissions"),
     "bypass is never restored silently");
 }
 
 void generatedTitles(){
-  using application_commands::parseGeneratedTitle;
+  using application::commands::parseGeneratedTitle;
   check(parseGeneratedTitle("{\"title\": \"Fix login button\"}")=="Fix login button","plain JSON");
   check(parseGeneratedTitle("```json\n{\"title\":\"Add OAuth\"}\n```")=="Add OAuth","fenced JSON");
   check(parseGeneratedTitle("Sure! {\"title\":\"Debug CI.\"} Hope that helps")=="Debug CI",

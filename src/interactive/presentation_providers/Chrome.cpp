@@ -332,7 +332,7 @@ conversation_shell::PoetryDecor poetryDecor(const ChromeServices& imports,
   }else decor.placeholder="Give your model a destination… (/help)";
   return decor;
 }
-ftxui::Element suggestionRows(const std::vector<application_completion::Suggestion>& items,
+ftxui::Element suggestionRows(const std::vector<application::completion::Suggestion>& items,
     std::size_t selected,const ViewState& view,const ChromeServices& imports){
   const auto& roles=styleRoles(imports.theme.currentTheme());
   const auto shown=std::min<std::size_t>(6,items.size());

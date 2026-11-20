@@ -54,7 +54,6 @@ event_loop::Deferred<Json> ready(event_loop::Loop& loop,Json value){
 Json getTodoReminderAttachments(const Json& messages,
     const execution::Context& context,const Services& services){
   if(!available(context,services.todoWriteGadgetName)||
-     available(context,services.briefGadgetName)||
      !messages.is_array()||messages.empty())return Json::array();
   const auto [sinceWrite,sinceReminder]=counts(messages,"todo_reminder",
     services.todoWriteGadgetName);
@@ -83,8 +82,7 @@ event_loop::Deferred<Json> getMissionReminderAttachments(const Json& messages,
   if(!services.todoV2Enabled)
     throw std::invalid_argument("Task reminder feature import required");
   if(!services.todoV2Enabled())return ready(services.loop,Json::array());
-  if(available(context,services.briefGadgetName)||
-     !available(context,services.missionUpdateGadgetName)||
+  if(!available(context,services.missionUpdateGadgetName)||
      !messages.is_array()||messages.empty())
     return ready(services.loop,Json::array());
   const auto [sinceManagement,sinceReminder]=counts(messages,"task_reminder",

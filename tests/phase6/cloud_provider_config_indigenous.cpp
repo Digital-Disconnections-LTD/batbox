@@ -1,6 +1,6 @@
-#include "application_config/ConfigPanelInternal.hpp"
-#include "application_config/Discovery.hpp"
-#include "application_config/EndpointStore.hpp"
+#include "application/config/ConfigPanelInternal.hpp"
+#include "application/config/Discovery.hpp"
+#include "application/config/EndpointStore.hpp"
 #include "application/Config.hpp"
 #include "providers/cloud/CloudClients.hpp"
 #include "runtime/IndigenousPath.hpp"
@@ -14,7 +14,7 @@
 #include <string>
 
 using namespace batbox;
-using namespace batbox::application_config;
+using namespace batbox::application::config;
 namespace {
 struct Temporary {
   std::filesystem::path path;
@@ -75,7 +75,7 @@ void roundTrip(const std::filesystem::path& root){
 void startup(const std::filesystem::path& root){
   const auto path=root/"startup-client.json";
   write(path,document());
-  const auto config=application::loadConfig({"--config",runtime::pathToUtf8(path)});
+  const auto config=application::loadConfig({"--config",batbox::runtime::pathToUtf8(path)});
   assert(config.model=="bedrock::us.anthropic.claude-opus-5-5-v1:0");
   const auto selected=application::selectedInferenceProfile(config);
   assert(selected.provider=="bedrock"&&selected.region=="us-west-2"&&selected.baseUrl.empty());
@@ -84,11 +84,11 @@ void startup(const std::filesystem::path& root){
   const auto explicitPath=root/"explicit-client.json";
   write(explicitPath,Json{{"profiles",{{"vertex",{{"model","claude-opus-5-5"},{"provider","vertex"},
     {"project","p-1"},{"region","us-east5"}}}}}});
-  const auto explicitConfig=application::loadConfig({"--config",runtime::pathToUtf8(explicitPath)});
+  const auto explicitConfig=application::loadConfig({"--config",batbox::runtime::pathToUtf8(explicitPath)});
   const auto& vertex=explicitConfig.profiles.at("vertex");
   assert(vertex.provider=="vertex"&&vertex.project=="p-1"&&vertex.region=="us-east5"&&vertex.baseUrl.empty());
   write(explicitPath,Json{{"profiles",{{"plain",{{"model","m"}}}}}});
-  assert(contains(failure([&]{(void)application::loadConfig({"--config",runtime::pathToUtf8(explicitPath)});}),"base_url"));
+  assert(contains(failure([&]{(void)application::loadConfig({"--config",batbox::runtime::pathToUtf8(explicitPath)});}),"base_url"));
 }
 void discoveryAndClients(){
   application::EndpointRecord vertex;

@@ -18,15 +18,15 @@
 
 namespace batbox::application {
 namespace {
-gadgets::GadgetInputServices inputBindings(){
-  gadgets::GadgetInputServices values;
+batbox::gadgets::GadgetInputServices inputBindings(){
+  batbox::gadgets::GadgetInputServices values;
   values.fileEditGadgetName="Edit";values.exitPlanModeGadgetName="ExitPlanMode";
   return values;
 }
-gadgets::GadgetSchemaServices schemaBindings(){
-  gadgets::GadgetSchemaServices services;
+batbox::gadgets::GadgetSchemaServices schemaBindings(){
+  batbox::gadgets::GadgetSchemaServices services;
   services.jsonStringify=[](const Json& value){return value.dump();};
-  services.convertInputSchema=[](const gadgets::Gadget& gadget){
+  services.convertInputSchema=[](const batbox::gadgets::Gadget& gadget){
     if(gadget.inputSchema.is_object())return gadget.inputSchema;
     if(gadget.inputJSONSchema.is_object())return gadget.inputJSONSchema;
     throw std::invalid_argument("Tool has no JSON input schema: "+gadget.name);
@@ -42,7 +42,7 @@ gadgets::GadgetSchemaServices schemaBindings(){
 }
 Json normalizeAttachmentForGadgets(
     const std::shared_ptr<messages::Services>& messages,
-    const gadgets::Gadgets& active,const Json& value){
+    const batbox::gadgets::Gadgets& active,const Json& value){
   normalization::AttachmentServices services;
   services.messageServices=messages.get();
   services.batGadgetName="Agent";services.fileReadGadgetName="Read";
@@ -69,16 +69,16 @@ Json normalizeAttachmentForGadgets(
 }
 std::function<Json(const Json&)> makeAttachmentNormalizer(
     const std::shared_ptr<messages::Services>& messages,
-    std::shared_ptr<gadgets::live_roster::Roster> roster){
+    std::shared_ptr<batbox::gadgets::live_roster::Roster> roster){
   if(!messages)throw std::invalid_argument("Attachment message services required");
-  const std::weak_ptr<gadgets::live_roster::Roster> weak=roster;
+  const std::weak_ptr<batbox::gadgets::live_roster::Roster> weak=roster;
   return [messages,weak](const Json& value){
     // File restoration after compact uses the same result formatters as real
     // gadgets. Retain this immutable generation for the entire mapping call;
     // roster refresh may publish a new generation from the owner loop.
     const auto live=weak.lock();
     const auto snapshot=live?live->current():nullptr;
-    gadgets::Gadgets active;
+    batbox::gadgets::Gadgets active;
     if(snapshot){
       if(const auto* read=snapshot->find("Read"))active.push_back(read);
       if(const auto* bash=snapshot->find("Bash"))active.push_back(bash);
@@ -86,15 +86,15 @@ std::function<Json(const Json&)> makeAttachmentNormalizer(
     return normalizeAttachmentForGadgets(messages,active,value);
   };
 }
-std::shared_ptr<application_model::LocalModelService> makeLocalModel(
+std::shared_ptr<application::model::LocalModelService> makeLocalModel(
     event_loop::Loop& owner,const Config& config,
     const std::shared_ptr<messages::Services>& messages,
     std::function<void(const std::string&)> diagnostic,
-    std::shared_ptr<gadgets::live_roster::Roster> roster){
+    std::shared_ptr<batbox::gadgets::live_roster::Roster> roster){
   if(config.model.empty())throw std::invalid_argument(
     "Set --model or BATBOX_MODEL to a model served by the configured endpoint");
   if(!messages)throw std::invalid_argument("Model message services required");
-  application_model::Config model;
+  application::model::Config model;
   model.client.baseUrl=config.baseUrl;
   model.client.messagesPath="/v1/messages";
   model.mainModel=model.smallModel=model.visionModel=config.model;
@@ -112,7 +112,7 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
   }
   const auto addProfile=[&model,legacyImplicit=config.profiles.empty()](const std::string& name,
       const InferenceProfile& configured){
-    application_model::ModelProfile profile;
+    application::model::ModelProfile profile;
     profile.id=name;profile.wireModel=configured.model;
     profile.contextTokens=static_cast<double>(configured.contextWindow);
     profile.maxOutputTokens=static_cast<double>(configured.maxOutputTokens);
@@ -150,7 +150,7 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
   model.retryWire.shouldRetry="x-should-retry";
   model.errorWire.betaHeaderName=transport::MessagesProtocol{}.betaHeader;
   model.nonInteractive=config.print;
-  application_model::Imports imports;
+  application::model::Imports imports;
   imports.authToken=[config]{return resolveProfileAuthToken(config,config.model);};
   imports.authTokenForModel=[config](const std::string& name){
     return resolveProfileAuthToken(config,name);};
@@ -172,20 +172,20 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
   };
   imports.normalizeAttachmentForAPI=makeAttachmentNormalizer(messages,std::move(roster));
   imports.normalizeAttachmentForGadgets=[messages](const Json& value,
-      const gadgets::Gadgets& active){
+      const batbox::gadgets::Gadgets& active){
     return normalizeAttachmentForGadgets(messages,active,value);
   };
-  imports.normalizeGadgetInputForAPI=[](const gadgets::Gadget& gadget,const Json& input){
-    return gadgets::normalizeGadgetInputForAPI(gadget,input,inputBindings());
+  imports.normalizeGadgetInputForAPI=[](const batbox::gadgets::Gadget& gadget,const Json& input){
+    return batbox::gadgets::normalizeGadgetInputForAPI(gadget,input,inputBindings());
   };
-  auto stash=std::make_shared<gadgets::GadgetSchemaStash>();
+  auto stash=std::make_shared<batbox::gadgets::GadgetSchemaStash>();
   auto mutex=std::make_shared<std::mutex>();
-  const auto schema=[stash,mutex](const gadgets::Gadget& gadget,
-      const gadgets::GadgetSchemaOptions& options){
+  const auto schema=[stash,mutex](const batbox::gadgets::Gadget& gadget,
+      const batbox::gadgets::GadgetSchemaOptions& options){
     std::lock_guard lock(*mutex);
     constexpr std::size_t maxEntries=128,maxBytes=4*1024*1024;
     const auto before=stash->entries.size();
-    auto result=gadgets::gadgetToAPISchema(gadget,options,*stash,schemaBindings());
+    auto result=batbox::gadgets::gadgetToAPISchema(gadget,options,*stash,schemaBindings());
     if(stash->entries.size()!=before){
       std::size_t bytes=0;
       for(const auto& [key,entry]:stash->entries){
@@ -198,11 +198,11 @@ std::shared_ptr<application_model::LocalModelService> makeLocalModel(
     return result;
   };
   imports.gadgetSchemaSync=schema;
-  imports.gadgetSchemaAsync=[&owner,schema](const gadgets::Gadget& gadget,
-      const gadgets::GadgetSchemaOptions& options){
+  imports.gadgetSchemaAsync=[&owner,schema](const batbox::gadgets::Gadget& gadget,
+      const batbox::gadgets::GadgetSchemaOptions& options){
     return runInWorker<Json>(owner,[&gadget,options,schema]{return schema(gadget,options);});
   };
-  return std::make_shared<application_model::LocalModelService>(
+  return std::make_shared<application::model::LocalModelService>(
     owner,std::move(model),std::move(imports));
 }
 }

@@ -2,7 +2,7 @@
 // always match a fresh measurement, including after the store fills up.
 #include "terminal_ftxui/TextFit.hpp"
 #include "terminal_ftxui/IndigenousStringMetrics.hpp"
-#include "text_width/StringWidth.hpp"
+#include "text_sdk/width/StringWidth.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -19,7 +19,7 @@ void check(bool condition,const std::string& reason){
 int main(){
   try{
     auto intl=std::make_shared<intl::Stash>(intl::indigenousServices());
-    auto width=std::make_shared<text_width::StringWidth>(text_width::indigenousServices(intl));
+    auto width=std::make_shared<text_sdk::width::StringWidth>(text_sdk::width::indigenousServices(intl));
     terminal_ftxui::installIndigenousStringMetrics(intl,width);
     const std::vector<std::pair<std::string,double>> labels={
       {"◆ plan",6},{"⎇ night-shift",13},{"…/BATBOX/batbox",15},{"✓ Read",6},
@@ -32,7 +32,7 @@ int main(){
           "Terminal width of '"+text+"' is wrong");
       }
     // Fill past the store's capacity; every answer still matches a fresh measure.
-    text_width::StringWidth fresh(text_width::indigenousServices(intl));
+    text_sdk::width::StringWidth fresh(text_sdk::width::indigenousServices(intl));
     for(int i=0;i<5000;++i){
       const auto text="◆ "+std::to_string(i)+(i%3==0?" 界":"");
       const auto kept=width->stringWidthJavaScript(Json(text));

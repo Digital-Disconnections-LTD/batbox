@@ -1,7 +1,7 @@
 #pragma once
 
 #include "interactive/markdown/Renderer.hpp"
-#include "text_width/StringWidth.hpp"
+#include "text_sdk/width/StringWidth.hpp"
 #include <memory>
 
 namespace batbox::interactive::markdown {
@@ -18,7 +18,7 @@ struct SemanticAccents {
 using FormatCustomizer=std::function<void(FormatServices&)>;
 
 std::shared_ptr<Renderer> makeIndigenousRenderer(
-    std::shared_ptr<text_width::StringWidth> width,
+    std::shared_ptr<text_sdk::width::StringWidth> width,
     int terminalColumns,bool colors,bool hyperlinks,
     std::string permissionSgr,
     std::optional<SyntaxHighlighter> highlighter={},

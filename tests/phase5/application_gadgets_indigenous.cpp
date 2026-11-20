@@ -1,6 +1,6 @@
 #include <cstdlib>
-#include "application_gadgets/ApplicationGadgets.hpp"
-#include "application_gadgets/IndigenousFileHelpers.hpp"
+#include "application/gadgets/ApplicationGadgets.hpp"
+#include "application/gadgets/IndigenousFileHelpers.hpp"
 #include "interactive/context/ContextFactory.hpp"
 #include "mcp/ProcessResult.hpp"
 #include "mcp/StdioClient.hpp"
@@ -32,7 +32,7 @@ int main(int argc,char** argv){
       std::vector<std::string>{"python3",argv[1]},"fixture",std::chrono::seconds(3));
     auto connection=mcp::makeStdioConnection(client,"fixture");
     connection->postToOwner=[&](std::function<void()> work){loop.postMission(std::move(work));};
-    application_gadgets::Inputs in;
+    application::gadgets::Inputs in;
     in.cwd=[root]{return root.string();};
     in.homeDirectory=[root]{return root.string();};
     in.messages=std::make_shared<messages::Services>();
@@ -137,7 +137,7 @@ int main(int argc,char** argv){
     process.validation.configuredMaxOutputTokens=25000;
     mcp::bindIndigenousProcessResult(in.mcpServices,process);
 
-    auto live=application_gadgets::makeLive(std::move(in));
+    auto live=application::gadgets::makeLive(std::move(in));
     check(live.snapshot->base.size()==9&&live.snapshot->mcp.size()==3,
       "real core and MCP tools missing");
     auto roster=std::make_shared<gadgets::live_roster::Roster>();
@@ -173,12 +173,12 @@ int main(int argc,char** argv){
     loop.runReady();
     check(echo.data=="{\"echo\":\"connected\"}","MCP failed");
     std::ofstream(root/"note.md")<<"same stem";
-    check(application_gadgets::findSimilarFile((root/"note.txt").string())=="note.md",
+    check(application::gadgets::findSimilarFile((root/"note.txt").string())=="note.md",
       "similar-file lookup failed");
-    check(application_gadgets::suggestPathUnderCwd(
+    check(application::gadgets::suggestPathUnderCwd(
       (root.parent_path()/"note.txt").string(),root.string())==
       (root/"note.txt").string(),"cwd path suggestion failed");
-    application_gadgets::IndigenousFileReadStash editStash;
+    application::gadgets::IndigenousFileReadStash editStash;
     check(editStash.readFile((root/"note.txt").string()).content=="real local file\n"&&
       editStash.getStats().size==1,"cached edit read failed");
     std::filesystem::remove(root/"note.txt");

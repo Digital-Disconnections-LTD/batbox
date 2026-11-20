@@ -1,5 +1,5 @@
-#include "application_mcp_elicitation/Controller.hpp"
-#include "application_mcp_elicitation/Validation.hpp"
+#include "application/mcp_elicitation/Controller.hpp"
+#include "application/mcp_elicitation/Validation.hpp"
 #include "mcp/StdioClient.hpp"
 #include "runtime/JsonValue.hpp"
 #include <chrono>
@@ -63,11 +63,11 @@ int validation(){
     Json result;
     if(input.at("kind")=="options"){
       result=Json::array();
-      for(const auto& option:application_mcp_elicitation::optionsFor(schema))
+      for(const auto& option:application::mcp_elicitation::optionsFor(schema))
         result.push_back({{"value",option.value},{"label",option.label}});
     }else{
       std::string problem;
-      auto value=application_mcp_elicitation::validateInput(
+      auto value=application::mcp_elicitation::validateInput(
         input.at("raw").get<std::string>(),schema,true,problem);
       result={{"isValid",value.has_value()}};
       if(value)result["value"]=*value;
@@ -91,21 +91,21 @@ int main(int argc,char** argv){
   if(argc>1&&std::string(argv[1])=="--server")return server();
   if(argc>1&&std::string(argv[1])=="--validation")return validation();
   std::string error;
-  check(application_mcp_elicitation::validateInput("mailto:user@example.com",
+  check(application::mcp_elicitation::validateInput("mailto:user@example.com",
       {{"type","string"},{"format","uri"}},true,error).has_value(),
     "WHATWG URI accepts mailto scheme");
-  check(application_mcp_elicitation::validateInput(
+  check(application::mcp_elicitation::validateInput(
       "2026-10-30T12:30:00-04:00",{{"type","string"},{"format","date-time"}},
       true,error).has_value(),"Signed ISO offset must validate");
-  check(!application_mcp_elicitation::validateInput("1e30",
+  check(!application::mcp_elicitation::validateInput("1e30",
       {{"type","integer"}},true,error),"Unsafe integer must be rejected");
-  check(application_mcp_elicitation::validateInput(" 0x10 ",
+  check(application::mcp_elicitation::validateInput(" 0x10 ",
       {{"type","integer"}},true,error)==Json(16),
     "JS number coercion must accept hexadecimal input");
-  check(application_mcp_elicitation::validateInput("é",
+  check(application::mcp_elicitation::validateInput("é",
       {{"type","string"},{"minLength",1},{"maxLength",1}},true,error).has_value(),
     "String length must count UTF-16 units rather than UTF-8 bytes");
-  const auto choices=application_mcp_elicitation::optionsFor(
+  const auto choices=application::mcp_elicitation::optionsFor(
     {{"type","string"},{"oneOf",Json::array({{{"const","internal"},
       {"title","Internal label"}}})}});
   check(choices.size()==1&&choices[0].value=="internal"&&
@@ -119,7 +119,7 @@ int main(int argc,char** argv){
       [&](auto value){visible=std::move(value);},
       [](const auto&,const auto&,bool){},
       [](const auto&){},[](bool){},[](bool){}});
-  application_mcp_elicitation::Inputs inputs(loop);
+  application::mcp_elicitation::Inputs inputs(loop);
   inputs.openUrl=[&](const std::string& url){
     check(url=="https://example.com/confirm","Wrong URL opened");++opens;};
   int dateQueries=0;
@@ -127,12 +127,12 @@ int main(int argc,char** argv){
       const std::string& format,std::stop_token){
     check(format=="date","Natural date query selected wrong format");
     ++dateQueries;
-    event_loop::Deferred<application_mcp_elicitation::DateTimeParseResult> answer(loop);
+    event_loop::Deferred<application::mcp_elicitation::DateTimeParseResult> answer(loop);
     if(raw=="tomorrow")answer.resolve({true,"2026-10-31",{}});
     else answer.resolve({false,{},"Unable to parse date/time from input"});
     return answer;
   };
-  auto controller=application_mcp_elicitation::Controller::create(std::move(inputs));
+  auto controller=application::mcp_elicitation::Controller::create(std::move(inputs));
   controller->attachUi(ui);
   mcp::ClientHandlers handlers;
   handlers.requestAsync=[dispatcher=loop.dispatcher(),controller](
@@ -242,7 +242,7 @@ int main(int argc,char** argv){
     "Abort must settle and close the active dialog");
   auto hook=controller->request("fixture",{{"method","elicitation/create"},
     {"params",{{"mode","url"},{"url","https://example.com"}}}}, {},
-    application_mcp_elicitation::Hooks{[&](const auto&,const auto&,auto){
+    application::mcp_elicitation::Hooks{[&](const auto&,const auto&,auto){
       event_loop::Deferred<Json> result(loop);result.resolve(Json{{"action","accept"}});
       return result;},[&](const auto&,const auto&,const auto&,auto){
       throw std::logic_error("Before hook response must skip result hook");

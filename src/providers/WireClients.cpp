@@ -1,5 +1,5 @@
 #include "providers/WireClients.hpp"
-#include "application_config/EndpointStore.hpp"
+#include "application/config/EndpointStore.hpp"
 #include "providers/cloud/CloudClients.hpp"
 #include "transport/openai_chat/OpenAIChatClient.hpp"
 #ifdef _WIN32
@@ -60,7 +60,7 @@ std::string endpointKey(const application::EndpointRecord& endpoint){
 
 transport::ClientConfig endpointConfig(const application::EndpointRecord& endpoint,
     std::chrono::milliseconds timeout){
-  const auto profile=application_config::inferenceProfile(endpoint,
+  const auto profile=application::config::inferenceProfile(endpoint,
     endpoint.models.empty()?std::string{}:endpoint.models.front());
   transport::ClientConfig config;
   config.baseUrl=profile.baseUrl;
@@ -86,7 +86,7 @@ std::string listingTarget(const application::EndpointRecord& endpoint){
   if(endpoint.provider==transport::kProviderVertex)
     return "Vertex AI"+(endpoint.region.empty()?std::string{}:" in "+endpoint.region)+
       " (Anthropic models; no listing request)";
-  try{return "GET "+application_config::modelsUrl(endpoint);}
+  try{return "GET "+application::config::modelsUrl(endpoint);}
   catch(const std::exception&){return "GET "+endpoint.baseUrl;}
 }
 } // namespace batbox::providers

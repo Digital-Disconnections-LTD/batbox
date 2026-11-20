@@ -5,7 +5,7 @@
 #include "interactive/submit/QueuedInputs.hpp"
 #include "interactive/cards/UserTextProjection.hpp"
 #include "interactive/TranscriptRows.hpp"
-#include "text_width/IndigenousLayout.hpp"
+#include "text_sdk/width/IndigenousLayout.hpp"
 #include "history/References.hpp"
 #include "runtime/MessageSnapshot.hpp"
 #include <ftxui/dom/elements.hpp>
@@ -28,9 +28,9 @@ int main(int argc,char** argv){
   auto submit=std::make_shared<submit::SubmitServices>(
     submit::SubmitServices{loop,guard,queue,catalog});
   auto intl=std::make_shared<intl::Stash>(intl::indigenousServices());
-  auto width=std::make_shared<text_width::StringWidth>(
-    text_width::indigenousServices(intl));
-  auto wrap=text_width::indigenousWrapAnsiModule().wrapAnsi();
+  auto width=std::make_shared<text_sdk::width::StringWidth>(
+    text_sdk::width::indigenousServices(intl));
+  auto wrap=text_sdk::width::indigenousWrapAnsiModule().wrapAnsi();
   messages::Services messageServices;
   messageServices.strictGadgetResultPairing=[]{return false;};
   messageServices.logError=[](const std::string&){};
@@ -74,9 +74,6 @@ int main(int argc,char** argv){
   imports.projectionServices=[&theme]{
     message_view::ProjectionServices services;
     services.user.poetry.logError=[](const std::string&){};
-    services.user.poetry.briefModeActive=[]{return false;};
-    services.user.poetry.userMessageOptIn=[]{return false;};
-    services.user.poetry.briefPreference=[]{return false;};
     services.user.userPalette=presentation_providers::userCardPalette(theme);
     services.user.poetryPalette=presentation_providers::poetryPalette(theme);
     return services;

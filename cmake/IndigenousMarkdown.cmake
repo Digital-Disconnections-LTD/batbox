@@ -10,4 +10,4 @@ target_sources(batbox_terminal_ftxui PRIVATE
   src/interactive/markdown/Blocks.cpp
   src/interactive/markdown/Renderer.cpp
   src/interactive/markdown/IndigenousRenderer.cpp)
-target_link_libraries(batbox_terminal_ftxui PUBLIC batbox_npm_wrap_ansi)
+target_link_libraries(batbox_terminal_ftxui PUBLIC batbox_text_sdk)

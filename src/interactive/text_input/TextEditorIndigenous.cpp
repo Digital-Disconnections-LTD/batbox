@@ -1,5 +1,5 @@
 #include "interactive/text_input/TextEditorIndigenous.hpp"
-#include "npm_wrap_ansi/Internal.hpp"
+#include "text_sdk/npm_wrap_ansi/Internal.hpp"
 #include "runtime/JsonValue.hpp"
 #include <chrono>
 #include <stdexcept>
@@ -11,7 +11,7 @@ EditorCallbacks indigenousEditorCallbacks(EditorCallbacks callbacks){
     return std::chrono::duration<double,std::milli>(now).count();
   };
   if(!callbacks.stripAnsi)callbacks.stripAnsi=[](const std::string& input){
-    return value::fromUtf16(npm_wrap_ansi::stripAnsi(
+    return value::fromUtf16(text_sdk::npm_wrap_ansi::stripAnsi(
       value::utf16CodeUnits(input)));
   };
   return callbacks;

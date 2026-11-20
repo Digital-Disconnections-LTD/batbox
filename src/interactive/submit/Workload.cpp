@@ -8,11 +8,6 @@ runtime::AsyncContextKeyRef workloadKey(){
   return key;
 }
 }
-std::optional<std::string> getWorkload(){
-  auto value=runtime::currentAsyncContextValue(workloadKey());
-  if(!value)return {};
-  return *std::static_pointer_cast<std::optional<std::string>>(value);
-}
 WorkloadScope::WorkloadScope(std::optional<std::string> workload):
     scope_(runtime::extendAsyncContext(workloadKey(),
       std::make_shared<std::optional<std::string>>(

@@ -1,11 +1,11 @@
 #pragma once
-#include "application_model/LocalModelService.hpp"
+#include "application/model/LocalModelService.hpp"
 #include "providers/RequestSettings.hpp"
 
 namespace batbox::providers {
 // Copies an endpoint's resolved request limits into a model profile; shared
 // by startup profiles and profiles added at runtime.
-inline void applyRequestSettings(application_model::ModelProfile& profile,
+inline void applyRequestSettings(application::model::ModelProfile& profile,
     const application::InferenceProfile& configured){
   const auto settings=requestSettings(configured);
   if(!profile.client)profile.client.emplace();

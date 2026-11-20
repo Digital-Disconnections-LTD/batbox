@@ -50,11 +50,11 @@ std::filesystem::path runningDirectory(const std::filesystem::path& state){
 // projects/<p>/<id>.jsonl, projects/<p>/<id>/tool-results, file-history/<id>,
 // session-env/<id>, image-cache/<id>, debug/<id>.txt.
 bool belongsTo(const std::string& path,const std::set<std::string>& flights){
-  for(const auto& part:runtime::pathFromUtf8(path)){
-    const auto name=runtime::pathToUtf8(part.filename());
+  for(const auto& part:batbox::runtime::pathFromUtf8(path)){
+    const auto name=batbox::runtime::pathToUtf8(part.filename());
     if(name.empty())continue;
     if(flights.contains(name))return true;
-    const auto stem=runtime::pathToUtf8(part.stem());
+    const auto stem=batbox::runtime::pathToUtf8(part.stem());
     if(!stem.empty()&&flights.contains(stem))return true;
   }
   return false;
@@ -91,7 +91,7 @@ std::set<std::string> heldFlights(const std::filesystem::path& stateDirectory){
   std::error_code error;
   for(std::filesystem::directory_iterator it(runningDirectory(stateDirectory),error),end;
       !error&&it!=end;it.increment(error)){
-    const auto name=runtime::pathToUtf8(it->path().filename());
+    const auto name=batbox::runtime::pathToUtf8(it->path().filename());
     if(!processRunning(name)){std::error_code ignored;
       std::filesystem::remove(it->path(),ignored);continue;}
     std::ifstream file(it->path());
@@ -107,14 +107,14 @@ Deferred<Unit> runRetention(event_loop::Loop& owner,RetentionInputs inputs){
   auto keep=std::make_shared<Protected>();
   keep->held=heldFlights(inputs.stateDirectory);
   keep->current=inputs.currentFlight;
-  const auto state=runtime::pathToUtf8(inputs.stateDirectory);
+  const auto state=batbox::runtime::pathToUtf8(inputs.stateDirectory);
   auto log=inputs.log;
   const auto logError=[log](std::exception_ptr error){
     try{if(error)std::rethrow_exception(error);}
     catch(const std::exception& failure){log(std::string("Retention cleanup: ")+failure.what());}
     catch(...){log("Retention cleanup failed");}};
   auto extra=cleanup::indigenousExtraServices(owner,[cutoff]{return cutoff;},
-    [state]{return runtime::pathToUtf8(runtime::pathFromUtf8(state)/"projects");},
+    [state]{return batbox::runtime::pathToUtf8(batbox::runtime::pathFromUtf8(state)/"projects");},
     [state]{return state;},logError,gadget_results::GADGET_RESULTS_SUBDIR);
   const std::shared_ptr<const Protected> kept=keep;
   extra.fs.unlink=guard(owner,extra.fs.unlink,kept);

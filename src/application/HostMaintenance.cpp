@@ -5,7 +5,7 @@
 
 namespace batbox::application {
 namespace {
-bool shellBusy(const application_shell::Host& shell){
+bool shellBusy(const application::shell::Host& shell){
   return shell.shell&&!shell.shell->activeJobIds().empty();
 }
 event_loop::Deferred<event_loop::Unit> ready(event_loop::Loop& owner){
@@ -153,7 +153,7 @@ void Host::Impl::beginRetiredShutdown(std::size_t index){
     catch(...){settle("hook",std::current_exception());}
   }
   if(generation.managedShell.shell){
-    started();try{application_shell::stopAndWait(owner,generation.managedShell).then(
+    started();try{application::shell::stopAndWait(owner,generation.managedShell).then(
       [settle](const event_loop::Unit*,const std::exception_ptr& error){
         settle("shell",error);});}
     catch(...){settle("shell",std::current_exception());}
@@ -213,7 +213,7 @@ void Host::Impl::releaseRetiredProviders(){
   }
 }
 
-std::shared_ptr<application_bats::IndigenousBatApplication>
+std::shared_ptr<application::bats::IndigenousBatApplication>
 Host::Impl::reviveRetired(std::size_t index){
   if(!owner.isOwnerThread())throw std::logic_error("Agent revival requires owner");
   if(index>=retiredRoosts.size())throw std::out_of_range("Retired workspace index");
@@ -233,7 +233,7 @@ Host::Impl::reviveRetired(std::size_t index){
     RetiredRoost blank;blank.config=identity.config;
     installRoostGeneration(blank);
     restoreProjection(store,definitions,identity.mcpSnapshot,identity.settings);
-    roster=std::make_shared<gadgets::live_roster::Roster>();
+    roster=std::make_shared<batbox::gadgets::live_roster::Roster>();
     bindStorage();bindFileHistory();bindRoostProviders();
     bindBackend();bindMcpRuntime();
     commands=makeCommands();
@@ -265,7 +265,7 @@ Host::Impl::reviveRetired(std::size_t index){
   }
 }
 
-std::shared_ptr<application_bats::IndigenousBatApplication>
+std::shared_ptr<application::bats::IndigenousBatApplication>
 Host::Impl::batOwner(const std::string& value){
   if(!owner.isOwnerThread())throw std::logic_error("Agent lookup requires owner");
   const auto id=bats?bats->resolveMissionId(value):std::optional<std::string>{};

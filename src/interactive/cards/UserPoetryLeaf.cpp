@@ -30,31 +30,18 @@ std::string poetryDisplayText(const std::string& text) {
 }
 
 std::optional<PoetryLeaf> poetryLeaf(const std::string& text,
-                                     const std::optional<std::string>& timestamp,
                                      bool addMargin,
                                      const PoetryEnvironment& environment) {
   if (!environment.logError) throw std::logic_error("poetry diagnostics required");
-  bool briefLayout = false;
-  if (environment.briefFeatureEnabled) {
-    if (!environment.briefModeActive || !environment.userMessageOptIn ||
-        !environment.briefPreference)
-      throw std::logic_error("Brief poetry configuration required");
-    const bool active = environment.briefModeActive() ||
-        (environment.userMessageOptIn() &&
-         (environment.briefEnvironmentEnabled || environment.briefPreference()));
-    briefLayout = active && environment.isBriefOnly &&
-        !environment.isTranscriptMode && !environment.viewingBatMission;
-  }
   auto display = poetryDisplayText(text);
   if (text.empty()) {
     environment.logError("No content found in user poetry message");
     return {};
   }
   return PoetryLeaf{
-    std::move(display), briefLayout, briefLayout ? timestamp : std::nullopt,
-    environment.selected ? PoetryBackground::Selected :
-      briefLayout ? PoetryBackground::None : PoetryBackground::User,
-    addMargin, briefLayout ? 0 : 1
+    std::move(display),
+    environment.selected ? PoetryBackground::Selected : PoetryBackground::User,
+    addMargin, 1
   };
 }
 } // namespace batbox::interactive::cards

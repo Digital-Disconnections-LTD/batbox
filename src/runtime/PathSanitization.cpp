@@ -21,6 +21,11 @@ std::string sanitizePath(const std::string& name,
   std::string sanitized;
   for(const auto unit:value::utf16CodeUnits(name))sanitized+=
     ((unit>='a'&&unit<='z')||(unit>='A'&&unit<='Z')||(unit>='0'&&unit<='9'))?static_cast<char>(unit):'-';
+  // Leading separators collapse away: an absolute path's root marker must
+  // not become a leading dash in the slug (a "/x" dir slugs as "x", not "-x").
+  const auto first=sanitized.find_first_not_of('-');
+  if(first==std::string::npos)return "root";
+  sanitized.erase(0,first);
   if(sanitized.size()<=MAX_SANITIZED_LENGTH)return sanitized;
   std::string hash;
   if(longPathHash)hash=longPathHash(name);

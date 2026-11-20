@@ -1,4 +1,4 @@
-#include "application_poetry/Provider.hpp"
+#include "application/poetry/Provider.hpp"
 #include "project_recovery/Recovery.hpp"
 #include "runtime/Platform.hpp"
 #include <filesystem>
@@ -28,7 +28,7 @@ int main(){
     std::ofstream(root/".batbox/Makefile")<<"CURRENT := connect_memory\n";
     std::ofstream(root/".batbox/30_build.md")<<"On-demand topic body marker.\n";
     event_loop::Loop loop;
-    application_poetry::Inputs inputs;
+    application::poetry::Inputs inputs;
     inputs.config.cwd=root;
     inputs.config.stateDirectory=root/"native-state";
     inputs.config.model="local-model";
@@ -39,7 +39,7 @@ int main(){
     inputs.recoveryActivity=[&](bool active){
       if(active)++recoveryStarts;else ++recoveryStops;
     };
-    auto provider=std::make_shared<application_poetry::Provider>(
+    auto provider=std::make_shared<application::poetry::Provider>(
       loop,std::move(inputs));
     std::vector<std::string> poetry;
     Json system,user;
@@ -97,9 +97,9 @@ int main(){
     const auto compacted=await(loop,provider->userContext());
     if(compacted!=advanced||recoveryStarts!=3||recoveryStops!=3)
       throw std::logic_error("Compaction did not reload current project state");
-    application_poetry::Inputs restartInputs;restartInputs.config=config;
+    application::poetry::Inputs restartInputs;restartInputs.config=config;
     restartInputs.initialSettings=[]{return Json{{"stablePromptPrefix",false}};};
-    auto restarted=std::make_shared<application_poetry::Provider>(
+    auto restarted=std::make_shared<application::poetry::Provider>(
       loop,std::move(restartInputs));
     if(await(loop,restarted->userContext())!=advanced)
       throw std::logic_error("Fresh provider failed to recover project state");
