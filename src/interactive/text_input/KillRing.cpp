@@ -17,16 +17,6 @@ const std::string& KillRing::last()const{
   static const std::string empty;
   return ring_.empty()?empty:ring_.front();
 }
-std::string KillRing::item(long long index)const{
-  if(ring_.empty())return {};
-  const auto size=static_cast<long long>(ring_.size());
-  const auto normalized=((index%size)+size)%size;
-  return ring_[static_cast<std::size_t>(normalized)];
-}
-void KillRing::clear(){
-  ring_.clear();ringIndex_=0;lastActionWasKill_=false;
-  lastActionWasYank_=false;lastYankStart_=lastYankLength_=0;
-}
 void KillRing::recordYank(std::size_t start,std::size_t length){
   lastYankStart_=start;lastYankLength_=length;
   lastActionWasYank_=true;ringIndex_=0;
