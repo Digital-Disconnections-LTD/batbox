@@ -48,6 +48,9 @@ STREAMS = {
                   chunk(finish="stop"), chunk(empty=True, usage=USAGE)],
     "usage-inline": [chunk({"content": "Hi"}), chunk(finish="stop", usage=USAGE)],
     "done-no-usage": [chunk({"content": "abcdefgh"}), chunk(finish="stop")],
+    "inline-thinking": [chunk({"role": "assistant", "content": "Answer <thinking>"}),
+                        chunk({"content": "deep private</think"}), chunk({"content": "ing>tail"}),
+                        chunk(finish="stop"), chunk(empty=True, usage=USAGE)],
 }
 NONSTREAM = {"id": "chatcmpl-plain", "object": "chat.completion", "created": 1, "model": "served-name",
              "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
@@ -55,6 +58,10 @@ NONSTREAM = {"id": "chatcmpl-plain", "object": "chat.completion", "created": 1, 
                  "tool_calls": [{"id": "call_PLAIN0000001", "type": "function",
                                  "function": {"name": "Read", "arguments": "{\"file_path\":\"/a\"}"}}]}}],
              "usage": {"prompt_tokens": 20, "completion_tokens": 6, "total_tokens": 26}}
+NONSTREAM_THINKING = {"id": "chatcmpl-think", "object": "chat.completion", "created": 1, "model": "served-name",
+                      "choices": [{"index": 0, "finish_reason": "stop", "message": {
+                          "role": "assistant", "content": "<thinking>plan</thinking>Done."}}],
+                      "usage": {"prompt_tokens": 15, "completion_tokens": 4, "total_tokens": 19}}
 MODELS = {"object": "list", "data": [{"id": "fake-model", "object": "model", "owned_by": "vllm",
                                       "max_model_len": 32768}, {"id": "other-model", "object": "model"}]}
 
@@ -126,6 +133,8 @@ class Handler(BaseHTTPRequestHandler):
                               [("retry-after", "1")])
         if scenario == "nonstream":
             return self.reply(200, NONSTREAM)
+        if scenario == "nonstream-thinking":
+            return self.reply(200, NONSTREAM_THINKING)
         if scenario == "malformed":
             return self.stream(b'data: ' + json.dumps(chunk({"content": "a"})).encode() +
                                b'\n\ndata: {broken\n\n')
@@ -192,6 +201,17 @@ def main():
                                                          "signature": ""}
         assert reasoning["messages"][1]["content"][0]["text"] == "Done"
 
+        spans = run(args.probe, base, "inline-thinking", "stream")
+        assert [m["content"][0]["type"] for m in spans["messages"]] == ["text", "thinking", "text"], spans["messages"]
+        assert spans["messages"][0]["content"][0]["text"] == "Answer "
+        assert spans["messages"][1]["content"][0]["thinking"] == "deep private"
+        assert spans["messages"][2]["content"][0]["text"] == "tail"
+
+        split = run(args.probe, base, "nonstream-thinking", "nonstream")
+        assert split["body"]["content"][0] == {"type": "thinking", "thinking": "plan", "signature": ""}
+        assert split["body"]["content"][1] == {"type": "text", "text": "Done."}
+        assert split["body"]["stop_reason"] == "end_turn"
+
         inline = run(args.probe, base, "usage-inline", "stream")
         assert inline["usage"]["output_tokens"] == 3 and inline["messages"][0]["content"][0]["text"] == "Hi"
 
@@ -236,8 +256,8 @@ def main():
         listing_request = sent("models")[0]
         assert listing_request["method"] == "GET" and listing_request["path"] == "/models/v1/models"
         assert listing_request["headers"]["authorization"] == "Bearer test-key"
-        print("OpenAI Chat fake server: text, parallel tools, reasoning, usage, non-stream, 401, 429, "
-              "500, malformed and model list checks passed")
+        print("OpenAI Chat fake server: text, parallel tools, reasoning, inline thinking, usage, non-stream, "
+              "401, 429, 500, malformed and model list checks passed")
     finally:
         server.shutdown()
         server.server_close()

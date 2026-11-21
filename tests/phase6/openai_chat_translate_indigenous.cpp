@@ -239,6 +239,61 @@ void reasoningStream(){
   assert(reduced.messages[1].at("message").at("content")[0].at("text")=="Answer.");
   assert(reduced.usage.at("output_tokens")==7&&reduced.usage.at("input_tokens")==5);
 }
+void inlineThinkingStream(){
+  const auto events=decode(frames({
+    R"({"choices":[{"index":0,"delta":{"role":"assistant","content":"Answer <thinking>"}}]})",
+    R"({"choices":[{"index":0,"delta":{"content":"deep "}}]})",
+    R"({"choices":[{"index":0,"delta":{"content":"private</think"}}]})",
+    R"({"choices":[{"index":0,"delta":{"content":"ing>tail"}}]})",
+    R"({"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]})"}));
+  const auto reduced=reduce(events);
+  assert(reduced.messages.size()==3);
+  assert(reduced.messages[0].at("message").at("content")[0].at("text")=="Answer ");
+  const auto& thinking=reduced.messages[1].at("message").at("content")[0];
+  assert(thinking.at("type")=="thinking"&&thinking.at("thinking")=="deep private"&&thinking.at("signature")=="");
+  assert(reduced.messages[2].at("message").at("content")[0].at("text")=="tail");
+}
+void inlineThinkingFlush(){
+  const auto events=decode(frames({
+    R"({"choices":[{"index":0,"delta":{"content":"<thi"}}]})",
+    R"({"choices":[{"index":0,"delta":{"content":"nk>hidden</thinking>out"}}]})",
+    R"({"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]})"}));
+  const auto reduced=reduce(events);
+  assert(reduced.messages.size()==2);
+  assert(reduced.messages[0].at("message").at("content")[0].at("thinking")=="hidden");
+  assert(reduced.messages[1].at("message").at("content")[0].at("text")=="out");
+  const auto unclosed=decode(frames({
+    R"({"choices":[{"index":0,"delta":{"content":"pre<think>mid</thin"}}]})",
+    R"({"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]})"}));
+  const auto flushed=reduce(unclosed);
+  assert(flushed.messages.size()==2);
+  assert(flushed.messages[0].at("message").at("content")[0].at("text")=="pre");
+  assert(flushed.messages[1].at("message").at("content")[0].at("thinking")=="mid</thin");
+}
+void inlineThinkingResponse(){
+  const auto plain=translateResponse(Json::parse(R"({"choices":[{"index":0,"message":{"role":"assistant",
+    "content":"Hi <think>p1</think>there"},"finish_reason":"stop"}]})"),"m");
+  const auto& content=plain.at("content");
+  assert(content.size()==2);
+  assert(content[0]==Json({{"type","thinking"},{"thinking","p1"},{"signature",""}}));
+  assert(content[1]==Json({{"type","text"},{"text","Hi there"}}));
+  const auto both=translateResponse(Json::parse(R"({"choices":[{"index":0,"message":{"role":"assistant",
+    "content":"<thinking>x</thinking>y","reasoning_content":"r"},"finish_reason":"stop"}]})"),"m");
+  assert(both.at("content")[0]==Json({{"type","thinking"},{"thinking","r\nx"},{"signature",""}}));
+  assert(both.at("content")[1]==Json({{"type","text"},{"text","y"}}));
+  const auto unclosedTail=translateResponse(Json::parse(R"({"choices":[{"index":0,"message":{"role":"assistant",
+    "content":"lead<thinking>gone"},"finish_reason":"stop"}]})"),"m");
+  assert(unclosedTail.at("content")[0]==Json({{"type","thinking"},{"thinking","gone"},{"signature",""}}));
+  assert(unclosedTail.at("content").size()==2&&unclosedTail.at("content")[1]==Json({{"type","text"},{"text","lead"}}));
+  assert(splitInlineThinkingSpans("keep <b> text").visible=="keep <b> text"&&
+    splitInlineThinkingSpans("keep <b> text").thinking=="");
+  const std::pair<std::size_t,std::size_t> opened{4,10};
+  const std::pair<std::size_t,std::size_t> closed{0,11};
+  assert(findInlineThinkingTag("see <thinking>now",false)==opened);
+  assert(findInlineThinkingTag("</thinking>x",true)==closed);
+  assert(!findInlineThinkingTag("abc<thi",false));
+  assert(inlineThinkingTagKeep("abc<thi",false)==4);
+}
 void doneWithoutUsage(){
   const auto events=decode(frames({
     R"({"choices":[{"index":0,"delta":{"content":"12345678"}}]})",
@@ -381,6 +436,9 @@ int main(){
   parallelTools();
   synthesizedIds();
   reasoningStream();
+  inlineThinkingStream();
+  inlineThinkingFlush();
+  inlineThinkingResponse();
   doneWithoutUsage();
   streamFailures();
   nonStreaming();

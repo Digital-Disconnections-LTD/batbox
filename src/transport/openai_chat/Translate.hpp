@@ -3,8 +3,11 @@
 #include "transport/Errors.hpp"
 #include "transport/WireClient.hpp"
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
+#include <utility>
 
 namespace batbox::transport::openai_chat {
 
@@ -25,6 +28,23 @@ private:
 // [A-Za-z0-9_-] and unused in this response, otherwise a fresh toolu_ id.
 std::string incomingToolId(const std::string& serverId, std::set<std::string>& seen);
 std::string randomId(const std::string& prefix);
+
+// Some chat endpoints embed their reasoning inline in the `content` field as
+// <thinking>...</thinking> or <think>...</think> spans. Passed through as
+// text, those tags reach the UI as literal markup or are dropped by the
+// markdown layer. Split them so the span bodies become thinking and only the
+// visible prose stays in the reply.
+struct InlineSpanSplit { std::string visible, thinking; };
+InlineSpanSplit splitInlineThinkingSpans(const std::string& raw);
+// The earliest complete tag in `buffer` as {position, length}; `insideSpan`
+// picks the table (open tags outside a span, close tags inside one).
+// nullopt when no complete tag appears -- a partial prefix at the tail of a
+// streaming buffer must not match yet.
+std::optional<std::pair<std::size_t,std::size_t>> findInlineThinkingTag(std::string_view buffer, bool insideSpan);
+// Length of the trailing run of `buffer` that is a proper prefix of a tag
+// that has not arrived in full: the bytes a streaming buffer should hold
+// back when flushing. 0 when nothing is pending.
+std::size_t inlineThinkingTagKeep(std::string_view buffer, bool insideSpan);
 
 // Anthropic Messages request body -> Chat Completions request body.
 Json translateRequest(const Json& anthropicBody, bool stream, const ChatQuirks& quirks);

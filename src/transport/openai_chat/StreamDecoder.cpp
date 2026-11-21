@@ -57,11 +57,7 @@ std::vector<Json> StreamDecoder::consumeData(const std::string& data) {
     out.push_back(delta(openIndex_,{{"type","thinking_delta"},{"thinking",std::move(reasoning)}}));
   }
   auto content = text(change,"content");
-  if (!content.empty()) {
-    if (openKind_ != Block::Text) open(out,Block::Text,{{"type","text"},{"text",""}});
-    generatedBytes_ += content.size();
-    out.push_back(delta(openIndex_,{{"type","text_delta"},{"text",std::move(content)}}));
-  }
+  if (!content.empty()) consumeContent(out,content);
   const auto& calls = field(change,"tool_calls");
   if (calls.is_array()) for (const auto& call : calls) toolDelta(out,call);
   const auto reason = text(choice,"finish_reason");
@@ -69,6 +65,7 @@ std::vector<Json> StreamDecoder::consumeData(const std::string& data) {
     for (const auto& key : toolOrder_)
       if (!tools_.at(key).index)
         throw std::runtime_error("The server streamed a tool call without a function name");
+    flushPending(out);
     close(out);
     finishReason_ = reason;
     finished_ = true;
@@ -152,12 +149,45 @@ void StreamDecoder::startTool(std::vector<Json>& out, Tool& tool) {
   }
 }
 
+void StreamDecoder::emit(std::vector<Json>& out, Block kind, const std::string& body) {
+  if (body.empty()) return;
+  if (openKind_ != kind) open(out,kind,kind == Block::Thinking ?
+    Json{{"type","thinking"},{"thinking",""},{"signature",""}} : Json{{"type","text"},{"text",""}});
+  generatedBytes_ += body.size();
+  out.push_back(delta(openIndex_,kind == Block::Thinking ?
+    Json{{"type","thinking_delta"},{"thinking",body}} : Json{{"type","text_delta"},{"text",body}}));
+}
+
+void StreamDecoder::consumeContent(std::vector<Json>& out, std::string_view chunk) {
+  pending_ += chunk;
+  for (;;) {
+    const auto tag = findInlineThinkingTag(pending_,spanActive_);
+    if (!tag) break;
+    emit(out,spanActive_ ? Block::Thinking : Block::Text,pending_.substr(0,tag->first));
+    pending_.erase(0,tag->first + tag->second);
+    spanActive_ = !spanActive_;
+  }
+  const auto keep = inlineThinkingTagKeep(pending_,spanActive_);
+  if (pending_.size() > keep) {
+    emit(out,spanActive_ ? Block::Thinking : Block::Text,pending_.substr(0,pending_.size()-keep));
+    pending_.erase(0,pending_.size()-keep);
+  }
+}
+
+void StreamDecoder::flushPending(std::vector<Json>& out) {
+  if (pending_.empty()) return;
+  emit(out,spanActive_ ? Block::Thinking : Block::Text,pending_);
+  pending_.clear();
+  spanActive_ = false;
+}
+
 void StreamDecoder::end(std::vector<Json>& out) {
   if (complete_) return;
   for (const auto& key : toolOrder_)
     if (!tools_.at(key).index)
       throw std::runtime_error("The server streamed a tool call without a function name");
   start(out);
+  flushPending(out);
   close(out);
   Json usage;
   if (usage_.is_object()) usage = translateUsage(usage_);

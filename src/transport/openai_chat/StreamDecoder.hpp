@@ -6,6 +6,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace batbox::transport::openai_chat {
@@ -13,7 +14,9 @@ namespace batbox::transport::openai_chat {
 // Chat Completions SSE (data-only frames, [DONE]) -> Anthropic stream events:
 // message_start, content_block_start/delta/stop with sequential indices,
 // message_delta with stop_reason and usage, message_stop. Tool arguments
-// stream as input_json_delta fragments. A frame carrying an error object
+// stream as input_json_delta fragments. Inline <thinking>/<think> spans
+// carried inside content deltas are routed to thinking blocks, never shown
+// as literal markup. A frame carrying an error object
 // throws APIError with an Anthropic error body; an unparsable frame, a tool
 // call that never gets a name, or arguments that arrive for a tool whose
 // block already closed throw std::runtime_error, so the caller can fall back
@@ -41,6 +44,9 @@ private:
   void close(std::vector<Json>& out);
   void toolDelta(std::vector<Json>& out, const Json& call);
   void startTool(std::vector<Json>& out, Tool& tool);
+  void consumeContent(std::vector<Json>& out, std::string_view chunk);
+  void emit(std::vector<Json>& out, Block kind, const std::string& body);
+  void flushPending(std::vector<Json>& out);
   void end(std::vector<Json>& out);
   std::string model_;
   std::size_t requestBytes_ = 0;
@@ -54,6 +60,10 @@ private:
   std::vector<std::string> toolOrder_;
   std::set<std::string> toolIds_;
   std::string finishReason_;
+  // Inline thinking-span state: text held until a <thinking>/<think> tag (or
+  // its end of stream) settles which block kind it belongs to.
+  std::string pending_;
+  bool spanActive_ = false;
   Json usage_ = nullptr;
 };
 
