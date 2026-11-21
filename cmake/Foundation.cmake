@@ -6,8 +6,7 @@ target_sources(batbox_instructions PRIVATE
   src/instructions/project/ProjectIncludes.cpp src/instructions/project/ProjectPaths.cpp
   src/instructions/project/ProjectContext.cpp)
 target_link_libraries(batbox_instructions PUBLIC PkgConfig::CMARK_GFM ICU::i18n)
-add_library(batbox_context src/context/ContextDate.cpp src/context/ContextSettings.cpp
-  src/context/AsyncContextStash.cpp src/context/AsyncGitStatus.cpp
+add_library(batbox_context src/context/AsyncContextStash.cpp src/context/AsyncGitStatus.cpp
   src/context/AsyncSystemContext.cpp src/context/AsyncUserContext.cpp)
 target_link_libraries(batbox_context PUBLIC batbox_instructions batbox_event_loop)
 target_compile_options(batbox_context PRIVATE -Wall -Wextra -Wpedantic)

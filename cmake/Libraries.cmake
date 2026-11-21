@@ -171,7 +171,7 @@ add_library(batbox_shell
   src/gadgets/bash/Hints.cpp src/gadgets/bash/CwdPolicy.cpp)
 target_sources(batbox_shell PRIVATE src/gadgets/bash/RunShellCommand.cpp)
 target_sources(batbox_shell PRIVATE src/shell/AsyncCommandResult.cpp
-  src/shell/AsyncCommandHandle.cpp src/shell/LoopMissionOutput.cpp)
+  src/shell/LoopMissionOutput.cpp)
 target_sources(batbox_shell PRIVATE
   src/gadgets/bash/AsyncRunShellCommand.cpp src/gadgets/bash/AsyncRunBindings.cpp
   src/gadgets/bash/AsyncShellBinding.cpp src/gadgets/bash/BashCompletion.cpp
