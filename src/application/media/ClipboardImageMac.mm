@@ -1,7 +1,7 @@
-#include "application_media/ClipboardImageMac.hpp"
+#include "application/media/ClipboardImageMac.hpp"
 #import <AppKit/AppKit.h>
 
-namespace batbox::application_media::indigenous {
+namespace batbox::application::media::indigenous {
 namespace {
 constexpr NSUInteger maxPngBytes=32*1024*1024;
 
