@@ -2,7 +2,11 @@
 #include "query/OwnerSegmentInvoker.hpp"
 #include "query/OwnerStreamConsume.hpp"
 #include "query/OwnerWatchdogTimer.hpp"
+#include "query/SimpleQueriesBinding.hpp"
 #include "requests/RequestBuilder.hpp"
+#include <memory>
+#include <stdexcept>
+#include <stop_token>
 
 namespace batbox::query {
 AsyncModelCursor makeOwnerSegmentQueryModelCursor(event_loop::Loop& loop,
@@ -202,5 +206,52 @@ AsyncModelCursor makeOwnerSegmentQueryModelCursor(event_loop::Loop& loop,
       catch(...){return false;}
       return false;
     });
+}
+model::StreamWatchdog::TimerScheduler makeOwnerWatchdogTimer(
+    event_loop::Loop& loop){
+  const auto dispatcher=loop.dispatcher();
+  return [dispatcher,&loop](double delay,std::function<void()> callback){
+    return invokeOwnerSegment(dispatcher,{},[&]{
+      const auto timer=loop.setTimeout(delay,std::move(callback));
+      return std::function<void()>([dispatcher,timer]{
+        (void)invokeOwnerSegment(dispatcher,{},[&]{
+          timer.cancel();return event_loop::Unit{};
+        });
+      });
+    });
+  };
+}
+event_loop::Deferred<model::MessageRef> collectLastAssistantMessage(
+  event_loop::Loop& loop,AsyncModelCursor cursor,std::stop_token signal){
+  struct Run:std::enable_shared_from_this<Run> {
+    event_loop::Deferred<model::MessageRef> output;
+    AsyncModelCursor cursor;std::stop_token signal;
+    event_loop::Loop::KeepAlive hold;
+    model::MessageRef assistant;
+    Run(event_loop::Loop& loop,AsyncModelCursor input,std::stop_token stop):
+      output(loop),cursor(std::move(input)),signal(stop),hold(loop.hold()){}
+    void next(){
+      auto self=shared_from_this();
+      try{
+        cursor.next().then([self](const std::optional<model::MessageRef>* event,
+          const std::exception_ptr& error){
+          if(error){self->hold.release();self->output.reject(error);return;}
+          if(!*event){
+            self->hold.release();
+            if(self->assistant)self->output.resolve(self->assistant);
+            else if(self->signal.stop_requested())self->output.reject(
+              std::make_exception_ptr(model::UserAbortError()));
+            else self->output.reject(std::make_exception_ptr(
+              std::runtime_error("No assistant message found")));
+            return;
+          }
+          if(value::property(***event,"type")=="assistant")self->assistant=**event;
+          self->next();
+        });
+      }catch(...){hold.release();output.reject(std::current_exception());}
+    }
+  };
+  auto run=std::make_shared<Run>(loop,std::move(cursor),signal);
+  run->next();return run->output;
 }
 } // namespace batbox::query

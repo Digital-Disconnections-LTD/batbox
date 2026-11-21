@@ -192,7 +192,7 @@ target_compile_options(batbox_query PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_query PRIVATE src/query/AsyncSetupStart.cpp src/query/AsyncSetupFinish.cpp)
 target_sources(batbox_query PRIVATE
   src/query/AsyncModelStart.cpp src/query/AsyncModelMessage.cpp
-  src/query/AsyncModelRecovery.cpp src/query/AsyncModelFinish.cpp
+  src/query/AsyncModelRecovery.cpp
   src/query/AsyncEngineStart.cpp src/query/AsyncEngineModel.cpp src/query/AsyncEngineAbort.cpp)
 target_link_libraries(batbox_query PUBLIC batbox_event_loop)
 add_library(batbox_bats

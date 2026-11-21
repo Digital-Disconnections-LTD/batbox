@@ -56,9 +56,6 @@ add_library(batbox_shell_media src/gadgets/bash/IndigenousBashImage.cpp)
 target_link_libraries(batbox_shell_media PUBLIC batbox_shell batbox_media)
 target_compile_options(batbox_shell_media PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_query PRIVATE
-  src/query/MemoryAttachmentFilter.cpp
-  src/query/SimpleQueriesBinding.cpp
-  src/query/OwnerWatchdogTimer.cpp
   src/query/AsyncCompletionStart.cpp
   src/query/AsyncCompletionStop.cpp src/query/AsyncGadgetTurnStart.cpp
   src/query/AsyncGadgetTurnAbort.cpp src/query/AsyncGadgetTurnAttachments.cpp
