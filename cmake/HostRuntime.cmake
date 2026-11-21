@@ -25,7 +25,7 @@ target_sources(batbox_settings PRIVATE src/settings/schema/Common.cpp
 target_sources(batbox_settings PRIVATE src/settings/schema/Descriptor.cpp
   src/settings/schema/Main.cpp src/settings/schema/Runtime.cpp
   src/settings/schema/Scalar.cpp)
-target_sources(batbox_settings PRIVATE src/settings/schema/IndigenousBindings.cpp
+target_sources(batbox_settings PRIVATE
   src/settings/schema/imports/Bindings.cpp
   src/settings/schema/imports/HooksDescriptor.cpp src/settings/schema/imports/HooksParse.cpp)
 target_link_libraries(batbox_settings PUBLIC batbox_url)
