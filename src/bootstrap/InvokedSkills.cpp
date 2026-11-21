@@ -1,5 +1,6 @@
 #include "bootstrap/InvokedSkills.hpp"
 #include <algorithm>
+#include <chrono>
 #include <stdexcept>
 #include <unordered_set>
 #include <utility>
@@ -45,5 +46,10 @@ void clearInvokedSkillsForBat(InvokedSkillsState& state,
   entries.erase(std::remove_if(entries.begin(),entries.end(),
     [&](const auto& entry){return entry.second->batId==batId;}),
     entries.end());
+}
+double indigenousClockMillis(){
+  const auto now=std::chrono::system_clock::now().time_since_epoch();
+  return static_cast<double>(std::chrono::duration_cast<
+    std::chrono::milliseconds>(now).count());
 }
 }

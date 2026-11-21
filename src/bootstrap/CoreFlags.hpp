@@ -4,6 +4,8 @@ namespace batbox::bootstrap {
 struct CoreFlags {
   bool scheduledMissionsEnabled=false;
 };
-bool getScheduledMissionsEnabled(const CoreFlags& state);
-void setScheduledMissionsEnabled(CoreFlags& state,bool enabled);
+inline bool getScheduledMissionsEnabled(const CoreFlags& state){
+  return state.scheduledMissionsEnabled;}
+inline void setScheduledMissionsEnabled(CoreFlags& state,bool enabled){
+  state.scheduledMissionsEnabled=enabled;}
 }
