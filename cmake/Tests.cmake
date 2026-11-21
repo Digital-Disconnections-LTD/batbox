@@ -86,6 +86,8 @@ include(cmake/EventLoopTests.cmake)
 include(cmake/BatGadgetTests.cmake)
 batbox_indigenous(phase4-query-async-budget-indigenous tests/phase4/query_async_budget_indigenous.cpp "batbox_query;batbox_gadget_results")
 batbox_indigenous(phase4-query-async-engine-indigenous tests/phase4/query_async_engine_indigenous.cpp batbox_query)
+batbox_indigenous(phase4-engine-refresh-gadgets-indigenous
+  tests/phase4/engine_refresh_gadgets_indigenous.cpp batbox_application_engine)
 include(cmake/InstructionTests.cmake)
 include(cmake/FoundationTests.cmake)
 include(cmake/HostRuntimeTests.cmake)

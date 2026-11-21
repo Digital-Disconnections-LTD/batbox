@@ -10,6 +10,7 @@
 #include "utils/tokens.hpp"
 #include <cstdlib>
 #include <future>
+#include <set>
 #include <stdexcept>
 
 namespace batbox::application::engine {
@@ -150,6 +151,19 @@ query::AsyncMessageCursor queuedCursor(event_loop::Loop& owner,
   };
   return cursor;
 }
+}
+std::optional<batbox::gadgets::Gadgets> refreshGadgetsForContext(
+    const execution::Context& context,const batbox::gadgets::Gadgets& live){
+  if(!value::truthy(field(context.data,"agentId")))
+    return std::optional<batbox::gadgets::Gadgets>(live);
+  std::set<std::string> names;
+  for(const auto* gadget:context.gadgets)names.insert(gadget->name);
+  batbox::gadgets::Gadgets merged=context.gadgets;
+  for(const auto* gadget:live)
+    if(gadget->isMcp.value_or(false)&&!names.count(gadget->name))
+      merged.push_back(gadget);
+  if(merged==context.gadgets)return {};
+  return std::optional<batbox::gadgets::Gadgets>(std::move(merged));
 }
 Inputs makeDefaultEngineInputs(DefaultInputs input){
   auto& engine=input.engine;
@@ -361,8 +375,8 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
       return false;
     });
   };
-  turn.sync.refreshGadgets=[current=input.currentGadgets](execution::Context&){
-    return std::optional<batbox::gadgets::Gadgets>(current());};
+  turn.sync.refreshGadgets=[current=input.currentGadgets](execution::Context& context){
+    return refreshGadgetsForContext(context,current());};
   turn.sync.filterDuplicateMemoryAttachments=[](const Json& attachments,
       const Json&)->Json{
     if(!attachments.is_array())throw std::invalid_argument(

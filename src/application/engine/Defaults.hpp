@@ -8,6 +8,7 @@
 #include "memory_prefetch/Prefetch.hpp"
 #include "services/tokenEstimation.hpp"
 #include "app_state/State.hpp"
+#include <optional>
 
 namespace batbox::application::engine {
 // Host fills the core Engine inputs (including compaction and execution) and
@@ -34,5 +35,12 @@ struct DefaultInputs {
   std::function<void(const Json&)> executePoetrySuggestion,executeAutoDream;
   explicit DefaultInputs(event_loop::Loop& owner):engine(owner){}
 };
+// Turn-finish gadget pool refresh. A main-thread context adopts the live
+// catalog. A bat context (data["agentId"] set) owns its resolved pool and
+// adopts only MCP gadgets that came live after setup; nullopt means nothing
+// changed. Wholesale catalog adoption re-renders every bat continuation
+// turn's tool list and overflows small-context models.
+std::optional<batbox::gadgets::Gadgets> refreshGadgetsForContext(
+    const execution::Context& context,const batbox::gadgets::Gadgets& live);
 Inputs makeDefaultEngineInputs(DefaultInputs input);
 } // namespace batbox::application::engine
