@@ -18,8 +18,7 @@ target_sources(batbox_attachments PRIVATE
   src/attachments/context/BatListing.cpp
   src/attachments/context/ContextBinding.cpp
   src/attachments/context/DeferredGadgets.cpp
-  src/attachments/context/McpInstructions.cpp
-  src/attachments/context/Sort.cpp)
+  src/attachments/context/McpInstructions.cpp)
 target_link_libraries(batbox_attachments PUBLIC batbox_bats batbox_settings ICU::i18n)
 target_sources(batbox_attachments PRIVATE
   src/attachments/local/ChangedFiles.cpp
