@@ -1,7 +1,7 @@
 #pragma once
 #include "termio/Csi.hpp"
 namespace batbox::termio {
-std::string decset(double mode);
-std::string decreset(double mode);
+inline std::string decset(double mode){return csi(Json::array({"?"+value::numberToString(mode)+"h"}));}
+inline std::string decreset(double mode){return csi(Json::array({"?"+value::numberToString(mode)+"l"}));}
 inline const std::string EFE=decset(1004),DFE=decreset(1004);
 }
