@@ -71,6 +71,10 @@ void commonFields(const Json& source,Json& output,
   if(background==true||background=="true")output["background"]=true;
   else if(!background.is_null()&&background!=false&&background!="false")
     note(log,"Agent "+origin+" has invalid background");
+  const auto& omitBatboxMd=field(source,"omitBatboxMd");
+  if(omitBatboxMd==true||omitBatboxMd=="true")output["omitBatboxMd"]=true;
+  else if(!omitBatboxMd.is_null()&&omitBatboxMd!=false&&omitBatboxMd!="false")
+    note(log,"Agent "+origin+" has invalid omitBatboxMd");
   const auto memory=text(field(source,"memory"));
   if(!memory.empty()){
     if(memory=="user"||memory=="project"||memory=="local")
