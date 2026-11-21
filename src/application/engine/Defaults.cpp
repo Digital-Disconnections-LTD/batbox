@@ -152,6 +152,25 @@ query::AsyncMessageCursor queuedCursor(event_loop::Loop& owner,
   return cursor;
 }
 }
+Json mergeRefreshedUserContext(const execution::Context& context,
+    const Json& previous,const Json& fresh){
+  auto merged=previous.is_object()?previous:Json::object();
+  // Refresh provider-owned keys, including removals; preserve the additions
+  // assembled for this particular query.
+  for(const auto* key:{"batboxMd","currentDate","projectRecovery"})
+    merged.erase(key);
+  // A Bat whose resolved context never held batboxMd trimmed it at preflight;
+  // the live provider value must not re-inflate it after compaction.
+  const bool batOmitted=field(context.data,"agentId").is_string()&&
+    previous.is_object()&&!previous.contains("batboxMd");
+  if(!fresh.is_object())throw std::invalid_argument(
+    "Project context refresh requires an object");
+  for(auto entry=fresh.begin();entry!=fresh.end();++entry){
+    if(batOmitted&&entry.key()=="batboxMd")continue;
+    merged[entry.key()]=entry.value();
+  }
+  return merged;
+}
 std::optional<batbox::gadgets::Gadgets> refreshGadgetsForContext(
     const execution::Context& context,const batbox::gadgets::Gadgets& live){
   if(!value::truthy(field(context.data,"agentId")))
@@ -185,23 +204,16 @@ Inputs makeDefaultEngineInputs(DefaultInputs input){
   need(engine.addNotification,"query notification provider");
   if(input.poetry&&!engine.refreshUserContextAfterCompact)
     engine.refreshUserContextAfterCompact=[poetry=input.poetry,owner=&engine.owner](
-        const Json& previous,const execution::Context&){
+        const Json& previous,const execution::Context& context){
       event_loop::Deferred<Json> output(*owner);
       try{
-        poetry->userContext().then([output,previous](const Json* fresh,
+        poetry->userContext().then([output,previous,context](const Json* fresh,
             const std::exception_ptr& error){
           if(error){output.reject(error);return;}
           try{
-            if(!fresh||!fresh->is_object())
+            if(!fresh)
               throw std::invalid_argument("Project context refresh requires an object");
-            auto context=previous.is_object()?previous:Json::object();
-            // Refresh provider-owned keys, including removals; preserve the
-            // additions assembled for this particular query.
-            for(const auto* key:{"batboxMd","currentDate","projectRecovery"})
-              context.erase(key);
-            for(auto entry=fresh->begin();entry!=fresh->end();++entry)
-              context[entry.key()]=entry.value();
-            output.resolve(std::move(context));
+            output.resolve(mergeRefreshedUserContext(context,previous,*fresh));
           }catch(...){output.reject(std::current_exception());}
         });
       }catch(...){output.reject(std::current_exception());}

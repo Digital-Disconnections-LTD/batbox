@@ -22,6 +22,7 @@ Json missions(){
   tasks["bat-lexer"]["parentBatId"]="bat-audit";
   tasks["bat-tokens"]=bat("bat-tokens","Count the tokens","completed");
   tasks["bat-tokens"]["parentBatId"]="bat-lexer";
+  tasks["bat-main"]=bat("bat-main","Watch the main lane","running");
   return tasks;
 }
 std::vector<Json> restore(const Json& agent){
@@ -57,7 +58,7 @@ int main(){
     // The main Flight compacts: every running Bat is announced again, and a
     // sub-Bat says which Bat launched it and where its result goes.
     const auto leader=restore(Json());
-    check(leader.size()==3,"Every Bat in the tree must be re-announced");
+    check(leader.size()==4,"Every Bat in the tree must be re-announced");
     check(!find(leader,"bat-audit").contains("launchedBy"),"A top-level Bat has no launcher");
     const auto& lexer=find(leader,"bat-lexer");
     check(lexer.value("launchedBy","")=="Audit the parser"&&lexer.value("status","")=="running",
@@ -73,10 +74,14 @@ int main(){
     const auto top=text(find(leader,"bat-audit"));
     check(top.find("Background agent \\\"Audit the parser\\\" (bat-audit) is still running")!=
       std::string::npos,"Top-level Bats keep their announcement: "+top);
-    // The launching Bat itself hears about its own sub-Bat the usual way.
+    // The launching Bat itself hears about its own sub-Bat the usual way,
+    // and never hears about agents of the main Flight it does not own.
     const auto parent=restore("bat-audit");
     check(parent.size()==2&&!find(parent,"bat-lexer").contains("launchedBy"),
       "A Bat's own sub-Bat is announced to it without a launcher note");
+    for(const auto& attachment:parent)
+      check(attachment.value("taskId","")!="bat-main",
+        "A Bat must not re-announce a main-Flight agent: "+attachment.dump());
     std::cout<<"Running sub-Bats are re-announced after compaction with the Bat that launched them\n";
     return 0;
   }catch(const std::exception& error){

@@ -35,6 +35,12 @@ struct DefaultInputs {
   std::function<void(const Json&)> executePoetrySuggestion,executeAutoDream;
   explicit DefaultInputs(event_loop::Loop& owner):engine(owner){}
 };
+// Post-compaction user-context merge. A main-thread query adopts the live
+// provider keys wholesale. A Bat context assembled without "batboxMd" (its
+// definition omitted it) keeps that omission: a provider refresh must not
+// re-inflate the trim that keeps Bat requests short.
+Json mergeRefreshedUserContext(const execution::Context& context,
+    const Json& previous,const Json& fresh);
 // Turn-finish gadget pool refresh. A main-thread context adopts the live
 // catalog. A bat context (data["agentId"] set) owns its resolved pool and
 // adopts only MCP gadgets that came live after setup; nullopt means nothing
