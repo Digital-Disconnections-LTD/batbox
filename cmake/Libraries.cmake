@@ -1,4 +1,4 @@
-find_package(ICU REQUIRED COMPONENTS uc)
+include(cmake/Icu.cmake)
 add_library(batbox_core
   src/runtime/Version.cpp
   src/runtime/ArrayJoin.cpp

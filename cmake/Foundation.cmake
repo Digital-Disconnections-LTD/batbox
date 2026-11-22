@@ -1,4 +1,4 @@
-find_package(ICU REQUIRED COMPONENTS uc i18n)
+include(cmake/Icu.cmake)
 include(cmake/CmarkDependency.cmake)
 target_sources(batbox_instructions PRIVATE
   src/instructions/project/MarkdownLexer.cpp src/instructions/project/ProjectComments.cpp
