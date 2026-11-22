@@ -172,9 +172,11 @@ public:
 private:
   friend struct LocalServiceBuilder;
   ConfigurationSnapshot configurationSnapshot()const;
-  // The time-based microcompact pass; nullopt when it left messages unchanged.
+  // The microcompact pass for this flight class: dispatch lanes prune old
+  // tool results against the endpoint window; main lanes clear them only on
+  // an idle gap. nullopt when messages were left unchanged.
   std::optional<Json> clearOldGadgetResults(const Json& messages,
-    const std::string& querySource);
+    const std::string& querySource,const execution::Context& context);
   event_loop::Loop& owner_;
   Config config_;
   Imports imports_;

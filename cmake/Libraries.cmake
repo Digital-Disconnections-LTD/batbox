@@ -140,7 +140,8 @@ add_library(batbox_compaction
   src/compaction/Restore.cpp
   src/compaction/Summary.cpp
   src/compaction/Workflow.cpp
-  src/compaction/Auto.cpp src/compaction/Helpers.cpp src/compaction/Cleanup.cpp
+  src/compaction/Auto.cpp src/compaction/FlightPolicy.cpp
+  src/compaction/Helpers.cpp src/compaction/Cleanup.cpp
   src/compaction/Poetry.cpp src/compaction/poetryEntries/Base.cpp
   src/compaction/poetryEntries/Boundary.cpp)
 target_link_libraries(batbox_compaction PUBLIC batbox_core)

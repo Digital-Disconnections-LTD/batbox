@@ -1,11 +1,17 @@
 #include "compaction/Compaction.hpp"
+#include "compaction/FlightPolicy.hpp"
 #include "model/ModelWrappers.hpp"
 #include <algorithm>
 
 namespace batbox::compaction {
 bool shouldAutoCompact(const Json& messages,const std::string& model,
                        const std::optional<std::string>& source,AutoServices& services) {
-  if (source=="session_memory" || source=="compact") return false;
+  // Class policy: auxiliary turns and dispatched agent threads never run the
+  // LLM summary pass. A dispatch thread that outgrows its window is pruned
+  // deterministically (application/model/Microcompact.cpp) or fails back to
+  // its dispatcher -- an endpoint cannot safely summarize its own context
+  // when it is weaker than the task it is running.
+  if (!flightPolicy(source?*source:std::string{}).llmAutoCompact) return false;
   if (!services.isAutoCompactEnabled()) return false;
   const auto count=services.tokenCountWithEstimation(messages);
   // Threshold and window lookups below serve compaction decisions only.

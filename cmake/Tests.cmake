@@ -22,6 +22,8 @@ batbox_indigenous(phase4-compaction-failures-indigenous
 target_link_libraries(batbox-phase4-compaction-failures-indigenous PRIVATE batbox_transport)
 batbox_indigenous(phase4-compaction-restore-nested-bats
   tests/phase4/compaction_restore_nested_bats.cpp batbox_compaction)
+batbox_indigenous(phase4-flight-policy-prune-indigenous
+  tests/phase4/flight_policy_prune_indigenous.cpp batbox_compaction)
 batbox_indigenous(phase3-bash-shell tests/phase3/bash_shell.cpp batbox_shell)
 batbox_indigenous(phase3-number-parsing tests/phase3/number_parsing.cpp batbox_shell)
 batbox_indigenous(phase3-bash-snapshot-indigenous tests/phase3/bash_snapshot_indigenous.cpp batbox_shell)
