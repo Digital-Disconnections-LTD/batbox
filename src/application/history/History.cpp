@@ -66,6 +66,14 @@ event_loop::Deferred<event_loop::Unit> Bundle::cleanupOldPastes(double cutoffMs)
 void Bundle::record(const std::string& display,const Json& pastedContents){
   if(!inputs_.owner.isOwnerThread())throw std::logic_error("History owner required");
   if(value::trim(display).empty())return;
+  // Arrival provenance: every submission through this seam gains a
+  // native.log line even when the history flush later fails or the
+  // entry never persists -- the phantom-input anomaly class arrived
+  // with no durable record anywhere.
+  std::size_t pastes=0;
+  if(pastedContents.is_object())pastes=value::objectKeys(pastedContents).size();
+  inputs_.log("prompt-input arrival utf16="+
+    std::to_string(value::stringLength(display))+" pastes="+std::to_string(pastes));
   writer_->addToHistory(Json{{"display",display},
     {"pastedContents",pastedContents.is_object()?pastedContents:Json::object()}});
 }
