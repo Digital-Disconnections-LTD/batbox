@@ -18,8 +18,6 @@ public:
   void beforeFinish(bool hasMessageStart,std::size_t completedMessages,bool hasStopReason);
   void watchdogCleanExit();
   void watchdogErrorExit();
-  int stallCount()const{return stallCount_;}
-  std::int64_t totalStallTimeMs()const{return totalStallTimeMs_;}
 private:
   std::function<std::int64_t()> nowMillis_;
   std::function<void(const std::string&,const std::string&)> debug_;

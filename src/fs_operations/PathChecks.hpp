@@ -19,8 +19,6 @@ struct PathImports {
 };
 using ResolvedPath=filesystem::ResolvedPath;
 
-bool isDuplicatePath(const FileView& fs,const std::string& filePath,
-  std::unordered_set<std::string>& loadedPaths);
 std::optional<std::string> resolveDeepestExistingAncestorSync(
   const FileView& fs,const std::string& absolutePath,const PathImports& path);
 std::vector<std::string> getPathsForPermissionCheck(

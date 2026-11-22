@@ -81,7 +81,6 @@ class Reducer {
   bool hasMessageStart() const { return value::truthy(partialMessage_); }
   double costUSD() const { return costUSD_; }
   std::int64_t ttftMs() const { return ttftMs_; }
-  bool advisorInProgress() const { return isAdvisorInProgress_; }
   const std::vector<std::optional<Json>>& contentBlocks() const { return contentBlocks_; }
 
  private:

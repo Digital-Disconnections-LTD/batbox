@@ -50,7 +50,6 @@ class FileStateStash {
   std::size_t size()const{return index_.size();}
   std::size_t max()const{return maxEntries_;}
   std::size_t maxSize()const{return maxSizeBytes_;}
-  std::size_t calculatedSize()const{return calculatedSize_;}
   std::vector<std::string> keys()const;
   Entries entries()const;
   Dump dump()const;

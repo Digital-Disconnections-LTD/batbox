@@ -14,7 +14,6 @@ public:
   bool isActive()const{return status_!=Status::Idle;}
   bool isRunning()const{return status_==Status::Running;}
   std::uint64_t generation()const{return generation_;}
-  bool getSnapshot()const{return isActive();}
   std::function<void()> subscribe(std::shared_ptr<bootstrap::Signal<>::Listener> listener){
     return changed_.subscribe(std::move(listener));
   }

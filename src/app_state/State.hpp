@@ -44,10 +44,6 @@ struct AppState {
     return copy;
   }
   value::ValueRef fieldRef(const std::string& key)const{return fields->get(key);}
-  void setSettings(value::ValueRef settings,value::ValueRef env){
-    fields->setRef("settings",std::move(settings));
-    settingsEnv=std::move(env);
-  }
   void setPermissionContext(value::RecordRef context){
     permissionContext=std::move(context);
     fields->set("toolPermissionContext",permissionContext->snapshot());

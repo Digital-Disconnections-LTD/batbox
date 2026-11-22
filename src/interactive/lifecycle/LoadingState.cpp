@@ -35,7 +35,6 @@ void LoadingState::start(){
 void LoadingState::resetTimingRefs(){
   loadingStartTime_=services_.nowMs();
   totalPausedMs_=0;
-  pauseStartTime_.reset();
 }
 void LoadingState::observeQueryActive(){
   const bool active=guard_.isActive();
@@ -64,8 +63,6 @@ void LoadingState::tipError(std::exception_ptr error){
   services_.onDetachedError(error);
 }
 void LoadingState::pickNewSpinnerTip(){
-  if(tipPickedThisTurn_)return;
-  tipPickedThisTurn_=true;
   const auto current=messages_.messages();
   for(const auto& gadget:extractBashGadgetsFromMessages(
       current,bashGadgetsProcessedIndex_))bashGadgets_->insert(gadget);

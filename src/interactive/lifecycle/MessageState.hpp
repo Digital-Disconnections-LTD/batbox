@@ -14,8 +14,6 @@ public:
   explicit MessageState(TurnMessagesRef initial,MessageServices services={});
   const TurnMessagesRef& messages()const{return messages_;}
   std::size_t baseline()const{return userInputBaseline_;}
-  bool userMessagePending()const{return userMessagePending_;}
-  const std::optional<std::string>& processingInput()const{return processingInput_;}
   void setMessages(const TurnMessageUpdate& action);
   void setMessages(TurnMessagesRef next);
   void setUserInputOnProcessing(std::optional<std::string> input);

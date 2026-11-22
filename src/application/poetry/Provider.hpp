@@ -65,8 +65,6 @@ public:
   void resetProjectInstructionsAfterCompact();
   void clearGitStatus();
   context::AsyncContextStash& contextStash(){return contextStash_;}
-  const std::optional<std::string>& stashedBatboxMdContent()const{
-    return stashedBatboxMdContent_;}
 private:
   void bindDiscovery();
   void bindGit();

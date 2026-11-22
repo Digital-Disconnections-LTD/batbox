@@ -22,14 +22,6 @@ void require(const FileView& fs,const PathImports& path){
 }
 }
 
-bool isDuplicatePath(const FileView& fs,const std::string& filePath,
-    std::unordered_set<std::string>& loadedPaths){
-  const auto resolved=filesystem::safeResolvePath(fs,filePath).resolvedPath;
-  if(loadedPaths.contains(resolved))return true;
-  loadedPaths.insert(resolved);
-  return false;
-}
-
 std::optional<std::string> resolveDeepestExistingAncestorSync(
     const FileView& fs,const std::string& absolutePath,const PathImports& path){
   std::string dir=absolutePath;
