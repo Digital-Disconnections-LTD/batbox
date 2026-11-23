@@ -1,4 +1,4 @@
-find_package(ICU REQUIRED COMPONENTS uc)
+include(cmake/Icu.cmake)
 add_library(batbox_mcp
   src/mcp/Call.cpp src/mcp/Codec.cpp src/mcp/Collapse.cpp
   src/mcp/CollapseRead1.cpp src/mcp/CollapseRead2.cpp src/mcp/CollapseRead3.cpp

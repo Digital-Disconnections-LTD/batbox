@@ -15,12 +15,8 @@ bool isNotEmptyMessage(const Json& message, const VisibilityImports& imports);
 bool shouldShowUserMessage(const Json& message, bool transcriptMode,
                            const VisibilityImports& imports);
 bool isNullRenderingAttachment(const Json& message);
-MessageRefs filterForBriefGadget(const MessageRefs& messages,
-                                const std::vector<std::string>& briefGadgetNames);
 
 using MessageListRef = std::shared_ptr<MessageRefs>;
-MessageListRef dropTextInBriefTurns(const MessageListRef& messages,
-                                    const std::vector<std::string>& briefGadgetNames);
 
 struct SliceAnchor {
   std::string uuid;

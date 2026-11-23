@@ -14,8 +14,8 @@
 #include "interactive/transcript_navigation/Navigation.hpp"
 #include "interactive/viewport/Controller.hpp"
 #include "terminal_ftxui/TranscriptCopy.hpp"
-#include "application_history/History.hpp"
-#include "application_completion/Completion.hpp"
+#include "application/history/History.hpp"
+#include "application/completion/Completion.hpp"
 #include <ftxui/dom/node.hpp>
 #include <optional>
 #include <deque>
@@ -43,28 +43,28 @@ inline constexpr unsigned welcomeAnimationFrames=12;
 struct ViewState {
   const PresentationState& presentation;
   const transcript_navigation::StickyPoetry& sticky;
-  text_input::EditorView editor;
-  std::string_view searchQuery;
+  text_input::EditorView editor = {};
+  std::string_view searchQuery = {};
   std::size_t searchCount=0,searchCurrent=0,newMessageCount=0;
   int columns=80,rows=24;
   bool transcript=false,searchOpen=false,pillVisible=false;
   Json backgroundMissions=Json::array();
-  std::optional<std::string> batId;
-  std::string batLabel,batStatus;
+  std::optional<std::string> batId = {};
+  std::string batLabel = {},batStatus = {};
   // Titles from the top-level Bat down to the open one.
-  std::vector<std::string> batTrail;
+  std::vector<std::string> batTrail = {};
   bool missionsCollapsed=false;
   // The Active Missions row picked with Down from an empty input.
-  std::optional<std::string> selectedMission;
+  std::optional<std::string> selectedMission = {};
   bool remembering=false;
   unsigned activityFrame=0;
   unsigned welcomeFrame=welcomeAnimationFrames;
   int bodyRows=0,bodyScreenRow=0;
   // Milliseconds since the current turn started working; zero when idle.
   double workingMs=0;
-  std::string streamMode;
+  std::string streamMode = {};
   // What the Stop hooks report while they run ("Checking the build… 1/2").
-  std::string stopHookStatus;
+  std::string stopHookStatus = {};
   bool historySearch=false;
   // Esc was accepted and the turn is unwinding.
   bool interrupting=false;
@@ -95,7 +95,7 @@ struct ChromeProviders {
   std::function<ftxui::Element(const ViewState&)> renderReminder;
   std::function<PoetryDecor(const ViewState&)> poetryDecor;
   // Optional suggestion rows; the shell draws plain rows without it.
-  std::function<ftxui::Element(const std::vector<application_completion::Suggestion>&,
+  std::function<ftxui::Element(const std::vector<application::completion::Suggestion>&,
     std::size_t selected,const ViewState&)> renderSuggestions;
   // The current transcript search match.
   std::function<ftxui::Color()> searchHighlight;
@@ -131,8 +131,8 @@ struct Imports {
   std::function<event_loop::Deferred<Json>()> getImageFromClipboard;
   std::function<event_loop::Deferred<Json>(const std::string&)> readPastedImagePaths;
   std::function<void(const Json&)> onImagePasted;
-  std::shared_ptr<application_history::Bundle> history;
-  std::shared_ptr<application_completion::Provider> completion;
+  std::shared_ptr<application::history::Bundle> history;
+  std::shared_ptr<application::completion::Provider> completion;
   std::function<MessageListSettings(const PresentationState&)> listSettings;
   std::function<message_list_view::SurfaceOptions(const PresentationState&)>
     surfaceOptions;
@@ -283,8 +283,8 @@ private:
   std::shared_ptr<transcript_navigation::Navigation> navigation_;
   std::shared_ptr<message_view::RetainedViews> retained_;
   std::unique_ptr<text_input::TextEditor> editor_;
-  std::shared_ptr<application_history::Navigator> historyNavigator_;
-  std::vector<application_completion::Suggestion> suggestions_;
+  std::shared_ptr<application::history::Navigator> historyNavigator_;
+  std::vector<application::completion::Suggestion> suggestions_;
   std::deque<keyboard_input::KeyRef> bufferedPasteKeys_;
   bool pastePending_=false,pendingImageSpace_=false;
   std::shared_ptr<TranscriptExportRun> transcriptExport_;

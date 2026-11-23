@@ -22,7 +22,6 @@ public:
   void onStdout(const std::string& data);
   event_loop::Deferred<event_loop::Unit> pending()const{return chain_;}
   std::string removeProcessedLines(const std::string& stdoutText)const;
-  std::size_t processedCount()const{return processed_.size();}
 private:
   event_loop::Loop& loop_;
   HookPoetryServices services_;

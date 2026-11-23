@@ -1,4 +1,4 @@
-find_package(ICU REQUIRED COMPONENTS uc i18n)
+include(cmake/Icu.cmake)
 include(cmake/CmarkDependency.cmake)
 target_sources(batbox_instructions PRIVATE
   src/instructions/project/MarkdownLexer.cpp src/instructions/project/ProjectComments.cpp
@@ -6,8 +6,7 @@ target_sources(batbox_instructions PRIVATE
   src/instructions/project/ProjectIncludes.cpp src/instructions/project/ProjectPaths.cpp
   src/instructions/project/ProjectContext.cpp)
 target_link_libraries(batbox_instructions PUBLIC PkgConfig::CMARK_GFM ICU::i18n)
-add_library(batbox_context src/context/ContextDate.cpp src/context/ContextSettings.cpp
-  src/context/AsyncContextStash.cpp src/context/AsyncGitStatus.cpp
+add_library(batbox_context src/context/AsyncContextStash.cpp src/context/AsyncGitStatus.cpp
   src/context/AsyncSystemContext.cpp src/context/AsyncUserContext.cpp)
 target_link_libraries(batbox_context PUBLIC batbox_instructions batbox_event_loop)
 target_compile_options(batbox_context PRIVATE -Wall -Wextra -Wpedantic)
@@ -40,11 +39,16 @@ endif()
 add_library(batbox_process src/process/ExecFileNoThrow.cpp ${BATBOX_INDIGENOUS_EXEC_SOURCE})
 target_link_libraries(batbox_process PUBLIC batbox_event_loop batbox_core)
 target_compile_options(batbox_process PRIVATE -Wall -Wextra -Wpedantic)
-add_library(batbox_git src/git_filesystem/Paths.cpp src/git_filesystem/Refs.cpp
-  src/git_filesystem/Computations.cpp src/git_filesystem/Watcher.cpp
-  src/git_filesystem/IndigenousFs.cpp
-  src/git_filesystem/RootFinder.cpp)
-target_link_libraries(batbox_git PUBLIC batbox_event_loop batbox_core ICU::i18n)
+# One git system, one target. src/git/ holds the subprocess/binding half,
+# src/git/filesystem/ the filesystem/state half; GitBindings.hpp bridges
+# the two halves, so one target is the honest shape.
+add_library(batbox_git src/git/filesystem/Paths.cpp src/git/filesystem/Refs.cpp
+  src/git/filesystem/Computations.cpp src/git/filesystem/Watcher.cpp
+  src/git/filesystem/IndigenousFs.cpp
+  src/git/GitBasics.cpp src/git/IndigenousBasics.cpp
+  src/git/GitBindings.cpp src/git/CanonicalRoot.cpp src/git/IndigenousCanonicalRoot.cpp)
+target_link_libraries(batbox_git PUBLIC batbox_event_loop batbox_core ICU::i18n
+  batbox_context batbox_process OpenSSL::Crypto ICU::uc)
 target_compile_options(batbox_git PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_shell PRIVATE src/gadgets/bash/AsyncBashPersistence.cpp
   src/gadgets/bash/AsyncBashImage.cpp)
@@ -52,9 +56,6 @@ add_library(batbox_shell_media src/gadgets/bash/IndigenousBashImage.cpp)
 target_link_libraries(batbox_shell_media PUBLIC batbox_shell batbox_media)
 target_compile_options(batbox_shell_media PRIVATE -Wall -Wextra -Wpedantic)
 target_sources(batbox_query PRIVATE
-  src/query/MemoryAttachmentFilter.cpp
-  src/query/SimpleQueriesBinding.cpp
-  src/query/OwnerWatchdogTimer.cpp
   src/query/AsyncCompletionStart.cpp
   src/query/AsyncCompletionStop.cpp src/query/AsyncGadgetTurnStart.cpp
   src/query/AsyncGadgetTurnAbort.cpp src/query/AsyncGadgetTurnAttachments.cpp

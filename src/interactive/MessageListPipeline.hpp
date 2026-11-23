@@ -18,11 +18,8 @@ struct MessageListSettings {
   bool virtualScroll = false;
   bool disableRenderCap = false;
   bool verbose = false;
-  bool briefOnly = false;
   bool fullscreen = false;
   std::optional<std::pair<std::size_t, std::size_t>> renderRange;
-  std::vector<std::string> briefGadgetNames;
-  std::vector<std::string> dropTextGadgetNames;
   GroupingGadgets gadgets;
   BackgroundNotificationProtocol backgroundProtocol;
   VisibilityImports visibility;

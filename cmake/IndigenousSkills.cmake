@@ -1,10 +1,10 @@
 add_library(batbox_application_skills
-  src/application_skills/ProviderCore.cpp
-  src/application_skills/ProviderDiscovery.cpp
-  src/application_skills/ProviderPoetry.cpp
-  src/application_skills/ProviderGadget.cpp
-  src/application_skills/ProviderShell.cpp
-  src/application_skills/ShellExpansion.cpp)
+  src/application/skills/ProviderCore.cpp
+  src/application/skills/ProviderDiscovery.cpp
+  src/application/skills/ProviderPoetry.cpp
+  src/application/skills/ProviderGadget.cpp
+  src/application/skills/ProviderShell.cpp
+  src/application/skills/ShellExpansion.cpp)
 target_link_libraries(batbox_application_skills PUBLIC batbox_skills
   batbox_application_config batbox_application_model batbox_application_flights
   batbox_application_media batbox_application_hooks batbox_bootstrap_state

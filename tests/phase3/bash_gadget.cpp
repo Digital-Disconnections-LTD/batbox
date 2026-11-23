@@ -1,6 +1,6 @@
 #include <cstdlib>
 #include "gadgets/bash/BashGadget.hpp"
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -27,13 +27,13 @@ int main(){
     std::atomic<int> ids{0};
     std::mutex notificationsMutex;std::condition_variable notificationsCv;
     std::vector<std::string> notifications;
-    shell_missions::Services missionServices;
+    missions::roster::Services missionServices;
     missionServices.nowMs=[](){return 1234LL;};
     missionServices.enqueueNotification=[&](const std::string& message,const std::optional<std::string>&){
       {std::lock_guard lock(notificationsMutex);notifications.push_back(message);}
       notificationsCv.notify_all();};
-    missionServices.onMissionTerminated=[](const shell_missions::MissionRecord&){};
-    auto roster=std::make_shared<shell_missions::Roster>(missionServices);
+    missionServices.onMissionTerminated=[](const missions::roster::MissionRecord&){};
+    auto roster=std::make_shared<missions::roster::Roster>(missionServices);
     shell::FlightConfig config;config.shellPath="/bin/bash";config.originalCwd=root.string();
     config.outputDir=(root/"jobs").string();config.maxInlineOutputBytes=100;
     config.generateMissionId=[&]{return "task"+std::to_string(++ids);};
@@ -71,7 +71,7 @@ int main(){
     service.getGadgetResultPath=[&](const std::string& id){return (root/"results"/(id+".txt")).string();};
     service.registerBackgroundMission=[roster](const std::string& id,const std::string& command,
       const std::string& description,const Json& context){
-      shell_missions::MissionRecord mission;mission.id=id;mission.command=command;mission.description=description;
+      missions::roster::MissionRecord mission;mission.id=id;mission.command=command;mission.description=description;
       if(context.is_object()&&context.contains("toolUseId")&&context["toolUseId"].is_string())
         mission.gadgetUseId=context["toolUseId"].get<std::string>();
       roster->adoptBackground(std::move(mission));};
@@ -150,7 +150,7 @@ int main(){
     std::atomic<int> foregroundShows{0},foregroundClears{0};
     service.registerForegroundMission=[roster](const std::string& id,const std::string& command,
       const std::string& description,const Json&){
-      shell_missions::MissionRecord mission;mission.id=id;mission.command=command;mission.description=description;
+      missions::roster::MissionRecord mission;mission.id=id;mission.command=command;mission.description=description;
       roster->registerForeground(std::move(mission));};
     service.unregisterForegroundMission=[roster](const std::string& id){
       check(roster->unregisterForeground(id),"foreground task did not unregister");};

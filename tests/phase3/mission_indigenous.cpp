@@ -1,7 +1,7 @@
 #include <cstdlib>
-#include "missions/shell/Roster.hpp"
-#include "gadgets/mission_output/MissionOutput.hpp"
-#include "gadgets/mission_stop/MissionStop.hpp"
+#include "missions/roster/Roster.hpp"
+#include "missions/output/MissionOutput.hpp"
+#include "missions/stop/MissionStop.hpp"
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -14,8 +14,8 @@
 using namespace batbox;
 namespace {
 void check(bool okay,const char* message){if(!okay)throw std::runtime_error(message);}
-shell_missions::MissionRecord mission(const std::string& id,const std::string& command){
-  shell_missions::MissionRecord record;record.id=id;record.command=command;record.description=command;
+missions::roster::MissionRecord mission(const std::string& id,const std::string& command){
+  missions::roster::MissionRecord record;record.id=id;record.command=command;record.description=command;
   return record;
 }
 }
@@ -26,13 +26,13 @@ int main(){
     std::atomic<int> ids{0},terminated{0};
     std::mutex notificationMutex;std::condition_variable notificationCv;
     std::vector<std::string> notifications;
-    shell_missions::Services services;
+    missions::roster::Services services;
     services.nowMs=[](){return 1000LL;};
     services.enqueueNotification=[&](const std::string& message,const std::optional<std::string>&){
       {std::lock_guard lock(notificationMutex);notifications.push_back(message);}
       notificationCv.notify_all();};
-    services.onMissionTerminated=[&](const shell_missions::MissionRecord&){++terminated;};
-    auto roster=std::make_shared<shell_missions::Roster>(services);
+    services.onMissionTerminated=[&](const missions::roster::MissionRecord&){++terminated;};
+    auto roster=std::make_shared<missions::roster::Roster>(services);
     shell::FlightConfig config;config.shellPath="/bin/bash";config.originalCwd=root.string();
     config.outputDir=(root/"jobs").string();config.maxInlineOutputBytes=1000;
     config.generateMissionId=[&]{return "task"+std::to_string(++ids);};
@@ -40,7 +40,7 @@ int main(){
     config.onBackgroundComplete=[weak=std::weak_ptr(roster)](const std::string& id,
       const shell::ExecResult& result){if(auto current=weak.lock())current->completeShell(id,result);};
     auto shell=std::make_shared<shell::ManagedShell>(config);roster->attachShell(shell);
-    mission_output::Services outputServices;outputServices.roster=roster;
+    missions::output::Services outputServices;outputServices.roster=roster;
     outputServices.nowMs=[](){return 12345LL;};
     outputServices.getMissionOutputPath=[shell](const std::string& id){return shell->outputPath(id);};
     outputServices.renderResult=[](const Json&,const Json&,const Json&){return Json("result");};
@@ -48,14 +48,14 @@ int main(){
     outputServices.renderError=[](const Json&,const Json&){return Json("error");};
     outputServices.renderRejected=[](const Json&,const Json&){return Json("rejected");};
     outputServices.renderTag=[](const Json&){return Json("tag");};
-    auto outputGadget=mission_output::makeMissionOutputGadget(outputServices);
-    mission_stop::Services stopServices;stopServices.roster=roster;
+    auto outputGadget=missions::output::makeMissionOutputGadget(outputServices);
+    missions::stop::Services stopServices;stopServices.roster=roster;
     stopServices.renderUse=[](const Json&,const Json&){return Json("use");};
     stopServices.renderResult=[](const Json&,const Json&,const Json&){return Json("result");};
-    auto stopGadget=mission_stop::makeMissionStopGadget(stopServices);
+    auto stopGadget=missions::stop::makeMissionStopGadget(stopServices);
     check(outputGadget.isReadOnly(Json())&&outputGadget.isConcurrencySafe(Json()),"TaskOutput readonly flags wrong");
     check(stopGadget.isConcurrencySafe(Json())&&stopGadget.shouldDefer.value_or(false),"TaskStop flags wrong");
-    check(mission_output::parseInput(Json{{"task_id","x"},{"block","false"}})["block"]==false,
+    check(missions::output::parseInput(Json{{"task_id","x"},{"block","false"}})["block"]==false,
       "semantic block parsing failed");
     check(!stopGadget.validateInput(Json{{"task_id","missing"}},Json()).get().result,
       "TaskStop validated missing task");
@@ -89,9 +89,9 @@ int main(){
     check(stopped.data["task_id"]==longId&&stopped.data["task_type"]=="local_bash",
       "TaskStop result wrong");
     check(roster->get(longId)->status=="killed"&&terminated==1,"TaskStop did not kill process");
-    check(!mission_output::parseInput(Json{{"task_id","x"}}).contains("timeout"),
+    check(!missions::output::parseInput(Json{{"task_id","x"}}).contains("timeout"),
       "TaskOutput fixed a default wait before the task type was known");
-    check(mission_output::parseInput(Json{{"task_id","x"},{"timeout",3600000}})["timeout"]==3600000,
+    check(missions::output::parseInput(Json{{"task_id","x"},{"timeout",3600000}})["timeout"]==3600000,
       "TaskOutput refused an hour-long wait");
     shell->cleanup(longId);
     auto abortRun=shell->run(shell::RunOptions{.command="sleep 20",.runInBackground=true});
@@ -99,7 +99,7 @@ int main(){
     std::stop_source stop;gadgets::GadgetCallContext abortedContext{Json::object(),stop.get_token(),{}};
     auto blocked=outputGadget.call(Json{{"task_id",abortId},{"timeout",5000}},abortedContext,{},Json(),{});
     std::this_thread::sleep_for(std::chrono::milliseconds(100));stop.request_stop();
-    bool abortError=false;try{(void)blocked.get();}catch(const shell_missions::MissionAbortError&){abortError=true;}
+    bool abortError=false;try{(void)blocked.get();}catch(const missions::roster::MissionAbortError&){abortError=true;}
     check(abortError,"TaskOutput wait did not honor cancellation");
     // A wait that ends before the task does must say the task is still running.
     const auto shortWait=outputGadget.call(Json{{"task_id",abortId},{"timeout",50}},

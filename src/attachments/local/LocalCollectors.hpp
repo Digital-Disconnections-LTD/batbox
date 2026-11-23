@@ -37,7 +37,7 @@ struct Services {
   std::function<event_loop::Deferred<Json>(const std::string&)>
     readImageWithTokenBudget;
   std::function<bool(std::exception_ptr)> isENOENT;
-  std::string todoWriteGadgetName="TodoWrite",briefGadgetName="Brief",
+  std::string todoWriteGadgetName="TodoWrite",
     missionCreateGadgetName="TaskCreate",missionUpdateGadgetName="TaskUpdate",
     bashGadgetName="Bash";
 };

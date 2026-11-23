@@ -7,12 +7,12 @@
 namespace batbox::instructions::hooks::runtime {
 struct ElicitationResponse {
   std::string action;
-  std::optional<Json> content;
+  std::optional<Json> content = {};
   bool contentOwnProperty=true;
 };
 struct ElicitationParsed {
-  std::optional<ElicitationResponse> response;
-  std::optional<HookBlockingError> blockingError;
+  std::optional<ElicitationResponse> response = {};
+  std::optional<HookBlockingError> blockingError = {};
 };
 ElicitationParsed parseElicitationHookOutput(const HookResult& result,
   const std::string& expectedEventName,

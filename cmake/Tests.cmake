@@ -22,6 +22,8 @@ batbox_indigenous(phase4-compaction-failures-indigenous
 target_link_libraries(batbox-phase4-compaction-failures-indigenous PRIVATE batbox_transport)
 batbox_indigenous(phase4-compaction-restore-nested-bats
   tests/phase4/compaction_restore_nested_bats.cpp batbox_compaction)
+batbox_indigenous(phase4-flight-policy-prune-indigenous
+  tests/phase4/flight_policy_prune_indigenous.cpp batbox_compaction)
 batbox_indigenous(phase3-bash-shell tests/phase3/bash_shell.cpp batbox_shell)
 batbox_indigenous(phase3-number-parsing tests/phase3/number_parsing.cpp batbox_shell)
 batbox_indigenous(phase3-bash-snapshot-indigenous tests/phase3/bash_snapshot_indigenous.cpp batbox_shell)
@@ -86,6 +88,10 @@ include(cmake/EventLoopTests.cmake)
 include(cmake/BatGadgetTests.cmake)
 batbox_indigenous(phase4-query-async-budget-indigenous tests/phase4/query_async_budget_indigenous.cpp "batbox_query;batbox_gadget_results")
 batbox_indigenous(phase4-query-async-engine-indigenous tests/phase4/query_async_engine_indigenous.cpp batbox_query)
+batbox_indigenous(phase4-engine-refresh-gadgets-indigenous
+  tests/phase4/engine_refresh_gadgets_indigenous.cpp batbox_application_engine)
+batbox_indigenous(phase4-engine-user-context-refresh-indigenous
+  tests/phase4/engine_user_context_refresh_indigenous.cpp batbox_application_engine)
 include(cmake/InstructionTests.cmake)
 include(cmake/FoundationTests.cmake)
 include(cmake/HostRuntimeTests.cmake)

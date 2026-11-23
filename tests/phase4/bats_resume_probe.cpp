@@ -156,4 +156,4 @@ static Json run(const Json& item){
 int main(){std::string line;while(std::getline(std::cin,line)){
  try{std::cout<<value::stringify(run(value::parse(line)))<<'\n';}
  catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
-}}
+}return 0;}

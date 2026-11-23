@@ -1,4 +1,4 @@
-#include "application_memory/Provider.hpp"
+#include "application/memory/Provider.hpp"
 #include "memory_prefetch/Prefetch.hpp"
 #include "runtime/Platform.hpp"
 #include <chrono>
@@ -50,11 +50,11 @@ instructions::MemoryHeader header(const std::string& name,const std::string& des
 }
 }
 int main(){
-  require(application_memory::recallByKeywords(Json::object(),true)&&
-    !application_memory::recallByKeywords(Json::object(),false)&&
-    !application_memory::recallByKeywords(Json{{"memoryRecallSelector","model"}},true)&&
-    application_memory::recallByKeywords(Json{{"memoryRecallSelector","keywords"}},false)&&
-    application_memory::recallByKeywords(Json{{"memoryRecallSelector","auto"}},true),
+  require(application::memory::recallByKeywords(Json::object(),true)&&
+    !application::memory::recallByKeywords(Json::object(),false)&&
+    !application::memory::recallByKeywords(Json{{"memoryRecallSelector","model"}},true)&&
+    application::memory::recallByKeywords(Json{{"memoryRecallSelector","keywords"}},false)&&
+    application::memory::recallByKeywords(Json{{"memoryRecallSelector","auto"}},true),
     "memoryRecallSelector did not resolve as documented");
 
   const std::vector<instructions::MemoryHeader> manifest{

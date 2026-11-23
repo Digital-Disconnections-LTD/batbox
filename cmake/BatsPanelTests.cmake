@@ -6,4 +6,4 @@ batbox_indigenous(phase6-bats-saved-host
   tests/phase6/bats_saved_host_indigenous.cpp batbox_indigenous_host)
 set_tests_properties(phase6-bats-saved-host PROPERTIES TIMEOUT 45)
 batbox_indigenous(phase6-bat-conversation-view
-  tests/phase6/bat_conversation_view_indigenous.cpp batbox_conversation_shell)
+  tests/phase6/bat_conversation_view_indigenous.cpp batbox_terminal_ftxui)

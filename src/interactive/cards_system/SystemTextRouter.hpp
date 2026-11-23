@@ -24,6 +24,5 @@ struct SystemTextCard {
 
 SystemTextCard classifySystemText(const Json& message, bool addMargin,
                                   bool verbose, bool transcriptMode);
-const char* systemTextKindName(SystemTextKind kind);
 
 } // namespace batbox::interactive::cards_system

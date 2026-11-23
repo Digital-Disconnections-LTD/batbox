@@ -1,26 +1,7 @@
 # Concrete owners and providers used by the indigenous terminal application.
-add_library(batbox_conversation_shell
-  src/interactive/conversation_shell/ShellCore.cpp
-  src/interactive/conversation_shell/ShellConversation.cpp
-  src/interactive/conversation_shell/ShellRender.cpp
-  src/interactive/conversation_shell/PoetryViewport.cpp
-  src/interactive/conversation_shell/ShellInput.cpp
-  src/interactive/presentation_providers/ThemeLight.cpp
-  src/interactive/presentation_providers/ThemeDark.cpp
-  src/interactive/presentation_providers/ThemeDaltonized.cpp
-  src/interactive/presentation_providers/ThemeData.cpp
-  src/interactive/presentation_providers/ThemeBatbox.cpp
-  src/interactive/presentation_providers/StyleRoles.cpp
-  src/interactive/presentation_providers/SystemTheme.cpp
-  src/interactive/presentation_providers/ThemeState.cpp
-  src/interactive/presentation_providers/Shortcut.cpp
-  src/interactive/presentation_providers/DefaultBindings.cpp
-  src/interactive/presentation_providers/Chrome.cpp
-  src/interactive/presentation_providers/MissionFooter.cpp
-  src/interactive/presentation_providers/CardPalettes.cpp)
-target_link_libraries(batbox_conversation_shell PUBLIC batbox_terminal_ftxui
-  batbox_interactive_lifecycle batbox_terminal_ftxui batbox_text_editor)
-target_compile_options(batbox_conversation_shell PRIVATE -Wall -Wextra -Wpedantic)
+# The conversation shell and its input/editing/history bindings now compile
+# inside the UI library pair (batbox_terminal_ftxui / batbox_interactive);
+# see cmake/FtxuiPresentation.cmake.
 
 target_sources(batbox_core_commands PRIVATE
   src/commands_indigenous/Rename.cpp src/commands_indigenous/FlightSimple.cpp)
@@ -37,19 +18,19 @@ target_link_libraries(batbox_application_config PUBLIC batbox_core)
 target_compile_options(batbox_application_config PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(batbox_application_gadgets
-  src/application_gadgets/ApplicationGadgets.cpp
-  src/application_gadgets/IndigenousFiles.cpp src/application_gadgets/IndigenousFileHelpers.cpp)
+  src/application/gadgets/ApplicationGadgets.cpp
+  src/application/gadgets/IndigenousFiles.cpp src/application/gadgets/IndigenousFileHelpers.cpp)
 target_link_libraries(batbox_application_gadgets PUBLIC batbox_live_gadget_roster
   batbox_skills batbox_media batbox_core batbox_fs_operations)
 target_compile_options(batbox_application_gadgets PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(batbox_application_runtime
-  src/application_runtime/ApplicationRuntimeCore.cpp
-  src/application_runtime/ApplicationBindings.cpp
-  src/application_runtime/RuntimeBindings.cpp
-  src/application_runtime/ShellBinding.cpp)
-target_link_libraries(batbox_application_runtime PUBLIC batbox_conversation_shell
-  batbox_application_config batbox_interactive_lifecycle)
+  src/application/runtime/ApplicationRuntimeCore.cpp
+  src/application/runtime/ApplicationBindings.cpp
+  src/application/runtime/RuntimeBindings.cpp
+  src/application/runtime/ShellBinding.cpp)
+target_link_libraries(batbox_application_runtime PUBLIC batbox_terminal_ftxui
+  batbox_application_config)
 target_compile_options(batbox_application_runtime PRIVATE -Wall -Wextra -Wpedantic)
 include(cmake/IndigenousApplicationBackend.cmake)
 include(cmake/Providers.cmake)

@@ -25,15 +25,5 @@ GadgetErrorCard classifyGadgetError(const Json& content,
   return {};
 }
 
-const char* gadgetErrorKindName(GadgetErrorKind kind) {
-  switch (kind) {
-    case GadgetErrorKind::Interrupted: return "interrupted";
-    case GadgetErrorKind::RejectedPlan: return "rejected_plan";
-    case GadgetErrorKind::RejectedWithReason: return "rejected_with_reason";
-    case GadgetErrorKind::ClassifierDenial: return "classifier_denial";
-    case GadgetErrorKind::GadgetRenderer: return "tool_renderer";
-  }
-  throw std::logic_error("Unknown Gadget error kind");
-}
 
 } // namespace batbox::interactive::cards_gadget_result

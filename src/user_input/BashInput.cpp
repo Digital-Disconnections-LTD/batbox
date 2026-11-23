@@ -1,6 +1,6 @@
 #include "user_input/BashInput.hpp"
 #include "user_input/CommandMessages.hpp"
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include "gadgets/bash/BashGadget.hpp"
 #include <stdexcept>
 
@@ -34,13 +34,13 @@ void finishError(const event_loop::Deferred<InputResult>& output,
       output.resolve(std::move(result));return;
     }
     auto result=resultWith(caveat,user,attachments,userOutput(
-      "<bash-stdout>"+shell_missions::escapeXml(shell.stdoutText)+
-      "</bash-stdout><bash-stderr>"+shell_missions::escapeXml(shell.stderrText)+
+      "<bash-stdout>"+missions::roster::escapeXml(shell.stdoutText)+
+      "</bash-stdout><bash-stderr>"+missions::roster::escapeXml(shell.stderrText)+
       "</bash-stderr>",messages));
     output.resolve(std::move(result));return;
   }catch(const std::exception& cause){
     auto result=resultWith(caveat,user,attachments,userOutput(
-      "<bash-stderr>Command failed: "+shell_missions::escapeXml(cause.what())+
+      "<bash-stderr>Command failed: "+missions::roster::escapeXml(cause.what())+
       "</bash-stderr>",messages));
     output.resolve(std::move(result));return;
   }catch(...){
@@ -96,10 +96,10 @@ event_loop::Deferred<InputResult> processBashCommand(const std::string& input,
           try{
             const auto& content=value::property(*block,"content");
             const auto stdoutText=content.is_string()?content.get<std::string>():
-              shell_missions::escapeXml(stringField(data,"stdout"));
+              missions::roster::escapeXml(stringField(data,"stdout"));
             output.resolve(resultWith(caveat,user,attachments,userOutput(
               "<bash-stdout>"+stdoutText+"</bash-stdout><bash-stderr>"+
-              shell_missions::escapeXml(stderrText)+"</bash-stderr>",services.messages)));
+              missions::roster::escapeXml(stderrText)+"</bash-stderr>",services.messages)));
           }catch(...){output.reject(std::current_exception());}
         });
       }catch(...){

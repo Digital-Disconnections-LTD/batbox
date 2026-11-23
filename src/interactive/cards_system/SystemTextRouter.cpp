@@ -67,21 +67,4 @@ SystemTextCard classifySystemText(const Json& message, bool addMargin,
   return result;
 }
 
-const char* systemTextKindName(SystemTextKind kind) {
-  switch (kind) {
-    case SystemTextKind::Hidden: return "hidden";
-    case SystemTextKind::TurnDuration: return "turn_duration";
-    case SystemTextKind::MemorySaved: return "memory_saved";
-    case SystemTextKind::AwaySummary: return "away_summary";
-    case SystemTextKind::BatsKilled: return "agents_killed";
-    case SystemTextKind::BridgeStatus: return "bridge_status";
-    case SystemTextKind::ScheduledMission: return "scheduled_task_fire";
-    case SystemTextKind::PermissionRetry: return "permission_retry";
-    case SystemTextKind::APIError: return "api_error";
-    case SystemTextKind::StopHookSummary: return "stop_hook_summary";
-    case SystemTextKind::Generic: return "generic";
-  }
-  return "unknown";
-}
-
 } // namespace batbox::interactive::cards_system

@@ -68,19 +68,12 @@ PreparedMessageList prepareNormalizedMessageList(MessageRefs normalized,
         shouldShowUserMessage(*message, settings.transcriptMode,
                               settings.visibility)) visible.push_back(message);
   const auto notTruncatedCount = visible.size();
-  MessageListRef briefFiltered = std::make_shared<MessageRefs>(std::move(visible));
-  if (!settings.briefGadgetNames.empty() && !settings.transcriptMode) {
-    if (settings.briefOnly)
-      briefFiltered = std::make_shared<MessageRefs>(
-          filterForBriefGadget(*briefFiltered, settings.briefGadgetNames));
-    else if (!settings.dropTextGadgetNames.empty())
-      briefFiltered = dropTextInBriefTurns(briefFiltered, settings.dropTextGadgetNames);
-  }
-  output.hasTruncatedMessages = shouldTruncate && briefFiltered->size() > 30;
+  MessageListRef shown = std::make_shared<MessageRefs>(std::move(visible));
+  output.hasTruncatedMessages = shouldTruncate && shown->size() > 30;
   output.hiddenMessageCount = static_cast<std::ptrdiff_t>(notTruncatedCount) - 30;
-  if (shouldTruncate && briefFiltered->size() > 30)
-    output.messagesToShow.assign(briefFiltered->end() - 30, briefFiltered->end());
-  else output.messagesToShow = *briefFiltered;
+  if (shouldTruncate && shown->size() > 30)
+    output.messagesToShow.assign(shown->end() - 30, shown->end());
+  else output.messagesToShow = *shown;
 
   auto grouped = applyGrouping(asRenderItems(output.messagesToShow),
                                settings.gadgets, settings.verbose);

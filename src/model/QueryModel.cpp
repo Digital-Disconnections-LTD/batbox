@@ -344,6 +344,16 @@ QueryResult queryModel(const PreflightInputs& input, QueryServices services,
         result.usage = reducer.usage();
         result.stopReason = reducer.stopReason();
         result.costUSD = reducer.costUSD();
+        // Arrival provenance: identity for every completed content
+        // stream. The phantom-input class had reply content with no
+        // log record of the stream that carried it; this line pins
+        // request/model/messages/stop-reason per successful stream.
+        if(services.logForDebugging)services.logForDebugging(
+          "api stream completed request="+result.streamRequestId.value_or("none")
+            +" model="+preflight.resolvedModel
+            +" messages="+std::to_string(reducer.messages().size())
+            +" stop="+(value::truthy(result.stopReason)
+              ?value::stringify(result.stopReason):std::string("none")),"debug");
       }
       completed = true;
     } catch (const retry::FallbackTriggeredError&) {

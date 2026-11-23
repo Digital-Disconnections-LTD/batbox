@@ -105,7 +105,7 @@ struct ChainCall:std::enable_shared_from_this<ChainCall>{
         };
       }
       const auto reference=messages[index];
-      project.appendEntry(std::move(entry),std::nullopt,std::move(reader)).then(
+      project.appendEntry(std::move(entry),nullptr,std::move(reader)).then(
         [self=shared_from_this(),reference](const Unit*,const std::exception_ptr& error){
           if(error){self->completed.reject(error);return;}
           try{

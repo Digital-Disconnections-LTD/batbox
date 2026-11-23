@@ -16,9 +16,7 @@ public:
   enum class Direction {Append,Prepend};
   void push(std::string text,Direction direction=Direction::Append);
   const std::string& last()const;
-  std::string item(long long index)const;
   std::size_t size()const{return ring_.size();}
-  void clear();
   void resetKillAccumulation(){lastActionWasKill_=false;}
   void recordYank(std::size_t start,std::size_t length);
   bool canYankPop()const;

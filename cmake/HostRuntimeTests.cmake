@@ -1,5 +1,5 @@
 batbox_indigenous(phase4-settings-indigenous-schema tests/phase4/settings_indigenous_schema.cpp batbox_settings)
-batbox_indigenous(phase5-git-basics-indigenous tests/phase5/git_basics_indigenous.cpp batbox_git_utils)
+batbox_indigenous(phase5-git-basics-indigenous tests/phase5/git_basics_indigenous.cpp batbox_git)
 batbox_indigenous(phase5-instructions-async-indigenous tests/phase5/instructions_async_indigenous.cpp batbox_instruction_async)
 
 batbox_indigenous(phase5-instructions-loaded-indigenous tests/phase5/instructions_loaded_indigenous.cpp batbox_instruction_async)
@@ -40,7 +40,6 @@ include(cmake/CronTests.cmake)
 include(cmake/TerminalEventsTests.cmake)
 include(cmake/KeyboardInputTests.cmake)
 include(cmake/ClipboardTests.cmake)
-include(cmake/TruncateTests.cmake)
 
 include(cmake/AsyncContextTests.cmake)
 include(cmake/BatContextTests.cmake)

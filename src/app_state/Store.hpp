@@ -78,10 +78,4 @@ private:
     };
   }
 };
-template<class T,class Equals=ObjectIs<T>>Store<T,Equals> createStore(
-  T initialState,typename Store<T,Equals>::OnChange onChange={},
-  Equals equal={}){
-  return Store<T,Equals>(std::move(initialState),std::move(onChange),
-    std::move(equal));
-}
 } // namespace batbox::app_state

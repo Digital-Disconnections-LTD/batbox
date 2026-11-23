@@ -1,7 +1,7 @@
 #include "interactive/navigation/ResubmitText.hpp"
 #include "interactive/MessageTags.hpp"
 #include "messages/TextContent.hpp"
-#include "display/Tags.hpp"
+#include "messages/Tags.hpp"
 
 namespace batbox::interactive::navigation {
 std::optional<ResubmitText> textForResubmit(const TurnMessageRef& message){
@@ -16,6 +16,6 @@ std::optional<ResubmitText> textForResubmit(const TurnMessageRef& message){
     const auto args=extractTag(*content,"command-args").value_or("");
     return ResubmitText{*cmd+" "+args,"prompt"};
   }
-  return ResubmitText{display::stripIdeContextTags(*content),"prompt"};
+  return ResubmitText{messages::stripIdeContextTags(*content),"prompt"};
 }
 } // namespace batbox::interactive::navigation

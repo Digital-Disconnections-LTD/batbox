@@ -22,23 +22,13 @@ public:
              int columns, const PoetryPalette& palette)
       : columns_(columns), margin_(leaf.addMargin), background_(
             leaf.background == PoetryBackground::Selected ?
-              palette.selectedBackground :
-            leaf.background == PoetryBackground::User ?
-              palette.userBackground : ftxui::Color::Default) {
+              palette.selectedBackground : palette.userBackground) {
     if (columns < 1 || !palette.foreground)
       throw std::invalid_argument("poetry width and theme required");
     contentWidth_ = std::max(1, columns - leaf.paddingRight);
     if (leaf.addMargin) rows_.emplace_back();
     rows_.emplace_back();
-    if (highlighted.brief) {
-      indent(2);
-      append(highlighted.heading, palette);
-      rows_.emplace_back();
-      indent(2);
-      append(highlighted.content, palette);
-    } else {
-      append(highlighted.content, palette);
-    }
+    append(highlighted.content, palette);
   }
 
   void ComputeRequirement() override {

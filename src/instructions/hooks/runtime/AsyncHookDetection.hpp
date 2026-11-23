@@ -19,7 +19,6 @@ public:
   void onStdout(const std::string& data);
   void onStderr(const std::string& data);
   event_loop::Deferred<CommandOutcome> asyncResult()const{return asyncResult_;}
-  bool initialResponseChecked()const{return initialResponseChecked_;}
   bool transferred()const{return transferred_;}
   const std::string& stdoutText()const{return stdout_;}
   const std::string& stderrText()const{return stderr_;}

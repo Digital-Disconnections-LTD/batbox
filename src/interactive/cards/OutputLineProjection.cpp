@@ -1,5 +1,5 @@
 #include "interactive/cards/OutputLineProjection.hpp"
-#include "ansi_tokenize/AnsiTokenize.hpp"
+#include "text_sdk/ansi_tokenize/AnsiTokenize.hpp"
 #include "terminal_ftxui/StyleProjection.hpp"
 #include "ftxui/screen/screen.hpp"
 #include <algorithm>
@@ -11,7 +11,7 @@ namespace batbox::interactive::cards {
 namespace {
 struct VisualCell {
   std::string glyph;
-  ansi_tokenize::Codes codes;
+  text_sdk::ansi_tokenize::Codes codes;
   bool prefix = false;
 };
 using VisualRow = std::vector<VisualCell>;
@@ -26,8 +26,8 @@ public:
       throw std::invalid_argument("Output line viewport too narrow");
     rows_.emplace_back();
     indent(true);
-    const auto chars = ansi_tokenize::styledCharsFromTokens(
-        ansi_tokenize::tokenize(line.formatted));
+    const auto chars = text_sdk::ansi_tokenize::styledCharsFromTokens(
+        text_sdk::ansi_tokenize::tokenize(line.formatted));
     for (const auto& character : chars) {
       if (character.value == "\n") {
         rows_.emplace_back();

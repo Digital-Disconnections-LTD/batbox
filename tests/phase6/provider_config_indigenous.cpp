@@ -1,5 +1,5 @@
-#include "application_config/ConfigPanelInternal.hpp"
-#include "application_config/EndpointStore.hpp"
+#include "application/config/ConfigPanelInternal.hpp"
+#include "application/config/EndpointStore.hpp"
 #include "application/Config.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "transport/WireClient.hpp"
@@ -15,7 +15,7 @@
 #endif
 
 using namespace batbox;
-using namespace batbox::application_config;
+using namespace batbox::application::config;
 namespace {
 struct Temporary {
   std::filesystem::path path;
@@ -133,7 +133,7 @@ void endpointRoundTrip(const std::filesystem::path& root){
 void loadedProfiles(const std::filesystem::path& root){
   const auto path=root/"loaded-client.json";
   write(path,endpointsDocument());
-  const auto config=application::loadConfig({"--config",runtime::pathToUtf8(path)});
+  const auto config=application::loadConfig({"--config",batbox::runtime::pathToUtf8(path)});
   assert(config.model=="chat::qwen");
   const auto selected=application::selectedInferenceProfile(config);
   assert(selected.provider=="openai-chat"&&selected.preset=="vllm");
@@ -148,7 +148,7 @@ void loadedProfiles(const std::filesystem::path& root){
       {"quirks",{{"reasoning","reasoning_content"}}}}},
     {"claude",{{"model","claude"},{"base_url","http://127.0.0.1:8000"}}}}}});
   const auto explicitConfig=application::loadConfig(
-    {"--config",runtime::pathToUtf8(explicitPath),"--profile","local"});
+    {"--config",batbox::runtime::pathToUtf8(explicitPath),"--profile","local"});
   const auto& local=explicitConfig.profiles.at("local");
   assert(local.provider=="openai-chat"&&local.preset=="llama.cpp");
   assert(local.messagesPath=="/v1/chat/completions"&&local.modelsPath=="/v1/models");
@@ -159,17 +159,17 @@ void loadedProfiles(const std::filesystem::path& root){
   write(explicitPath,Json{{"profiles",{{"local",{{"model","qwen"},
     {"base_url","http://127.0.0.1:9931"},{"provider","ollama"}}}}}});
   const auto unknown=failure([&]{(void)application::loadConfig(
-    {"--config",runtime::pathToUtf8(explicitPath)});});
+    {"--config",batbox::runtime::pathToUtf8(explicitPath)});});
   assert(contains(unknown,"Profile local")&&contains(unknown,"openai-chat"));
   write(explicitPath,Json{{"profiles",{{"local",{{"model","qwen"},
     {"base_url","http://127.0.0.1:9931"},{"provider","openai-chat"},
     {"quirks",{{"tool_ids","long"}}}}}}}});
   assert(contains(failure([&]{(void)application::loadConfig(
-    {"--config",runtime::pathToUtf8(explicitPath)});}),"any, short"));
+    {"--config",batbox::runtime::pathToUtf8(explicitPath)});}),"any, short"));
 
   const auto legacyPath=root/"legacy-client.json";
   write(legacyPath,Json{{"model","qwen"},{"base_url","http://127.0.0.1:8000"}});
-  const auto legacy=application::loadConfig({"--config",runtime::pathToUtf8(legacyPath)});
+  const auto legacy=application::loadConfig({"--config",batbox::runtime::pathToUtf8(legacyPath)});
   assert(application::selectedInferenceProfile(legacy).provider=="anthropic");
 }
 // Status row, welcome card and /status name the preset or kind beside the
@@ -179,19 +179,19 @@ void displayLabels(){
   routed.baseUrl="https://openrouter.ai/api";routed.provider="openai-chat";
   routed.preset="openrouter";routed.contextWindow=1000;routed.maxOutputTokens=100;
   const auto routedProfile=runtimeProfile("openrouter::qwen/qwen3-coder",routed,"qwen/qwen3-coder");
-  assert(application_model::displayModelLabel("openrouter::qwen/qwen3-coder",&routedProfile)==
+  assert(application::model::displayModelLabel("openrouter::qwen/qwen3-coder",&routedProfile)==
     "openrouter · qwen/qwen3-coder");
   auto bare=routed;bare.preset.clear();
   const auto bareProfile=runtimeProfile("chat::qwen",bare,"qwen");
-  assert(application_model::displayModelLabel("chat::qwen",&bareProfile)=="openai-chat · qwen");
+  assert(application::model::displayModelLabel("chat::qwen",&bareProfile)=="openai-chat · qwen");
   auto plain=routed;plain.preset.clear();plain.provider="anthropic";
   const auto plainProfile=runtimeProfile("main::model",plain,"model");
-  assert(application_model::displayModelLabel("main::model",&plainProfile)=="main::model");
-  assert(application_model::displayModelLabel("not connected",nullptr)=="not connected");
+  assert(application::model::displayModelLabel("main::model",&plainProfile)=="main::model");
+  assert(application::model::displayModelLabel("not connected",nullptr)=="not connected");
 }
 void isolate(const std::filesystem::path& root){
 #ifdef _WIN32
-  _putenv_s("BATBOX_CONFIG_DIR",runtime::pathToUtf8(root).c_str());
+  _putenv_s("BATBOX_CONFIG_DIR",batbox::runtime::pathToUtf8(root).c_str());
   for(const auto* name:{"BATBOX_PROFILE","BATBOX_MODEL","BATBOX_BASE_URL",
       "BATBOX_AUTH_TOKEN","BATBOX_API_KEY_HELPER"})_putenv_s(name,"");
 #else

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "intl/Intl.hpp"
-#include "text_width/StringWidth.hpp"
-#include "text_width/WrapAnsi.hpp"
+#include "text_sdk/width/StringWidth.hpp"
+#include "text_sdk/width/WrapAnsi.hpp"
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -34,8 +34,8 @@ struct MetricsServices {
 };
 MetricsServices indigenousMetricsServices(
     std::shared_ptr<intl::Stash> intl,
-    std::shared_ptr<text_width::StringWidth> width,
-    text_width::WrapAnsiRef wrap);
+    std::shared_ptr<text_sdk::width::StringWidth> width,
+    text_sdk::width::WrapAnsiRef wrap);
 
 class MeasuredText {
 public:

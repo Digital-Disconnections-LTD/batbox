@@ -61,7 +61,7 @@ Deferred<std::optional<std::string>> AsyncProject::getExistingFlightFile(const s
   }catch(...){result.reject(std::current_exception());}
   return result;
 }
-Completion AsyncProject::appendEntry(Json entry,std::optional<std::string> targetFlight,
+Completion AsyncProject::appendEntry(Json entry,const std::string* targetFlight,
   async_queue::EntryReader reader){
   Completion result(loop_);
   try{
@@ -159,8 +159,8 @@ Completion AsyncProject::materializeFlightFile(){
         project(project),completed(std::move(completed)),entries(std::move(entries)){}
       void next(){
         if(index>=entries->size()){completed.resolve({});return;}
-        auto current=std::move((*entries)[index++]);
-        project->appendEntry(std::move(current.value),std::nullopt,
+        auto& current=(*entries)[index++];
+        project->appendEntry(std::move(current.value),nullptr,
           std::move(current.reader)).then([self=shared_from_this()](
           const Unit*,const std::exception_ptr& error){
           if(error)self->completed.reject(error);else self->next();

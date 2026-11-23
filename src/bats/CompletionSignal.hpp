@@ -61,10 +61,6 @@ class CompletionSignal {
         waiter->publish(subscriber.slot,mappingTicket_);
     subscribers_.clear();
   }
-  std::size_t subscriberCount()const{
-    std::lock_guard lock(mutex_);
-    return subscriptions_;
-  }
  private:
   struct Subscriber {std::weak_ptr<CompletionWaiter> waiter;int slot;};
   mutable std::mutex mutex_;

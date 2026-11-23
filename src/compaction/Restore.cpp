@@ -75,11 +75,31 @@ Json createPlanModeAttachmentIfNeeded(Context& context,RestoreServices& services
 }
 Json createAsyncBatAttachmentsIfNeeded(Context& context,RestoreServices& services) {
   const auto app=context.getAppState();
+  const auto& tasks=app.at("tasks");
+  const auto& self=value::property(context.data,"agentId");
+  // A Bat hears only about its own tree. Agents the main Flight launched
+  // report to the main Flight, and re-announcing them inside a Bat's
+  // restored conversation burns the Bat's (often tiny) context window.
+  const auto inBatTree=[&tasks,&self](const Json& mission){
+    if(!self.is_string())return true;
+    std::string parent=value::property(mission,"parentBatId").is_string()?
+      value::property(mission,"parentBatId").get<std::string>():std::string();
+    std::size_t hops=0;
+    while(!parent.empty()&&hops<=tasks.size()){
+      if(parent==self.get<std::string>())return true;
+      const auto& node=value::property(tasks,parent);
+      parent=value::property(node,"parentBatId").is_string()?
+        value::property(node,"parentBatId").get<std::string>():std::string();
+      ++hops;
+    }
+    return false;
+  };
   Json result=Json::array();
-  for(const auto& mission:app.at("tasks")) {
+  for(const auto& mission:tasks) {
     if(mission.at("type")!="local_agent")continue;
     if(value::truthy(value::property(mission,"retrieved")) || mission.at("status")=="pending" ||
        value::property(mission,"agentId")==value::property(context.data,"agentId"))continue;
+    if(!inBatTree(mission))continue;
     const auto& status=mission.at("status");
     const auto& summary=status=="running" ? value::property(value::property(mission,"progress"),"summary") : value::property(mission,"error");
     Json attachment={{"type","task_status"},{"taskType","local_agent"},{"description",mission.at("description")},

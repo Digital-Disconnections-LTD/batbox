@@ -43,11 +43,8 @@ MessageListMemo::Key MessageListMemo::keyFor(const MessageListSettings& settings
   key.virtualScroll = settings.virtualScroll;
   key.disableRenderCap = settings.disableRenderCap;
   key.verbose = settings.verbose;
-  key.briefOnly = settings.briefOnly;
   key.fullscreen = settings.fullscreen;
   key.renderRange = settings.renderRange;
-  key.briefGadgetNames = settings.briefGadgetNames;
-  key.dropTextGadgetNames = settings.dropTextGadgetNames;
   if (settings.gadgets)
     for (const auto& gadget : settings.gadgets->gadgets)
       key.groupingGadgets.emplace_back(gadget.name, gadget.renderGroupedGadgetUse);
@@ -67,12 +64,10 @@ bool MessageListMemo::matches(const Key& key, const MessageListSettings& setting
       key.showAllInTranscript == settings.showAllInTranscript &&
       key.virtualScroll == settings.virtualScroll &&
       key.disableRenderCap == settings.disableRenderCap &&
-      key.verbose == settings.verbose && key.briefOnly == settings.briefOnly &&
+      key.verbose == settings.verbose &&
       key.fullscreen == settings.fullscreen &&
       key.renderRange == settings.renderRange &&
       key.messageServices == settings.messageServices &&
-      key.briefGadgetNames == settings.briefGadgetNames &&
-      key.dropTextGadgetNames == settings.dropTextGadgetNames &&
       sameGrouping(key.groupingGadgets, settings.gadgets) &&
       key.readSearchGadgets == settings.readSearch.gadgets &&
       key.noContentMessage == settings.visibility.noContentMessage &&

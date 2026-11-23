@@ -40,14 +40,10 @@ public:
   void setResponseLength(const std::function<double(double)>& update);
   void pickNewSpinnerTip();
   void resetLoadingState();
-  void beginSubmit(){tipPickedThisTurn_=false;}
   double responseLength()const{return responseLength_;}
   double loadingStartTime()const{return loadingStartTime_;}
   double totalPausedMs()const{return totalPausedMs_;}
-  std::optional<double> pauseStartTime()const{return pauseStartTime_;}
-  bool tipPickedThisTurn()const{return tipPickedThisTurn_;}
   const runtime::OrderedStringSet& bashGadgets()const{return *bashGadgets_;}
-  std::size_t bashGadgetsProcessedIndex()const{return bashGadgetsProcessedIndex_;}
 private:
   event_loop::Loop& owner_;
   QueryGuard& guard_;
@@ -59,8 +55,7 @@ private:
   std::function<void()> unsubscribe_;
   std::size_t bashGadgetsProcessedIndex_=0;
   double responseLength_=0,loadingStartTime_=0,totalPausedMs_=0;
-  std::optional<double> pauseStartTime_;
-  bool wasQueryActive_=false,tipPickedThisTurn_=false;
+  bool wasQueryActive_=false;
   std::optional<std::string> spinnerMessage_,spinnerColor_,spinnerShimmerColor_;
   void changed();
   void tipError(std::exception_ptr error);

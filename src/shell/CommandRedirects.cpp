@@ -6,8 +6,8 @@ namespace batbox::shell_command {
 bool hasStdinRedirect(const std::string& command){
   const auto code=value::utf16CodeUnits(command);
   for(std::size_t i=0;i<code.size();++i){
-    if(code[i]!=u'<'||i>0&&!detail::whitespace(code[i-1])&&
-       code[i-1]!=u';'&&code[i-1]!=u'&'&&code[i-1]!=u'|')continue;
+    if(code[i]!=u'<'||(i>0&&!detail::whitespace(code[i-1])&&
+       code[i-1]!=u';'&&code[i-1]!=u'&'&&code[i-1]!=u'|'))continue;
     if(i+1<code.size()&&(code[i+1]==u'<'||code[i+1]==u'('))continue;
     auto j=i+1;
     while(j<code.size()&&detail::whitespace(code[j]))++j;

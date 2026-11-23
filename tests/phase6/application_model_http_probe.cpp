@@ -1,4 +1,4 @@
-#include "application_model/LocalModelService.hpp"
+#include "application/model/LocalModelService.hpp"
 #include "execution/GadgetExecution.hpp"
 #include "messages/Messages.hpp"
 #include "query/SimpleQueriesBinding.hpp"
@@ -11,13 +11,13 @@ using namespace batbox;
 int main(int argc,char** argv){
   if(argc!=2)throw std::invalid_argument("Base URL required");
   event_loop::Loop loop;
-  application_model::Config config;
+  application::model::Config config;
   config.client.baseUrl=argv[1];
   config.client.messagesPath="/normal";
   config.client.requestTimeout=std::chrono::seconds(8);
   config.client.streamIdleTimeout=std::chrono::seconds(6);
   config.mainModel=config.smallModel="batbox-model";
-  config.profiles.emplace("batbox-model",application_model::ModelProfile{
+  config.profiles.emplace("batbox-model",application::model::ModelProfile{
     "batbox-model",200000,50000,false,false,false,false,false,false,
     Json{{"inputTokens",0},{"outputTokens",0},
       {"promptCacheReadTokens",0},{"promptCacheWriteTokens",0},
@@ -25,7 +25,7 @@ int main(int argc,char** argv){
   config.policyURL="https://batbox.local/policy";
   config.retryWire.retryAfter="retry-after";
   config.retryWire.shouldRetry="x-should-retry";
-  application_model::Imports imports;
+  application::model::Imports imports;
   std::atomic<int> schemaPoetryEntries{0};
   imports.authToken=[]{return std::string("test-local-token");};
   imports.invalidateAuthToken=[]{};
@@ -63,7 +63,7 @@ int main(int argc,char** argv){
   int clearedWarning=0,suppressedWarning=0;
   timedImports.clearCompactWarningSuppression=[&]{++clearedWarning;};
   timedImports.suppressCompactWarning=[&]{++suppressedWarning;};
-  auto service=std::make_shared<application_model::LocalModelService>(
+  auto service=std::make_shared<application::model::LocalModelService>(
     loop,std::move(config),std::move(imports));
   const Json context={{"project","Batbox"},{"branch","main"}};
   if(service->appendSystemContext(Json::array({"base"}),context)!=
@@ -90,9 +90,9 @@ int main(int argc,char** argv){
       Json{{"type","tool_result"},{"tool_use_id","new"},
         {"content","recent result"}}})}}}}
   });
-  if(application_model::estimateMessageTokens(oldMessages)<=0)
+  if(application::model::estimateMessageTokens(oldMessages)<=0)
     throw std::logic_error("Message token estimate unavailable");
-  auto timedService=std::make_shared<application_model::LocalModelService>(
+  auto timedService=std::make_shared<application::model::LocalModelService>(
     loop,std::move(timedConfig),std::move(timedImports));
   Json compacted;
   std::exception_ptr compactError;

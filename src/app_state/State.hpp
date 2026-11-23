@@ -33,7 +33,7 @@ struct AppState {
   std::shared_ptr<OrderedStringMap<value::ValueRef>> missions;
   std::shared_ptr<OrderedStringMap<std::string>> batNameRoster;
   std::shared_ptr<instructions::hooks::runtime::FlightHooksState> flightHooks;
-  std::shared_ptr<runtime::OrderedStringSet> trackedFiles,activeOverlays;
+  std::shared_ptr<runtime::OrderedStringSet> trackedFiles;
   value::RecordRef permissionContext;
   value::ValueRef settingsEnv;
   Json snapshot()const{return fields->snapshot();}
@@ -44,10 +44,6 @@ struct AppState {
     return copy;
   }
   value::ValueRef fieldRef(const std::string& key)const{return fields->get(key);}
-  void setSettings(value::ValueRef settings,value::ValueRef env){
-    fields->setRef("settings",std::move(settings));
-    settingsEnv=std::move(env);
-  }
   void setPermissionContext(value::RecordRef context){
     permissionContext=std::move(context);
     fields->set("toolPermissionContext",permissionContext->snapshot());
@@ -59,8 +55,7 @@ using AppStateStore=Store<AppStateRef>;
 struct DefaultAppStateServices {
   std::function<bool()> isPartner,isPlanModeRequired;
   std::function<Json()> getInitialSettings,getEmptyGadgetPermissionContext,
-    createEmptyAttributionState,shouldEnableThinkingByDefault,
-    shouldEnablePoetrySuggestion;
+    createEmptyAttributionState,shouldEnableThinkingByDefault;
   value::ValueRef idleSpeculationState;
 };
 AppStateRef getDefaultAppState(const DefaultAppStateServices& services);

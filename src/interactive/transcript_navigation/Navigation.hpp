@@ -2,14 +2,14 @@
 #include "event_loop/Deferred.hpp"
 #include "interactive/MessageGrouping.hpp"
 #include "interactive/viewport/Controller.hpp"
-#include "terminal_search/Scan.hpp"
+#include "text_sdk/scan/Scan.hpp"
 #include <functional>
 #include <map>
 #include <optional>
 
 namespace batbox::interactive::transcript_navigation {
 struct PositionOverlay {
-  std::vector<terminal_search::MatchPosition> positions;
+  std::vector<text_sdk::scan::MatchPosition> positions;
   double rowOffset=0;
   std::size_t currentIdx=0;
 };
@@ -26,7 +26,7 @@ struct Services {
     owner(loop),viewport(view){}
   std::function<std::string(const RenderItem&)> extractSearchText;
   // nullopt means no painted row; an empty vector means a rendered phantom.
-  std::function<std::optional<std::vector<terminal_search::MatchPosition>>(
+  std::function<std::optional<std::vector<text_sdk::scan::MatchPosition>>(
     std::size_t,const std::string&)> scanItem;
   std::function<void(std::optional<PositionOverlay>)> setPositions;
   std::function<void(std::size_t,std::size_t)> onMatchesChanged;
@@ -70,7 +70,7 @@ private:
     positionMessage_=-1,pendingStickyIndex_=-1,lastStickyIndex_=-1;
   double searchAnchor_=-1;
   int phantomBurst_=0,pendingStep_=0,pendingStickyTries_=0;
-  std::vector<terminal_search::MatchPosition> positions_;
+  std::vector<text_sdk::scan::MatchPosition> positions_;
   std::optional<Seek> seek_;
   Suppress suppress_=Suppress::None;
   StickyPoetry sticky_;

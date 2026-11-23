@@ -1,9 +1,12 @@
 #include "git/CanonicalRoot.hpp"
+#include "git/filesystem/GitFilesystemInternal.hpp"
+#include "runtime/Encoding.hpp"
 #include "runtime/JsonValue.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/Unicode.hpp"
 #include <filesystem>
 #include <stdexcept>
+#include <system_error>
 #include <utility>
 
 namespace batbox::git {
@@ -31,27 +34,58 @@ std::string basename(const std::string& path){return runtime::pathToUtf8(
   runtime::pathFromUtf8(path).filename());}
 }
 CanonicalRoot::CanonicalRoot(CanonicalRootImports imports):imports_(std::move(imports)){
-  if(!imports_.findGitRoot||!imports_.readFileSync||!imports_.realpathSync)
+  if(!imports_.statSync||!imports_.readFileSync||!imports_.realpathSync)
     throw std::invalid_argument("Canonical Git root imports required");
 }
-std::optional<std::string> CanonicalRoot::find(const std::string& startPath){
-  const auto root=imports_.findGitRoot(startPath);
-  if(!root||root->empty())return std::nullopt;
-  return resolve(*root);
-}
-std::string CanonicalRoot::resolve(const std::string& gitRoot){
-  const auto found=stash_.find(gitRoot);
+CanonicalRoot::Entry& CanonicalRoot::touch(const std::string& key){
+  const auto found=stash_.find(key);
   if(found!=stash_.end()){
     recency_.splice(recency_.begin(),recency_,found->second.recency);
-    return found->second.value;
+    return found->second;
   }
-  auto value=compute(gitRoot);
-  recency_.push_front(gitRoot);
-  stash_.emplace(gitRoot,Entry{value,recency_.begin()});
+  recency_.push_front(key);
+  const auto inserted=stash_.emplace(key,Entry{{},std::nullopt,recency_.begin()});
   if(stash_.size()>50){stash_.erase(recency_.back());recency_.pop_back();}
-  return value;
+  return inserted.first->second;
 }
-std::string CanonicalRoot::compute(const std::string& gitRoot)const{
+std::optional<std::string> CanonicalRoot::walk(const std::string& startPath)const{
+  auto current=git::filesystem::resolvePath(startPath);
+  constexpr char separator=static_cast<char>(std::filesystem::path::preferred_separator);
+  const auto slash=current.find(separator);
+  const auto root=slash==std::string::npos?std::string(1,separator):current.substr(0,slash+1);
+  while(current!=root){
+    try{
+      const auto st=imports_.statSync(git::filesystem::joinPath(current,".git"));
+      if(st.isDirectory||st.isFile)return value::normalizeNFC(current);
+    }catch(...){}
+    const auto parent=runtime::pathToUtf8(runtime::pathFromUtf8(current).parent_path());
+    if(parent==current)break;
+    current=parent;
+  }
+  try{
+    const auto st=imports_.statSync(git::filesystem::joinPath(root,".git"));
+    if(st.isDirectory||st.isFile)return value::normalizeNFC(root);
+  }catch(...){}
+  return std::nullopt;
+}
+std::optional<std::string> CanonicalRoot::find(const std::string& startPath){
+  auto&slot=touch(startPath);
+  if(!slot.root)slot.root=walk(startPath);
+  if(!slot.root||slot.root->empty())return std::nullopt;
+  if(!slot.value)slot.value=canonical(*slot.root);
+  return slot.value;
+}
+std::optional<std::string> CanonicalRoot::nearest(const std::string& startPath){
+  auto&slot=touch(startPath);
+  if(!slot.root)slot.root=walk(startPath);
+  return slot.root;
+}
+std::string CanonicalRoot::resolve(const std::string& gitRoot){
+  auto&slot=touch(gitRoot);
+  if(!slot.value)slot.value=canonical(gitRoot);
+  return *slot.value;
+}
+std::string CanonicalRoot::canonical(const std::string& gitRoot)const{
   try{
     const auto gitContent=value::trim(imports_.readFileSync(pathJoin(gitRoot,".git")));
     if(gitContent.rfind("gitdir:",0)!=0)return gitRoot;

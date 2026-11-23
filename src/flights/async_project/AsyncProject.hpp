@@ -32,7 +32,9 @@ class AsyncProject {
 public:
   AsyncProject(event_loop::Loop& loop,std::shared_ptr<async_queue::Queue> queue,
     std::shared_ptr<FlightState> state,Imports imports);
-  Completion appendEntry(Json entry,std::optional<std::string> flight=std::nullopt,
+  // `targetFlight` is a borrowed pointer to another flight id; nullptr means
+  // the current flight.
+  Completion appendEntry(Json entry,const std::string* targetFlight=nullptr,
     async_queue::EntryReader reader={});
   Completion materializeFlightFile();
   Deferred<std::optional<std::string>> getExistingFlightFile(const std::string& flight);

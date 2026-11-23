@@ -20,7 +20,7 @@ struct SurfaceOptions {
   std::string screen="prompt",conversationId;
   int columns=80;
   bool verbose=false,isLoading=false,hidePastThinking=false,hideLogo=false;
-  bool briefOnly=false,showAllInTranscript=false,disableRenderCap=false,virtualScroll=false;
+  bool showAllInTranscript=false,disableRenderCap=false,virtualScroll=false;
   // Indigenous transcript presentation: completed reasoning stays with its turn,
   // and transient blocks participate in the same measured scrolling list.
   bool thinkingInPlace=false;

@@ -1,7 +1,7 @@
 #include "interactive/PresentationState.hpp"
 #include "interactive/text_input/TextEditorIndigenous.hpp"
 #include "keyboard_input/Keyboard.hpp"
-#include "text_width/IndigenousLayout.hpp"
+#include "text_sdk/width/IndigenousLayout.hpp"
 #include <iostream>
 #include <stdexcept>
 
@@ -15,9 +15,9 @@ int main(){
   event_loop::Loop owner;
   ix::PresentationState state;
   auto intl=std::make_shared<intl::Stash>(intl::indigenousServices());
-  auto width=std::make_shared<text_width::StringWidth>(
-    text_width::indigenousServices(intl));
-  auto wrap=text_width::indigenousWrapAnsiModule().wrapAnsi();
+  auto width=std::make_shared<text_sdk::width::StringWidth>(
+    text_sdk::width::indigenousServices(intl));
+  auto wrap=text_sdk::width::indigenousWrapAnsiModule().wrapAnsi();
   ti::KillRing ring;
   ti::EditorOptions editorOptions;
   editorOptions.columns=40;editorOptions.cursorChar=" ";

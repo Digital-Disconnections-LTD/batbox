@@ -1,6 +1,7 @@
 #include "transport/openai_chat/Translate.hpp"
 #include "transport/RawHttp.hpp"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <random>
@@ -9,6 +10,11 @@
 namespace batbox::transport::openai_chat {
 namespace {
 constexpr std::string_view kAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+// Inline thinking tags some chat endpoints emit inside the content field.
+// Case-sensitive on purpose: a server writing them differently keeps its own
+// markup as text rather than us guessing at reasoning.
+constexpr std::array<std::string_view,2> kThinkingOpen{"<thinking>","<think>"};
+constexpr std::array<std::string_view,2> kThinkingClose{"</thinking>","</think>"};
 const Json& field(const Json& object, const char* name) { return value::property(object,name); }
 std::string text(const Json& object, const char* name) {
   const auto& value = field(object,name);
@@ -258,6 +264,41 @@ std::string incomingToolId(const std::string& serverId, std::set<std::string>& s
   return id;
 }
 
+std::optional<std::pair<std::size_t,std::size_t>> findInlineThinkingTag(std::string_view buffer, bool insideSpan) {
+  const auto& tags = insideSpan ? kThinkingClose : kThinkingOpen;
+  std::optional<std::pair<std::size_t,std::size_t>> best;
+  for (const auto& tag : tags) {
+    const auto pos = buffer.find(tag);
+    if (pos != std::string_view::npos && (!best || pos < best->first)) best = std::make_pair(pos,tag.size());
+  }
+  return best;
+}
+
+std::size_t inlineThinkingTagKeep(std::string_view buffer, bool insideSpan) {
+  const auto& tags = insideSpan ? kThinkingClose : kThinkingOpen;
+  std::size_t keep = 0;
+  for (std::size_t n = 1; n <= buffer.size(); ++n) {
+    const auto suffix = buffer.substr(buffer.size()-n);
+    for (const auto& tag : tags)
+      if (n < tag.size() && tag.starts_with(suffix)) { keep = std::max(keep,n); break; }
+  }
+  return keep;
+}
+
+InlineSpanSplit splitInlineThinkingSpans(const std::string& raw) {
+  InlineSpanSplit split;
+  std::string_view rest{raw};
+  bool inside = false;
+  while (!rest.empty()) {
+    const auto tag = findInlineThinkingTag(rest,inside);
+    if (!tag) { (inside ? split.thinking : split.visible) += std::string(rest); break; }
+    (inside ? split.thinking : split.visible) += std::string(rest.substr(0,tag->first));
+    rest = rest.substr(tag->first + tag->second);
+    inside = !inside;
+  }
+  return split;
+}
+
 Json translateRequest(const Json& body, bool stream, const ChatQuirks& quirks) {
   Json out = Json::object();
   out["model"] = field(body,"model");
@@ -330,11 +371,17 @@ Json translateResponse(const Json& chat, const std::string& model) {
   Json content = Json::array();
   auto reasoning = text(message,"reasoning_content");
   if (reasoning.empty()) reasoning = text(message,"reasoning");
-  if (!reasoning.empty()) content.push_back(Json{{"type","thinking"},{"thinking",reasoning},{"signature",""}});
   std::string reply;
   const auto& body = field(message,"content");
   if (body.is_string()) reply = body.get<std::string>();
   else if (body.is_array()) for (const auto& part : body) reply += text(part,"text");
+  const auto spans = splitInlineThinkingSpans(reply);
+  reply = spans.visible;
+  if (!spans.thinking.empty()) {
+    if (!reasoning.empty()) reasoning += "\n";
+    reasoning += spans.thinking;
+  }
+  if (!reasoning.empty()) content.push_back(Json{{"type","thinking"},{"thinking",reasoning},{"signature",""}});
   const auto refusal = text(message,"refusal");
   if (!reply.empty()) content.push_back(Json{{"type","text"},{"text",reply}});
   else if (!refusal.empty()) content.push_back(Json{{"type","text"},{"text",refusal}});

@@ -112,7 +112,10 @@ std::vector<std::string> renderSystemHead(const std::string& head,
   std::vector<Block> blocks;
   std::vector<std::string> referenced;
   bool expandsAll=false;
-  for(std::size_t at=0;const auto token=nextToken(head,at);at=token->at+token->size){
+  for(std::size_t at=0;;){
+    const auto token=nextToken(head,at);
+    if(!token)break;
+    at=token->at+token->size;
     const auto name=recognised(token->body);
     if(!name)continue;
     if(name->empty())expandsAll=true;

@@ -65,4 +65,8 @@ event_loop::Deferred<AsyncModelStep> Run::throwEarly(std::exception_ptr error){
   }catch(...){resume(std::current_exception());}
   return response;
 }
+void Run::afterStream(){
+  services.queryCheckpoint("query_api_streaming_end");
+  finish();
+}
 } // namespace batbox::query::async_model

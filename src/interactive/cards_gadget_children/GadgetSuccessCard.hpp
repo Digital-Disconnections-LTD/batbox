@@ -15,16 +15,13 @@ struct SuccessRenderContext {
   const gadgets::Gadgets* gadgets = nullptr;
   bool verbose = false;
   bool transcriptMode = false;
-  bool briefOnly = false;
   std::optional<Json> input;
 };
 
 struct SuccessServices {
-  bool briefFeature = false;
   bool classifierApprovalFeature = false;
   bool classifierDenialFeature = false;
   std::function<Json()> readTheme;
-  std::function<bool()> readBriefOnly;
   std::function<std::optional<std::string>(const std::string&)>
       getClassifierApproval;
   std::function<std::optional<std::string>(const std::string&)>

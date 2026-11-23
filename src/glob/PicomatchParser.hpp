@@ -64,7 +64,6 @@ private:
   void decrement(const char* type);
   bool handleEscape(std::u16string& value);
   bool handleBracketBody(std::u16string& value);
-  bool handleQuote(std::u16string& value);
   bool handleGroup(char16_t value);
   bool handleBrace(char16_t value);
   bool handleSpecial(char16_t value);

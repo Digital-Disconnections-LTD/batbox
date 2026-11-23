@@ -73,7 +73,8 @@ RawResult runRaw(const std::vector<std::string>& args,const std::string& target,
     ::close(outPipe[0]);::close(outPipe[1]);::close(errPipe[0]);::close(errPipe[1]);::close(execPipe[0]);
     ::execvp(config.command.c_str(),argv.data());
     const int error=errno;
-    (void)::write(execPipe[1],&error,sizeof(error));
+    [[maybe_unused]] const auto written=::write(execPipe[1],&error,sizeof(error));
+    // best-effort errno report before _exit(127); partial writes are tolerated
     ::_exit(127);
   }
   closeFd(outPipe[1]);closeFd(errPipe[1]);closeFd(execPipe[1]);

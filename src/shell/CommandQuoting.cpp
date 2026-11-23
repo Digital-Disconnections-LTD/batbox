@@ -38,7 +38,7 @@ bool heredocPattern(const std::u16string& code){
     const auto quote=j<code.size()&&(code[j]==u'\''||code[j]==u'"')?code[j++]:0;
     const auto begin=j;
     while(j<code.size()&&detail::word(code[j]))++j;
-    if(j>begin&&(!quote||j<code.size()&&code[j]==quote))return true;
+    if(j>begin&&(!quote||(j<code.size()&&code[j]==quote)))return true;
   }
   return false;
 }

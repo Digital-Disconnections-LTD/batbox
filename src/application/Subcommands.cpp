@@ -1,8 +1,8 @@
 #include "application/Subcommands.hpp"
 #include "application/Config.hpp"
 #include "application/SetupWebScript.hpp"
-#include "application_config/EndpointStore.hpp"
-#include "application_connectors/Status.hpp"
+#include "application/config/EndpointStore.hpp"
+#include "application/connectors/Status.hpp"
 #include "instructions/project/ProjectDiscovery.hpp"
 #include "poetryEntries/SystemHead.hpp"
 #include "poetryEntries/SystemPoetryFile.hpp"
@@ -30,8 +30,8 @@ Config fallbackConfig(){
   const char* home=std::getenv("HOME");
   if(!home||!*home)home=std::getenv("USERPROFILE");
   if(directory&&*directory)config.configDirectory=std::filesystem::absolute(
-    runtime::pathFromUtf8(directory));
-  else if(home&&*home)config.configDirectory=runtime::pathFromUtf8(home)/".batbox";
+    batbox::runtime::pathFromUtf8(directory));
+  else if(home&&*home)config.configDirectory=batbox::runtime::pathFromUtf8(home)/".batbox";
   config.configPath=config.configDirectory/"native-client.json";
   if(const char* value=std::getenv("BATBOX_SCRAPLING_COMMAND");value&&*value)
     config.scraplingCommand=value;
@@ -45,7 +45,7 @@ Config configLocation(const std::vector<std::string>& arguments){
   catch(...){
     auto config=fallbackConfig();
     for(std::size_t i=0;i+1<arguments.size();++i)
-      if(arguments[i]=="--config")config.configPath=runtime::pathFromUtf8(arguments[i+1]);
+      if(arguments[i]=="--config")config.configPath=batbox::runtime::pathFromUtf8(arguments[i+1]);
     return config;
   }
 }
@@ -58,7 +58,7 @@ std::map<std::string,EndpointRecord> existingEndpoints(const Config& config){
   if(!std::filesystem::exists(path)&&!legacyPath(config).empty()&&
       std::filesystem::exists(legacyPath(config)))path=legacyPath(config);
   if(!std::filesystem::exists(path))return {};
-  auto loaded=application_config::readEndpoints(path);
+  auto loaded=application::config::readEndpoints(path);
   return loaded?*loaded:std::map<std::string,EndpointRecord>{};
 }
 std::string padded(const std::string& text,std::size_t width){
@@ -229,7 +229,7 @@ int addProvider(const std::vector<std::string>& arguments){
   const auto saved=providers::saveEndpoint(config.configPath,legacyPath(config),
     std::move(endpoints),endpointId,endpoint,setup.model);
   std::cout<<providers::addedNotice(saved.endpointId,setup.model)<<"\n"
-    <<"Saved to "<<runtime::pathToUtf8(config.configPath)<<" (private, mode 0600)\n";
+    <<"Saved to "<<batbox::runtime::pathToUtf8(config.configPath)<<" (private, mode 0600)\n";
   return 0;
 }
 int poetryUsage(std::ostream& out,int status){
@@ -273,7 +273,7 @@ int exportPoetry(const std::vector<std::string>& arguments){
     return 1;
   }
   std::filesystem::create_directories(directory,error);
-  if(error)throw std::runtime_error("Cannot create "+runtime::pathToUtf8(directory)+": "+error.message());
+  if(error)throw std::runtime_error("Cannot create "+batbox::runtime::pathToUtf8(directory)+": "+error.message());
   const auto source=poetryEntries::builtInSystemPoetrySource();
   auto temporary=path;temporary+=".tmp";
   {
@@ -282,13 +282,13 @@ int exportPoetry(const std::vector<std::string>& arguments){
     output.close();
     if(!output){
       std::filesystem::remove(temporary,error);
-      throw std::runtime_error("Cannot write "+runtime::pathToUtf8(temporary));
+      throw std::runtime_error("Cannot write "+batbox::runtime::pathToUtf8(temporary));
     }
   }
   std::filesystem::rename(temporary,path,error);
   if(error){
     std::error_code ignored;std::filesystem::remove(temporary,ignored);
-    throw std::runtime_error("Cannot write "+runtime::pathToUtf8(path)+": "+error.message());
+    throw std::runtime_error("Cannot write "+batbox::runtime::pathToUtf8(path)+": "+error.message());
   }
   std::cout<<"Wrote the built-in system prompt to "<<poetryEntries::displayPath(path)
     <<" ("<<source.size()<<" bytes). Edit it; Batbox uses it from the next request.\n";
@@ -342,7 +342,7 @@ void printInstructionSizes(std::ostream& out,const Config& config){
     if(!std::filesystem::is_regular_file(path,error))continue;
     std::ifstream input(path,std::ios::binary);
     std::ostringstream content;content<<input.rdbuf();
-    files.push_back({runtime::pathToUtf8(path),"Project",content.str(),{},{},false,{}});
+    files.push_back({batbox::runtime::pathToUtf8(path),"Project",content.str(),{},{},false,{}});
   }
   out<<"\nInstruction files\n";
   const auto large=instructions::project::getLargeMemoryFiles(files);
@@ -360,9 +360,9 @@ int runDoctor(const std::vector<std::string>& arguments){
     configurationError=error.what();
     config=fallbackConfig();
   }
-  const auto web=application_connectors::checkWebHelpers(config);
-  const auto mcp=application_connectors::checkMcpConfiguration(config);
-  std::cout<<application_connectors::formatDoctor(web,mcp,configurationError);
+  const auto web=application::connectors::checkWebHelpers(config);
+  const auto mcp=application::connectors::checkMcpConfiguration(config);
+  std::cout<<application::connectors::formatDoctor(web,mcp,configurationError);
   const bool ok=configurationError.empty()&&
     std::all_of(web.begin(),web.end(),[](const auto& check){return check.ok;})&&
     std::all_of(mcp.begin(),mcp.end(),[](const auto& check){return check.ok;});

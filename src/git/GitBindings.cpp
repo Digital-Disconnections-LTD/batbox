@@ -5,8 +5,8 @@
 #include <utility>
 
 namespace batbox::git {
-BasicsImports indigenousBasicsImports(std::shared_ptr<git_filesystem::RootFinder> finder,
-  git_filesystem::GitFilesystem& filesystem,
+BasicsImports indigenousBasicsImports(std::shared_ptr<CanonicalRoot> finder,
+  git::filesystem::GitFilesystem& filesystem,
   std::function<std::string()> getCwd,
   std::function<void(const std::string&,const std::string&,
     const std::optional<Json>&)> logDiagnostic){
@@ -17,7 +17,7 @@ BasicsImports indigenousBasicsImports(std::shared_ptr<git_filesystem::RootFinder
   imports.logDiagnostic=std::move(logDiagnostic);
   imports.getCwd=std::move(getCwd);
   imports.findGitRoot=[finder=std::move(finder)](const std::string& path){
-    return finder->find(path);};
+    return finder->nearest(path);};
   imports.getStashedBranch=[&filesystem]{return filesystem.getStashedBranch();};
   imports.getStashedDefaultBranch=[&filesystem]{return filesystem.getStashedDefaultBranch();};
   imports.whichSync=[](const std::string& name){

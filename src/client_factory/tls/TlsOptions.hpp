@@ -21,7 +21,6 @@ struct Services {
   std::function<std::optional<std::vector<std::string>>()>
     systemCaCertificates;
   std::function<std::shared_ptr<void>(const Json&)> makeNodeBat;
-  std::function<void()> clearMTLSBatStash;
   std::function<void(const std::string&,const std::string&)> log;
   bool bunRuntime=true;
   bool systemCaApiAvailable=true;
@@ -39,7 +38,6 @@ public:
   std::shared_ptr<const std::vector<std::string>> getCACertificates();
   NetworkOptions getTLSFetchOptions();
   void clearCACertsStash();
-  void clearMTLSStash();
 private:
   Services services_;
   std::optional<std::shared_ptr<const Json>> mtlsStash_;

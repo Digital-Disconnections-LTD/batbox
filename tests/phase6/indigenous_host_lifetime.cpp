@@ -59,16 +59,16 @@ struct HostLifetimeProbe {
         std::filesystem::path(originalTranscript).parent_path());
       {std::ofstream file(originalTranscript,std::ios::binary);
         file<<firstMessage.dump()<<'\n'<<secondMessage.dump()<<'\n';}
-      auto stashSafe=std::make_shared<bats::StashSafeParams>();
+      auto stashSafe=std::make_shared<batbox::bats::StashSafeParams>();
       stashSafe->gadgetUseContext.query.gadgetSnapshotOwner=impl.roster->current();
-      bats::saveStashSafeParams(stashSafe);stashSafe.reset();
-      std::weak_ptr<application_bats::IndigenousBatApplication> oldBat=impl.bats;
-      std::weak_ptr<application_poetry::Provider> oldPoetry=impl.poetry;
-      std::weak_ptr<gadgets::live_roster::Roster> oldRoster=impl.roster;
-      std::weak_ptr<const gadgets::live_roster::Snapshot> oldSnapshot=
+      batbox::bats::saveStashSafeParams(stashSafe);stashSafe.reset();
+      std::weak_ptr<application::bats::IndigenousBatApplication> oldBat=impl.bats;
+      std::weak_ptr<application::poetry::Provider> oldPoetry=impl.poetry;
+      std::weak_ptr<batbox::gadgets::live_roster::Roster> oldRoster=impl.roster;
+      std::weak_ptr<const batbox::gadgets::live_roster::Snapshot> oldSnapshot=
         impl.roster->current();
       const auto previous=impl.roost->snapshot();
-      application_roost::Snapshot next{std::filesystem::canonical(second),
+      application::roost::Snapshot next{std::filesystem::canonical(second),
         std::filesystem::canonical(second),Json()};
       // Hold the retirement pass until the new generation owns a running
       // child. The old provider's shutdown must leave that child's abort
@@ -81,11 +81,11 @@ struct HostLifetimeProbe {
       auto livePoetry=impl.poetry;
       check(liveBat!=oldBat.lock(),"Rebind reused old agent owner");
       auto activeServices=liveBat->makeServices();
-      bats::BatRegistrationParams newMission;
+      batbox::bats::BatRegistrationParams newMission;
       newMission.batId="a7654321";newMission.description="new workspace child";
       newMission.poetry="offline fixture";
       newMission.selectedBat={{"agentType","general-purpose"}};
-      const auto activeChild=bats::registerAsyncBat(newMission,
+      const auto activeChild=batbox::bats::registerAsyncBat(newMission,
         *activeServices.async.registration);
       check(!activeChild.abortOwner->stop_requested(),
         "New child was stopped before old workspace shutdown");

@@ -92,10 +92,10 @@ struct HostSavedBatsProbe {
     writeBat(subagents/"nested","a2222222","Saved two","Second saved reply");
     writeBat(subagents,"a3333333","Live one","Live reply");
     std::ofstream(subagents/"agent-a9999999.jsonl")<<"not json\n";
-    const auto scanned=flights::scanSavedBats(subagents,50);
+    const auto scanned=batbox::flights::scanSavedBats(subagents,50);
     check(scanned.size()==3,"Scanner must skip sidechains without readable rows");
-    check(flights::savedBatTimestamp("2026-10-30T12:00:05.500Z")-
-      flights::savedBatTimestamp("2026-10-30T12:00:00.000Z")==5500,"Timestamp parsing changed");
+    check(batbox::flights::savedBatTimestamp("2026-10-30T12:00:05.500Z")-
+      batbox::flights::savedBatTimestamp("2026-10-30T12:00:00.000Z")==5500,"Timestamp parsing changed");
     setMission(impl,"a3333333",Json{{"type","local_agent"},{"agentType","general-purpose"},
       {"status","running"},{"description","Live one"},{"retain",false}});
     const auto added=settle(impl,impl.bats->seedSavedBats());
@@ -132,10 +132,10 @@ struct HostSavedBatsProbe {
       mission(impl.appState(),"a4444444").is_null(),"A Flight's Bats are seeded only once");
     // Results of a scan for a Flight that is no longer current are dropped.
     check(impl.bats->applySavedBats("00000000-0000-4000-8000-000000000000",
-        flights::scanSavedBats(subagents,50))==0&&
+        batbox::flights::scanSavedBats(subagents,50))==0&&
       mission(impl.appState(),"a4444444").is_null(),
       "Bats scanned for an earlier Flight must not be seeded into the current one");
-    check(impl.bats->applySavedBats(impl.flight->id(),flights::scanSavedBats(subagents,50))==1&&
+    check(impl.bats->applySavedBats(impl.flight->id(),batbox::flights::scanSavedBats(subagents,50))==1&&
       !mission(impl.appState(),"a4444444").is_null(),"The current Flight's scan still applies");
   }
 
@@ -148,9 +148,9 @@ struct HostSavedBatsProbe {
     writeBat(subagents,"c1111111","Audit the parser","Audit reply");
     writeBat(lexerDirectory,"c2222222","Check the lexer","Lexer reply");
     writeBat(tokensDirectory,"c3333333","Count the tokens","Tokens reply");
-    const auto scanned=flights::scanSavedBats(subagents,50);
+    const auto scanned=batbox::flights::scanSavedBats(subagents,50);
     const auto tokens=std::find_if(scanned.begin(),scanned.end(),
-      [](const flights::SavedBat& bat){return bat.id=="c3333333";});
+      [](const batbox::flights::SavedBat& bat){return bat.id=="c3333333";});
     check(tokens!=scanned.end()&&tokens->depth==3&&tokens->parentId=="c2222222"&&
       tokens->lineage==std::vector<std::string>({"c1111111","c2222222"}),
       "The scanner must find a grandchild with its lineage");
@@ -227,13 +227,13 @@ struct HostSavedBatsProbe {
     }
     std::ofstream(directory/"agent-b9999999.jsonl")<<"not json\n";
     std::filesystem::last_write_time(directory/"agent-b9999999.jsonl",base);
-    const auto newest=flights::scanSavedBats(directory,2);
+    const auto newest=batbox::flights::scanSavedBats(directory,2);
     std::vector<std::string> ids;
     for(const auto& bat:newest)ids.push_back(bat.id);
     std::sort(ids.begin(),ids.end());
     check(ids==std::vector<std::string>({"b0000003","b0000004"}),
       "The scan must read the two most recently modified readable sidechains");
-    check(flights::scanSavedBats(directory,50).size()==5,"Without a tight limit every Bat is listed");
+    check(batbox::flights::scanSavedBats(directory,50).size()==5,"Without a tight limit every Bat is listed");
   }
 
   static void streamThrottle(Host::Impl& impl){

@@ -3,13 +3,8 @@ if(WIN32)
 else()
   set(BATBOX_SHELL_BOOTSTRAP_SOURCE src/shell/ShellBootstrapIndigenous.cpp)
 endif()
-if(WIN32)
-  set(BATBOX_HOOK_COMMAND_SOURCE src/instructions/hooks/runtime/IndigenousCommandProcessWin.cpp)
-  set(BATBOX_HOOK_MANAGED_SOURCE src/instructions/hooks/runtime/IndigenousManagedHookProcessWin.cpp)
-else()
-  set(BATBOX_HOOK_COMMAND_SOURCE src/instructions/hooks/runtime/IndigenousCommandProcess.cpp)
-  set(BATBOX_HOOK_MANAGED_SOURCE src/instructions/hooks/runtime/IndigenousManagedHookProcess.cpp)
-endif()
+# The hook runtime (src/instructions/hooks/runtime/) is its own target in
+# cmake/HooksCore.cmake, with the Indigenous process sources there too.
 add_library(batbox_roost src/cwd/Override.cpp
   src/shell/ShellBootstrap.cpp ${BATBOX_SHELL_BOOTSTRAP_SOURCE})
 target_link_libraries(batbox_roost PUBLIC batbox_shell batbox_core batbox_event_loop)
@@ -30,15 +25,13 @@ target_sources(batbox_settings PRIVATE src/settings/schema/Common.cpp
 target_sources(batbox_settings PRIVATE src/settings/schema/Descriptor.cpp
   src/settings/schema/Main.cpp src/settings/schema/Runtime.cpp
   src/settings/schema/Scalar.cpp)
-target_sources(batbox_settings PRIVATE src/settings/schema/IndigenousBindings.cpp
+target_sources(batbox_settings PRIVATE
   src/settings/schema/imports/Bindings.cpp
   src/settings/schema/imports/HooksDescriptor.cpp src/settings/schema/imports/HooksParse.cpp)
 target_link_libraries(batbox_settings PUBLIC batbox_url)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
-add_library(batbox_git_utils src/git/GitBasics.cpp src/git/IndigenousBasics.cpp
-  src/git/GitBindings.cpp src/git/CanonicalRoot.cpp src/git/IndigenousCanonicalRoot.cpp)
-target_link_libraries(batbox_git_utils PUBLIC batbox_git batbox_context batbox_process OpenSSL::Crypto ICU::uc)
-target_compile_options(batbox_git_utils PRIVATE -Wall -Wextra -Wpedantic)
+# The git binding half (src/git/) now compiles inside batbox_git
+# (Foundation.cmake); the former batbox_git_utils target was a name inversion.
 target_sources(batbox_settings PRIVATE src/settings/persistence/WatchTargets.cpp)
 add_library(batbox_instruction_async
   src/instructions/project/async/IndigenousFs.cpp src/instructions/project/async/AsyncFile.cpp
@@ -60,59 +53,30 @@ add_library(batbox_glob src/glob/Regex16.cpp src/glob/IgnorePattern.cpp
 target_link_libraries(batbox_glob PUBLIC batbox_instructions PkgConfig::PCRE2_16)
 target_compile_options(batbox_glob PRIVATE -Wall -Wextra -Wpedantic)
 
-target_sources(batbox_instruction_async PRIVATE
-  src/instructions/hooks/runtime/OutsideRepl.cpp
-  src/instructions/hooks/runtime/OutsideReplBranches.cpp
-  src/instructions/hooks/runtime/HookAbort.cpp
-  src/instructions/hooks/runtime/IndigenousCommandPrepared.cpp
-  ${BATBOX_HOOK_COMMAND_SOURCE}
-  src/instructions/hooks/runtime/HookMatching.cpp
-  src/instructions/hooks/runtime/HookConfig.cpp)
-target_link_libraries(batbox_instruction_async PUBLIC batbox_glob batbox_shell)
-add_library(batbox_profiler src/profiler/Indigenous.cpp)
-target_link_libraries(batbox_profiler PUBLIC batbox_core batbox_event_loop)
-target_compile_options(batbox_profiler PRIVATE -Wall -Wextra -Wpedantic)
-
 add_library(batbox_diagnostics src/diagnostics/DebugLog.cpp)
 target_link_libraries(batbox_diagnostics PUBLIC batbox_core batbox_event_loop)
 target_compile_options(batbox_diagnostics PRIVATE -Wall -Wextra -Wpedantic)
-
-target_sources(batbox_instruction_async PRIVATE src/instructions/hooks/runtime/HookOutputParser.cpp)
+# Profiler (memory-usage sampling) is observability beside the debug log;
+# formerly a single-file target with one consumer.
+target_sources(batbox_diagnostics PRIVATE src/profiler/Indigenous.cpp)
 
 add_library(batbox_flight_titles src/flights/Title.cpp src/flights/TitleText.cpp
   src/flights/TitlePoetry.cpp)
 target_link_libraries(batbox_flight_titles PUBLIC batbox_query batbox_settings)
 target_compile_options(batbox_flight_titles PRIVATE -Wall -Wextra -Wpedantic)
 
-target_sources(batbox_instruction_async PRIVATE
-  src/instructions/hooks/runtime/BaseHookInput.cpp
-  src/instructions/hooks/runtime/HttpHook.cpp src/instructions/hooks/runtime/SsrfGuard.cpp
-  src/instructions/hooks/runtime/IndigenousHttp.cpp src/instructions/hooks/runtime/IfCondition.cpp
-  src/instructions/hooks/runtime/HookSchema.cpp
-  src/instructions/hooks/runtime/AsyncHookRoster.cpp
-  src/instructions/hooks/runtime/AsyncHookRosterPoll.cpp
-  src/instructions/hooks/runtime/AsyncHookRosterFinalize.cpp
-  src/instructions/hooks/runtime/BackgroundHook.cpp
-  ${BATBOX_HOOK_MANAGED_SOURCE}
-  src/instructions/hooks/runtime/AsyncHookDetection.cpp
-  src/instructions/hooks/runtime/HookPoetryStream.cpp
-  src/instructions/hooks/runtime/IndigenousCommandPreparation.cpp
-  src/instructions/hooks/runtime/IndigenousCommandFull.cpp)
-target_link_libraries(batbox_instruction_async PUBLIC batbox_settings CURL::libcurl)
 target_sources(batbox_diagnostics PRIVATE src/diagnostics/DebugFilter.cpp)
 add_library(batbox_auth)
 target_link_libraries(batbox_auth PUBLIC batbox_core batbox_event_loop batbox_url ICU::uc)
 target_compile_options(batbox_auth PRIVATE -Wall -Wextra -Wpedantic)
 
 
-add_library(batbox_display src/display/Tags.cpp)
-target_link_libraries(batbox_display PUBLIC batbox_glob)
-target_compile_options(batbox_display PRIVATE -Wall -Wextra -Wpedantic)
+# Tag-string scrubbing (src/messages/Tags.cpp) now compiles into batbox_protocol;
+# flights resolves it through the core aggregate.
 target_sources(batbox_flights PRIVATE src/flights/DisplayTitle.cpp)
-target_link_libraries(batbox_flights PUBLIC batbox_display)
 
 include(cmake/SyntheticOutput.cmake)
-include(cmake/HookRuntime.cmake)
+include(cmake/HooksCore.cmake)
 include(cmake/AuthRuntime.cmake)
 include(cmake/FilesystemRuntime.cmake)
 include(cmake/HistoryRuntime.cmake)
@@ -125,7 +89,6 @@ include(cmake/Cron.cmake)
 include(cmake/TerminalEvents.cmake)
 include(cmake/KeyboardInput.cmake)
 include(cmake/Clipboard.cmake)
-include(cmake/Truncate.cmake)
 
 include(cmake/BatContext.cmake)
 include(cmake/CronIntegration.cmake)

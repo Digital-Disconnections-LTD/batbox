@@ -1,15 +1,15 @@
 # Indigenous endpoint catalog is shared by startup configuration and the FTXUI
 # command panel. Discovery runs on a worker and uses the existing HTTP client.
 target_sources(batbox_application_config PRIVATE
-  src/application_config/EndpointStore.cpp
-  src/application_compaction_settings/Policy.cpp)
+  src/application/config/EndpointStore.cpp
+  src/application/compaction_settings/Policy.cpp)
 target_link_libraries(batbox_application_config PUBLIC batbox_app_state batbox_event_loop
   batbox_transport)
 target_sources(batbox_application_commands PRIVATE
-  src/application_config/Discovery.cpp
-  src/application_config/ConfigPanel.cpp
-  src/application_config/ConfigPanelViews.cpp
-  src/application_config/ConfigPanelEdit.cpp)
+  src/application/config/Discovery.cpp
+  src/application/config/ConfigPanel.cpp
+  src/application/config/ConfigPanelViews.cpp
+  src/application/config/ConfigPanelEdit.cpp)
 target_link_libraries(batbox_application_commands PUBLIC batbox_mcp_runtime batbox_wire_clients)
 if(BUILD_TESTING)
   add_executable(batbox-endpoint-config-indigenous

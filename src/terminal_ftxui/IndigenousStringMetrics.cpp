@@ -8,7 +8,7 @@
 
 namespace batbox::terminal_ftxui {
 namespace {
-int widthOf(const text_width::StringWidth& width, std::string_view text) {
+int widthOf(const text_sdk::width::StringWidth& width, std::string_view text) {
   const auto measured = width.stringWidthUtf8(text);
   if (!std::isfinite(measured) || measured < 0 ||
       measured > std::numeric_limits<int>::max() ||
@@ -26,7 +26,7 @@ void appendZeroWidth(std::vector<std::string>& result, std::string_view grapheme
 } // namespace
 
 std::vector<std::string> segmentedGlyphCells(const intl::Segmenter& segmenter,
-                                             const text_width::StringWidth& width,
+                                             const text_sdk::width::StringWidth& width,
                                              std::string_view text) {
   std::vector<std::string> result;
   auto cursor = segmenter.segment(std::string(text));
@@ -50,7 +50,7 @@ std::vector<std::string> segmentedGlyphCells(const intl::Segmenter& segmenter,
 }
 
 std::vector<std::string> indigenousGlyphCells(const intl::Segmenter& segmenter,
-                                              const text_width::StringWidth& width,
+                                              const text_sdk::width::StringWidth& width,
                                               std::string_view text) {
   for (const unsigned char byte : text)
     if (byte >= 0x7f) return segmentedGlyphCells(segmenter, width, text);
@@ -74,7 +74,7 @@ std::vector<std::string> indigenousGlyphCells(const intl::Segmenter& segmenter,
 }
 
 void installIndigenousStringMetrics(std::shared_ptr<intl::Stash> intl,
-                                std::shared_ptr<text_width::StringWidth> width) {
+                                std::shared_ptr<text_sdk::width::StringWidth> width) {
   if (!intl || !width)
     throw std::invalid_argument("Terminal grapheme and width providers required");
   auto segmenter = intl->getGraphemeSegmenter();

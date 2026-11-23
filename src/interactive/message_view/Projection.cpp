@@ -16,7 +16,6 @@ std::optional<ftxui::Element> projectBlock(const MessagePlan& message,
   if(block.kind==BlockKind::Hidden)return {};
   if(block.kind==BlockKind::UserText){
     auto user=services.user;
-    user.poetry.isTranscriptMode=block.transcriptMode;
     user.bashResult.expandShellOutput=user.bashResult.expandShellOutput||message.expandShellOutput;
     user.bashResult.columns=message.options.columns;
     const Json empty=Json::object();

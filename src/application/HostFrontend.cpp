@@ -1,8 +1,8 @@
 #include "application/HostInternal.hpp"
 #include "application/ErrorReport.hpp"
-#include "application_connectors/Status.hpp"
+#include "application/connectors/Status.hpp"
 #include "providers/LocalDiscovery.hpp"
-#include "application_commands/FlightTitles.hpp"
+#include "application/commands/FlightTitles.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
 #include "interactive/text_input/TextEditorIndigenous.hpp"
 #include "interactive/submit/QueuedInputs.hpp"
@@ -15,7 +15,7 @@
 #include "gadget_results/Storage.hpp"
 #include "user_input/CommandMessages.hpp"
 #include "cli/headless/PermissionControl.hpp"
-#include "application_config/EndpointStore.hpp"
+#include "application/config/EndpointStore.hpp"
 #include "interactive/presentation_providers/StyleRoles.hpp"
 #include "interactive/presentation_providers/CardPalettes.hpp"
 #include "interactive/presentation_providers/SystemTheme.hpp"
@@ -55,7 +55,7 @@ std::string runningExecutable(){
 }
 std::string indigenousEnvironment(const char* name){
 #ifdef _WIN32
-  return runtime::environmentUtf8(name);
+  return batbox::runtime::environmentUtf8(name);
 #else
   const auto* value=std::getenv(name);return value?value:"";
 #endif
@@ -101,8 +101,8 @@ std::string readGitBranch(std::filesystem::path directory){
   return {};
 }
 }
-std::shared_ptr<application_commands::Bundle> Host::Impl::makeCommands(){
-  application_commands::Inputs commandInputs(owner,view);
+std::shared_ptr<application::commands::Bundle> Host::Impl::makeCommands(){
+  application::commands::Inputs commandInputs(owner,view);
   commandInputs.config=config;commandInputs.store=store;
   commandInputs.flightTransitions=flightTransitions;
   commandInputs.compactionPolicy=compactionPolicy;
@@ -184,7 +184,7 @@ std::shared_ptr<application_commands::Bundle> Host::Impl::makeCommands(){
     // before the normal shutdown path closes input dispatch.
     owner.postMission([this]{requestExit();});
   };
-  return application_commands::Bundle::create(std::move(commandInputs));
+  return application::commands::Bundle::create(std::move(commandInputs));
 }
 interactive::context::ContextBindings Host::Impl::makeContextBindings(){
   interactive::context::ContextBindings context;
@@ -211,16 +211,16 @@ interactive::context::ContextBindings Host::Impl::makeContextBindings(){
   *this->commandRows=std::move(commandRows);
   context.commands=this->commandRows;
   context.catalogSettings.getDenyRuleForGadget=[permission=permission](
-      const gadgets::Gadget& gadget,const Json& rules){
+      const batbox::gadgets::Gadget& gadget,const Json& rules){
     return permission->deniedByRule(gadget.name,"",rules);};
   context.catalogSettings.localeCompare=[](const std::string& a,
       const std::string& b){return a.compare(b);};
   context.assembleGadgets=[roster=roster,settings=context.catalogSettings](
-      const Json& permissions,const gadgets::Gadgets&){
+      const Json& permissions,const batbox::gadgets::Gadgets&){
     return roster->selectCurrent(permissions,settings).gadgets;};
   context.getMcpGadgets=[roster=roster](const app_state::AppStateRef&){
     const auto snapshot=roster->current();
-    return snapshot?snapshot->mcp:gadgets::Gadgets{};};
+    return snapshot?snapshot->mcp:batbox::gadgets::Gadgets{};};
   context.gadgetSnapshotOwner=[roster=roster]{
     return std::static_pointer_cast<const void>(roster->current());};
   context.gadgetPool.localeCompare=context.catalogSettings.localeCompare;
@@ -246,8 +246,8 @@ interactive::context::ContextBindings Host::Impl::makeContextBindings(){
   return context;
 }
 void Host::Impl::rebindRoost(
-    const application_roost::Snapshot& previous,
-    const application_roost::Snapshot& next){
+    const application::roost::Snapshot& previous,
+    const application::roost::Snapshot& next){
   if(!owner.isOwnerThread()||!runtime||!frontend)
     throw std::logic_error("Workspace rebind needs the live application owner");
   if(!runtime->canReplaceConversation())
@@ -260,13 +260,13 @@ void Host::Impl::rebindRoost(
   retiredRoosts.push_back(std::move(retired));
   config.cwd=next.cwd;
   lsp.reset();
-  roster=std::make_shared<gadgets::live_roster::Roster>();
+  roster=std::make_shared<batbox::gadgets::live_roster::Roster>();
   bindStorage();
   bindFileHistory();
   bindRoostProviders();
   if(fileWatcher){
-    fileWatcher->onCwdChanged(runtime::pathToUtf8(previous.cwd),
-      runtime::pathToUtf8(next.cwd)).then(
+    fileWatcher->onCwdChanged(batbox::runtime::pathToUtf8(previous.cwd),
+      batbox::runtime::pathToUtf8(next.cwd)).then(
         [this](const event_loop::Unit*,const std::exception_ptr& error){
           if(error)report(error,"file watcher");});
   }
@@ -279,7 +279,7 @@ void Host::Impl::rebindRoost(
   const auto mcpClients=*context.initialMcpClients;
   frontend->rebindEnvironment(config,poetry,nextCommands->entries(),
     mcpClients,fileHistory);
-  application_runtime::EnvironmentRebind replacement;
+  application::runtime::EnvironmentRebind replacement;
   replacement.config=config;
   replacement.engine=engine->services();
   replacement.notifyLifecycle=[this](const std::string& id,
@@ -298,8 +298,8 @@ void Host::Impl::rebindRoost(
     if(error)log("MCP start failed: "+std::string("connection manager"));
   });
   currentBat.reset();
-  bats::saveStashSafeParams({});
-  inProgressGadgetUseIds=std::make_shared<runtime::OrderedStringSet>();
+  batbox::bats::saveStashSafeParams({});
+  inProgressGadgetUseIds=std::make_shared<batbox::runtime::OrderedStringSet>();
   if(completion)completion->clearPathStash();
   releaseRetiredProviders();
   log("Workspace providers rebound: "+next.cwd.string());
@@ -329,7 +329,7 @@ void Host::Impl::backgroundForUserMessage(){
   userMessagePoll=owner.setTimeout(250,[this]{backgroundForUserMessage();},false);
 }
 void Host::Impl::bindFrontend(){
-  application_runtime::Inputs bindings(owner,view);
+  application::runtime::Inputs bindings(owner,view);
   bindings.config=config;bindings.store=store;
   bindings.initialMessages=std::make_shared<interactive::TurnMessages>();
   bindings.transcriptPersistence.flightId=[flight=flight]{return flight->id();};
@@ -344,11 +344,11 @@ void Host::Impl::bindFrontend(){
       const std::vector<interactive::MessageRef>& slice,
       const std::vector<interactive::MessageRef>& all)
       ->std::optional<std::string>{
-    const auto cleaned=flights::cleanMessagesForLoggingRefs(slice,all,
+    const auto cleaned=batbox::flights::cleanMessagesForLoggingRefs(slice,all,
       flight->project()->imports().cleaning);
     for(auto item=cleaned.rbegin();item!=cleaned.rend();++item){
-      const auto message=runtime::snapshotMessage(*item);
-      if(flights::isChainParticipant(message))
+      const auto message=batbox::runtime::snapshotMessage(*item);
+      if(batbox::flights::isChainParticipant(message))
         return message.at("uuid").get<std::string>();
     }
     return {};
@@ -366,7 +366,7 @@ void Host::Impl::bindFrontend(){
       [&value](const auto& item){return item&&*item==value;});
     if(found!=view.messages.end())view.messages.erase(found);
   };
-  application_flights::RestoreInputs restoreInputs(owner);
+  application::flights::RestoreInputs restoreInputs(owner);
   restoreInputs.config=config;restoreInputs.flight=flight;
   restoreInputs.roost=roost;
   restoreInputs.rebindRoost=[this](const auto& previous,const auto& next){
@@ -437,10 +437,10 @@ void Host::Impl::bindFrontend(){
     bootstrap::handlePlanModeTransition(*flightTransitions,from,to);
     if(from=="plan"&&to!="plan")bootstrap::setHasExitedPlanMode(*flightTransitions,true);
   };
-  restore=application_flights::Restore::create(std::move(restoreInputs));
+  restore=application::flights::Restore::create(std::move(restoreInputs));
   commands=makeCommands();
   if(mcpElicitation)mcpElicitation->attachUi(commands->router()->ui());
-  application_completion::Inputs completionInputs(owner);
+  application::completion::Inputs completionInputs(owner);
   completionInputs.cwd=[roost=roost]{return roost->cwd().string();};
   completionInputs.commands=[this]{
     Json rows=Json::array();
@@ -449,14 +449,14 @@ void Host::Impl::bindFrontend(){
     return rows;
   };
   completionInputs.log=[this](const std::string& value){log(value);};
-  completion=application_completion::Provider::create(
+  completion=application::completion::Provider::create(
     std::move(completionInputs));
   bindings.commands=commands->entries();
   bindings.context=makeContextBindings();
   auto& context=bindings.context;
-  inProgressGadgetUseIds=std::make_shared<runtime::OrderedStringSet>();
+  inProgressGadgetUseIds=std::make_shared<batbox::runtime::OrderedStringSet>();
 
-  application_frontend::Inputs frontendInputs;
+  application::frontend::Inputs frontendInputs;
   frontendInputs.messages=messages.get();
   frontendInputs.poetry=poetry;frontendInputs.flight=flight;
   frontendInputs.permission=permission;
@@ -495,7 +495,7 @@ void Host::Impl::bindFrontend(){
       const bool exhausted=titleFailures->first==id&&titleFailures->second>=2;
       if(!model||id.empty()||titled||exhausted){
         output.resolve(std::nullopt);return output;}
-      auto generate=application_commands::makeFlightTitleGenerator(owner,model,[this]{
+      auto generate=application::commands::makeFlightTitleGenerator(owner,model,[this]{
           const auto chosen=value::property(appState(),"mainLoopModel");
           return chosen.is_string()&&!chosen.get<std::string>().empty()?
             chosen.get<std::string>():config.model;
@@ -510,7 +510,7 @@ void Host::Impl::bindFrontend(){
         try{
           // The Flight may have been cleared or resumed while the query ran.
           if(flight&&flight->id()==id&&!flight->project()->state().currentFlightTitle)
-            application_commands::saveFlightMetadataTitle(*flight,"ai-title",**title).then(
+            application::commands::saveFlightMetadataTitle(*flight,"ai-title",**title).then(
               [this](const event_loop::Unit*,const std::exception_ptr& saveError){
                 if(saveError)log("Flight title could not be saved");});
         }catch(...){log("Flight title could not be saved");}
@@ -522,7 +522,7 @@ void Host::Impl::bindFrontend(){
   frontendInputs.onQueryContextCreated=[this](
       const interactive::InteractiveQueryContext& created){
     currentBat=created.batContext;};
-  application_frontend::IndigenousBashCommandInputs bashInput(owner,*messages);
+  application::frontend::IndigenousBashCommandInputs bashInput(owner,*messages);
   bashInput.storage=storage;
   bashInput.getBashGadget=[this]{
     for(const auto* gadget:currentGadgets())
@@ -530,7 +530,7 @@ void Host::Impl::bindFrontend(){
     throw std::runtime_error("Live Bash tool is unavailable");
   };
   bashInput.getContext=[this]{
-    gadgets::GadgetCallContext call;
+    batbox::gadgets::GadgetCallContext call;
     call.data=Json{{"toolPermissionContext",
       value::property(appState(),"toolPermissionContext")}};
     if(const auto abort=runtime?runtime->activeAbort():nullptr)
@@ -550,20 +550,20 @@ void Host::Impl::bindFrontend(){
     if(statusText.rfind("Bash: ",0)==0)statusText.clear();
     ++view.revision;if(shell)shell->requestRedraw();
   };
-  frontendInputs.bashCommand=application_frontend::makeIndigenousBashCommand(
+  frontendInputs.bashCommand=application::frontend::makeIndigenousBashCommand(
     std::move(bashInput));
   frontendInputs.initialMcpClients=*context.initialMcpClients;
-  frontend=application_frontend::Bundle::bind(bindings,std::move(frontendInputs));
+  frontend=application::frontend::Bundle::bind(bindings,std::move(frontendInputs));
   if(config.print){
     bindings.execution.getQuerySource=[]{return std::string("sdk");};
-    application_cli::Inputs cliInputs(owner);
+    application::cli::Inputs cliInputs(owner);
     cliInputs.input=config.inputFormat=="stream-json"?
-      application_cli::InputFormat::StreamJson:
-      application_cli::InputFormat::Text;
+      application::cli::InputFormat::StreamJson:
+      application::cli::InputFormat::Text;
     cliInputs.output=config.outputFormat=="stream-json"?
-      application_cli::OutputFormat::StreamJson:
-      config.outputFormat=="json"?application_cli::OutputFormat::Json:
-      application_cli::OutputFormat::Text;
+      application::cli::OutputFormat::StreamJson:
+      config.outputFormat=="json"?application::cli::OutputFormat::Json:
+      application::cli::OutputFormat::Text;
     cliInputs.poetry=config.initialPoetry;
     cliInputs.replayUserMessages=config.replayUserMessages;
     cliInputs.verbose=config.verbose;
@@ -578,8 +578,8 @@ void Host::Impl::bindFrontend(){
       for(auto it=current->rbegin();it!=current->rend();++it){
         const auto& message=*it;
         if(!message||value::property(*message,"uuid")!=uuid||
-            !application_frontend::selectableUserMessage(message))continue;
-        return runtime::snapshotMessage(message);
+            !application::frontend::selectableUserMessage(message))continue;
+        return batbox::runtime::snapshotMessage(message);
       }
       return {};
     };
@@ -786,7 +786,7 @@ void Host::Impl::bindFrontend(){
           nextMode!="dontAsk")
         throw std::invalid_argument("Unknown permission mode: "+nextMode);
       const auto current=value::property(appState(),"toolPermissionContext");
-      cli::headless::PermissionControlServices services;
+      batbox::cli::headless::PermissionControlServices services;
       services.isBypassPermissionsModeDisabled=[this]{
         return bypassPermissionsDisabled(config,value::property(appState(),"settings"));};
       services.transcriptClassifierEnabled=[] {return false;};
@@ -808,7 +808,7 @@ void Host::Impl::bindFrontend(){
         return next;};
       Json reply;
       services.enqueue=[&reply](const Json& value){reply=value;};
-      const auto next=cli::headless::handleSetPermissionMode(request,
+      const auto next=batbox::cli::headless::handleSetPermissionMode(request,
         requestId,current,services);
       const bool accepted=value::property(value::property(reply,"response"),
         "subtype")=="success";
@@ -826,7 +826,7 @@ void Host::Impl::bindFrontend(){
       requestExit();};
     cliInputs.report=[this](std::exception_ptr error){report(error,"headless CLI");};
     cliInputs.inputClosed=[this]{if(cron&&cron->headless)cron->headless->closeInput();};
-    cli=application_cli::Adapter::create(std::move(cliInputs));
+    cli=application::cli::Adapter::create(std::move(cliInputs));
     bindings.onTurnRequested=[this](const interactive::TurnRequest& request){
       if(cron&&cron->headless)cron->headless->setRunning(true);
       cli->onTurnRequested(request);
@@ -871,7 +871,7 @@ void Host::Impl::bindFrontend(){
       owner.queueNextTurn([this]{if(commands&&!closing)(void)commands->openUiCommand("providers","not-connected");});
       throw std::runtime_error("No model is connected yet. Pick one in /providers.");
     };
-  runtime=application_runtime::ApplicationRuntime::create(std::move(bindings));
+  runtime=application::runtime::ApplicationRuntime::create(std::move(bindings));
   (void)runtime->queue().subscribe([this]{
     const auto queued=runtime->queue().snapshot();
     userMessageQueued->store(std::any_of(queued->begin(),queued->end(),
@@ -1021,7 +1021,7 @@ void Host::Impl::bindFrontend(){
   theme=std::make_shared<ip::ThemeState>(ip::ThemeStateServices{
       [savedTheme]{return savedTheme;},
       [this,settingsPath=configurationDirectory(config)/"settings.json"](const std::string& value){
-        try{application_config::patchConfigSettings(settingsPath,Json{{"theme",value}});}
+        try{application::config::patchConfigSettings(settingsPath,Json{{"theme",value}});}
         catch(...){
           const auto failure=describeError(std::current_exception());
           log(errorLogLine(failure,"theme settings"));
@@ -1034,7 +1034,7 @@ void Host::Impl::bindFrontend(){
         if(theme)terminal_ftxui::setInlinePalette(ip::inlinePalette(*theme));
         if(shell)shell->requestRedraw();}});
   terminal_ftxui::setInlinePalette(ip::inlinePalette(*theme));
-  application_presentation::Inputs presentInputs;
+  application::presentation::Inputs presentInputs;
   presentInputs.theme=theme.get();
   presentInputs.homeDirectory=homeDirectory;
   // With no endpoints configured, look for local model servers once and
@@ -1059,8 +1059,8 @@ void Host::Impl::bindFrontend(){
   if(config.updateReminder)
     presentInputs.reminder=interactive::presentation_providers::updateReminder(
       runningExecutable());
-  presentInputs.notice=[this,providerNotice,web=application_connectors::webNotice(
-      application_connectors::webAvailability(config))]{
+  presentInputs.notice=[this,providerNotice,web=application::connectors::webNotice(
+      application::connectors::webAvailability(config))]{
     // Once an endpoint profile is in use the provider hint has done its job.
     const auto state=store->getState()->snapshot();
     const auto& selected=value::property(state,"mainLoopModel");
@@ -1127,7 +1127,7 @@ void Host::Impl::bindFrontend(){
     if(!model)return id;
     const auto& profiles=model->config().profiles;
     const auto found=profiles.find(id);
-    return application_model::displayModelLabel(id,
+    return application::model::displayModelLabel(id,
       found==profiles.end()?nullptr:&found->second);
   };
   presentInputs.workingDirectory=[roost=roost]{
@@ -1140,7 +1140,7 @@ void Host::Impl::bindFrontend(){
   };
   presentInputs.statusText=[this]{return statusLine(statusText);};
   presentInputs.log=[this](const std::string& value){log(value);};
-  presentation=application_presentation::Bundle::bind(
+  presentation=application::presentation::Bundle::bind(
     shellInputs,std::move(presentInputs));
   shell=interactive::conversation_shell::Shell::create(std::move(shellInputs));
   shell->attachCommandUi(commands->router()->ui());

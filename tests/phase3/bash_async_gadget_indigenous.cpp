@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include "gadgets/bash/AsyncBashCall.hpp"
 #include "shell/CommandSplitter.hpp"
-#include "missions/shell/Roster.hpp"
+#include "missions/roster/Roster.hpp"
 #include <atomic>
 #include <chrono>
 #include <filesystem>
@@ -29,13 +29,13 @@ int main(){
     Loop loop;
     std::atomic<int> ids{0};std::mutex notificationMutex;
     std::vector<std::string> notifications;
-    shell_missions::Services missionServices;
+    missions::roster::Services missionServices;
     missionServices.nowMs=[] {return 1234LL;};
     missionServices.enqueueNotification=[&](const std::string& message,
       const std::optional<std::string>&){std::lock_guard lock(notificationMutex);
       notifications.push_back(message);};
-    missionServices.onMissionTerminated=[](const shell_missions::MissionRecord&){};
-    auto roster=std::make_shared<shell_missions::Roster>(missionServices);
+    missionServices.onMissionTerminated=[](const missions::roster::MissionRecord&){};
+    auto roster=std::make_shared<missions::roster::Roster>(missionServices);
     shell::FlightConfig config;config.shellPath="/bin/bash";
     config.originalCwd=root.string();config.outputDir=(root/"jobs").string();
     config.maxInlineOutputBytes=100;
@@ -78,11 +78,11 @@ int main(){
       return (root/"results"/(id+".txt")).string();};
     services.registerBackgroundMission=[roster](const std::string& id,
       const std::string& command,const std::string& description,const Json&){
-      shell_missions::MissionRecord record;record.id=id;record.command=command;
+      missions::roster::MissionRecord record;record.id=id;record.command=command;
       record.description=description;roster->adoptBackground(std::move(record));};
     services.registerForegroundMission=[roster](const std::string& id,
       const std::string& command,const std::string& description,const Json&){
-      shell_missions::MissionRecord record;record.id=id;record.command=command;
+      missions::roster::MissionRecord record;record.id=id;record.command=command;
       record.description=description;roster->registerForeground(std::move(record));};
     services.unregisterForegroundMission=[roster](const std::string& id){
       (void)roster->unregisterForeground(id);};
@@ -98,7 +98,7 @@ int main(){
     AsyncMissionHost host;
     host.spawnShellMission=[&](const AsyncRunInput& input,
       const AsyncShellCommand& command,const gadgets::GadgetCallContext&){
-      shell_missions::MissionRecord record;record.id=command.missionId;
+      missions::roster::MissionRecord record;record.id=command.missionId;
       record.command=input.command;
       record.description=input.description.empty()?input.command:input.description;
       record.gadgetUseId=input.gadgetUseId;record.batId=input.batId;
@@ -111,7 +111,7 @@ int main(){
       return roster->backgroundExistingForeground(id);};
     host.registerForeground=[roster](const AsyncRunInput& input,
       const AsyncShellCommand& command,const gadgets::GadgetCallContext&){
-      shell_missions::MissionRecord record;record.id=command.missionId;record.command=input.command;
+      missions::roster::MissionRecord record;record.id=command.missionId;record.command=input.command;
       record.description=input.description.empty()?input.command:input.description;
       roster->registerForeground(std::move(record));return command.missionId;};
     host.unregisterForeground=[roster](const std::string& id,

@@ -85,7 +85,14 @@ struct FunctionHookHost::Run:std::enable_shared_from_this<Run>{
       const auto timeout=call.hook->timeout.value_or(call.timeoutMs);
       combined=CombinedAbort::create(loop,call.signal,std::nullopt,timeout);
       if(combined->aborted()){
-        finish({"cancelled",call.hook});return;
+        // A named local rather than a braced temporary: GCC 13's flow analysis
+        // loses the engaged-flag guard of the empty optional's destructor when
+        // the destructor is inlined from an anonymous argument, and reports a
+        // false-positive -Wmaybe-uninitialized on the unconstructed string
+        // payload. The named object makes the construction visible.
+        FunctionHookResult result{"cancelled",call.hook};
+        finish(std::move(result));
+        return;
       }
       const auto weak=weak_from_this();
       passed.then([weak](const bool* value,const std::exception_ptr& error){

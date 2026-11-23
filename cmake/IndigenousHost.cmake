@@ -6,15 +6,14 @@ add_library(batbox_indigenous_host STATIC
   src/application/HostCron.cpp src/application/HostShellSnapshot.cpp
   src/application/HostRetention.cpp)
 target_link_libraries(batbox_indigenous_host PUBLIC
-  batbox_profiler
   batbox_application_config batbox_application_model
   batbox_application_engine batbox_application_flights
   batbox_application_shell batbox_application_connectors
   batbox_application_poetry batbox_application_bats
   batbox_application_hooks batbox_application_permissions
   batbox_application_gadgets batbox_application_runtime
-  batbox_application_frontend batbox_application_presentation
-  batbox_application_commands batbox_application_restore batbox_application_cli
+  batbox_application_frontend
+  batbox_application_commands batbox_application_cli
   batbox_application_memory batbox_providers batbox_diagnostics
   batbox_cron batbox_cron_gadgets)
 target_compile_options(batbox_indigenous_host PRIVATE -Wall -Wextra -Wpedantic)

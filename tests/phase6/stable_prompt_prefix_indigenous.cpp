@@ -1,4 +1,4 @@
-#include "application_poetry/Provider.hpp"
+#include "application/poetry/Provider.hpp"
 #include "project_recovery/Recovery.hpp"
 #include "runtime/IndigenousPath.hpp"
 #include "runtime/Platform.hpp"
@@ -27,7 +27,7 @@ bool poetryHas(const Prefix& prefix,const std::string& part){
   return false;
 }
 // The two calls the main loop makes before each turn, in its order.
-Prefix prefix(event_loop::Loop& loop,application_poetry::Provider& provider,
+Prefix prefix(event_loop::Loop& loop,application::poetry::Provider& provider,
     const std::string& model="local-model"){
   Prefix result;std::exception_ptr failure;int done=0;
   auto keep=loop.hold();
@@ -52,11 +52,11 @@ std::string head(const Prefix& prefix){
 std::string attachmentText(const Json& attachment){
   return attachment.at("content").at("content").get<std::string>();
 }
-std::shared_ptr<application_poetry::Provider> makeProvider(event_loop::Loop& loop,
+std::shared_ptr<application::poetry::Provider> makeProvider(event_loop::Loop& loop,
     const application::Config& config,Json settings=Json::object()){
-  application_poetry::Inputs inputs;inputs.config=config;
+  application::poetry::Inputs inputs;inputs.config=config;
   inputs.initialSettings=[settings]{return settings;};
-  return std::make_shared<application_poetry::Provider>(loop,std::move(inputs));
+  return std::make_shared<application::poetry::Provider>(loop,std::move(inputs));
 }
 }
 int main(){

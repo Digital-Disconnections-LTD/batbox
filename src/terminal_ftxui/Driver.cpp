@@ -92,8 +92,8 @@ void Driver::startInteractive(){
     throw std::invalid_argument("Interactive resize callback required");
   static const auto metrics=[] {
     auto intl=std::make_shared<intl::Stash>(intl::indigenousServices());
-    auto width=std::make_shared<text_width::StringWidth>(
-      text_width::indigenousServices(intl));
+    auto width=std::make_shared<text_sdk::width::StringWidth>(
+      text_sdk::width::indigenousServices(intl));
     return std::pair{std::move(intl),std::move(width)};
   }();
   installIndigenousStringMetrics(metrics.first,metrics.second);

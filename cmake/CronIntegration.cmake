@@ -15,5 +15,5 @@ add_library(batbox_cron_gadgets
   src/gadgets/cron/CronGadgetSchema.cpp
   src/gadgets/cron/CronGadgetsIndigenous.cpp
 )
-target_link_libraries(batbox_cron_gadgets PUBLIC batbox_cron batbox_core batbox_truncate batbox_bat_context)
+target_link_libraries(batbox_cron_gadgets PUBLIC batbox_cron batbox_core batbox_text_sdk batbox_bat_context)
 target_compile_options(batbox_cron_gadgets PRIVATE -Wall -Wextra -Wpedantic)

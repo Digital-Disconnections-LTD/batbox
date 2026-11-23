@@ -1,7 +1,7 @@
 #include "interactive/conversation_shell/Shell.hpp"
 #include "interactive/presentation_providers/Chrome.hpp"
 #include "interactive/presentation_providers/DefaultBindings.hpp"
-#include "text_width/IndigenousLayout.hpp"
+#include "text_sdk/width/IndigenousLayout.hpp"
 #include "history/References.hpp"
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
@@ -29,9 +29,9 @@ int main(){
   auto submit=std::make_shared<submit::SubmitServices>(
     submit::SubmitServices{loop,guard,queue,catalog});
   auto intl=std::make_shared<intl::Stash>(intl::indigenousServices());
-  auto width=std::make_shared<text_width::StringWidth>(
-    text_width::indigenousServices(intl));
-  auto wrap=text_width::indigenousWrapAnsiModule().wrapAnsi();
+  auto width=std::make_shared<text_sdk::width::StringWidth>(
+    text_sdk::width::indigenousServices(intl));
+  auto wrap=text_sdk::width::indigenousWrapAnsiModule().wrapAnsi();
   messages::Services messageServices;
   messageServices.strictGadgetResultPairing=[]{return false;};
   messageServices.logError=[](const std::string&){};

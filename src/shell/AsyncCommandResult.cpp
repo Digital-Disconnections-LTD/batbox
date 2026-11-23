@@ -24,4 +24,6 @@ event_loop::Deferred<ExecResult> resultOnLoop(event_loop::Loop& loop,
   }catch(...){keep->release();completed.reject(std::current_exception());}
   return completed;
 }
+event_loop::Deferred<ExecResult> resultOnLoop(event_loop::Loop& loop,
+  const CommandHandle& handle){return resultOnLoop(loop,handle.result());}
 } // namespace batbox::shell

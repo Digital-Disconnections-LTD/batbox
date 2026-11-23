@@ -19,10 +19,6 @@ AppStateRef getDefaultAppState(const DefaultAppStateServices& services){
     "AppState attribution import required");
   required(bool(services.shouldEnableThinkingByDefault),
     "AppState thinking default import required");
-  required(bool(services.shouldEnablePoetrySuggestion),
-    "AppState prompt suggestion import required");
-  required(bool(services.idleSpeculationState),
-    "AppState idle speculation identity required");
 
   // Resolve the lazy dependency and short circuit before constructing state.
   const bool plan=services.isPartner()&&services.isPlanModeRequired();
@@ -44,35 +40,11 @@ AppStateRef getDefaultAppState(const DefaultAppStateServices& services){
   set("verbose",false);
   set("mainLoopModel",nullptr);
   set("mainLoopModelForSession",nullptr);
-  undefined("statusLineText");
-  set("expandedView","none");
-  set("isBriefOnly",false);
-  set("showTeammateMessagePreview",false);
-  set("selectedIPAgentIndex",-1);
-  set("viewSelectionMode","none");
-  set("footerSelection",nullptr);
-  undefined("remoteSessionUrl");
-  set("remoteConnectionStatus","connecting");
-  set("remoteBackgroundTaskCount",0);
-  set("replBridgeEnabled",false);
-  set("replBridgeExplicit",false);
-  set("replBridgeOutboundOnly",false);
-  set("replBridgeConnected",false);
-  set("replBridgeSessionActive",false);
-  set("replBridgeReconnecting",false);
-  undefined("replBridgeConnectUrl");
-  undefined("replBridgeSessionUrl");
-  undefined("replBridgeEnvironmentId");
-  undefined("replBridgeSessionId");
-  undefined("replBridgeError");
-  undefined("replBridgeInitialName");
-  set("showRemoteCallout",false);
   Json permission=services.getEmptyGadgetPermissionContext();
   permission["mode"]=plan?"plan":"default";
   state->permissionContext=std::make_shared<value::SharedRecord>(
     value::SharedRecord::fromJson(permission));
   set("toolPermissionContext",std::move(permission));
-  undefined("agent");
   set("agentDefinitions",{{"activeAgents",Json::array()},
     {"allAgents",Json::array()}});
   state->trackedFiles=std::make_shared<runtime::OrderedStringSet>();
@@ -82,37 +54,17 @@ AppStateRef getDefaultAppState(const DefaultAppStateServices& services){
   set("mcp",{{"clients",Json::array()},{"tools",Json::array()},
     {"commands",Json::array()},{"resources",Json::object()},
     {"pluginReconnectKey",0}});
-  set("plugins",{{"enabled",Json::array()},{"disabled",Json::array()},
-    {"commands",Json::array()},{"errors",Json::array()},
-    {"installationStatus",{{"marketplaces",Json::array()},
-      {"plugins",Json::array()}}},{"needsRefresh",false}});
   set("todos",Json::object());
-  set("remoteAgentTaskSuggestions",Json::array());
-  set("notifications",{{"current",nullptr},{"queue",Json::array()}});
-  set("elicitation",{{"queue",Json::array()}});
   set("thinkingEnabled",services.shouldEnableThinkingByDefault());
-  set("promptSuggestionEnabled",services.shouldEnablePoetrySuggestion());
   state->flightHooks=
     std::make_shared<instructions::hooks::runtime::FlightHooksState>();
   set("sessionHooks",Json::object());
-  set("inbox",{{"messages",Json::array()}});
-  set("workerSandboxPermissions",{{"queue",Json::array()},
-    {"selectedIndex",0}});
-  set("pendingWorkerRequest",nullptr);
-  set("pendingSandboxRequest",nullptr);
-  set("promptSuggestion",{{"text",nullptr},{"promptId",nullptr},
-    {"shownAt",0},{"acceptedAt",0},{"generationRequestId",nullptr}});
   fields.setRef("speculation",services.idleSpeculationState);
   set("speculationSessionTimeSavedMs",0);
-  set("skillImprovement",{{"suggestion",nullptr}});
-  set("authVersion",0);
-  set("initialMessage",nullptr);
   if(initialEffort=="low"||initialEffort=="medium"||
       initialEffort=="high"||initialEffort=="max")
     set("effortValue",initialEffort);
   else undefined("effortValue");
-  state->activeOverlays=std::make_shared<runtime::OrderedStringSet>();
-  set("activeOverlays",Json::object());
   set("fastMode",false);
   return state;
 }

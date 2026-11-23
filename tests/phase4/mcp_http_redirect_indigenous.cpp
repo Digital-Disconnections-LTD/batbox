@@ -54,7 +54,8 @@ int main(){
         const int peer=::accept(listener,nullptr,nullptr);
         if(peer<0)return;
         seen.push_back(readRequest(peer));
-        (void)::write(peer,reply.data(),reply.size());
+        [[maybe_unused]] const auto written=::write(peer,reply.data(),reply.size());
+        // best-effort reply; peer may already be gone
         ::close(peer);
       }
     });

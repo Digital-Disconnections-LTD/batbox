@@ -2,11 +2,11 @@
 // uses the production providers: presentation bindings, chrome, the
 // permission provider and the default Gadget view builders.
 #include "GoldenFrame.hpp"
-#include "application_commands/ConnectorsCommand.hpp"
-#include "application_commands/ProvidersCommand.hpp"
-#include "application_gadgets/DefaultInputs.hpp"
-#include "application_permissions/PermissionProvider.hpp"
-#include "application_presentation/Bindings.hpp"
+#include "application/commands/ConnectorsCommand.hpp"
+#include "application/commands/ProvidersCommand.hpp"
+#include "application/gadgets/DefaultInputs.hpp"
+#include "application/permissions/PermissionProvider.hpp"
+#include "application/presentation/Bindings.hpp"
 #include "interactive/conversation_shell/PoetryViewport.hpp"
 #include "interactive/gadget_views/GadgetViewProjection.hpp"
 #include "interactive/message_view/RetainedViews.hpp"
@@ -22,7 +22,7 @@
 
 using namespace batbox;
 using namespace batbox::interactive;
-namespace ap=batbox::application_presentation;
+namespace ap=batbox::application::presentation;
 namespace ip=batbox::interactive::presentation_providers;
 namespace mv=batbox::interactive::message_view;
 namespace gv=batbox::interactive::gadget_views;
@@ -66,8 +66,8 @@ struct Fixture {
   conversation_shell::Imports shell;
   ip::ThemeState theme;
   messages::Services messages;
-  gadgets::Gadget read,edit,bash;
-  gadgets::Gadgets active;
+  batbox::gadgets::Gadget read,edit,bash;
+  batbox::gadgets::Gadgets active;
   std::shared_ptr<ap::Bundle> bundle;
   std::string status;
   explicit Fixture(const std::string& name,std::string cwd="/home/bat/roost",
@@ -78,16 +78,16 @@ struct Fixture {
     state.viewport.columns=80;state.viewport.rows=40;
     messages.strictGadgetResultPairing=[]{return false;};
     messages.logError=[](const std::string&){};
-    const auto file=[](gadgets::Gadget& gadget,const std::string& gadgetName){
+    const auto file=[](batbox::gadgets::Gadget& gadget,const std::string& gadgetName){
       gadget.name=gadgetName;
       gadget.parseInput=[](const Json& input){return input;};
       gadget.userFacingName=[gadgetName](const Json&){return gadgetName;};
       gadget.renderGadgetUseMessage=[gadgetName](const Json& input,const Json&){
-        return application_gadgets::fileGadgetUseView(gadgetName,input,
+        return application::gadgets::fileGadgetUseView(gadgetName,input,
           "/home/bat/roost","/home/bat");};
       gadget.renderGadgetResultMessage=[gadgetName](const Json& output,const Json&,
           const Json& options){
-        return application_gadgets::fileGadgetResultView(gadgetName,output,options,
+        return application::gadgets::fileGadgetResultView(gadgetName,output,options,
           "/home/bat/roost","/home/bat");};
     };
     file(read,"Read");file(edit,"Edit");
@@ -97,7 +97,7 @@ struct Fixture {
     bash.renderGadgetUseMessage=[](const Json& input,const Json&){
       return Json("$ "+input.value("command",std::string{}));};
     bash.renderGadgetResultMessage=[](const Json& output,const Json&,const Json& options){
-      return application_gadgets::shellGadgetResultView(output,options);};
+      return application::gadgets::shellGadgetResultView(output,options);};
     active={&read,&edit,&bash};
     ap::Inputs inputs;
     inputs.theme=&theme;inputs.messageServices=&messages;
@@ -163,27 +163,27 @@ golden::Frame gadgetScene(Fixture& fixture){
   };
   const Json noOptions=Json::object();
   ftxui::Elements rows;
-  rows.push_back(header("Read",application_gadgets::fileGadgetUseView("Read",
+  rows.push_back(header("Read",application::gadgets::fileGadgetUseView("Read",
     {{"file_path","/home/bat/roost/src/lexer.cpp"}},"/home/bat/roost","/home/bat"),true,false));
   std::string content;
   for(int i=1;i<=20;++i)content+="line "+std::to_string(i)+"\tof the lexer\n";
-  rows.push_back(result(application_gadgets::fileGadgetResultView("Read",
+  rows.push_back(result(application::gadgets::fileGadgetResultView("Read",
     {{"type","text"},{"file",{{"filePath","/home/bat/roost/src/lexer.cpp"},
       {"content",content},{"numLines",20},{"startLine",1},{"totalLines",20}}}},
     Json{{"verbose",true}},"/home/bat/roost","/home/bat")));
   rows.push_back(ftxui::text(""));
-  rows.push_back(header("Edit",application_gadgets::fileGadgetUseView("Edit",
+  rows.push_back(header("Edit",application::gadgets::fileGadgetUseView("Edit",
     {{"file_path","/home/bat/roost/src/lexer.cpp"}},"/home/bat/roost","/home/bat"),true,false));
   const Json patch=Json::array({{{"oldStart",11},{"newStart",11},{"lines",Json::array({
     " Token next() {","-  return {pos};","+  // Keep the span.","+  return {pos, span()};"," }"})}}});
-  rows.push_back(result(application_gadgets::fileGadgetResultView("Edit",
+  rows.push_back(result(application::gadgets::fileGadgetResultView("Edit",
     {{"filePath","/home/bat/roost/src/lexer.cpp"},{"structuredPatch",patch}},
     noOptions,"/home/bat/roost","/home/bat")));
   rows.push_back(ftxui::text(""));
   rows.push_back(header("Bash",Json("$ ctest --output-on-failure"),true,false));
   std::string out="\x1b[32mok\x1b[0m\tlexer\n";
   for(int i=1;i<=29;++i)out+="test "+std::to_string(i)+" passed\n";
-  rows.push_back(result(application_gadgets::shellGadgetResultView(
+  rows.push_back(result(application::gadgets::shellGadgetResultView(
     {{"stdout",out},{"stderr","warning: 1 test was slow"},{"interrupted",false}},noOptions)));
   rows.push_back(ftxui::text(""));
   rows.push_back(header("Bash",Json("$ make lint"),false,false));
@@ -196,12 +196,12 @@ golden::Frame permissionScene(Fixture& fixture){
     [&](std::optional<UiRequest> request){if(request)shown=request;},
     [](const CommandDescriptor&,const CommandCompletion&,bool){},
     [](const std::string&){},[](bool){},[](bool){}});
-  application_permissions::PermissionProvider::Inputs inputs(fixture.loop);
+  application::permissions::PermissionProvider::Inputs inputs(fixture.loop);
   inputs.ui=ui;
   inputs.persistAllowRule=[](const std::string&){};
   inputs.workingDirectory=[]{return std::string("/home/bat/roost");};
   inputs.homeDirectory=[]{return std::string("/home/bat");};
-  auto provider=application_permissions::PermissionProvider::create(std::move(inputs));
+  auto provider=application::permissions::PermissionProvider::create(std::move(inputs));
   auto decision=provider->check("Edit",{{"file_path","/home/bat/roost/src/lexer.cpp"},
     {"old_string","  return {pos};\n"},{"new_string","  // Keep the span.\n  return {pos, span()};\n"}},
     Json{{"mode","default"}});
@@ -266,7 +266,7 @@ const char* providersCatalog=R"CAT({"defaults":{"context":131072,"output":16384}
 struct ProvidersScenes {golden::Frame list,key,models,saved;std::string notice;};
 ProvidersScenes providersScenes(Fixture& fixture){
   static const auto catalog=providers::parseCatalog(Json::parse(providersCatalog));
-  application_commands::ProvidersInputs inputs;
+  application::commands::ProvidersInputs inputs;
   inputs.catalog=&catalog;inputs.animate=false;
   inputs.environment=[](const std::string& name)->std::optional<std::string>{
     if(name=="GROQ_API_KEY")return std::string("set");
@@ -307,8 +307,8 @@ ProvidersScenes providersScenes(Fixture& fixture){
   std::optional<UiRequest> shown;
   interactive::CommandUi::Action act;
   std::optional<std::string> finished;
-  application_commands::startProvidersDialog(fixture.loop,
-    application_commands::completeProvidersInputs(std::move(inputs)),
+  application::commands::startProvidersDialog(fixture.loop,
+    application::commands::completeProvidersInputs(std::move(inputs)),
     [&](interactive::CommandCompletion done){finished=done.result.value_or("");},
     [&](std::optional<UiRequest> request,interactive::CommandUi::Action action){
       shown=std::move(request);act=std::move(action);});
@@ -714,7 +714,7 @@ int main(int argc,char** argv){
       const auto welcome=welcomeScene(web);
       check(contains(welcome,"Web search and fetch are not set up · run: batbox setup web")&&
         contains(welcome,"night-owl-7b"),"welcome card must show the web helper notice");
-      namespace ac=application_connectors;
+      namespace ac=application::connectors;
       const std::vector<ac::HelperCheck> helpers{
         {"Scrapling","missing","\"scrapling\" not found",
           "batbox setup web, or set scrapling_command to the scrapling executable",false},
@@ -724,7 +724,7 @@ int main(int argc,char** argv){
       const std::vector<ac::HelperCheck> servers{
         ac::mcpServerCheck("docs","connected",""),
         ac::mcpServerCheck("tickets","failed","Connection closed")};
-      web.state.modal=application_commands::connectorsRequest(helpers,servers);
+      web.state.modal=application::commands::connectorsRequest(helpers,servers);
       auto view=web.view(80,24);
       const auto dialog=golden::render(web.shell.chrome.renderModal(view),80,22);
       web.state.modal.reset();

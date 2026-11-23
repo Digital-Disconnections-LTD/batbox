@@ -62,8 +62,8 @@ SurfacePlan prepareSurface(std::shared_ptr<const PreparedMessageList> prepared,
   result.showTruncated=messages.hasTruncatedMessages;
   result.showAll=o.screen=="transcript"&&o.showAllInTranscript&&
     messages.hiddenMessageCount>0&&!o.disableRenderCap;
-  result.showStreamingText=o.streamingText&&!o.streamingText->empty()&&!o.briefOnly;
-  result.showStreamingThinking=thinkingVisible&&o.streamingThinking&&!o.briefOnly;
+  result.showStreamingText=o.streamingText&&!o.streamingText->empty();
+  result.showStreamingThinking=thinkingVisible&&o.streamingThinking;
   if(o.thinkingInPlace){
     if(result.showStreamingThinking&&!o.streamingThinking->isStreaming){
       for(const auto& message:messages.normalizedMessages){
